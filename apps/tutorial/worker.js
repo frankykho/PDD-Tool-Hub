@@ -11,8 +11,9 @@ export default {
     const req = new Request(request);
     req.headers.delete("if-none-match");
     const res = injectProfile(await env.ASSETS.fetch(req), env);
-    // tema dari Tool Hub hanya untuk halaman yang dibuka di dalamnya; index.html (publik & bahan export) tetap terang
-    if (!/^\/(submit|admin)(\.html)?\/?$/.test(new URL(request.url).pathname) || !(res.headers.get("content-type") || "").includes("text/html")) return res;
+    // tema dari Tool Hub (berlaku hanya di dalam Hub). fetch() dari tombol export (Sec-Fetch-Dest: empty) tidak disisipi,
+    // supaya file tutorial offline tetap bersih
+    if (request.headers.get("sec-fetch-dest") === "empty" || !(res.headers.get("content-type") || "").includes("text/html")) return res;
     return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(TUTORIAL_THEME_CSS), { html: true }); } }).transform(res);
   },
 };

@@ -107,7 +107,10 @@ export default {
     const allowed = Array.isArray(sess.a) ? sess.a : [];
     const tabs = allowed.includes('*') ? Object.keys(TABS) : allowed.filter(t => TABS[t]);
 
-    const res = await env.ASSETS.fetch(request);
+    // tanpa If-None-Match: halaman HTML diubah di bawah, jadi 304 dari aset bisa membuat browser memakai halaman lama
+    const req = new Request(request);
+    if (!/\.[a-z0-9]+$/i.test(path) || path.endsWith('.html')) req.headers.delete('if-none-match');
+    const res = await env.ASSETS.fetch(req);
     const h0 = new Headers(res.headers);
     h0.set('cache-control', 'private, no-store');
     h0.set('content-security-policy', `frame-ancestors 'self' ${hub}`);   // hanya boleh ditampilkan di dalam Tool Hub

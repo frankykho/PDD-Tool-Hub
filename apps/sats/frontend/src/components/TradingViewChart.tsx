@@ -7,6 +7,19 @@ function chartHeight(fullscreen: boolean): number {
   return Math.max(420, Math.min(820, h - 190));
 }
 
+/** Theme chosen in Tool Hub: shared/theme.js sets <html data-theme>; SATS is dark unless it says "light". */
+const pageTheme = (): "light" | "dark" => (document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+
+function usePageTheme(): "light" | "dark" {
+  const [theme, setTheme] = useState(pageTheme);
+  useEffect(() => {
+    const mo = new MutationObserver(() => setTheme(pageTheme()));
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, []);
+  return theme;
+}
+
 /**
  * TradingView Advanced Chart widget (free embed). Pine indicators such as SATS cannot be
  * added to widgets, so SATS levels are shown next to the chart instead.
@@ -30,6 +43,7 @@ export default function TradingViewChart({ code, studies = [] }: { code: string;
   const hostRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [height, setHeight] = useState(() => chartHeight(false));
+  const theme = usePageTheme();
 
   useEffect(() => {
     const onResize = () => setHeight(chartHeight(document.fullscreenElement != null));
@@ -62,11 +76,11 @@ export default function TradingViewChart({ code, studies = [] }: { code: string;
       interval: "D",
       range: "12M",
       timezone: "Asia/Jakarta",
-      theme: "dark",
+      theme,
       style: "1",
       locale: "id",
-      backgroundColor: "#131722",
-      gridColor: "rgba(42, 49, 59, 0.6)",
+      backgroundColor: theme === "light" ? "#ffffff" : "#131722",
+      gridColor: theme === "light" ? "rgba(20, 40, 30, 0.06)" : "rgba(42, 49, 59, 0.6)",
       allow_symbol_change: false,
       hide_volume: false,
       calendar: false,
@@ -78,7 +92,7 @@ export default function TradingViewChart({ code, studies = [] }: { code: string;
       host.innerHTML = "";
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, height, studies.join(",")]);
+  }, [code, height, theme, studies.join(",")]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();

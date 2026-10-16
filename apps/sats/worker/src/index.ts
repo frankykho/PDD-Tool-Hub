@@ -22,6 +22,8 @@ import { STRATEGIES, isStrategyId, type StrategyId } from "./strategies/types";
 import { FUND_DDL } from "./fundamentals/schema";
 import { accessEnabled, authEnabled, ensureAuthSchema, googleEnabled, handleGoogleAuth, handleHubAuth, handlePasswordAuth, hubEnabled, hubUrl, identify, loadMe, passwordEnabled, type AuthEnv, type Me } from "./auth";
 import { profile } from "../../../../shared/profile.js";
+import { themeHead } from "../../../../shared/theme.js";
+import { SATS_THEME_CSS } from "./theme";
 
 interface Env extends AuthEnv {
   screener_db: D1Database;
@@ -474,7 +476,10 @@ async function dispatchEod(env: Env): Promise<void> {
  * (assets.run_worker_first di wrangler.jsonc); JS/CSS/gambar tetap dilayani langsung tanpa memakai kuota worker.
  */
 async function serveAsset(request: Request, env: Env): Promise<Response> {
-  const res = await env.ASSETS.fetch(request);
+  // tanpa If-None-Match: HTML diubah di bawah, jadi 304 dari aset bisa membuat browser memakai halaman lama
+  const req = new Request(request);
+  req.headers.delete("if-none-match");
+  const res = await env.ASSETS.fetch(req);
   let hub = "";
   try {
     hub = env.HUB_URL ? new URL(env.HUB_URL).origin : "";
@@ -483,7 +488,11 @@ async function serveAsset(request: Request, env: Env): Promise<Response> {
   }
   const out = new Response(res.body, res);
   out.headers.set("content-security-policy", `frame-ancestors 'self'${hub ? ` ${hub}` : ""}`);
-  return out;
+  if (!(out.headers.get("content-type") || "").includes("text/html")) return out;
+  out.headers.delete("etag");
+  out.headers.delete("content-length");
+  // tema terang/gelap mengikuti tombol tema Tool Hub (shared/theme.js)
+  return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(SATS_THEME_CSS), { html: true }); } }).transform(out);
 }
 
 // ───────────────────────────── watchlist (per user)
