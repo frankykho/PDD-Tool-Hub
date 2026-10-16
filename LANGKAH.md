@@ -267,7 +267,10 @@ Folder `apps/tutorial/site/images/` berisi tangkapan layar aplikasi lama. Repo i
 
 ### 4e. Kirim kode ke GitHub
 
-1. Atur nama dan email untuk catatan perubahan (commit). Email "noreply" bisa dilihat di GitHub → **Settings** → **Emails**, bentuknya `12345678+username@users.noreply.github.com`.
+1. Atur nama dan email untuk catatan perubahan (commit). Repo ini publik, jadi pakai email "noreply" GitHub supaya email asli Anda tidak terlihat:
+   - Di GitHub, buka foto profil → **Settings** → **Emails**.
+   - Centang **Keep my email addresses private**.
+   - Tepat di bawah centang itu muncul tulisan seperti *"…we will use **12345678+username@users.noreply.github.com**…"*. Itulah email noreply Anda, salin persis.
    ```
    git config user.name "username-github-anda"
    git config user.email "12345678+username@users.noreply.github.com"
@@ -282,7 +285,7 @@ Folder `apps/tutorial/site/images/` berisi tangkapan layar aplikasi lama. Repo i
    ```
    git rebase --root --exec "git commit --amend --reset-author --no-edit"
    ```
-4. Sambungkan ke repo GitHub, lalu kirim. Ganti `frankykho/tool-hub` dengan nama repo Anda:
+4. Sambungkan ke repo GitHub, lalu kirim. **Ganti `frankykho/tool-hub` dengan isi `"repo"` di `profile.json`**, persis sama termasuk huruf besar-kecilnya. Kalau tidak sama, akan muncul `Repository not found`:
    ```
    git remote add origin https://github.com/frankykho/tool-hub.git
    git push -u origin main
