@@ -8,6 +8,8 @@ on:
     #  - 17:17 WIB (10:17 UTC)
     #  - 19:43 WIB (12:43 UTC)
     # Aman dijalankan lebih dari sekali: hasilnya sama (ditimpa), dan concurrency d1-writer membuatnya antre.
+    # Run cadangan TIDAK menulis kalau database sudah berisi tanggal yang sama (worker sudah berhasil): satu run
+    # menulis ±20 ribu baris, sedangkan batas D1 paket gratis 100 ribu baris per hari untuk seluruh akun.
     - cron: "17 10 * * 1-5"
     - cron: "43 12 * * 1-5"
   workflow_dispatch:
@@ -80,6 +82,8 @@ jobs:
 
       - name: Write results to D1 (never overwrite newer data)
         shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
           DB=$(npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "SELECT MAX(as_of_date) AS d FROM sats_latest" \
             | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{const j=JSON.parse(s.slice(s.indexOf('[')));console.log(j[0].results[0].d||'')}catch{console.log('')}})")
@@ -87,6 +91,10 @@ jobs:
           echo "Database as_of: ${DB:-kosong} · hasil run ini: ${NEW:-kosong}"
           if [ -n "$DB" ] && [ -n "$NEW" ] && [[ "$NEW" < "$DB" ]]; then
             echo "::warning::Hasil run ini ($NEW) lebih lama dari isi database ($DB). Tidak ditulis supaya data terbaru tidak tertimpa."
+            exit 0
+          fi
+          if [ "$EVENT" = "schedule" ] && [ -n "$NEW" ] && [ "$NEW" = "$DB" ]; then
+            echo "Run cadangan: database sudah berisi data $DB (run worker berhasil). Tidak ditulis ulang supaya kuota tulis D1 hemat."
             exit 0
           fi
           npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --file=out/eod.sql

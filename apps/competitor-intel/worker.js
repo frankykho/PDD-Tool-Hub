@@ -63,9 +63,15 @@ const CI_DEFAULT_SOURCES = [
   { name: "Cermati Invest", url: "https://invest.cermati.com/pages/promo-insight-investments-management", kind: "APERD/platform" },
   { name: "Bareksa Promo", url: "https://www.bareksa.com/berita/reksa-dana", kind: "APERD/platform" }
 ];
-let ciReady = false;
+let ciReady = false, ciRetryAt = 0;
+// Persiapan tabel ikut MENULIS ke D1. Kalau penulisan ditolak (mis. kuota tulis harian paket gratis habis),
+// halaman tetap bisa menampilkan data; persiapan dicoba lagi 10 menit kemudian.
 async function ciEnsure(env) {
-  if (ciReady) return;
+  if (ciReady || Date.now() < ciRetryAt) return;
+  try { await ciMigrate(env); ciReady = true; }
+  catch (e) { ciRetryAt = Date.now() + 10 * 60e3; console.log('ciEnsure gagal, data tetap dibaca:', e.message); }
+}
+async function ciMigrate(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)`).run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ci_sources (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL UNIQUE, kind TEXT DEFAULT 'APERD/platform', enabled INTEGER DEFAULT 1, last_scan TEXT, last_status TEXT, last_error TEXT)`).run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ci_programs (id TEXT PRIMARY KEY, title TEXT NOT NULL, platform TEXT, manager TEXT, promo_type TEXT, benefit TEXT, min_transaction TEXT, start_date TEXT, end_date TEXT, holding_period TEXT, source_url TEXT NOT NULL, source_id TEXT, discovered_at TEXT NOT NULL, status TEXT DEFAULT 'Perlu verifikasi', notes TEXT, content_hash TEXT UNIQUE, products TEXT, mechanism TEXT, assessment_period TEXT, eligibility TEXT, quota_limits TEXT, participation TEXT, exclusions TEXT, evidence_text TEXT, last_checked TEXT, confidence TEXT, missing_fields TEXT, image_url TEXT, image_source_url TEXT, page_summary TEXT, page_content TEXT)`).run();
@@ -107,7 +113,6 @@ async function ciEnsure(env) {
     }
     await env.DB.prepare("INSERT OR REPLACE INTO meta (k,v) VALUES ('ci_src_seed','2')").run();
   }
-  ciReady = true;
 }
 function ciDecodeEntities(s) {
   return String(s||'').replace(/&nbsp;|&#160;|&#xA0;/gi,' ')
@@ -465,7 +470,8 @@ async function ciApi(req, env, u, me, can, ctx) {
   if (u.pathname === '/api/ci/programs') {
     if (req.method === 'GET') {
       // Promo yang tanggal akhirnya lewat otomatis berstatus "Berakhir"
-      await env.DB.prepare("UPDATE ci_programs SET status='Berakhir' WHERE end_date IS NOT NULL AND end_date < ? AND status IN ('Perlu verifikasi','Aktif')").bind(today).run();
+      // (gagal menulis tidak menghalangi daftar tampil; dicoba lagi saat halaman dimuat berikutnya)
+      try { await env.DB.prepare("UPDATE ci_programs SET status='Berakhir' WHERE end_date IS NOT NULL AND end_date < ? AND status IN ('Perlu verifikasi','Aktif')").bind(today).run(); } catch {}
       const id = u.searchParams.get('id');
       if (id) {
         const r = await env.DB.prepare(`SELECT ${CI_LIST_COLS},page_content,evidence_text FROM ci_programs WHERE id=?`).bind(id).first();
@@ -630,6 +636,7 @@ export default {
       }
       return new Response("Tidak ditemukan", { status: 404 });
     } catch (e) {
+      if (/daily row write limit/i.test(e.message)) return Response.json({ error: "Kuota tulis database harian (paket gratis Cloudflare) sudah habis. Data tetap bisa dilihat; perubahan & scan bisa dijalankan lagi setelah pukul 07.00 WIB." }, { status: 503 });
       return new Response("ERROR: " + e.message, { status: 500 });
     }
   },
