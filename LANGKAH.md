@@ -344,8 +344,10 @@ Di repo GitHub, buka tab **Actions**. Untuk setiap workflow di bawah, klik naman
   ```
   git add -A
   git commit -m "jelaskan perubahannya"
+  git pull --rebase
   git push
   ```
+  `git pull --rebase` wajib dijalankan sebelum `git push`, karena beberapa workflow (PDF, data Story, SATS) otomatis menyimpan hasilnya ke GitHub. Tanpa langkah ini, push akan ditolak dengan pesan `rejected ... (fetch first)`.
   Tool yang berubah otomatis di-deploy. Hasilnya bisa dilihat di tab **Actions** GitHub.
 - **Mengubah `profile.json`** (misalnya ganti logo atau link):
   1. Simpan `profile.json`.
@@ -368,6 +370,7 @@ Di repo GitHub, buka tab **Actions**. Untuk setiap workflow di bawah, klik naman
 | `Unexpected token` saat `deploy.mjs secrets` | Ada salah ketik di `.secrets.json`, biasanya tanda kutip atau koma yang hilang. Periksa baris yang ditunjuk. |
 | `remote origin already exists` (saat `git remote add`) | Jalankan `git remote set-url origin https://github.com/username/nama-repo.git`, lalu `git push -u origin main`. |
 | `Permission to ... denied to <akun-lain>` (403) saat `git push` | Laptop menyimpan login akun GitHub lain. Jalankan `git remote set-url origin https://USERNAME@github.com/USERNAME/NAMA-REPO.git` (ganti USERNAME dengan akun pemilik repo), lalu `git push -u origin main` dan masuk dengan akun pemilik repo. |
+| `! [rejected] main -> main (fetch first)` saat `git push` | GitHub punya commit baru dari workflow. Jalankan `git pull --rebase`, lalu `git push`. |
 | Workflow di GitHub gagal (tanda ✗ merah) | Klik workflow-nya untuk melihat error. Biasanya secret repo (langkah 4b) belum diisi atau salah ketik namanya. |
 | Tutorial menampilkan "Tutorial belum tersambung" | `FIREBASE_SA` belum diisi atau tidak lengkap. Ulangi langkah 3c, lalu jalankan `node scripts/deploy.mjs secrets hub`. |
 | Login Tutorial gagal (`unauthorized-domain`) | Domain belum ditambahkan di Firebase (langkah 5.1). |
