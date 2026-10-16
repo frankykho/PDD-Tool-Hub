@@ -12,6 +12,8 @@
 // Tanpa cron: data & riwayat harian diperbarui saat /data/bonds.json diminta (halaman dibuka).
 
 import { profile, title, profileScript } from "../../shared/profile.js";
+import { themeHead } from "../../shared/theme.js";
+import { BOND_THEME_CSS } from "./theme.js";
 
 /* =========================================================
    LOGIN LEWAT TOOL HUB
@@ -228,7 +230,7 @@ const json = (obj, status = 200, extra = {}) =>
 
 // HTML + judul berawalan brand + window.PROFILE (profil untuk kode klien)
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const html = (env, extra = "") => HTML.replace("<title>Bond Insight</title>", `<title>${esc(title(env, "Bond Insight"))}</title>${profileScript(env)}${extra}`);
+const html = (env, extra = "") => HTML.replace("<title>Bond Insight</title>", `<title>${esc(title(env, "Bond Insight"))}</title>${profileScript(env)}${themeHead(BOND_THEME_CSS)}${extra}`);
 
 const page = (env) =>
   new Response(html(env), {
