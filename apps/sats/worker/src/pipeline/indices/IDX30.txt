@@ -1,0 +1,10 @@
+# name: IDX30
+# effective: 3 Agu 2026 s.d. 30 Okt 2026
+# source: indeks.xlsx (daftar dari Franky, evaluasi mayor BEI Juli 2026)
+#
+# Format: kode saham dipisah spasi / koma / baris baru. Baris diawali # diabaikan.
+# Update tiap evaluasi indeks: ganti isi daftar di bawah, lalu commit.
+
+AADI ADMR ADRO AMRT ANTM ASII BBCA BBNI BBRI BMRI
+BRPT BUMI CPIN DEWA EMTK GOTO ICBP INCO INDF INKP
+JPFA KLBF MBMA MDKA MEDC PGAS PGEO TLKM UNTR UNVR

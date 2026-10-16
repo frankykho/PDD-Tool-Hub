@@ -1,0 +1,86 @@
+name: Data IDX (Wrap & Kalender)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Data yang diambil"
+        type: choice
+        options: [wrap, calendar, lme]
+        default: wrap
+  schedule:
+    # Jadwal GitHub bisa telat berjam-jam, jadi data Wrap TIDAK dijadwalkan di sini:
+    # worker story-data (apps/story-data) yang menyalakan workflow ini tepat 16:50 & 17:25 WIB.
+    # Kalender (data BLS) cukup dijadwalkan dini hari; telat pun masih sebelum pagi.
+    - cron: "0 17 * * 0-4"    # 00:00 WIB Senin–Jumat -> kalender (Morning)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: story-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/story-generator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tentukan mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 17 * * 0-4" ]; then
+            echo "mode=calendar" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=wrap" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Ambil data (${{ steps.mode.outputs.mode }})
+        run: python scripts/fetch_idx_data.py ${{ steps.mode.outputs.mode }}
+
+      - name: Simpan ke repo
+        id: save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/public/
+          git diff --cached --quiet && { echo "Tidak ada perubahan"; exit 0; }
+          git commit -m "data: ${{ steps.mode.outputs.mode }} $(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M') WIB"
+          git pull --rebase
+          git push
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      # Situs Story Generator adalah Worker dengan static assets: data baru di site/public/ baru tampil setelah deploy ulang.
+      # (Commit oleh GITHUB_TOKEN tidak memicu workflow Deploy, jadi deploy dilakukan di sini.)
+      - uses: actions/setup-node@v5
+        if: steps.save.outputs.changed == '1'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Deploy Story Generator
+        if: steps.save.outputs.changed == '1'
+        working-directory: .
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
+        run: |
+          npm ci
+          node scripts/deploy.mjs story

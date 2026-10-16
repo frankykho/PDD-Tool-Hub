@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// =============================================================================
+//  ATURAN KEAMANAN FIRESTORE — Pusat Tutorial Aplikasi
+// =============================================================================
+//  Cara pasang: Firebase Console -> Firestore Database -> Rules -> hapus isi
+//  lama, tempel seluruh file ini, lalu klik Publish.
+//
+//  Siapa admin dan siapa anggota tim sekarang ditentukan di TOOL HUB, bukan
+//  di sini. Saat seseorang membuka form usulan / halaman admin dari Tool Hub,
+//  hub memberinya tiket Firebase berisi peran: "submit" (boleh kirim usulan)
+//  atau "admin" (boleh review & kelola). Aturan di bawah membaca peran itu.
+//  Akun email+password lama di Firebase Authentication tidak punya peran,
+//  jadi otomatis tidak bisa apa-apa lagi.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function role() {
+      return request.auth != null && 'role' in request.auth.token ? request.auth.token.role : '';
+    }
+    function isAdmin() {
+      return role() == 'admin';
+    }
+    // Anggota tim = punya peran dari Tool Hub (admin juga boleh mengirim usulan).
+    function isTeam() {
+      return role() in ['submit', 'admin'];
+    }
+
+    function isShortString(v, minLen, maxLen) {
+      return v is string && v.size() >= minLen && v.size() <= maxLen;
+    }
+
+    // Tutorial yang tayang: semua orang boleh baca, hanya admin yang boleh ubah.
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Usulan tutorial: hanya tim yang sudah login yang boleh MENGIRIM
+    // (dengan format yang benar). Hanya admin yang boleh melihat, mengubah,
+    // atau menghapus.
+    match /pending_topics/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isTeam()
+        && request.resource.data.keys().hasOnly(
+          ['categoryId', 'categoryTitle', 'topicTitle', 'steps', 'submitterName',
+           'submitterUid', 'submitterEmail', 'status', 'createdAt'])
+        && request.resource.data.submitterUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && isShortString(request.resource.data.categoryId, 1, 100)
+        && exists(/databases/$(database)/documents/categories/$(request.resource.data.categoryId))
+        && isShortString(request.resource.data.categoryTitle, 1, 120)
+        && isShortString(request.resource.data.topicTitle, 3, 100)
+        && request.resource.data.steps is list
+        && request.resource.data.steps.size() >= 1
+        && request.resource.data.steps.size() <= 15
+        && isShortString(request.resource.data.submitterName, 1, 60);
+    }
+
+    // Screenshot usulan yang menunggu review. Disimpan tertutup (hanya admin
+    // yang bisa melihat), baru dipindah ke repo GitHub kalau usulan disetujui.
+    match /pending_images/{id} {
+      allow read, delete: if isAdmin();
+      allow create: if isTeam()
+        && request.resource.data.keys().hasOnly(['data', 'mime', 'createdAt'])
+        && request.resource.data.mime in ['image/webp', 'image/jpeg']
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 900000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // Semua koleksi lain tertutup.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

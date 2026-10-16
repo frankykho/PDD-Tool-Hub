@@ -1,0 +1,8 @@
+// Tool Hub: satu pintu login, admin, dan hak akses semua tool.
+// Secret: SSO_SECRET (wajib), GITHUB_TOKEN & FIREBASE_SA (opsional, tab Tutorial). Lihat .secrets.example.json
+{
+  "name": "tool-hub",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "kv_namespaces": [{ "binding": "HUB_KV", "id": "auto" }]
+}

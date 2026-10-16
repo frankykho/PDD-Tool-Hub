@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pusat Tutorial Aplikasi</title>
+<meta name="description" content="Panduan langkah demi langkah menggunakan aplikasi.">
+<meta name="theme-color" content="#14432c">
+<meta property="og:title" content="Pusat Tutorial Aplikasi">
+<meta property="og:description" content="Panduan langkah demi langkah menggunakan aplikasi.">
+<style>
+  :root{
+    --brand-dark: #14432c;
+    --brand-green: #1a5c3a;
+    --brand-emerald: #2ecc71;
+    --brand-emerald-soft: #eafaf1;
+    --ink: #14201a;
+    --sub: #5f7268;
+    --line: #e4ece7;
+    --paper: #ffffff;
+    --bg: #f4f8f5;
+    --focus: #2ecc71;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  html{height:100%;}
+  body{
+    font-family:'Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    min-height:100svh;
+    padding:16px;
+    overflow-y:auto;
+  }
+  button{ font-family:inherit; }
+  :focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
+
+  /* ============ PHONE FRAME (mockup di desktop) ============ */
+  #phone{
+    width:100%;
+    max-width:360px;
+    height:780px;
+    max-height:88vh;
+    max-height:88svh;
+    background:var(--paper);
+    border-radius:34px;
+    box-shadow:0 20px 60px rgba(20,67,44,.18), 0 2px 8px rgba(20,67,44,.08);
+    overflow:hidden;
+    position:relative;
+    border:8px solid #0f2e1e;
+  }
+  #app{position:absolute; inset:0; overflow:hidden;}
+
+  /* Di HP beneran: bingkai dilepas, isi penuh layar */
+  @media (max-width: 480px){
+    body{ padding:0; align-items:stretch; }
+    #phone{
+      width:100%; max-width:100%;
+      height:100vh; height:100dvh;
+      max-height:none;
+      border-radius:0; border:none; box-shadow:none;
+    }
+  }
+
+  /* ============ SCREEN STATE ============ */
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    background:var(--paper);
+    transition: transform .32s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
+  }
+  .screen[data-pos="current"]{ transform:translateX(0); opacity:1; }
+  .screen[data-pos="right"]{ transform:translateX(100%); }
+  .screen[data-pos="left"]{ transform:translateX(-28%); opacity:0; pointer-events:none; }
+  .scroll{ overflow-y:auto; }
+
+  /* ============ HEADER HIJAU (menu & submenu) ============ */
+  .green-head{
+    background:linear-gradient(155deg, var(--brand-dark), var(--brand-green) 70%);
+    color:#fff;
+    position:relative;
+  }
+  .green-head::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:-1px; height:18px;
+    background:var(--paper);
+    border-radius:18px 18px 0 0;
+  }
+  .menu-header{ padding:28px 22px 30px 22px; }
+  .menu-brand{ font-size:12px; font-weight:700; color:#a9e6c4; margin-bottom:6px; }
+  .menu-title{ font-size:24px; font-weight:800; letter-spacing:-.2px; margin:0 0 6px 0; }
+  .menu-desc{ font-size:13px; color:#d6ecdf; line-height:1.5; margin:0 0 14px 0; max-width:300px; }
+
+  .search-box{ position:relative; }
+  .search-box input{
+    width:100%; padding:11px 14px 11px 38px; border:none; border-radius:12px;
+    font-size:14px; font-family:inherit; color:var(--ink); background:#fff;
+  }
+  .search-box input::placeholder{ color:#8a9b92; }
+  .search-box svg{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8a9b92; }
+
+  .list{ padding:16px 18px 10px 18px; display:flex; flex-direction:column; gap:10px; }
+  .list-label{ font-size:12px; color:var(--sub); margin:2px 2px -2px 2px; }
+
+  .row{
+    display:flex; align-items:center; gap:14px; width:100%;
+    padding:14px; border:1px solid var(--line); border-radius:16px;
+    background:var(--paper); cursor:pointer; text-align:left; color:inherit;
+    font:inherit;
+    transition: border-color .15s ease, transform .12s ease;
+  }
+  .row:active{ transform:scale(.98); }
+  .row:hover{ border-color:#c7ddce; }
+  .row-icon{
+    width:44px; height:44px; border-radius:12px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    background:var(--brand-emerald-soft);
+  }
+  .row-body{ flex:1; min-width:0; }
+  .row-title{ font-size:14.5px; font-weight:700; margin-bottom:2px; line-height:1.3; }
+  .row-sub{ font-size:12px; color:var(--sub); line-height:1.4; }
+  .row-chevron{ color:#b5c2bb; font-size:20px; flex:0 0 auto; }
+
+  .skeleton{
+    height:74px; border-radius:16px; border:1px solid var(--line);
+    background:linear-gradient(90deg,#f1f6f3 25%,#e7efea 50%,#f1f6f3 75%);
+    background-size:200% 100%; animation:shimmer 1.4s infinite;
+  }
+  @keyframes shimmer{ to{ background-position:-200% 0; } }
+
+  .state-note{
+    text-align:center; font-size:13px; color:var(--sub); line-height:1.6;
+    padding:24px 16px;
+  }
+  .state-note button{
+    margin-top:10px; border:none; background:var(--brand-green); color:#fff;
+    font-weight:700; font-size:13px; padding:10px 18px; border-radius:10px; cursor:pointer;
+  }
+
+  .btn-suggest{
+    display:block; text-align:center; text-decoration:none;
+    margin:4px 18px 14px 18px; padding:12px; border-radius:14px;
+    background:var(--brand-emerald-soft); color:var(--brand-green);
+    font-size:13px; font-weight:800; border:1px dashed var(--brand-green);
+  }
+
+  .disclaimer{
+    margin:6px 18px 22px 18px; padding:12px 14px;
+    font-size:11px; line-height:1.55; color:var(--sub);
+    background:var(--bg); border-radius:12px;
+  }
+  .disclaimer p{ margin:0; }
+  .disclaimer p + p{ margin-top:6px; }
+
+  /* ============ SUBMENU ============ */
+  .submenu-topbar{
+    padding:16px 16px 26px 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .icon-btn{
+    width:38px; height:38px; border-radius:10px; border:none; background:transparent;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+    font-size:22px; line-height:1; cursor:pointer; color:inherit; margin-left:-6px;
+  }
+  .submenu-heading-title{ font-size:17px; font-weight:800; margin:0; outline:none; }
+  .submenu-heading-sub{ font-size:12px; color:#d6ecdf; margin-top:1px; }
+
+  /* ============ TUTORIAL (SWIPE) ============ */
+  .tut-topbar{
+    padding:12px 12px 10px 16px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper); position:relative; z-index:5;
+  }
+  .tut-heading{ flex:1; min-width:0; }
+  .tut-heading-title{ font-size:15px; font-weight:800; line-height:1.25; margin:0; outline:none; }
+  .tut-heading-sub{ font-size:11.5px; color:var(--sub); margin-top:1px; }
+  .share-btn{
+    border:1px solid var(--line); background:var(--paper); color:var(--brand-green);
+    font-size:12px; font-weight:700; padding:7px 10px; border-radius:10px; cursor:pointer;
+    display:flex; align-items:center; gap:5px; flex:0 0 auto;
+  }
+
+  .progress-row{ display:flex; gap:4px; padding:0 16px 12px 16px; }
+  .progress-seg{ flex:1; height:4px; border-radius:3px; background:var(--line); overflow:hidden; }
+  .progress-seg > i{ display:block; height:100%; width:0; background:var(--brand-emerald); transition:width .25s ease; }
+  .progress-seg.done > i, .progress-seg.active > i{ width:100%; }
+
+  .slides-viewport{ flex:1; position:relative; overflow:hidden; touch-action:pan-y; }
+  .slides-track{ display:flex; height:100%; transition: transform .32s cubic-bezier(.22,.61,.36,1); }
+  .slide{
+    flex:0 0 100%; height:100%;
+    display:flex; flex-direction:column;
+    padding:4px 20px 0 20px;
+    overflow-y:auto;
+  }
+  .slide-image-wrap{
+    width:100%; aspect-ratio:1080 / 1760; flex:0 0 auto;
+    border-radius:20px; overflow:hidden;
+    background:linear-gradient(160deg,#eef5f0,#e2eee6);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; margin-bottom:14px;
+    border:1px solid var(--line);
+  }
+  .slide-image-wrap img{
+    max-width:100%; max-height:100%; width:auto; height:auto;
+    object-fit:contain; display:block; border-radius:20px; cursor:zoom-in;
+  }
+  @media (max-width: 480px){
+    .slide-image-wrap.has-image{
+      aspect-ratio:auto; flex:1 1 auto; min-height:90px;
+      background:none; border:none;
+    }
+  }
+  .slide-image-placeholder{
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    color:#8fa699; padding:20px; text-align:center; font-size:12px; font-weight:600;
+  }
+  .slide-step-tag{
+    position:absolute; top:12px; left:12px;
+    background:rgba(20,67,44,.85); color:#fff; font-size:11px; font-weight:700;
+    padding:5px 10px; border-radius:999px;
+  }
+  .slide-text{ flex:0 0 auto; padding-bottom:14px; }
+  .slide-title{ font-size:17px; font-weight:800; margin:0 0 6px 0; letter-spacing:-.2px; }
+  .slide-desc{ font-size:13.5px; color:#3d5047; line-height:1.6; margin:0; }
+  .slide-end-note{
+    margin-top:12px; font-size:10.5px; line-height:1.5; color:var(--sub);
+    border-top:1px solid var(--line); padding-top:10px;
+  }
+
+  .tut-nav{ display:flex; align-items:center; gap:10px; padding:12px 20px 22px 20px; }
+  .nav-btn{
+    flex:1; padding:13px; border-radius:14px; text-align:center;
+    font-size:14px; font-weight:800; cursor:pointer; border:none;
+    transition: opacity .15s ease, transform .12s ease;
+  }
+  .nav-btn:active{ transform:scale(.98); }
+  .nav-prev{ background:var(--bg); color:var(--ink); flex:0 0 84px; }
+  .nav-prev:disabled{ opacity:.35; cursor:default; }
+  .nav-next{ background:var(--brand-green); color:#fff; }
+
+  /* Tap kiri/kanan untuk pindah langkah; area tengah untuk perbesar gambar */
+  .tap-zone{ position:absolute; top:0; bottom:0; width:22%; z-index:2; cursor:pointer; }
+  .tap-zone.left{ left:0; }
+  .tap-zone.right{ right:0; }
+
+  /* ============ LIGHTBOX GAMBAR ============ */
+  .lightbox{
+    position:fixed; inset:0; z-index:50; background:rgba(8,20,14,.94);
+    display:none; flex-direction:column;
+  }
+  .lightbox.open{ display:flex; }
+  .lightbox-bar{ display:flex; justify-content:flex-end; padding:10px; }
+  .lightbox-close{
+    border:none; background:rgba(255,255,255,.14); color:#fff; font-size:13px; font-weight:700;
+    padding:9px 14px; border-radius:10px; cursor:pointer;
+  }
+  .lightbox-body{ flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; padding:0 10px 16px; touch-action:pinch-zoom pan-x pan-y; }
+  .lightbox-body img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:10px; }
+
+  /* ============ TOAST ============ */
+  .toast{
+    position:absolute; left:50%; bottom:90px; transform:translate(-50%, 20px);
+    background:var(--ink); color:#fff; font-size:12.5px; font-weight:600;
+    padding:10px 14px; border-radius:10px; opacity:0; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease; z-index:20; white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  /* File hasil export (offline) tidak punya fitur yang butuh internet/server */
+  .is-static .live-only{ display:none !important; }
+
+  ::-webkit-scrollbar{ width:0; height:0; }
+
+  @media (prefers-reduced-motion: reduce){
+    .screen, .slides-track, .progress-seg > i, .row, .toast{ transition:none !important; }
+    .skeleton{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="phone">
+  <div id="app">
+
+    <!-- ============ LEVEL 1: KATEGORI ============ -->
+    <section class="screen scroll" id="menu-screen" data-pos="current" aria-labelledby="menu-title">
+      <header class="green-head menu-header">
+        <div class="menu-brand" id="menu-brand">Panduan Aplikasi</div>
+        <h1 class="menu-title" id="menu-title">Pusat Tutorial</h1>
+        <p class="menu-desc">Pilih topik untuk melihat panduan langkah demi langkah. Geser gambar ke kiri atau kanan untuk lanjut.</p>
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <label for="search-input" class="sr-only">Cari tutorial</label>
+          <input type="search" id="search-input" placeholder="Cari tutorial, misalnya: top up" autocomplete="off">
+        </div>
+      </header>
+      <div class="list" id="menu-list" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <div class="disclaimer">
+        <p>Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.</p>
+        <p>Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan untuk membeli atau menjual produk investasi tertentu.</p>
+        <p id="brand-license" hidden></p>
+      </div>
+    </section>
+
+    <!-- ============ LEVEL 2: TOPIK DALAM 1 KATEGORI ============ -->
+    <section class="screen scroll" id="submenu-screen" data-pos="right" aria-labelledby="submenu-title" inert>
+      <header class="green-head submenu-topbar">
+        <button class="icon-btn" id="btn-submenu-back" aria-label="Kembali ke daftar kategori">‹</button>
+        <div>
+          <h2 class="submenu-heading-title" id="submenu-title" tabindex="-1">Kategori</h2>
+          <div class="submenu-heading-sub" id="submenu-sub"></div>
+        </div>
+      </header>
+      <div class="list" id="submenu-list"></div>
+    </section>
+
+    <!-- ============ LEVEL 3: SLIDE TUTORIAL ============ -->
+    <section class="screen" id="tut-screen" data-pos="right" aria-labelledby="tut-title" inert>
+      <div class="tut-topbar">
+        <button class="icon-btn" id="btn-back" aria-label="Kembali ke daftar topik">‹</button>
+        <div class="tut-heading">
+          <h2 class="tut-heading-title" id="tut-title" tabindex="-1">Judul Tutorial</h2>
+          <div class="tut-heading-sub" id="tut-step-label" aria-live="polite"></div>
+        </div>
+        <button class="share-btn live-only" id="btn-share" aria-label="Bagikan link tutorial ini">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+          Bagikan
+        </button>
+      </div>
+      <div class="progress-row" id="progress-row" aria-hidden="true"></div>
+
+      <div class="slides-viewport" id="slides-viewport">
+        <div class="tap-zone left" id="zone-prev" aria-hidden="true"></div>
+        <div class="tap-zone right" id="zone-next" aria-hidden="true"></div>
+        <div class="slides-track" id="slides-track"></div>
+      </div>
+
+      <div class="tut-nav">
+        <button class="nav-btn nav-prev" id="btn-prev">Kembali</button>
+        <button class="nav-btn nav-next" id="btn-next">Lanjut</button>
+      </div>
+    </section>
+
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Gambar diperbesar">
+  <div class="lightbox-bar"><button class="lightbox-close" id="lightbox-close">Tutup</button></div>
+  <div class="lightbox-body"><img id="lightbox-img" alt=""></div>
+</div>
+
+<script type="module">
+/* Nama aplikasi & perusahaan dari profil (disisipkan worker sebagai window.PROFILE). Kosong = teks netral. */
+const PROFILE = window.PROFILE || {};
+const APP_NAME = (PROFILE.app && PROFILE.app.name) || '';
+const HUB_URL = String((PROFILE.urls && PROFILE.urls.hub) || '').replace(/\/+$/, '');
+{
+  const b = PROFILE.brand || {}, strip = (t) => String(t || '').trim().replace(/\.+$/, '');
+  const line = [strip(b.company), strip(b.license)].filter(Boolean).join('. ');
+  if(APP_NAME){
+    document.title = `Pusat Tutorial ${APP_NAME}`;
+    document.getElementById('menu-brand').textContent = `Panduan ${APP_NAME}`;
+  }
+  if(line){ const el = document.getElementById('brand-license'); el.textContent = line + '.'; el.hidden = false; }
+}
+// Di dalam Tool Hub: beri tahu dashboard alamat halaman yang sedang dibuka, supaya tombol "Bagikan link" di sana menyalin link tutorial yang tepat.
+if (window.parent !== window && HUB_URL) {
+  const tell = () => parent.postMessage({ hubShareUrl: location.href }, new URL(HUB_URL).origin);
+  ['pushState', 'replaceState'].forEach(k => { const o = history[k]; history[k] = function () { const r = o.apply(this, arguments); tell(); return r; }; });
+  addEventListener('hashchange', tell); addEventListener('popstate', tell); tell();
+}
+/* =============================================================================
+   SUMBER DATA
+   - Normal (worker tutorial): data live dari Firestore.
+   - File hasil "Export HTML" dari admin: data ditanam di
+     window.TUTORIAL_STATIC_DATA, jadi bisa dibuka offline tanpa Firebase.
+   ============================================================================= */
+const STATIC_DATA = window.TUTORIAL_STATIC_DATA;
+const IS_STATIC = Array.isArray(STATIC_DATA);
+if(IS_STATIC) document.documentElement.classList.add('is-static');
+
+let CATEGORIES = [];
+let dataLoaded = false;
+
+/* ========================= UTIL KEAMANAN =========================
+   Semua teks dari database di-escape sebelum masuk HTML, karena isi
+   tutorial bisa berasal dari form usulan publik. */
+function esc(str){
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function safeUrl(url){
+  if(!url || !String(url).trim()) return '';
+  try{
+    const u = new URL(String(url || ''), location.href);
+    return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : '';
+  }catch(_){ return ''; }
+}
+function safeColor(c){
+  const s = String(c || '').trim();
+  return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i.test(s) ? s : '';
+}
+function formatDesc(str){
+  return esc(str)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+function normalize(str){
+  return String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function slideText(s){ return s.text !== undefined ? s.text : (s.desc || ''); }
+
+/* ========================= ELEMEN ========================= */
+const $ = (id) => document.getElementById(id);
+const menuScreen = $('menu-screen');
+const submenuScreen = $('submenu-screen');
+const tutScreen = $('tut-screen');
+const menuList = $('menu-list');
+const submenuList = $('submenu-list');
+const searchInput = $('search-input');
+const slidesTrack = $('slides-track');
+const progressRow = $('progress-row');
+const btnPrev = $('btn-prev');
+const btnNext = $('btn-next');
+const viewport = $('slides-viewport');
+
+let currentCategory = null;
+let currentTutorial = null;
+let currentIndex = 0;
+
+/* ========================= ROUTING (link bisa dibagikan) =========================
+   #/k/<idKategori>                 -> daftar topik
+   #/k/<idKategori>/<idTopik>/<n>   -> tutorial, langsung ke langkah n
+   Tombol "back" di HP/browser ikut berfungsi. */
+function parseHash(){
+  const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  if(parts[0] !== 'k') return {};
+  return { catId: parts[1], topicId: parts[2], step: parseInt(parts[3], 10) };
+}
+function buildHash(catId, topicId, step){
+  let h = '#/k/' + encodeURIComponent(catId);
+  if(topicId) h += '/' + encodeURIComponent(topicId) + '/' + (step || 1);
+  return h;
+}
+function navigate(hash){
+  const depth = (history.state && history.state.depth) || 0;
+  history.pushState({ depth: depth + 1 }, '', hash);
+  applyRoute();
+}
+function goUp(parentHash){
+  if(history.state && history.state.depth){
+    history.back();
+  }else{
+    history.replaceState(null, '', parentHash || location.pathname + location.search);
+    applyRoute();
+  }
+}
+window.addEventListener('popstate', applyRoute);
+
+function setScreens(level){
+  // level: 1 = menu, 2 = submenu, 3 = tutorial
+  menuScreen.dataset.pos = level === 1 ? 'current' : 'left';
+  submenuScreen.dataset.pos = level === 2 ? 'current' : (level === 3 ? 'left' : 'right');
+  tutScreen.dataset.pos = level === 3 ? 'current' : 'right';
+  menuScreen.inert = level !== 1;
+  submenuScreen.inert = level !== 2;
+  tutScreen.inert = level !== 3;
+}
+
+let lastLevel = 1;
+function applyRoute(){
+  if(!dataLoaded) return;
+  const { catId, topicId, step } = parseHash();
+  const cat = CATEGORIES.find(c => c.id === catId);
+  const topic = cat && (cat.items || []).find(t => t.id === topicId);
+
+  if(cat && topic){
+    const sameTopic = currentTutorial && currentTutorial.id === topic.id && lastLevel === 3;
+    currentCategory = cat;
+    renderSubmenu(cat);
+    if(!sameTopic) openTutorial(topic);
+    const target = Number.isFinite(step) ? step - 1 : 0;
+    if(target !== currentIndex || !sameTopic) goToSlide(target, sameTopic);
+    setScreens(3);
+    if(lastLevel !== 3) focusLater($('tut-title'));
+    lastLevel = 3;
+    return;
+  }
+  if(cat){
+    currentCategory = cat;
+    renderSubmenu(cat);
+    setScreens(2);
+    if(lastLevel !== 2) focusLater($('submenu-title'));
+    lastLevel = 2;
+    return;
+  }
+  if(catId){
+    // link lama / topik sudah dihapus
+    history.replaceState(null, '', location.pathname + location.search);
+    showToast('Tutorial tidak ditemukan, mungkin sudah diperbarui');
+  }
+  setScreens(1);
+  lastLevel = 1;
+}
+function focusLater(el){
+  setTimeout(() => el && el.focus({ preventScroll:true }), 330);
+}
+
+/* ========================= LEVEL 1: KATEGORI + PENCARIAN ========================= */
+function rowHtml({ icon, tint, title, sub }){
+  const bg = safeColor(tint);
+  return `
+    <div class="row-icon"${bg ? ` style="background:${bg}"` : ''} aria-hidden="true">${esc(icon || '📄')}</div>
+    <div class="row-body">
+      <div class="row-title">${esc(title)}</div>
+      ${sub ? `<div class="row-sub">${esc(sub)}</div>` : ''}
+    </div>
+    <div class="row-chevron" aria-hidden="true">›</div>`;
+}
+
+function renderMenu(){
+  const q = normalize(searchInput.value.trim());
+  menuList.innerHTML = '';
+
+  if(!q){
+    if(CATEGORIES.length === 0){
+      menuList.innerHTML = '<div class="state-note">Belum ada tutorial yang tayang.</div>';
+      return;
+    }
+    CATEGORIES.forEach(cat => {
+      const n = (cat.items || []).length;
+      const btn = document.createElement('button');
+      btn.className = 'row';
+      btn.innerHTML = rowHtml({
+        icon: cat.icon, tint: cat.tint, title: cat.title,
+        sub: cat.desc || `${n} topik`
+      });
+      btn.addEventListener('click', () => navigate(buildHash(cat.id)));
+      menuList.appendChild(btn);
+    });
+    return;
+  }
+
+  // Mode pencarian: cari judul topik & isi langkahnya di semua kategori
+  const results = [];
+  CATEGORIES.forEach(cat => (cat.items || []).forEach(t => {
+    const hay = normalize(t.title + ' ' + (t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
+    if(hay.includes(q)) results.push({ cat, t });
+  }));
+
+  if(results.length === 0){
+    menuList.innerHTML = `<div class="state-note">Tidak ada tutorial untuk "${esc(searchInput.value.trim())}". Coba kata lain, atau usulkan tutorial baru di bawah.</div>`;
+    return;
+  }
+  const label = document.createElement('div');
+  label.className = 'list-label';
+  label.textContent = `${results.length} tutorial ditemukan`;
+  menuList.appendChild(label);
+  results.forEach(({ cat, t }) => {
+    const btn = document.createElement('button');
+    btn.className = 'row';
+    btn.innerHTML = rowHtml({
+      icon: cat.icon, tint: cat.tint, title: t.title,
+      sub: `${cat.title} · ${(t.slides || []).length} langkah`
+    });
+    btn.addEventListener('click', () => navigate(buildHash(cat.id, t.id, 1)));
+    menuList.appendChild(btn);
+  });
+}
+searchInput.addEventListener('input', renderMenu);
+
+/* ========================= LEVEL 2: TOPIK ========================= */
+function renderSubmenu(cat){
+  const items = cat.items || [];
+  $('submenu-title').textContent = cat.title;
+  $('submenu-sub').textContent = `${items.length} topik tutorial`;
+  submenuList.innerHTML = '';
+  if(items.length === 0){
+    submenuList.innerHTML = '<div class="state-note">Belum ada topik di kategori ini.</div>';
+    return;
+  }
+  items.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'row';
+    btn.innerHTML = rowHtml({
+      icon: '📄', tint: cat.tint, title: t.title,
+      sub: `${(t.slides || []).length} langkah`
+    });
+    btn.addEventListener('click', () => navigate(buildHash(cat.id, t.id, 1)));
+    submenuList.appendChild(btn);
+  });
+}
+$('btn-submenu-back').addEventListener('click', () => goUp(''));
+
+/* ========================= LEVEL 3: SLIDE ========================= */
+function openTutorial(topic){
+  currentTutorial = topic;
+  currentIndex = -1;
+  $('tut-title').textContent = topic.title;
+  buildSlides();
+  buildProgress();
+}
+function closeTutorial(){ goUp(buildHash(currentCategory.id)); }
+
+function buildSlides(){
+  const slides = currentTutorial.slides || [];
+  const total = slides.length;
+  slidesTrack.innerHTML = '';
+  slides.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'slide';
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', `Langkah ${i + 1} dari ${total}`);
+    const img = safeUrl(s.image);
+    const alt = s.title ? `Langkah ${i + 1}: ${s.title}` : `Screenshot langkah ${i + 1}`;
+    const imgHtml = img
+      ? `<img src="${esc(img)}" alt="${esc(alt)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom>`
+      : `<div class="slide-image-placeholder" aria-hidden="true"><div style="font-size:28px">🖼️</div>Gambar untuk langkah ini belum tersedia</div>`;
+    const textHtml = s.text !== undefined
+      ? `<p class="slide-desc">${formatDesc(s.text)}</p>`
+      : `<h3 class="slide-title">${esc(s.title)}</h3><p class="slide-desc">${formatDesc(s.desc)}</p>`;
+    const endNote = i === total - 1
+      ? `<p class="slide-end-note">Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Materi ini bersifat edukasi, bukan ajakan membeli atau menjual.</p>`
+      : '';
+    el.innerHTML = `
+      <div class="slide-image-wrap${img ? ' has-image' : ''}">
+        <div class="slide-step-tag" aria-hidden="true">${i + 1} / ${total}</div>
+        ${imgHtml}
+      </div>
+      <div class="slide-text">${textHtml}${endNote}</div>`;
+    slidesTrack.appendChild(el);
+    const imgEl = el.querySelector('img[data-zoom]');
+    if(imgEl) watchImage(imgEl);
+  });
+}
+
+/* Gambar yang baru disetujui butuh ±2–3 menit sampai worker tutorial selesai di-deploy ulang.
+   Kalau gagal dimuat, tampilkan keterangan lalu coba lagi otomatis. */
+function watchImage(img){
+  let tries = 0;
+  const original = img.src;
+  img.addEventListener('error', () => {
+    const wrap = img.closest('.slide-image-wrap');
+    if(tries === 0 && wrap){
+      img.style.display = 'none';
+      const note = document.createElement('div');
+      note.className = 'slide-image-placeholder';
+      note.innerHTML = '<div style="font-size:26px">⏳</div>Gambar sedang disiapkan, tunggu sebentar';
+      wrap.appendChild(note);
+      img._note = note;
+    }
+    if(tries++ < 20) setTimeout(() => { img.src = original + (original.includes('?') ? '&' : '?') + 'r=' + tries; }, 15000);
+  });
+  img.addEventListener('load', () => {
+    if(img._note){ img._note.remove(); img._note = null; img.style.display = ''; }
+  });
+}
+
+function buildProgress(){
+  progressRow.innerHTML = '';
+  (currentTutorial.slides || []).forEach(() => {
+    const seg = document.createElement('div');
+    seg.className = 'progress-seg';
+    seg.innerHTML = '<i></i>';
+    progressRow.appendChild(seg);
+  });
+}
+
+function goToSlide(index, animate = true){
+  const total = (currentTutorial.slides || []).length;
+  const max = Math.max(0, total - 1);
+  currentIndex = Math.max(0, Math.min(max, index));
+  slidesTrack.style.transition = animate ? '' : 'none';
+  slidesTrack.style.transform = `translateX(-${currentIndex * 100}%)`;
+  if(!animate) requestAnimationFrame(() => { slidesTrack.style.transition = ''; });
+
+  [...progressRow.children].forEach((seg, i) => {
+    seg.classList.toggle('done', i < currentIndex);
+    seg.classList.toggle('active', i === currentIndex);
+  });
+  [...slidesTrack.children].forEach((slide, i) => {
+    slide.inert = i !== currentIndex;
+    if(i === currentIndex) slide.scrollTop = 0;
+    // muat duluan gambar langkah berikutnya biar tidak nunggu saat digeser
+    if(Math.abs(i - currentIndex) === 1){
+      const im = slide.querySelector('img[loading="lazy"]');
+      if(im) im.loading = 'eager';
+    }
+  });
+  $('tut-step-label').textContent = `Langkah ${currentIndex + 1} dari ${total}`;
+  btnPrev.disabled = currentIndex === 0;
+  btnNext.textContent = currentIndex === max ? 'Selesai' : 'Lanjut';
+
+  // simpan posisi langkah di link tanpa menambah riwayat "back"
+  const h = buildHash(currentCategory.id, currentTutorial.id, currentIndex + 1);
+  if(location.hash !== h) history.replaceState(history.state, '', h);
+}
+
+function next(){
+  const max = (currentTutorial.slides || []).length - 1;
+  if(currentIndex >= max) closeTutorial();
+  else goToSlide(currentIndex + 1);
+}
+function prev(){ if(currentIndex > 0) goToSlide(currentIndex - 1); }
+
+btnNext.addEventListener('click', next);
+btnPrev.addEventListener('click', prev);
+$('zone-next').addEventListener('click', () => {
+  if(currentIndex < (currentTutorial.slides || []).length - 1) goToSlide(currentIndex + 1);
+});
+$('zone-prev').addEventListener('click', prev);
+$('btn-back').addEventListener('click', closeTutorial);
+
+document.addEventListener('keydown', (e) => {
+  if(lightbox.classList.contains('open')){
+    if(e.key === 'Escape') closeLightbox();
+    return;
+  }
+  if(e.target.matches('input, textarea')) return;
+  if(tutScreen.dataset.pos === 'current'){
+    if(e.key === 'ArrowRight') { e.preventDefault(); if(currentIndex < currentTutorial.slides.length - 1) goToSlide(currentIndex + 1); }
+    else if(e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    else if(e.key === 'Escape') closeTutorial();
+  }else if(submenuScreen.dataset.pos === 'current' && e.key === 'Escape'){
+    goUp('');
+  }
+});
+
+/* ---------- geser (swipe) — horizontal saja, scroll vertikal tetap normal ---------- */
+let startX = 0, startY = 0, deltaX = 0, dragging = false, axis = null;
+
+function dragStart(x, y){ dragging = true; axis = null; startX = x; startY = y; deltaX = 0; }
+function dragMove(x, y){
+  if(!dragging) return;
+  const dx = x - startX, dy = y - startY;
+  if(!axis){
+    if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if(axis === 'x') slidesTrack.style.transition = 'none';
+  }
+  if(axis !== 'x') return;
+  deltaX = dx;
+  const total = currentTutorial.slides.length;
+  // efek "karet" di langkah pertama/terakhir
+  const atEdge = (currentIndex === 0 && dx > 0) || (currentIndex === total - 1 && dx < 0);
+  const offset = atEdge ? dx * 0.3 : dx;
+  slidesTrack.style.transform = `translateX(${-currentIndex * viewport.clientWidth + offset}px)`;
+}
+function dragEnd(){
+  if(!dragging) return;
+  dragging = false;
+  if(axis !== 'x') return;
+  slidesTrack.style.transition = '';
+  const threshold = viewport.clientWidth * 0.18;
+  if(deltaX < -threshold) goToSlide(currentIndex + 1);
+  else if(deltaX > threshold) goToSlide(currentIndex - 1);
+  else goToSlide(currentIndex);
+  suppressClick = Math.abs(deltaX) > 8;
+}
+let suppressClick = false;
+viewport.addEventListener('click', (e) => {
+  if(suppressClick){ e.stopPropagation(); e.preventDefault(); suppressClick = false; }
+}, true);
+
+viewport.addEventListener('touchstart', e => dragStart(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
+viewport.addEventListener('touchmove', e => dragMove(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
+viewport.addEventListener('touchend', dragEnd);
+viewport.addEventListener('touchcancel', dragEnd);
+viewport.addEventListener('mousedown', e => { if(e.button === 0){ dragStart(e.clientX, e.clientY); e.preventDefault(); } });
+window.addEventListener('mousemove', e => { if(dragging) dragMove(e.clientX, e.clientY); });
+window.addEventListener('mouseup', dragEnd);
+
+/* ---------- perbesar gambar ---------- */
+const lightbox = $('lightbox');
+const lightboxImg = $('lightbox-img');
+let lightboxReturnFocus = null;
+slidesTrack.addEventListener('click', (e) => {
+  const img = e.target.closest('img[data-zoom]');
+  if(!img) return;
+  lightboxReturnFocus = document.activeElement;
+  lightboxImg.src = img.src;
+  lightboxImg.alt = img.alt;
+  lightbox.classList.add('open');
+  $('lightbox-close').focus();
+});
+function closeLightbox(){
+  lightbox.classList.remove('open');
+  lightboxImg.removeAttribute('src');
+  if(lightboxReturnFocus) lightboxReturnFocus.focus();
+}
+$('lightbox-close').addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', (e) => { if(e.target === lightbox || e.target.classList.contains('lightbox-body')) closeLightbox(); });
+
+/* ---------- bagikan link tutorial ---------- */
+const toast = $('toast');
+let toastTimer = null;
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+$('btn-share').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + buildHash(currentCategory.id, currentTutorial.id, 1);
+  const title = `Tutorial${APP_NAME ? ' ' + APP_NAME : ''}: ${currentTutorial.title}`;
+  if(navigator.share){
+    try{ await navigator.share({ title, url }); return; }catch(err){ if(err.name === 'AbortError') return; }
+  }
+  try{
+    await navigator.clipboard.writeText(url);
+    showToast('Link tutorial disalin');
+  }catch(_){
+    prompt('Salin link ini:', url);
+  }
+});
+
+/* ========================= MUAT DATA ========================= */
+function setData(list){
+  CATEGORIES = (list || []).map(c => ({ ...c, items: Array.isArray(c.items) ? c.items : [] }));
+  dataLoaded = true;
+  renderMenu();
+  // kalau tutorial yang sedang dibuka sudah dihapus admin, applyRoute akan kembali ke menu
+  if(currentTutorial){
+    const cat = CATEGORIES.find(c => c.id === currentCategory?.id);
+    const fresh = cat && cat.items.find(t => t.id === currentTutorial.id);
+    if(fresh && JSON.stringify(fresh) !== JSON.stringify(currentTutorial)){
+      const keep = currentIndex;
+      currentCategory = cat;
+      openTutorial(fresh);
+      goToSlide(keep, false);
+    }
+  }
+  applyRoute();
+}
+
+function showLoadError(){
+  menuList.innerHTML = `
+    <div class="state-note">
+      Tutorial belum bisa dimuat. Periksa koneksi internet kamu, lalu coba lagi.<br>
+      <button type="button" onclick="location.reload()">Muat ulang</button>
+    </div>`;
+}
+
+if(IS_STATIC){
+  setData(STATIC_DATA);
+}else{
+  try{
+    const [{ initializeApp }, fs, { firebaseConfig }] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js'),
+      import('./firebase-config.js')
+    ]);
+    const db = fs.getFirestore(initializeApp(firebaseConfig));
+    fs.onSnapshot(
+      fs.query(fs.collection(db, 'categories'), fs.orderBy('order')),
+      (snap) => setData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (err) => { console.error('Gagal memuat data tutorial:', err); if(!dataLoaded) showLoadError(); }
+    );
+  }catch(err){
+    console.error(err);
+    showLoadError();
+  }
+}
+</script>
+</body>
+</html>

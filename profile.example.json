@@ -1,0 +1,51 @@
+// Salin menjadi profile.json lalu isi. profile.json TIDAK masuk repo (lihat .gitignore).
+// Semua kolom boleh kosong: bagian yang kosong disembunyikan dan tampilan tetap netral.
+// Untuk GitHub Actions: simpan seluruh isi profile.json sebagai secret repo bernama PROFILE_JSON.
+{
+  // subdomain workers.dev akun Cloudflare (dashboard -> Workers & Pages -> "Subdomain"), mis. "nama-anda".
+  // Alamat tool menjadi https://<nama-tool>.<subdomain>.workers.dev
+  "subdomain": "",
+
+  // opsional: ganti alamat tool tertentu, mis. domain sendiri: { "hub": "https://hub.domainanda.com" }
+  "urls": {},
+
+  // email admin utama Tool Hub (otomatis admin di semua tool)
+  "admins": ["anda@contoh.com"],
+
+  // repo GitHub PUBLIK proyek ini, format "pemilik/nama-repo" (PDF, data Story, gambar Tutorial, workflow)
+  "github": { "repo": "", "branch": "main" },
+
+  "brand": {
+    "short": "",        // awalan nama produk, mis. "Acme" -> "Acme Morning"; kosong = tanpa awalan
+    "company": "",      // nama perusahaan di footer, PDF, disclaimer
+    "license": "",      // baris izin, mis. "Berizin dan diawasi OJK"
+    "disclaimer": "",   // disclaimer tambahan
+    "logo": "",         // URL logo latar terang (harus boleh diakses lintas situs/CORS agar ikut tergambar di PNG Story)
+    "logoDark": "",     // URL logo latar gelap
+    "team": "",         // penanda tangan email, mis. "Tim Investment Specialist"
+    "hashtags": ""      // tagar awal caption, mis. "#Acme #Investasi"
+  },
+
+  // aplikasi transaksi yang dipromosikan (langkah beli, QR, tombol unduh); kosong = bagian itu disembunyikan
+  "app": { "name": "", "logo": "", "ios": "", "android": "", "download": "" },
+
+  "contact": {
+    "website": "", "phone": "", "email": "", "whatsapp": "", "waChannel": "",
+    "instagram": "", "tiktok": "", "youtube": "", "facebook": "", "linkedin": ""
+  },
+
+  // sumber data
+  "sources": {
+    "bondApi": "",      // API JSON daftar obligasi (Bond Insight, Story Bond Picks)
+    "bondPage": "",     // halaman produk obligasi (label sumber & header Referer/Origin)
+    "bondDocBase": "",  // opsional: awalan link dokumen obligasi; kosong = <origin bondApi>/storage/
+    "foreignLens": ""   // opsional: alamat aplikasi Foreign Lens (Story Halftime/Wrap); kosong = isi manual
+  },
+
+  // pengaturan khusus per tool
+  "tools": {
+    "story": { "bondLink": "" },   // link CTA Weekly Bond Picks
+    "email": { "icons": { "play": "", "app": "", "fb": "", "ig": "", "wach": "", "tiktok": "", "yt": "" } },  // URL gambar ikon footer; kosong = teks
+    "tutorial": { "firebase": {} } // firebaseConfig proyek Firebase Tutorial (apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId)
+  }
+}

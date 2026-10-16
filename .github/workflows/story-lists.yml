@@ -1,0 +1,56 @@
+name: Update daftar saham & RD
+
+# Jalan otomatis setiap kali site/data/Daftar_Saham_IDX.xlsx atau site/data/RD_list.xlsx di Story Generator di-push/diubah.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/story-generator/site/data/Daftar_Saham_IDX.xlsx"
+      - "apps/story-generator/site/data/RD_list.xlsx"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/story-generator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl
+      - run: python scripts/update_lists.py
+      - name: Simpan ke repo
+        id: save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/stocks.js site/data/rd_list.js
+          git diff --cached --quiet && exit 0
+          git commit -m "data: perbarui daftar saham & RD"
+          git pull --rebase
+          git push
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      # Situs Story Generator adalah Worker dengan static assets: file data baru tampil setelah deploy ulang.
+      # (Commit oleh GITHUB_TOKEN tidak memicu workflow Deploy, jadi deploy dilakukan di sini.)
+      - uses: actions/setup-node@v5
+        if: steps.save.outputs.changed == '1'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Deploy Story Generator
+        if: steps.save.outputs.changed == '1'
+        working-directory: .
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
+        run: |
+          npm ci
+          node scripts/deploy.mjs story

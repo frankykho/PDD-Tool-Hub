@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+Thumbs.db
+
+# data pribadi & hasil deploy (jangan masuk repo publik)
+profile.json
+.secrets.json
+.secrets.tmp.json
+wrangler.deploy.json
+.dry/
+.migrate/
+NILAI-LAMA.md

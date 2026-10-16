@@ -1,0 +1,95 @@
+//@version=6
+// Follow Line + MACD Shield V10 — V9 UNIVERSAL + perbaikan logika (parameter TIDAK diubah).
+// Aturan sama persis dengan engine dashboard (worker/src/strategies/followline10.ts):
+//   [V10-1] Follow Line di-reset saat tren berbalik (V9 membawa garis lama).
+//   [V10-2] Exit memakai KONDISI close < garis (+ filter mode), bukan kejadian crossunder satu bar.
+//   [V10-3] Exit juga saat tren berbalik turun (close < BB bawah) di semua mode.
+//   [V10-4] Stop sungguhan: garis − 0,5×ATR, hanya boleh naik; keluar jika close < stop bar sebelumnya.
+//   [V10-5] Label & alert hanya pada candle yang sudah tutup (tidak repaint).
+indicator("Follow Line + MACD Shield V10", overlay = true)
+
+// ================= INPUT (sama dengan V9) =================
+mode = input.string("Adaptive", "Mode Trading", options = ["Agresif", "Adaptive", "Aman"])
+bbPeriod = input.int(21, "BB Period", minval = 5)
+bbDev    = input.float(1.15, "BB Deviation", minval = 0.5, step = 0.05)
+atrLook  = input.int(7, "ATR Filter", minval = 1)
+emaFast  = input.int(50, "EMA Fast", minval = 5)
+emaSlow  = input.int(100, "EMA Slow", minval = 10)
+volMult  = input.float(1.2, "Volume Filter (x avg)", minval = 0.5, step = 0.1)
+showSL   = input.bool(true, "Tampilkan Stop")
+
+// ================= FOLLOW LINE =================
+atrv  = ta.atr(atrLook)
+basis = ta.sma(close, bbPeriod)
+dev   = bbDev * ta.stdev(close, bbPeriod)
+upper = basis + dev
+lower = basis - dev
+
+var float line_val = na
+var int   trend    = 0
+prevTrend = trend
+
+if close > upper[1]
+    trend := 1
+else if close < lower[1]
+    trend := -1
+
+flip = trend != prevTrend
+
+// [V10-1] reset garis saat tren berbalik
+if trend == 1
+    line_val := flip or na(line_val[1]) ? low - atrv : math.max(low - atrv, line_val[1])
+else if trend == -1
+    line_val := flip or na(line_val[1]) ? high + atrv : math.min(high + atrv, line_val[1])
+
+plot(line_val, "Follow Line", color = trend == 1 ? color.blue : color.red, linewidth = 2)
+
+// ================= FILTER =================
+ema50  = ta.ema(close, emaFast)
+ema100 = ta.ema(close, emaSlow)
+plot(ema50,  "EMA Fast", color = color.new(color.orange, 60))
+plot(ema100, "EMA Slow", color = color.new(color.red, 70))
+
+[macdLine, signalLine, hist] = ta.macd(close, 12, 26, 9)
+volAvg    = ta.sma(volume, 20)
+volActive = volume > volAvg * volMult
+bullishBar = close > open
+
+// ================= POSISI =================
+var bool  inPosition = false
+var float stop       = na
+
+buyCond = not inPosition and trend == 1 and close > ema50 and hist > 0 and volActive and bullishBar
+
+// [V10-2] kondisi, bukan crossunder
+below    = close < line_val
+exitLine = mode == "Agresif" ? below : mode == "Aman" ? below and close < ema100 : below and (close < ema50 or hist < 0)
+// [V10-3] tren berbalik turun
+exitTrend = trend == -1
+// [V10-4] stop bar sebelumnya
+exitStop = close < stop
+
+sellCond = inPosition and (exitLine or exitTrend or exitStop)
+
+if buyCond
+    inPosition := true
+if sellCond
+    inPosition := false
+
+ref = line_val - atrv * 0.5
+stop := buyCond ? ref : inPosition ? math.max(stop, ref) : na
+
+plot(showSL ? stop : na, "Stop", color = color.new(color.orange, 20), style = plot.style_linebr, linewidth = 1)
+
+// ================= VISUAL =================
+// [V10-5] hanya candle yang sudah tutup
+buySig  = buyCond and barstate.isconfirmed
+exitSig = sellCond and barstate.isconfirmed
+stopSig = exitSig and exitStop and not exitLine and not exitTrend
+
+plotshape(buySig, "BUY", shape.labelup, location.belowbar, color.green, text = "BUY", textcolor = color.white, size = size.small)
+plotshape(exitSig, "EXIT", shape.labeldown, location.abovebar, stopSig ? color.maroon : color.red, text = stopSig ? "STOP" : "EXIT", textcolor = color.white, size = size.small)
+bgcolor(inPosition ? color.new(color.blue, 95) : na, title = "In Position BG")
+
+alertcondition(buySig, "BUY V10", "BUY {{ticker}} | Follow Line V10 | Price: {{close}}")
+alertcondition(exitSig, "EXIT V10", "EXIT {{ticker}} | Follow Line V10 | Price: {{close}}")

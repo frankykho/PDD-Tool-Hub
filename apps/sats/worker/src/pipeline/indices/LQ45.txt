@@ -1,0 +1,12 @@
+# name: LQ45
+# effective: 3 Agu 2026 s.d. 30 Okt 2026
+# source: indeks.xlsx (daftar dari Franky, evaluasi mayor BEI Juli 2026)
+#
+# Format: kode saham dipisah spasi / koma / baris baru. Baris diawali # diabaikan.
+# Update tiap evaluasi indeks: ganti isi daftar di bawah, lalu commit.
+
+AADI ADMR ADRO AKRA AMMN AMRT ANTM ASII BBCA BBNI
+BBRI BBTN BMRI BRPT BUMI CPIN CUAN DEWA EMTK ESSA
+EXCL GOTO HRTA ICBP INCO INDF INDY INKP ISAT ITMG
+JPFA KLBF MAPI MBMA MDKA MEDC NCKL PGAS PGEO PTBA
+SCMA TLKM UNTR UNVR WIFI

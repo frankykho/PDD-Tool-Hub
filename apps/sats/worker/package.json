@@ -1,0 +1,23 @@
+{
+	"name": "worker",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-plugin": "^1.0.0",
+		"tsx": "^4.23.15",
+		"typescript": "^5.5.2",
+		"vitest": "~4.1.0",
+		"wrangler": "^4"
+	},
+	"allowScripts": {
+		"esbuild@0.28.1": true,
+		"workerd@1.20260921.1": true
+	}
+}

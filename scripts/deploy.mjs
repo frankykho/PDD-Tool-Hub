@@ -1,0 +1,192 @@
+// Deploy semua tool ke Cloudflare dengan satu perintah.
+//
+//   node scripts/deploy.mjs                 deploy semua tool
+//   node scripts/deploy.mjs fund bond       deploy tool tertentu (pakai id di daftar APPS)
+//   node scripts/deploy.mjs --changed <sha> deploy tool yang berubah sejak commit <sha> (dipakai GitHub Actions)
+//   node scripts/deploy.mjs --dry-run       cek bundel semua tool tanpa menyentuh Cloudflare
+//   node scripts/deploy.mjs --resolve sats  hanya tulis wrangler.deploy.json (untuk perintah wrangler d1 di workflow)
+//   node scripts/deploy.mjs secrets [id..]  kirim secret dari .secrets.json ke tiap tool
+//
+// Profil (nama brand, link, subdomain) dibaca dari profile.json atau env PROFILE_JSON, lalu disuntikkan ke setiap
+// worker sebagai variabel PROFILE, HUB_URL, ADMIN_EMAILS, dan GITHUB_REPO. Database D1 dan KV dicari menurut nama;
+// kalau belum ada, dibuat otomatis. ID-nya tidak perlu ditulis di mana pun.
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// Urutan penting: worker yang dipanggil lewat service binding harus ada lebih dulu.
+// id = id di Tool Hub & di profile.urls; dir = folder berisi wrangler.jsonc; build = perintah sebelum deploy.
+export const APPS = [
+  { id: "hub", dir: "apps/tool-hub" },
+  { id: "email", dir: "apps/email-studio" },
+  { id: "fund", dir: "apps/fund-insight" },
+  { id: "bond", dir: "apps/bond-insight" },
+  { id: "competitor", dir: "apps/competitor-intel" },
+  { id: "content", dir: "apps/content-insight" },
+  { id: "edukasi", dir: "apps/edukasi-studio" },
+  { id: "marketproxy", dir: "apps/market-proxy" },
+  { id: "storydata", dir: "apps/story-data" },
+  { id: "story", dir: "apps/story-generator" },
+  { id: "tutorial", dir: "apps/tutorial" },
+  { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
+    build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
+];
+const SHARED = ["shared/", "scripts/deploy.mjs", "package.json"];
+
+const args = process.argv.slice(2);
+const flag = (f) => { const i = args.indexOf(f); if (i < 0) return null; args.splice(i, 1); return true; };
+const opt = (f) => { const i = args.indexOf(f); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
+
+const die = (msg) => { console.error("\n✗ " + msg); process.exit(1); };
+const log = (msg) => console.log(msg);
+
+/** JSON dengan komentar (// dan /* *\/) -> objek. Komentar di dalam string dibiarkan. */
+export function parseJsonc(text) {
+  let out = "", i = 0, str = false;
+  while (i < text.length) {
+    const c = text[i], n = text[i + 1];
+    if (str) { out += c; if (c === "\\") { out += n; i += 2; continue; } if (c === '"') str = false; i++; continue; }
+    if (c === '"') { str = true; out += c; i++; continue; }
+    if (c === "/" && n === "/") { while (i < text.length && text[i] !== "\n") i++; continue; }
+    if (c === "/" && n === "*") { i = text.indexOf("*/", i + 2) + 2; continue; }
+    out += c; i++;
+  }
+  return JSON.parse(out.replace(/,(\s*[}\]])/g, "$1"));
+}
+
+const configPath = (app) => {
+  for (const f of ["wrangler.jsonc", "wrangler.json"]) { const p = path.join(ROOT, app.dir, f); if (fs.existsSync(p)) return p; }
+  return null;
+};
+const readConfig = (app) => { const p = configPath(app); return p ? parseJsonc(fs.readFileSync(p, "utf8")) : null; };
+
+function wrangler(wargs, { cwd = ROOT, capture = false, env = {} } = {}) {
+  const bin = path.join(ROOT, "node_modules", "wrangler", "bin", "wrangler.js");
+  if (!fs.existsSync(bin)) die("wrangler belum terpasang. Jalankan dulu: npm install");
+  const r = spawnSync(process.execPath, [bin, ...wargs], { cwd, encoding: "utf8", stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit", env: { ...process.env, ...env } });
+  if (r.status !== 0) die(`wrangler ${wargs.join(" ")} gagal${capture ? ":\n" + (r.stderr || r.stdout) : ""}`);
+  return capture ? r.stdout : "";
+}
+const jsonOut = (s) => { const i = s.search(/[[{]/); return JSON.parse(s.slice(i)); };
+
+function loadProfile(dry = false) {
+  const file = path.join(ROOT, "profile.json");
+  const raw = process.env.PROFILE_JSON || (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "");
+  if (!raw && !dry) die("profile.json belum ada. Salin profile.example.json menjadi profile.json lalu isi.");
+  const p = raw ? parseJsonc(raw) : {};
+  if (dry) p.subdomain ||= "contoh";
+  if (!p.subdomain && !APPS.every((a) => p.urls && p.urls[a.id])) die("Isi \"subdomain\" di profile.json (nama subdomain workers.dev akun Cloudflare Anda).");
+  // alamat setiap tool: dari profile.urls kalau diisi (domain sendiri), selain itu https://<nama-worker>.<subdomain>.workers.dev
+  p.urls = { ...(p.urls || {}) };
+  for (const app of APPS) {
+    const c = readConfig(app);
+    if (c && !p.urls[app.id]) p.urls[app.id] = `https://${c.name}.${p.subdomain}.workers.dev`;
+  }
+  return p;
+}
+
+// ---------- sumber daya Cloudflare (dicari menurut nama, dibuat kalau belum ada) ----------
+let d1Cache, kvCache;
+function d1Id(name, dry) {
+  if (dry) return "00000000-0000-0000-0000-000000000000";
+  d1Cache ??= jsonOut(wrangler(["d1", "list", "--json"], { capture: true }));
+  let db = d1Cache.find((d) => d.name === name);
+  if (!db) {
+    log(`  + membuat database D1 "${name}"`);
+    wrangler(["d1", "create", name], { capture: true });
+    d1Cache = jsonOut(wrangler(["d1", "list", "--json"], { capture: true }));
+    db = d1Cache.find((d) => d.name === name);
+  }
+  return db.uuid;
+}
+function kvId(title, dry) {
+  if (dry) return "00000000000000000000000000000000";
+  kvCache ??= jsonOut(wrangler(["kv", "namespace", "list"], { capture: true }));
+  let ns = kvCache.find((k) => k.title === title);
+  if (!ns) {
+    log(`  + membuat KV "${title}"`);
+    wrangler(["kv", "namespace", "create", title], { capture: true });
+    kvCache = jsonOut(wrangler(["kv", "namespace", "list"], { capture: true }));
+    ns = kvCache.find((k) => k.title === title);
+  }
+  return ns.id;
+}
+
+/** Tulis wrangler.deploy.json (config lengkap: ID sumber daya + variabel profil) di folder tool. */
+function resolve(app, profile, dry) {
+  const c = readConfig(app);
+  if (!c) return null;
+  for (const db of c.d1_databases || []) if (!db.database_id || db.database_id === "auto") db.database_id = d1Id(db.database_name, dry);
+  for (const kv of c.kv_namespaces || []) if (!kv.id || kv.id === "auto") kv.id = kvId(`${c.name}-${kv.binding.toLowerCase()}`, dry);
+  // PROFILE ikut terkirim ke browser, jadi subdomain & email admin tidak dimasukkan (admin lewat ADMIN_EMAILS)
+  const { subdomain, admins, ...pub } = profile;
+  const PROFILE = JSON.stringify(pub);
+  if (PROFILE.length > 5000) die(`profile.json terlalu besar (${PROFILE.length} karakter; batas variabel Cloudflare 5.000).`);
+  c.vars = {
+    ...(c.vars || {}),
+    PROFILE,
+    HUB_URL: profile.urls.hub || "",
+    ADMIN_EMAILS: (profile.admins || []).join(","),
+    GITHUB_REPO: (profile.github && profile.github.repo) || "",
+  };
+  const out = path.join(ROOT, app.dir, "wrangler.deploy.json");
+  fs.writeFileSync(out, JSON.stringify(c, null, 2));
+  return out;
+}
+
+function changedApps(base) {
+  const r = spawnSync("git", ["diff", "--name-only", base, "HEAD"], { cwd: ROOT, encoding: "utf8" });
+  if (r.status !== 0) return APPS; // commit pembanding tidak ada (push pertama) -> deploy semua
+  const files = r.stdout.split("\n").filter(Boolean);
+  if (files.some((f) => SHARED.some((s) => f.startsWith(s)))) return APPS;
+  const root = (a) => a.dir.replace(/\/worker$/, "");
+  return APPS.filter((a) => files.some((f) => [root(a), ...(a.watch || [])].some((d) => f.startsWith(d + "/"))));
+}
+
+// ---------- perintah ----------
+function secrets(ids) {
+  const file = path.join(ROOT, ".secrets.json");
+  if (!fs.existsSync(file)) die(".secrets.json belum ada. Salin .secrets.example.json menjadi .secrets.json lalu isi.");
+  const all = parseJsonc(fs.readFileSync(file, "utf8"));
+  const profile = loadProfile();
+  for (const app of APPS.filter((a) => !ids.length || ids.includes(a.id))) {
+    const vals = Object.fromEntries(Object.entries({ ...(all["*"] || {}), ...(all[app.id] || {}) }).filter(([, v]) => v));
+    if (!Object.keys(vals).length) continue;
+    const cfg = resolve(app, profile, false);
+    const tmp = path.join(ROOT, app.dir, ".secrets.tmp.json");
+    fs.writeFileSync(tmp, JSON.stringify(vals));
+    try { log(`\n▶ secret ${app.id}: ${Object.keys(vals).join(", ")}`); wrangler(["secret", "bulk", tmp, "-c", cfg], { cwd: path.dirname(cfg) }); }
+    finally { fs.rmSync(tmp, { force: true }); }
+  }
+}
+
+function deploy(list, dry) {
+  const profile = loadProfile(dry);
+  for (const app of list) {
+    const cfg = resolve(app, profile, dry);
+    if (!cfg) { log(`- ${app.id}: belum ada wrangler.jsonc, dilewati`); continue; }
+    log(`\n▶ ${app.id} (${app.dir})`);
+    for (const [cmd, a, dir] of app.build || []) {
+      const cwd = path.join(ROOT, app.dir, dir);
+      if (dry && a[0] === "ci" && fs.existsSync(path.join(cwd, "node_modules"))) continue;
+      const r = spawnSync(cmd, a, { cwd, stdio: "inherit", shell: process.platform === "win32" });
+      if (r.status !== 0) die(`${cmd} ${a.join(" ")} gagal di ${app.dir}/${dir}`);
+    }
+    wrangler(["deploy", "-c", cfg, ...(dry ? ["--dry-run", "--outdir", path.join(ROOT, ".dry", app.id)] : [])], { cwd: path.dirname(cfg) });
+  }
+}
+
+if (args[0] === "secrets") secrets(args.slice(1));
+else {
+  const dry = flag("--dry-run"), base = opt("--changed"), only = opt("--resolve");
+  if (only) { const a = APPS.find((x) => x.id === only) || die(`tool "${only}" tidak dikenal`); log(resolve(a, loadProfile(), false)); }
+  else {
+    const list = base ? changedApps(base) : args.length ? args.map((id) => APPS.find((a) => a.id === id) || die(`tool "${id}" tidak dikenal. Pilihan: ${APPS.map((a) => a.id).join(", ")}`)) : APPS;
+    if (!list.length) log("Tidak ada tool yang berubah.");
+    deploy(list, dry);
+    log(`\n✓ selesai: ${list.map((a) => a.id).join(", ") || "-"}`);
+  }
+}

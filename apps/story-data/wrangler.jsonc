@@ -1,0 +1,10 @@
+// Story Data: data pasar untuk Story Generator + pemicu GitHub Actions (Wrap & LME). Secret: GH_TOKEN
+{
+  "name": "story-data",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // satu cron; worker memilih tugas sesuai jam (lihat scheduled())
+  "triggers": { "crons": ["*/5 * * * 1-5"] },
+  "kv_namespaces": [{ "binding": "LME_KV", "id": "auto" }],
+  "services": [{ "binding": "MARKET", "service": "market-proxy" }]
+}

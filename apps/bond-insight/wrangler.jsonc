@@ -1,0 +1,8 @@
+// Bond Insight: data & analisis obligasi. Secret: SSO_SECRET, EDIT_KEY
+// Tanpa cron (batas paket gratis 5 cron per akun); data & riwayat diperbarui saat halaman dibuka.
+{
+  "name": "bond-insight",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "kv_namespaces": [{ "binding": "BONDS_KV", "id": "auto" }]
+}

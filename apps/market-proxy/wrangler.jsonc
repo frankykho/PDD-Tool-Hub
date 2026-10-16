@@ -1,0 +1,6 @@
+// Market Proxy: komoditas, market breadth & sektor. Dipanggil story-data lewat service binding.
+{
+  "name": "market-proxy",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22"
+}

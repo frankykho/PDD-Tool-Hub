@@ -1,0 +1,7 @@
+// Content Insight: galeri konten media sosial kompetitor. Secret: SSO_SECRET
+{
+  "name": "content-insight",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }]
+}

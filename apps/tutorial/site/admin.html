@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Review Tutorial</title>
+<style>
+  :root{
+    --brand-dark:#14432c; --brand-green:#1a5c3a; --brand-emerald:#2ecc71;
+    --brand-emerald-soft:#eafaf1; --ink:#14201a; --sub:#6b7d74;
+    --line:#e4ece7; --paper:#ffffff; --bg:#f4f8f5; --danger:#c0392b; --danger-soft:#fdecec;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  .wrap{ max-width:720px; margin:0 auto; padding:24px 16px 60px 16px; }
+  h1{ font-size:20px; margin:0 0 4px 0; }
+  .sub{ font-size:13px; color:var(--sub); margin:0 0 20px 0; }
+
+  /* ---- login ---- */
+  #login-box{ max-width:340px; margin:80px auto; text-align:center; }
+  #login-box input{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+    font-size:13.5px; margin-top:10px; font-family:inherit;
+  }
+  #login-box button{
+    width:100%; margin-top:14px; padding:12px; border:none; border-radius:10px;
+    background:var(--brand-green); color:#fff; font-weight:800; font-size:14px; cursor:pointer;
+  }
+  #login-error{ color:var(--danger); font-size:12.5px; margin-top:10px; min-height:16px; }
+
+  /* ---- topbar ---- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; }
+  .btn-logout{
+    border:1px solid var(--line); background:var(--paper); color:var(--sub);
+    font-size:12px; font-weight:700; padding:7px 12px; border-radius:8px; cursor:pointer;
+  }
+
+  /* ---- pending list ---- */
+  .empty-note{ color:var(--sub); font-size:13px; margin-top:30px; text-align:center; }
+  .pending-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:16px; margin-top:14px;
+  }
+  .pending-meta{ font-size:11px; color:var(--sub); margin-bottom:6px; }
+  .pending-cat{
+    display:inline-block; font-size:10.5px; font-weight:800; color:var(--brand-green);
+    background:var(--brand-emerald-soft); padding:3px 9px; border-radius:999px; margin-bottom:8px;
+  }
+  .pending-title{ font-size:16px; font-weight:800; margin:0 0 10px 0; }
+  .pending-steps{ list-style:none; margin:0; padding:0; }
+  .pending-steps li{
+    font-size:13px; line-height:1.55; padding:8px 10px; background:var(--bg);
+    border-radius:8px; margin-bottom:6px; display:flex; align-items:center; gap:10px;
+  }
+  .pending-step-img{
+    width:44px; height:44px; border-radius:8px; object-fit:cover; flex:0 0 auto;
+    border:1px solid var(--line); background:var(--paper); cursor:zoom-in;
+  }
+  .img-modal{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.85);
+    z-index:999; align-items:center; justify-content:center; padding:24px; cursor:zoom-out;
+  }
+  .img-modal.open{ display:flex; }
+  .img-modal img{ max-width:100%; max-height:100%; border-radius:8px; }
+  .pending-steps li b{ color:var(--sub); font-weight:700; margin-right:4px; }
+  .pending-step-title{ display:block; color:var(--ink) !important; font-size:13.5px; margin-bottom:2px; }
+  .pending-actions{ display:flex; gap:10px; margin-top:12px; }
+  .btn-approve, .btn-reject{
+    flex:1; padding:11px; border:none; border-radius:10px; font-weight:800;
+    font-size:13px; cursor:pointer;
+  }
+  .btn-approve{ background:var(--brand-green); color:#fff; }
+  .btn-reject{ background:var(--danger-soft); color:var(--danger); }
+  .btn-approve:disabled, .btn-reject:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .btn-import{
+    margin-top:10px; padding:11px 16px; border:none; border-radius:10px;
+    background:var(--brand-dark); color:#fff; font-weight:800; font-size:13px; cursor:pointer;
+  }
+  .btn-import:disabled{ opacity:.5; cursor:not-allowed; }
+  .import-status{ margin-top:10px; font-size:12.5px; line-height:1.5; }
+  .import-status.success{ color:var(--brand-green); }
+  .import-status.error{ color:var(--danger); }
+
+  .manage-section{ margin-top:34px; }
+  .storage-box{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:6px; }
+  .storage-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .storage-box h2{ font-size:15px; margin:0; }
+  .storage-box code{ background:var(--bg); padding:1px 5px; border-radius:5px; font-size:11.5px; }
+  .storage-badge{ font-size:11px; font-weight:800; padding:4px 9px; border-radius:999px; background:var(--danger-soft); color:var(--danger); white-space:nowrap; }
+  .storage-badge.ok{ background:var(--brand-emerald-soft); color:var(--brand-green); }
+  .storage-box input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:13px; font-family:inherit; }
+  .storage-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .token-help{ margin-top:10px; font-size:12.5px; color:var(--sub); line-height:1.6; }
+  .token-help summary{ cursor:pointer; color:var(--brand-green); font-weight:700; }
+  .token-help ol{ padding-left:20px; margin:8px 0 0 0; }
+  .migrate-box{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:12px 16px; font-size:13.5px; }
+  .migrate-box .btn-import{ margin-top:0; flex:0 0 auto; }
+  .pending-img-missing{ font-size:11px; color:var(--danger); width:44px; flex:0 0 auto; }
+  .manage-section-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .manage-section h2{ font-size:15px; margin:0 0 4px 0; }
+  .btn-export{
+    flex:0 0 auto; border:none; background:var(--brand-emerald); color:#0f2e1e; font-size:12.5px;
+    font-weight:800; padding:10px 14px; border-radius:10px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-export:disabled{ opacity:.6; cursor:not-allowed; }
+
+  .new-cat-box{
+    background:var(--paper); border:1px dashed var(--brand-green); border-radius:14px;
+    padding:14px 16px; margin-top:14px;
+  }
+  .new-cat-box h3{ font-size:13.5px; margin:0 0 10px 0; color:var(--brand-green); }
+  .new-cat-row{ display:flex; gap:8px; margin-bottom:8px; }
+  .new-cat-icon-input{
+    width:52px; flex:0 0 auto; text-align:center; padding:8px; border:1px solid var(--line);
+    border-radius:8px; font-size:16px;
+  }
+  .new-cat-title-input, .new-cat-desc-input{
+    flex:1; width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:12.5px; font-family:inherit; margin-bottom:8px;
+  }
+  .new-cat-title-input{ margin-bottom:0; }
+  .btn-add-cat{
+    border:none; background:var(--brand-green); color:#fff; font-size:12.5px;
+    font-weight:800; padding:9px 16px; border-radius:8px; cursor:pointer;
+  }
+  .btn-add-cat:disabled{ opacity:.6; cursor:not-allowed; }
+  .manage-cat{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; margin-top:12px;
+  }
+  .manage-cat-head{ display:flex; align-items:center; justify-content:space-between; }
+  .manage-cat-title{ font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .manage-cat-icon{ font-size:18px; }
+  .manage-cat-toggle{ background:none; border:0; padding:4px 0; margin:0; color:inherit; font-family:inherit; cursor:pointer; text-align:left; flex:1; min-width:0; }
+  .manage-cat-caret{ display:inline-block; width:14px; color:var(--sub); transition:transform .15s; }
+  .manage-cat-toggle[aria-expanded="true"] .manage-cat-caret{ transform:rotate(90deg); }
+  .manage-cat-count{ font-size:12px; font-weight:600; color:var(--sub); }
+  .manage-topic-list[hidden]{ display:none; }
+  .btn-delete-cat{
+    border:none; background:var(--danger-soft); color:var(--danger); font-size:11px;
+    font-weight:700; padding:5px 10px; border-radius:8px; cursor:pointer;
+  }
+  .manage-topic-list{ list-style:none; margin:10px 0 0 0; padding:0; }
+  .manage-topic-row{ background:var(--bg); border-radius:8px; margin-bottom:6px; padding:8px 10px; }
+  .manage-topic-row-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; flex-wrap:wrap; }
+  .topic-title-view{ display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:140px; }
+  .btn-edit-topic-title{
+    border:1px solid var(--line); background:var(--paper); color:var(--brand-green); font-size:10.5px;
+    font-weight:700; padding:3px 8px; border-radius:7px; cursor:pointer; flex:0 0 auto;
+  }
+  .topic-title-edit{ display:flex; align-items:center; gap:6px; flex:1 1 100%; }
+  .topic-title-edit-input{
+    flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:8px;
+    font-size:12.5px; font-family:inherit;
+  }
+  .btn-save-topic-title, .btn-cancel-topic-title{
+    flex:0 0 auto; font-size:11px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer;
+  }
+  .btn-save-topic-title{ border:none; background:var(--brand-green); color:#fff; }
+  .btn-cancel-topic-title{ border:1px solid var(--line); background:var(--paper); color:var(--sub); }
+  .manage-topic-detail{ margin-top:8px; padding:0; }
+  .btn-view-topic{
+    border:1px solid var(--line); background:var(--paper); color:var(--brand-green); font-size:11px;
+    font-weight:700; padding:4px 9px; border-radius:8px; cursor:pointer; flex:0 0 auto;
+  }
+  .btn-move-cat, .btn-move-topic{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:12px;
+    font-weight:700; width:26px; height:26px; border-radius:8px; cursor:pointer; flex:0 0 auto;
+  }
+  .btn-move-cat:disabled, .btn-move-topic:disabled{ opacity:.3; cursor:not-allowed; }
+  .manage-topic-row-actions2{ margin-top:6px; }
+  .topic-move-select{
+    width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:8px;
+    font-size:11.5px; background:var(--paper); color:var(--sub); font-family:inherit;
+  }
+  .btn-delete-topic{
+    border:none; background:var(--danger-soft); color:var(--danger); font-size:11px;
+    font-weight:700; padding:4px 9px; border-radius:8px; cursor:pointer; flex:0 0 auto;
+  }
+  .manage-empty-topics{ font-size:12px; color:var(--sub); margin-top:8px; }
+
+  .slide-view-mode{ display:flex; align-items:center; gap:10px; }
+  .slide-view-text{ flex:1; }
+  .btn-edit-slide{
+    border:1px solid var(--line); background:var(--paper); color:var(--brand-green); font-size:11px;
+    font-weight:700; padding:4px 9px; border-radius:8px; cursor:pointer; flex:0 0 auto;
+  }
+  .slide-edit-mode{ padding:4px 2px; }
+  .slide-edit-mode input[type="text"], .slide-edit-mode textarea{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:12.5px; font-family:inherit; margin-bottom:8px; background:var(--paper); color:var(--ink);
+  }
+  .slide-edit-mode textarea{ min-height:60px; resize:vertical; }
+  .slide-edit-mode input[type="file"]{
+    font-size:11px; padding:6px; border:1px dashed var(--line); border-radius:8px;
+    background:var(--paper); margin-bottom:6px; width:100%;
+  }
+  .slide-edit-image-status{ font-size:11px; color:var(--sub); margin-bottom:6px; min-height:14px; }
+  .slide-edit-image-preview{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .slide-edit-image-preview img{
+    width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:zoom-in;
+  }
+  .btn-remove-slide-image{
+    border:none; background:var(--danger-soft); color:var(--danger); font-size:11px;
+    font-weight:700; padding:5px 10px; border-radius:8px; cursor:pointer;
+  }
+  .slide-edit-actions{ display:flex; gap:8px; }
+  .btn-save-slide{
+    flex:1; border:none; background:var(--brand-green); color:#fff; font-size:12.5px;
+    font-weight:800; padding:9px; border-radius:8px; cursor:pointer;
+  }
+  .btn-save-slide:disabled{ opacity:.6; cursor:not-allowed; }
+  .btn-cancel-slide-edit{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--paper); color:var(--sub); font-size:12.5px;
+    font-weight:700; padding:9px 14px; border-radius:8px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="login-box">
+  <p class="sub">Menghubungkan ke Tool Hub…</p>
+</div>
+
+<div class="wrap" id="admin-panel" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>Review Usulan Tutorial</h1>
+      <p class="sub">Usulan yang di-approve akan langsung tayang di halaman utama. <a href="submit.html" style="color:var(--brand-green); font-weight:700;">Buka form usulan tim</a></p>
+    </div>
+  </div>
+  <div class="storage-box" id="storage-box">
+    <div class="storage-head">
+      <h2>Penyimpanan Gambar (GitHub)</h2>
+      <span class="storage-badge" id="storage-badge">Belum diatur</span>
+    </div>
+    <p class="sub" style="margin:4px 0 10px 0;">Gambar tutorial disimpan di folder <code id="image-folder">images/</code> repo <code id="repo-name"></code>, lalu tayang setelah deploy otomatis (±2–3 menit). Token GitHub disimpan sekali di Tool Hub, jadi admin tidak perlu memegang token.</p>
+    <div id="token-form">
+      <input type="password" id="gh-token" placeholder="Tempel token GitHub (github_pat_...)" autocomplete="off">
+      <div class="storage-actions">
+        <button class="btn-add-cat" id="btn-save-token">Simpan &amp; Tes</button>
+      </div>
+      <details class="token-help">
+        <summary>Cara membuat token</summary>
+        <ol>
+          <li>Login GitHub (akun pemilik repo), buka <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b> → <b>Generate new token</b>.</li>
+          <li>Token name: <i>tutorial-admin</i>. Expiration: 90 hari (atau sesuai kebijakan).</li>
+          <li>Repository access: <b>Only select repositories</b> → pilih <b>repo proyek ini</b> saja.</li>
+          <li>Permissions → Repository permissions → <b>Contents: Read and write</b>. Yang lain biarkan.</li>
+          <li>Generate, salin token, tempel di kotak di atas, klik Simpan &amp; Tes.</li>
+        </ol>
+      </details>
+    </div>
+    <div id="token-set" style="display:none;">
+      <div class="storage-actions">
+        <button class="btn-logout" id="btn-test-token">Tes koneksi</button>
+        <button class="btn-logout" id="btn-clear-token" style="display:none;">Hapus token dari browser ini</button>
+      </div>
+    </div>
+    <div id="token-status" class="import-status"></div>
+  </div>
+
+  <div id="pending-list"></div>
+
+  <div class="manage-section">
+    <div class="manage-section-head">
+      <div>
+        <h2>Kelola Tutorial yang Tayang</h2>
+        <p class="sub">Hapus, edit, atau atur urutan topik yang sudah live di halaman utama.</p>
+      </div>
+      <button id="btn-export-html" class="btn-export">⬇ Export HTML Lengkap (untuk Eksternal)</button>
+    </div>
+    <div id="export-status" class="import-status"></div>
+
+    <div class="migrate-box">
+      <div>
+        <b>Pindahkan gambar lama ke GitHub</b>
+        <p class="sub" style="margin:2px 0 0 0;" id="migrate-desc">Memeriksa gambar...</p>
+      </div>
+      <button class="btn-import" id="btn-migrate" disabled>Pindahkan</button>
+    </div>
+    <div id="migrate-status" class="import-status"></div>
+
+    <div class="new-cat-box">
+      <h3>+ Tambah Kategori Baru</h3>
+      <div class="new-cat-row">
+        <input type="text" id="new-cat-icon" placeholder="📁" maxlength="4" class="new-cat-icon-input">
+        <input type="text" id="new-cat-title" placeholder="Nama kategori, contoh: Obligasi" class="new-cat-title-input">
+      </div>
+      <input type="text" id="new-cat-desc" placeholder="Deskripsi singkat (opsional)" class="new-cat-desc-input">
+      <button id="btn-add-cat" class="btn-add-cat">Tambah Kategori</button>
+      <div id="new-cat-status" class="import-status"></div>
+    </div>
+
+    <div id="manage-list"></div>
+  </div>
+
+</div>
+
+<div id="img-modal" class="img-modal">
+  <img id="img-modal-img" alt="Preview gambar diperbesar">
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+import {
+  getFirestore, collection, query, orderBy, onSnapshot, getDocs, writeBatch,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+import { hubSignIn } from "./hub-auth.js";
+import { compressImage, blobToBase64, extForMime } from "./image-utils.js";
+import { commitImages, hasToken, setToken, clearToken, testConnection, isGithubImage } from "./github-store.js";
+import { GITHUB } from "./github-config.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+// nama aplikasi dari profil (window.PROFILE dari worker); kosong = tanpa nama
+const APP_NAME = ((window.PROFILE || {}).app || {}).name || '';
+
+/* ========================= Export HTML mandiri (untuk eksternal) =========================
+   File export dibuat dari index.html yang sedang tayang, lalu data tutorial ditanam
+   langsung di dalamnya (window.TUTORIAL_STATIC_DATA). Hasilnya: tampilan export selalu
+   sama dengan versi online terbaru, bisa dibuka offline, tanpa Firebase & tanpa
+   tombol "Usulkan Tutorial" / "Bagikan". */
+async function buildExportedHTML(categories){
+  const res = await fetch('index.html', { cache: 'no-store' });
+  if(!res.ok) throw new Error('Tidak bisa mengambil index.html');
+  const template = await res.text();
+  const json = JSON.stringify(categories)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+  const dataScript = `<script>window.TUTORIAL_STATIC_DATA = ${json};<\/script>\n`;
+  const marker = '<script type="module">';
+  const idx = template.indexOf(marker);
+  if(idx === -1) throw new Error('Format index.html tidak dikenali');
+  return template.slice(0, idx) + dataScript + template.slice(idx);
+}
+
+const loginBox = document.getElementById('login-box');
+const adminPanel = document.getElementById('admin-panel');
+const pendingListEl = document.getElementById('pending-list');
+const manageListEl = document.getElementById('manage-list');
+
+// login diurus Tool Hub (lihat hub-auth.js); hanya yang diberi tingkat Admin di hub yang sampai ke halaman ini
+hubSignIn(auth, { box: loginBox, needAdmin: true });
+
+let unsubscribePending = null;
+let unsubscribeCategories = null;
+
+onAuthStateChanged(auth, (user) => {
+  if(user){
+    loginBox.style.display = 'none';
+    adminPanel.style.display = 'block';
+    if(!unsubscribePending) listenPending();
+    if(!unsubscribeCategories) listenCategories();
+  }else{
+    loginBox.style.display = 'block';
+    adminPanel.style.display = 'none';
+    if(unsubscribePending){ unsubscribePending(); unsubscribePending = null; }
+    if(unsubscribeCategories){ unsubscribeCategories(); unsubscribeCategories = null; }
+  }
+});
+
+function uid(prefix){
+  return prefix + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+function listenPending(){
+  const q = query(collection(db, 'pending_topics'), orderBy('createdAt', 'desc'));
+  unsubscribePending = onSnapshot(q, (snap) => {
+    pendingListEl.innerHTML = '';
+    if(snap.empty){
+      pendingListEl.innerHTML = '<p class="empty-note">Belum ada usulan yang masuk.</p>';
+      return;
+    }
+    snap.forEach(docSnap => {
+      pendingListEl.appendChild(renderPendingCard(docSnap.id, docSnap.data()));
+    });
+  });
+}
+
+function renderPendingCard(id, data){
+  const card = document.createElement('div');
+  card.className = 'pending-card';
+
+  const who = (data.submitterName
+    ? `Diusulkan oleh ${escapeHtml(data.submitterName)}`
+    : 'Diusulkan tanpa nama') + (data.submitterEmail ? ` (${escapeHtml(data.submitterEmail)})` : '');
+  const created = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
+  const dateStr = created ? ' · ' + created.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : '';
+  const meta = who + dateStr;
+
+  const stepsHtml = (data.steps || []).map((s, i) => {
+    const isSimple = typeof s === 'string';
+    const title = isSimple ? '' : (s.title || '');
+    const body = isSimple ? s : (s.text !== undefined ? s.text : (s.desc || ''));
+    const image = isSimple ? '' : (s.image || '');
+    const imageRef = isSimple ? '' : (s.imageRef || '');
+    let imgHtml = '';
+    if(imageRef){
+      // screenshot tersimpan tertutup di Firestore, dimuat setelah kartu tampil
+      imgHtml = `<img alt="Langkah ${i + 1}" class="pending-step-img" data-image-ref="${escapeHtml(imageRef)}">`;
+    }else if(image){
+      imgHtml = `<img src="${escapeHtml(image)}" alt="Langkah ${i + 1}" class="pending-step-img" data-full="${escapeHtml(image)}" onerror="this.style.display='none'">`;
+    }
+    const titleHtml = title ? `<b class="pending-step-title">${escapeHtml(title)}</b>` : '';
+    return `<li>${imgHtml}<div><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div></li>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="pending-meta">${meta}</div>
+    <span class="pending-cat">${escapeHtml(data.categoryTitle || 'Kategori tidak diketahui')}</span>
+    <h3 class="pending-title">${escapeHtml(data.topicTitle || '(tanpa judul)')}</h3>
+    <ul class="pending-steps">${stepsHtml}</ul>
+    <div class="pending-actions">
+      <button class="btn-approve">✓ Setujui &amp; Tayangkan</button>
+      <button class="btn-reject">✕ Tolak</button>
+    </div>
+  `;
+
+  card.querySelectorAll('img[data-image-ref]').forEach(async (img) => {
+    try{
+      const snap = await getDoc(doc(db, 'pending_images', img.dataset.imageRef));
+      if(!snap.exists()){ img.replaceWith(Object.assign(document.createElement('span'), { className:'pending-img-missing', textContent:'Gambar hilang' })); return; }
+      const { data: b64, mime } = snap.data();
+      const url = `data:${mime || 'image/webp'};base64,${b64}`;
+      img.src = url;
+      img.dataset.full = url;
+    }catch(err){
+      console.error(err);
+      img.style.display = 'none';
+    }
+  });
+
+  const approveBtn = card.querySelector('.btn-approve');
+  const rejectBtn = card.querySelector('.btn-reject');
+
+  approveBtn.onclick = async () => {
+    const hasImages = (data.steps || []).some(s => s && (s.imageRef || (s.image && !isGithubImage(s.image))));
+    if(hasImages && !hasToken()){
+      alert('Usulan ini punya screenshot, tapi izin menyimpan gambar belum ada. Muat ulang halaman ini dari Tool Hub.');
+      document.getElementById('storage-box').scrollIntoView({ behavior:'smooth' });
+      return;
+    }
+    const ok = confirm(
+      'Sebelum menayangkan, pastikan:\n\n' +
+      '1. Semua screenshot sudah dicek (klik untuk perbesar) dan TIDAK menampilkan data pribadi: nama, nomor rekening, SID, saldo, portofolio, nomor HP, email.\n' +
+      `2. Isi tutorial benar, sesuai aplikasi${APP_NAME ? ' ' + APP_NAME : ''} versi terbaru.\n` +
+      '3. Tidak ada kalimat yang mengarah ke rekomendasi/ajakan membeli atau menjual produk tertentu.\n\n' +
+      'Setujui dan tayangkan sekarang?'
+    );
+    if(!ok) return;
+    approveBtn.disabled = true; rejectBtn.disabled = true;
+    approveBtn.textContent = 'Menyimpan...';
+    try{
+      await approveSubmission(id, data, (msg) => { approveBtn.textContent = msg; });
+    }catch(err){
+      console.error(err);
+      alert('Gagal menyetujui usulan ini: ' + (err.message || 'coba lagi.'));
+      approveBtn.disabled = false; rejectBtn.disabled = false;
+      approveBtn.textContent = '✓ Setujui & Tayangkan';
+    }
+  };
+
+  rejectBtn.onclick = async () => {
+    if(!confirm('Tolak dan hapus usulan ini? Screenshot di dalamnya juga ikut dihapus.')) return;
+    approveBtn.disabled = true; rejectBtn.disabled = true;
+    try{
+      await deletePendingImages(data);
+      await deleteDoc(doc(db, 'pending_topics', id));
+    }catch(err){
+      console.error(err);
+      alert('Gagal menolak usulan ini. Coba lagi.');
+      approveBtn.disabled = false; rejectBtn.disabled = false;
+    }
+  };
+
+  return card;
+}
+
+async function deletePendingImages(data){
+  const refs = (data.steps || []).map(s => s && s.imageRef).filter(Boolean);
+  await Promise.all(refs.map(r => deleteDoc(doc(db, 'pending_images', r)).catch(() => {})));
+}
+
+/** Ambil gambar dari URL lama (mis. ImgBB) sebagai Blob. Bisa gagal kalau server gambar memblokir. */
+async function fetchImageBlob(url){
+  const res = await fetch(url, { mode: 'cors' });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const blob = await res.blob();
+  if(!blob.type.startsWith('image/')) throw new Error('bukan gambar');
+  return blob;
+}
+
+async function approveSubmission(pendingId, data, onProgress = () => {}){
+  const catRef = doc(db, 'categories', data.categoryId);
+  const catSnap = await getDoc(catRef);
+  if(!catSnap.exists()){
+    throw new Error('Kategori tujuan sudah tidak ada.');
+  }
+
+  // Kumpulkan semua screenshot, lalu simpan ke GitHub dalam 1 commit
+  const steps = (data.steps || []).map(s => typeof s === 'string' ? { image: '', text: s } : { ...s });
+  const files = [];
+  const targets = [];
+  for(let i = 0; i < steps.length; i++){
+    const s = steps[i];
+    if(s.imageRef){
+      onProgress(`Menyiapkan gambar ${files.length + 1}...`);
+      const snap = await getDoc(doc(db, 'pending_images', s.imageRef));
+      if(!snap.exists()) throw new Error(`screenshot langkah ${i + 1} tidak ditemukan.`);
+      const { data: b64, mime } = snap.data();
+      files.push({ base64: b64, ext: extForMime(mime) });
+      targets.push(i);
+    }else if(s.image && !isGithubImage(s.image)){
+      // usulan lama yang gambarnya masih di ImgBB
+      try{
+        const blob = await fetchImageBlob(s.image);
+        files.push({ base64: await blobToBase64(blob), ext: extForMime(blob.type) });
+        targets.push(i);
+      }catch(err){
+        console.warn('Gambar lama tidak bisa dipindah, tetap pakai link lama:', s.image, err);
+        if(s.tempImage) throw new Error(`screenshot langkah ${i + 1} (usulan lama) sudah tidak bisa diambil. Minta pengusul mengirim ulang.`);
+      }
+    }
+  }
+
+  if(files.length){
+    onProgress(`Menyimpan ${files.length} gambar ke GitHub...`);
+    const urls = await commitImages(files, `Gambar tutorial: ${String(data.topicTitle || '').slice(0, 60)}`);
+    targets.forEach((stepIdx, k) => { steps[stepIdx].image = urls[k]; });
+  }
+
+  onProgress('Menayangkan...');
+  const newTopic = {
+    id: uid('topic'),
+    title: data.topicTitle,
+    slides: steps.map(s => {
+      const title = (s.title || '').trim();
+      if(title){
+        return { image: s.image || '', title, desc: s.desc !== undefined ? s.desc : (s.text || '') };
+      }
+      return { image: s.image || '', text: s.text !== undefined ? s.text : (s.desc || '') };
+    })
+  };
+  await updateDoc(catRef, {
+    items: arrayUnion(newTopic)
+  });
+  await deletePendingImages(data);
+  await deleteDoc(doc(db, 'pending_topics', pendingId));
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ---------- lightbox buat lihat gambar diperbesar ---------- */
+const imgModal = document.getElementById('img-modal');
+const imgModalImg = document.getElementById('img-modal-img');
+
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('.pending-step-img');
+  if(!img) return;
+  imgModalImg.src = img.dataset.full;
+  imgModal.classList.add('open');
+});
+
+imgModal.addEventListener('click', () => {
+  imgModal.classList.remove('open');
+  imgModalImg.src = '';
+});
+
+/* ---------- kelola kategori & topik yang sudah tayang ---------- */
+// Gambar yang diupload admin: dikecilkan (maks 1080px, WebP) lalu disimpan ke repo GitHub
+async function uploadImageToGithub(file){
+  if(!hasToken()) throw new Error('Izin menyimpan gambar belum ada. Muat ulang halaman ini dari Tool Hub.');
+  const blob = await compressImage(file);
+  const [url] = await commitImages([{ base64: await blobToBase64(blob), ext: extForMime(blob.type) }], 'Gambar tutorial (edit admin)');
+  return { url, previewUrl: URL.createObjectURL(blob) };
+}
+
+let latestCategoryDocs = [];
+
+function listenCategories(){
+  const q = query(collection(db, 'categories'), orderBy('order'));
+  unsubscribeCategories = onSnapshot(q, (snap) => {
+    latestCategoryDocs = snap.docs;
+    refreshMigrateUi();
+    manageListEl.innerHTML = '';
+    if(snap.empty){
+      manageListEl.innerHTML = '<p class="empty-note">Belum ada kategori tersedia.</p>';
+      return;
+    }
+    const docs = snap.docs;
+    docs.forEach((docSnap, index) => {
+      manageListEl.appendChild(renderManageCategory(docSnap.id, docSnap.data(), index, docs));
+    });
+  });
+}
+
+function renderSlideDetailHtml(slide, i, topicId){
+  const image = slide.image || '';
+  const title = slide.title || '';
+  const body = slide.text !== undefined ? slide.text : (slide.desc || '');
+  const imgHtml = image
+    ? `<img src="${escapeHtml(image)}" alt="Langkah ${i + 1}" class="pending-step-img" data-full="${escapeHtml(image)}" onerror="this.style.display='none'">`
+    : '';
+  const titleHtml = title ? `<b class="pending-step-title">${escapeHtml(title)}</b>` : '';
+  return `
+    <li class="slide-detail-row" data-new-image="${escapeHtml(image)}">
+      <div class="slide-view-mode">
+        ${imgHtml}
+        <div class="slide-view-text"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div>
+        <button type="button" class="btn-edit-slide" data-topic-id="${escapeHtml(topicId)}" data-slide-index="${i}">Edit</button>
+      </div>
+      <div class="slide-edit-mode" style="display:none;">
+        <input type="text" class="slide-edit-title" placeholder="Judul langkah (opsional)" value="${escapeHtml(title)}">
+        <input type="file" class="slide-edit-image-file" accept="image/*" style="${image ? 'display:none;' : ''}">
+        <div class="slide-edit-image-status"></div>
+        <div class="slide-edit-image-preview" style="${image ? '' : 'display:none;'}">
+          <img alt="preview" class="pending-step-img" src="${escapeHtml(image)}" data-full="${escapeHtml(image)}">
+          <button type="button" class="btn-remove-slide-image">Hapus gambar</button>
+        </div>
+        <textarea class="slide-edit-body" placeholder="Jelaskan langkah ini...">${escapeHtml(body)}</textarea>
+        <div class="slide-edit-actions">
+          <button type="button" class="btn-save-slide" data-topic-id="${escapeHtml(topicId)}" data-slide-index="${i}">Simpan</button>
+          <button type="button" class="btn-cancel-slide-edit">Batal</button>
+        </div>
+      </div>
+    </li>
+  `;
+}
+
+// Kategori yang sedang dibuka di bagian Kelola. Disimpan di sini karena daftar digambar ulang tiap ada perubahan data;
+// tanpa ini kategori yang sedang dikerjakan menutup sendiri setelah setiap simpan / pindah / hapus.
+const openCats = new Set();
+
+function renderManageCategory(catId, cat, index, allDocs){
+  const box = document.createElement('div');
+  box.className = 'manage-cat';
+
+  const items = cat.items || [];
+  const catOptionsHtml = allDocs
+    .filter(d => d.id !== catId)
+    .map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.data().title || '(tanpa judul)')}</option>`)
+    .join('');
+
+  const topicsHtml = items.length
+    ? items.map((it, ti) => `
+        <li class="manage-topic-row">
+          <div class="manage-topic-row-head">
+            <div class="topic-title-view">
+              <span>${escapeHtml(it.title || '(tanpa judul)')} <span style="color:var(--sub);">(${(it.slides || []).length} langkah)</span></span>
+              <button class="btn-edit-topic-title" data-topic-id="${escapeHtml(it.id)}">Edit Judul</button>
+            </div>
+            <div class="topic-title-edit" style="display:none;">
+              <input type="text" class="topic-title-edit-input" value="${escapeHtml(it.title || '')}">
+              <button class="btn-save-topic-title" data-topic-id="${escapeHtml(it.id)}">Simpan</button>
+              <button class="btn-cancel-topic-title">Batal</button>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-move-topic" data-dir="-1" data-topic-id="${escapeHtml(it.id)}" ${ti === 0 ? 'disabled' : ''}>↑</button>
+              <button class="btn-move-topic" data-dir="1" data-topic-id="${escapeHtml(it.id)}" ${ti === items.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="btn-view-topic" data-topic-id="${escapeHtml(it.id)}">Lihat</button>
+              <button class="btn-delete-topic" data-topic-id="${escapeHtml(it.id)}">Hapus</button>
+            </div>
+          </div>
+          <div class="manage-topic-row-actions2">
+            <select class="topic-move-select" data-topic-id="${escapeHtml(it.id)}">
+              <option value="" selected disabled>Pindah ke kategori lain...</option>
+              ${catOptionsHtml}
+            </select>
+          </div>
+          <ul class="pending-steps manage-topic-detail" data-topic-id="${escapeHtml(it.id)}" style="display:none;">
+            ${(it.slides || []).map((s, i) => renderSlideDetailHtml(s, i, it.id)).join('')}
+          </ul>
+        </li>
+      `).join('')
+    : '<div class="manage-empty-topics">Belum ada topik di kategori ini.</div>';
+
+  box.innerHTML = `
+    <div class="manage-cat-head">
+      <button type="button" class="manage-cat-title manage-cat-toggle" aria-expanded="${openCats.has(catId)}" title="Buka / tutup daftar topik"><span class="manage-cat-caret" aria-hidden="true">▸</span><span class="manage-cat-icon">${escapeHtml(cat.icon || '📁')}</span>${escapeHtml(cat.title || '(tanpa judul)')} <span class="manage-cat-count">${items.length} topik</span></button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn-move-cat" data-dir="-1" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-move-cat" data-dir="1" ${index === allDocs.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-delete-cat">Hapus Kategori</button>
+      </div>
+    </div>
+    <ul class="manage-topic-list"${openCats.has(catId) ? '' : ' hidden'}>${topicsHtml}</ul>
+  `;
+
+  const toggle = box.querySelector('.manage-cat-toggle');
+  toggle.onclick = () => {
+    const open = !openCats.has(catId);
+    if(open) openCats.add(catId); else openCats.delete(catId);
+    toggle.setAttribute('aria-expanded', open);
+    box.querySelector('.manage-topic-list').hidden = !open;
+  };
+
+  box.querySelector('.btn-delete-cat').onclick = async () => {
+    if(!confirm(`Hapus kategori "${cat.title}" beserta SEMUA topik di dalamnya? Tindakan ini tidak bisa dibatalkan.`)) return;
+    try{
+      await deleteDoc(doc(db, 'categories', catId));
+    }catch(err){
+      console.error(err);
+      alert('Gagal menghapus kategori.');
+    }
+  };
+
+  box.querySelectorAll('.btn-move-cat').forEach(btn => {
+    btn.onclick = async () => {
+      const dir = parseInt(btn.dataset.dir, 10);
+      const neighbor = allDocs[index + dir];
+      if(!neighbor) return;
+      try{
+        const myOrder = cat.order ?? index;
+        const neighborData = neighbor.data();
+        const neighborOrder = neighborData.order ?? (index + dir);
+        await Promise.all([
+          updateDoc(doc(db, 'categories', catId), { order: neighborOrder }),
+          updateDoc(doc(db, 'categories', neighbor.id), { order: myOrder })
+        ]);
+      }catch(err){
+        console.error(err);
+        alert('Gagal mengubah urutan kategori.');
+      }
+    };
+  });
+
+  box.querySelectorAll('.btn-move-topic').forEach(btn => {
+    btn.onclick = async () => {
+      const dir = parseInt(btn.dataset.dir, 10);
+      const topicId = btn.dataset.topicId;
+      try{
+        const catRef = doc(db, 'categories', catId);
+        const freshSnap = await getDoc(catRef);
+        if(!freshSnap.exists()) return;
+        const freshItems = [...(freshSnap.data().items || [])];
+        const i = freshItems.findIndex(it => it.id === topicId);
+        const j = i + dir;
+        if(i === -1 || j < 0 || j >= freshItems.length) return;
+        [freshItems[i], freshItems[j]] = [freshItems[j], freshItems[i]];
+        await updateDoc(catRef, { items: freshItems });
+      }catch(err){
+        console.error(err);
+        alert('Gagal mengubah urutan topik.');
+      }
+    };
+  });
+
+  box.querySelectorAll('.btn-edit-topic-title').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('.manage-topic-row-head');
+      row.querySelector('.topic-title-view').style.display = 'none';
+      row.querySelector('.topic-title-edit').style.display = 'flex';
+      row.querySelector('.topic-title-edit-input').focus();
+    };
+  });
+
+  box.querySelectorAll('.btn-cancel-topic-title').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('.manage-topic-row-head');
+      row.querySelector('.topic-title-edit').style.display = 'none';
+      row.querySelector('.topic-title-view').style.display = 'flex';
+    };
+  });
+
+  box.querySelectorAll('.btn-save-topic-title').forEach(btn => {
+    btn.onclick = async () => {
+      const row = btn.closest('.manage-topic-row-head');
+      const topicId = btn.dataset.topicId;
+      const newTitle = row.querySelector('.topic-title-edit-input').value.trim();
+      if(!newTitle){
+        alert('Judul topik tidak boleh kosong.');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+      try{
+        const catRef = doc(db, 'categories', catId);
+        const freshSnap = await getDoc(catRef);
+        if(!freshSnap.exists()) return;
+        const freshItems = [...(freshSnap.data().items || [])];
+        const topicIdx = freshItems.findIndex(t => t.id === topicId);
+        if(topicIdx === -1) return;
+        freshItems[topicIdx] = { ...freshItems[topicIdx], title: newTitle };
+        await updateDoc(catRef, { items: freshItems });
+      }catch(err){
+        console.error(err);
+        alert('Gagal menyimpan judul topik.');
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+      }
+    };
+  });
+
+  box.querySelectorAll('.topic-move-select').forEach(select => {
+    select.onchange = async () => {
+      const topicId = select.dataset.topicId;
+      const targetCatId = select.value;
+      const targetTitle = select.options[select.selectedIndex].textContent;
+      if(!targetCatId) return;
+      if(!confirm(`Pindahkan topik ini ke kategori "${targetTitle}"?`)){
+        select.value = '';
+        return;
+      }
+      select.disabled = true;
+      try{
+        const sourceRef = doc(db, 'categories', catId);
+        const targetRef = doc(db, 'categories', targetCatId);
+        const [sourceSnap, targetSnap] = await Promise.all([getDoc(sourceRef), getDoc(targetRef)]);
+        if(!sourceSnap.exists() || !targetSnap.exists()) return;
+
+        const sourceItems = sourceSnap.data().items || [];
+        const movingTopic = sourceItems.find(it => it.id === topicId);
+        if(!movingTopic) return;
+        const newSourceItems = sourceItems.filter(it => it.id !== topicId);
+        const newTargetItems = [...(targetSnap.data().items || []), movingTopic];
+
+        const batch = writeBatch(db);
+        batch.update(sourceRef, { items: newSourceItems });
+        batch.update(targetRef, { items: newTargetItems });
+        await batch.commit();
+      }catch(err){
+        console.error(err);
+        alert('Gagal memindahkan topik.');
+        select.disabled = false;
+        select.value = '';
+      }
+    };
+  });
+
+  box.querySelectorAll('.btn-view-topic').forEach(btn => {
+    btn.onclick = () => {
+      const topicId = btn.dataset.topicId;
+      const detail = box.querySelector(`.manage-topic-detail[data-topic-id="${CSS.escape(topicId)}"]`);
+      const isOpen = detail.style.display !== 'none';
+      detail.style.display = isOpen ? 'none' : 'block';
+      btn.textContent = isOpen ? 'Lihat' : 'Sembunyikan';
+    };
+  });
+
+  box.querySelectorAll('.btn-delete-topic').forEach(btn => {
+    btn.onclick = async () => {
+      const topicId = btn.dataset.topicId;
+      const topic = items.find(it => it.id === topicId);
+      if(!confirm(`Hapus topik "${topic?.title || 'ini'}"?`)) return;
+      try{
+        const catRef = doc(db, 'categories', catId);
+        const freshSnap = await getDoc(catRef);
+        if(!freshSnap.exists()) return;
+        const freshItems = (freshSnap.data().items || []).filter(it => it.id !== topicId);
+        await updateDoc(catRef, { items: freshItems });
+      }catch(err){
+        console.error(err);
+        alert('Gagal menghapus topik.');
+      }
+    };
+  });
+
+  box.querySelectorAll('.btn-edit-slide').forEach(btn => {
+    btn.onclick = () => {
+      const li = btn.closest('.slide-detail-row');
+      li.querySelector('.slide-view-mode').style.display = 'none';
+      li.querySelector('.slide-edit-mode').style.display = 'block';
+    };
+  });
+
+  box.querySelectorAll('.btn-cancel-slide-edit').forEach(btn => {
+    btn.onclick = () => {
+      const li = btn.closest('.slide-detail-row');
+      li.querySelector('.slide-edit-mode').style.display = 'none';
+      li.querySelector('.slide-view-mode').style.display = 'flex';
+    };
+  });
+
+  box.querySelectorAll('.slide-edit-image-file').forEach(input => {
+    input.onchange = async () => {
+      const file = input.files[0];
+      if(!file) return;
+      const li = input.closest('.slide-detail-row');
+      const statusEl = li.querySelector('.slide-edit-image-status');
+      statusEl.textContent = 'Menyimpan gambar ke GitHub...';
+      try{
+        const { url, previewUrl } = await uploadImageToGithub(file);
+        li.dataset.newImage = url;
+        const previewBox = li.querySelector('.slide-edit-image-preview');
+        const previewImg = previewBox.querySelector('img');
+        previewImg.src = previewUrl;
+        previewImg.dataset.full = previewUrl;
+        previewBox.style.display = 'flex';
+        input.style.display = 'none';
+        statusEl.textContent = 'Gambar tersimpan. Klik Simpan. Gambar tampil di situs ±1 menit lagi.';
+      }catch(err){
+        console.error(err);
+        statusEl.textContent = err.message || 'Gagal menyimpan gambar, coba lagi.';
+        input.value = '';
+      }
+    };
+  });
+
+  box.querySelectorAll('.btn-remove-slide-image').forEach(btn => {
+    btn.onclick = () => {
+      const li = btn.closest('.slide-detail-row');
+      li.dataset.newImage = '';
+      li.querySelector('.slide-edit-image-preview').style.display = 'none';
+      const fileInput = li.querySelector('.slide-edit-image-file');
+      fileInput.style.display = 'block';
+      fileInput.value = '';
+      li.querySelector('.slide-edit-image-status').textContent = '';
+    };
+  });
+
+  box.querySelectorAll('.btn-save-slide').forEach(btn => {
+    btn.onclick = async () => {
+      const li = btn.closest('.slide-detail-row');
+      const topicId = btn.dataset.topicId;
+      const slideIndex = parseInt(btn.dataset.slideIndex, 10);
+      const newTitle = li.querySelector('.slide-edit-title').value.trim();
+      const newBody = li.querySelector('.slide-edit-body').value.trim();
+      const newImage = li.dataset.newImage !== undefined ? li.dataset.newImage : '';
+
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+      try{
+        const catRef = doc(db, 'categories', catId);
+        const freshSnap = await getDoc(catRef);
+        if(!freshSnap.exists()) return;
+        const freshItems = [...(freshSnap.data().items || [])];
+        const topicIdx = freshItems.findIndex(t => t.id === topicId);
+        if(topicIdx === -1) return;
+        const slides = [...(freshItems[topicIdx].slides || [])];
+        if(slideIndex < 0 || slideIndex >= slides.length) return;
+        slides[slideIndex] = newTitle
+          ? { image: newImage, title: newTitle, desc: newBody }
+          : { image: newImage, text: newBody };
+        freshItems[topicIdx] = { ...freshItems[topicIdx], slides };
+        await updateDoc(catRef, { items: freshItems });
+      }catch(err){
+        console.error(err);
+        alert('Gagal menyimpan perubahan langkah.');
+      }finally{
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+      }
+    };
+  });
+
+  return box;
+}
+
+/* ========================= Pengaturan token GitHub ========================= */
+document.getElementById('repo-name').textContent = `${GITHUB.owner}/${GITHUB.repo}`;
+document.getElementById('image-folder').textContent = GITHUB.imageFolder + '/';
+const tokenStatus = document.getElementById('token-status');
+function refreshTokenUi(state){
+  const set = true;   // token kini disimpan di Tool Hub, bukan di browser
+  document.getElementById('token-form').style.display = set ? 'none' : 'block';
+  document.getElementById('token-set').style.display = set ? 'block' : 'none';
+  const badge = document.getElementById('storage-badge');
+  badge.className = 'storage-badge' + (set && state !== 'error' ? ' ok' : '');
+  badge.textContent = !set ? 'Belum diatur' : (state === 'error' ? 'Bermasalah' : 'Siap');
+}
+async function runTokenTest(){
+  tokenStatus.className = 'import-status';
+  tokenStatus.textContent = 'Mengetes koneksi ke GitHub...';
+  try{
+    tokenStatus.textContent = await testConnection();
+    tokenStatus.className = 'import-status success';
+    refreshTokenUi('ok');
+  }catch(err){
+    tokenStatus.className = 'import-status error';
+    tokenStatus.textContent = err.message;
+    refreshTokenUi('error');
+  }
+}
+document.getElementById('btn-save-token').onclick = async () => {
+  const v = document.getElementById('gh-token').value.trim();
+  if(!v){ tokenStatus.className = 'import-status error'; tokenStatus.textContent = 'Token belum diisi.'; return; }
+  setToken(v);
+  document.getElementById('gh-token').value = '';
+  refreshTokenUi();
+  await runTokenTest();
+};
+document.getElementById('btn-test-token').onclick = runTokenTest;
+document.getElementById('btn-clear-token').onclick = () => {
+  if(!confirm('Hapus token dari browser ini? Kamu perlu memasukkan token lagi untuk menyetujui usulan bergambar.')) return;
+  clearToken();
+  tokenStatus.className = 'import-status';
+  tokenStatus.textContent = 'Token dihapus dari browser ini.';
+  refreshTokenUi();
+};
+refreshTokenUi();
+clearToken();   // token lama di browser ini tidak dipakai lagi
+
+/* ========================= Pindahkan gambar lama (ImgBB) ke GitHub ========================= */
+const migrateBtn = document.getElementById('btn-migrate');
+const migrateDesc = document.getElementById('migrate-desc');
+const migrateStatus = document.getElementById('migrate-status');
+
+function collectOldImages(){
+  const set = new Set();
+  latestCategoryDocs.forEach(d => (d.data().items || []).forEach(t => (t.slides || []).forEach(s => {
+    if(s.image && !isGithubImage(s.image)) set.add(s.image);
+  })));
+  return [...set];
+}
+function refreshMigrateUi(){
+  const n = collectOldImages().length;
+  migrateBtn.disabled = n === 0;
+  migrateDesc.textContent = n === 0
+    ? 'Semua gambar yang tayang sudah tersimpan di GitHub.'
+    : `${n} gambar yang tayang masih di alamat lama (mis. ImgBB).`;
+}
+
+migrateBtn.onclick = async () => {
+  if(!hasToken()){ alert('Izin menyimpan gambar belum ada. Muat ulang halaman ini dari Tool Hub.'); return; }
+  const urls = collectOldImages();
+  if(!urls.length) return;
+  if(!confirm(`Pindahkan ${urls.length} gambar ke GitHub? Tutorial tetap tayang selama proses berjalan.`)) return;
+  migrateBtn.disabled = true;
+  migrateStatus.className = 'import-status';
+  const failed = [];
+  const mapping = {};
+  try{
+    // Ambil & kecilkan gambar satu per satu. Setiap 10 gambar: simpan ke GitHub,
+    // lalu langsung ganti link-nya di tutorial. Jadi kalau proses terhenti di
+    // tengah, gambar yang sudah dipindah tidak perlu diulang.
+    let batch = [], batchUrls = [];
+    const applyLinks = async (map) => {
+      const snap = await getDocs(query(collection(db, 'categories'), orderBy('order')));
+      for(const d of snap.docs){
+        let changed = false;
+        const newItems = (d.data().items || []).map(t => ({
+          ...t,
+          slides: (t.slides || []).map(s => {
+            if(s.image && map[s.image]){ changed = true; return { ...s, image: map[s.image] }; }
+            return s;
+          })
+        }));
+        if(changed) await updateDoc(doc(db, 'categories', d.id), { items: newItems });
+      }
+    };
+    const flush = async () => {
+      if(!batch.length) return;
+      migrateStatus.textContent = `Menyimpan ${batch.length} gambar ke GitHub...`;
+      const newUrls = await commitImages(batch, `Pindah ${batch.length} gambar tutorial dari ImgBB`);
+      const map = {};
+      batchUrls.forEach((old, k) => { map[old] = newUrls[k]; mapping[old] = newUrls[k]; });
+      batch = []; batchUrls = [];
+      migrateStatus.textContent = 'Memperbarui link di tutorial...';
+      await applyLinks(map);
+    };
+    for(let i = 0; i < urls.length; i++){
+      migrateStatus.textContent = `Mengambil gambar ${i + 1} dari ${urls.length}...`;
+      try{
+        const raw = await fetchImageBlob(urls[i]);
+        const blob = await compressImage(new File([raw], 'img', { type: raw.type }));
+        batch.push({ base64: await blobToBase64(blob), ext: extForMime(blob.type) });
+        batchUrls.push(urls[i]);
+      }catch(err){
+        console.warn('Gagal mengambil', urls[i], err);
+        failed.push(urls[i]);
+      }
+      if(batch.length >= 10) await flush();
+    }
+    await flush();
+
+    const moved = Object.keys(mapping).length;
+    migrateStatus.className = failed.length ? 'import-status error' : 'import-status success';
+    migrateStatus.innerHTML = `${moved} gambar berhasil dipindah. Gambar baru tampil di situs ±1–2 menit lagi.` +
+      (failed.length
+        ? `<br>${failed.length} gambar tidak bisa diambil otomatis (diblokir server lama). Gambar ini tetap tayang dari link lama; untuk memindahkannya, buka topiknya → Lihat → Edit → pilih ulang gambarnya.`
+        : '');
+  }catch(err){
+    console.error(err);
+    migrateStatus.className = 'import-status error';
+    const moved = Object.keys(mapping).length;
+    migrateStatus.textContent = 'Proses terhenti: ' + err.message +
+      (moved ? ` ${moved} gambar sudah berhasil dipindah dan link-nya sudah diperbarui.` : '') +
+      ' Tutorial tetap tayang normal. Klik Pindahkan lagi untuk melanjutkan sisanya.';
+  }finally{
+    refreshMigrateUi();
+  }
+};
+
+
+const btnAddCat = document.getElementById('btn-add-cat');
+const newCatStatus = document.getElementById('new-cat-status');
+
+btnAddCat.onclick = async () => {
+  const iconInput = document.getElementById('new-cat-icon');
+  const titleInput = document.getElementById('new-cat-title');
+  const descInput = document.getElementById('new-cat-desc');
+
+  const icon = iconInput.value.trim() || '📁';
+  const title = titleInput.value.trim();
+  const desc = descInput.value.trim();
+
+  newCatStatus.className = 'import-status';
+  newCatStatus.textContent = '';
+
+  if(!title){
+    newCatStatus.className = 'import-status error';
+    newCatStatus.textContent = 'Nama kategori belum diisi.';
+    return;
+  }
+
+  btnAddCat.disabled = true;
+  btnAddCat.textContent = 'Menyimpan...';
+  try{
+    const newId = uid('cat');
+    await setDoc(doc(db, 'categories', newId), {
+      order: latestCategoryDocs.length,
+      title,
+      icon,
+      tint: '#eafaf1',
+      desc,
+      items: []
+    });
+    iconInput.value = '';
+    titleInput.value = '';
+    descInput.value = '';
+    newCatStatus.className = 'import-status success';
+    newCatStatus.textContent = `Kategori "${title}" berhasil ditambahkan.`;
+  }catch(err){
+    console.error(err);
+    newCatStatus.className = 'import-status error';
+    newCatStatus.textContent = 'Gagal menambahkan kategori.';
+  }finally{
+    btnAddCat.disabled = false;
+    btnAddCat.textContent = 'Tambah Kategori';
+  }
+};
+
+const exportBtn = document.getElementById('btn-export-html');
+const exportStatus = document.getElementById('export-status');
+
+exportBtn.onclick = async () => {
+  exportStatus.className = 'import-status';
+  exportStatus.textContent = '';
+  exportBtn.disabled = true;
+  exportBtn.textContent = 'Menyiapkan file...';
+  try{
+    const snap = await getDocs(query(collection(db, 'categories'), orderBy('order')));
+    const categories = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title || '',
+        icon: data.icon || '📁',
+        tint: data.tint || '#eafaf1',
+        desc: data.desc || '',
+        items: data.items || []
+      };
+    });
+    const html = await buildExportedHTML(categories);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (APP_NAME ? APP_NAME.replace(/[^\w-]+/g, '_') + '_' : '') + 'Tutorial.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    exportStatus.className = 'import-status success';
+    exportStatus.textContent = `Berhasil! ${categories.length} kategori diexport ke file HTML (tersimpan di folder Download).`;
+  }catch(err){
+    console.error(err);
+    exportStatus.className = 'import-status error';
+    exportStatus.textContent = 'Gagal export. Coba lagi.';
+  }finally{
+    exportBtn.disabled = false;
+    exportBtn.textContent = '⬇ Export HTML Lengkap (untuk Eksternal)';
+  }
+};
+
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+// Story Generator: pembuat gambar story harian & pekanan. Halaman statis di ./site, disajikan worker.js
+// (login lewat Tool Hub, tab sesuai hak akses, draf tim di KV DRAFTS). Secret: SSO_SECRET (sama dengan Tool Hub)
+{
+  "name": "story-generator",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // semua permintaan lewat worker.js dulu (cek login, buang tab), lalu file diambil dari ./site lewat env.ASSETS
+  "assets": { "directory": "./site", "binding": "ASSETS", "run_worker_first": true },
+  "kv_namespaces": [{ "binding": "DRAFTS", "id": "auto" }]
+}

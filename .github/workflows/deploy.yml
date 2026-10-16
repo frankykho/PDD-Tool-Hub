@@ -1,0 +1,53 @@
+name: Deploy
+
+# Setiap push ke main: deploy tool yang berubah saja. Bisa juga dijalankan manual (tombol "Run workflow").
+# Secret repo yang dibutuhkan: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, PROFILE_JSON (isi profile.json).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "shared/**"
+      - "scripts/deploy.mjs"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "Id tool dipisah spasi, mis. fund bond (kosong = semua)"
+        type: string
+        default: ""
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
+      APPS: ${{ inputs.apps }}
+      BEFORE: ${{ github.event.before }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Deploy
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            node scripts/deploy.mjs $APPS
+          else
+            node scripts/deploy.mjs --changed "$BEFORE"
+          fi

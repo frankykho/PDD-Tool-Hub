@@ -1,0 +1,16 @@
+//@version=6
+// Filter untuk strategi "SATS + filter" di dashboard SATS Radar.
+// Pasang BERSAMA indikator SATS. Sinyal BUY SATS hanya diambil jika area berwarna hijau:
+//   harga > SMA200  DAN  IHSG > SMA200 IHSG.
+// Dashboard memakai IHSG dari Yahoo (^JKSE); di sini dari TradingView (IDX:COMPOSITE). Selisih kecil bisa terjadi.
+indicator("SATS Filter: MA200 & IHSG (SATS Radar)", overlay = true)
+
+len = input.int(200, "Periode MA", minval = 20)
+ihsgSym = input.symbol("IDX:COMPOSITE", "Indeks")
+
+ma = ta.sma(close, len)
+[ihsgClose, ihsgMa] = request.security(ihsgSym, timeframe.period, [close, ta.sma(close, len)])
+pass = close > ma and ihsgClose > ihsgMa
+
+plot(ma, "SMA200", color = color.new(color.purple, 20), linewidth = 2)
+bgcolor(pass ? color.new(color.teal, 90) : na, title = "Filter lolos")

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usulkan Tutorial — Tim Internal</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --brand-dark:#14432c; --brand-green:#1a5c3a; --brand-emerald:#2ecc71;
+    --brand-emerald-soft:#eafaf1; --ink:#14201a; --sub:#5f7268;
+    --line:#dbe6df; --paper:#ffffff; --bg:#f4f8f5; --danger:#b83227; --danger-soft:#fdecec;
+    --warn-soft:#fff7e6; --warn:#8a5a00;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); padding:24px 16px 60px 16px;
+  }
+  button, input, select, textarea{ font-family:inherit; }
+  :focus-visible{ outline:3px solid var(--brand-emerald); outline-offset:2px; }
+  .wrap{ max-width:480px; margin:0 auto; }
+  a.back-link{ color:var(--sub); font-size:13px; text-decoration:none; }
+  h1{ font-size:21px; margin:14px 0 4px 0; }
+  .sub{ font-size:13.5px; color:var(--sub); margin:0 0 18px 0; line-height:1.55; }
+
+  .privacy-box{
+    background:var(--warn-soft); border:1px solid #f3dfb2; border-radius:12px;
+    padding:12px 14px; font-size:12.5px; line-height:1.6; color:var(--warn);
+  }
+  .privacy-box strong{ color:#6b4500; }
+
+  label{ display:block; font-size:13px; font-weight:700; color:var(--ink); margin:18px 0 6px 0; }
+  .opt{ font-weight:400; color:var(--sub); }
+  select, input[type="text"], textarea{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+    font-size:14px; background:var(--paper); color:var(--ink);
+  }
+  textarea{ min-height:72px; resize:vertical; line-height:1.5; }
+  .hint{ font-size:11.5px; color:var(--sub); margin:4px 0 0 0; line-height:1.5; }
+  .counter{ font-size:11px; color:var(--sub); text-align:right; margin-top:3px; }
+
+  .step-card{
+    border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px;
+    background:var(--paper);
+  }
+  .step-head{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .step-head .step-no{ font-size:12.5px; font-weight:800; color:var(--brand-green); flex:1; }
+  .mini-btn{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:12px;
+    font-weight:700; min-width:30px; height:30px; padding:0 9px; border-radius:8px; cursor:pointer;
+  }
+  .mini-btn:disabled{ opacity:.35; cursor:default; }
+  .mini-btn.danger{ border:none; background:var(--danger-soft); color:var(--danger); }
+  .step-card input[type="text"]{ margin-bottom:8px; }
+
+  .file-pick{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px; border:1px dashed #b9cfc2; border-radius:10px; background:var(--bg);
+    font-size:13px; font-weight:700; color:var(--brand-green); cursor:pointer;
+  }
+  .file-pick input{ position:absolute; width:1px; height:1px; opacity:0; }
+  .step-image-status{ font-size:12px; color:var(--sub); margin-top:5px; min-height:0; }
+  .step-image-status.error{ color:var(--danger); }
+  .step-image-preview{
+    display:none; align-items:center; gap:10px; margin-top:8px;
+    background:var(--bg); border-radius:8px; padding:6px;
+  }
+  .step-image-preview.show{ display:flex; }
+  .step-image-preview img{
+    width:60px; height:84px; object-fit:cover; border-radius:6px; border:1px solid var(--line);
+    cursor:zoom-in;
+  }
+  .step-image-preview .hint{ margin:0; flex:1; }
+  .step-card textarea{ margin-top:10px; }
+
+  .btn-add-step{
+    width:100%; margin-top:12px; padding:12px; border:1px dashed var(--brand-green);
+    background:var(--brand-emerald-soft); color:var(--brand-green); font-weight:800;
+    font-size:13.5px; border-radius:12px; cursor:pointer;
+  }
+  .btn-add-step:disabled{ opacity:.5; cursor:default; }
+
+  .check-row{
+    display:flex; gap:10px; align-items:flex-start; margin-top:22px;
+    font-size:13px; font-weight:400; line-height:1.55; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px;
+  }
+  .check-row input{ margin-top:3px; width:18px; height:18px; flex:0 0 auto; accent-color:var(--brand-green); }
+
+  .btn-submit{
+    width:100%; margin-top:16px; padding:14px; border:none; border-radius:12px;
+    background:var(--brand-green); color:#fff; font-weight:800; font-size:14.5px; cursor:pointer;
+  }
+  .btn-submit:disabled{ opacity:.55; cursor:not-allowed; }
+  .status-msg{
+    margin-top:14px; padding:12px; border-radius:10px; font-size:13px; line-height:1.55; display:none;
+  }
+  .status-msg.info{ display:block; background:var(--paper); border:1px solid var(--line); color:var(--sub); }
+  .status-msg.success{ display:block; background:var(--brand-emerald-soft); color:var(--brand-green); }
+  .status-msg.error{ display:block; background:var(--danger-soft); color:var(--danger); }
+
+  .hp-field{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+  .img-modal{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.88);
+    z-index:999; align-items:center; justify-content:center; padding:24px; cursor:zoom-out;
+  }
+  .img-modal.open{ display:flex; }
+  .img-modal img{ max-width:100%; max-height:100%; border-radius:8px; }
+
+  .login-card{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-top:6px; }
+  .login-card h2{ font-size:16px; margin:0 0 4px 0; }
+  .login-card input{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; margin-top:10px; }
+  .login-card .btn-submit{ margin-top:14px; }
+  .login-error{ color:var(--danger); font-size:12.5px; margin-top:10px; line-height:1.5; }
+  .login-error.ok{ color:var(--brand-green); }
+  .link-btn{ border:none; background:none; color:var(--brand-green); font-weight:700; font-size:12.5px; padding:0; margin-top:12px; cursor:pointer; text-decoration:underline; }
+  .user-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:9px 12px; font-size:12.5px; color:var(--sub); margin-bottom:16px; }
+  .user-bar b{ color:var(--ink); word-break:break-all; }
+  .footnote{ font-size:11px; color:var(--sub); line-height:1.6; margin-top:26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="index.html">‹ Lihat Pusat Tutorial</a>
+  <h1>Usulkan Tutorial</h1>
+  <p class="sub">Khusus tim internal. Tulis langkah-langkah tutorial <span id="app-name">aplikasi</span> di sini. Admin akan mereview dulu sebelum tutorial tayang untuk nasabah.</p>
+
+  <div class="login-card" id="login-area" style="display:none;">
+    <p class="hint" style="margin:0;">Menghubungkan ke Tool Hub…</p>
+  </div>
+
+  <div id="form-area" style="display:none;">
+  <div class="user-bar">
+    <span>Masuk sebagai <b id="user-email"></b></span>
+  </div>
+
+  <div class="privacy-box">
+    <strong>Sebelum melampirkan screenshot:</strong> tutup atau blur semua data pribadi, seperti nama, nomor rekening, SID/nomor nasabah, saldo, isi portofolio, nomor HP, dan email. Usulan yang memuat data pribadi akan ditolak.
+  </div>
+
+  <form id="submit-form" novalidate>
+    <label for="cat-select">Kategori tujuan</label>
+    <select id="cat-select" required>
+      <option value="" disabled selected>Memuat daftar kategori...</option>
+    </select>
+
+    <label for="topic-title">Judul tutorial</label>
+    <input type="text" id="topic-title" maxlength="100" placeholder="Contoh: Cara top up RDN" required>
+
+    <label for="submitter-name">Nama kamu</label>
+    <input type="text" id="submitter-name" maxlength="60" placeholder="Supaya admin tahu siapa yang mengusulkan">
+
+    <!-- Jebakan bot spam: disembunyikan dari manusia, diisi otomatis oleh bot -->
+    <div class="hp-field" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <label style="margin-bottom:0;">Langkah-langkah</label>
+    <p class="hint">Tulis satu langkah per kotak. Judul langkah dan screenshot boleh dikosongkan. Pakai **kata** untuk menebalkan tulisan.</p>
+    <div id="steps-list"></div>
+    <button type="button" class="btn-add-step" id="btn-add-step">+ Tambah Langkah</button>
+
+    <label class="check-row" for="privacy-check">
+      <input type="checkbox" id="privacy-check">
+      <span>Saya sudah memastikan screenshot dan tulisan di usulan ini tidak menampilkan data pribadi siapa pun.</span>
+    </label>
+
+    <button type="submit" class="btn-submit" id="btn-submit">Kirim Usulan</button>
+    <div class="status-msg" id="status-msg" role="status" aria-live="polite"></div>
+  </form>
+
+  </div>
+
+  <p class="footnote">Screenshot otomatis dikecilkan sebelum dikirim, jadi ukuran file asli tidak masalah. Format yang didukung: JPG, PNG, WebP. Screenshot hanya bisa dilihat admin selama direview, dan dihapus kalau usulan tidak disetujui.</p>
+</div>
+
+<div id="img-modal" class="img-modal" role="dialog" aria-label="Preview gambar diperbesar">
+  <img id="img-modal-img" alt="">
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+import { hubSignIn, hubEmail } from "./hub-auth.js";
+import { firebaseConfig } from "./firebase-config.js";
+import { compressImage, blobToBase64 } from "./image-utils.js";
+
+const MAX_STEPS = 15;
+const MAX_STEP_CHARS = 600;
+
+// nama aplikasi dari profil (window.PROFILE dari worker); kosong = "aplikasi"
+const APP_NAME = ((window.PROFILE || {}).app || {}).name || '';
+if(APP_NAME) document.getElementById('app-name').textContent = `aplikasi ${APP_NAME}`;
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+/* ---------- login tim ---------- */
+let currentUser = null;
+const loginArea = document.getElementById('login-area');
+const formArea = document.getElementById('form-area');
+const NAME_KEY = 'tutorial_submitter_name';
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  loginArea.style.display = user ? 'none' : 'block';
+  formArea.style.display = user ? 'block' : 'none';
+  if(user){
+    document.getElementById('user-email').textContent = user.email || hubEmail;
+    const nameInput = document.getElementById('submitter-name');
+    if(!nameInput.value){ try{ nameInput.value = localStorage.getItem(NAME_KEY) || ''; }catch(_){} }
+  }
+});
+
+// login diurus Tool Hub (lihat hub-auth.js); hak kirim usulan diatur di halaman Admin hub
+hubSignIn(auth, { box: loginArea });
+
+const $ = (id) => document.getElementById(id);
+const catSelect = $('cat-select');
+const stepsList = $('steps-list');
+const form = $('submit-form');
+const btnSubmit = $('btn-submit');
+const btnAddStep = $('btn-add-step');
+const statusMsg = $('status-msg');
+
+function setStatus(type, text){
+  statusMsg.className = 'status-msg' + (type ? ' ' + type : '');
+  statusMsg.textContent = text || '';
+}
+
+/* ---------- preview gambar diperbesar ---------- */
+const imgModal = $('img-modal');
+const imgModalImg = $('img-modal-img');
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('.step-preview-img');
+  if(!img) return;
+  imgModalImg.src = img.src;
+  imgModal.classList.add('open');
+});
+imgModal.addEventListener('click', () => { imgModal.classList.remove('open'); imgModalImg.removeAttribute('src'); });
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') imgModal.click(); });
+
+/* ---------- daftar kategori ---------- */
+let categoriesCache = [];
+onSnapshot(query(collection(db, 'categories'), orderBy('order')), (snap) => {
+  categoriesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const current = catSelect.value;
+  catSelect.innerHTML = '';
+  if(categoriesCache.length === 0){
+    catSelect.innerHTML = '<option value="" disabled selected>Belum ada kategori tersedia</option>';
+    return;
+  }
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.disabled = true; placeholder.textContent = 'Pilih kategori';
+  catSelect.appendChild(placeholder);
+  categoriesCache.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.title;
+    catSelect.appendChild(opt);
+  });
+  catSelect.value = categoriesCache.some(c => c.id === current) ? current : '';
+}, (err) => {
+  console.error(err);
+  catSelect.innerHTML = '<option value="" disabled selected>Gagal memuat kategori, muat ulang halaman</option>';
+});
+
+/* ---------- kotak langkah ----------
+   Gambar TIDAK langsung dikirim saat dipilih. Gambar hanya dikecilkan
+   dan disimpan di browser, lalu baru dikirim ketika tombol Kirim ditekan.
+   Jadi screenshot yang batal dipakai tidak pernah keluar dari HP pengguna. */
+function addStepField(){
+  if(stepsList.children.length >= MAX_STEPS) return;
+  const card = document.createElement('div');
+  card.className = 'step-card';
+  card._blob = null;
+  card._previewUrl = null;
+  card.innerHTML = `
+    <div class="step-head">
+      <span class="step-no">Langkah</span>
+      <button type="button" class="mini-btn btn-up" aria-label="Pindah ke atas">↑</button>
+      <button type="button" class="mini-btn btn-down" aria-label="Pindah ke bawah">↓</button>
+      <button type="button" class="mini-btn danger btn-remove-step">Hapus</button>
+    </div>
+    <input type="text" class="step-title-input" maxlength="80" placeholder="Judul langkah (opsional)">
+    <label class="file-pick">
+      <input type="file" class="step-image-file" accept="image/jpeg,image/png,image/webp,image/*">
+      <span class="file-pick-label">📷 Pilih screenshot (opsional)</span>
+    </label>
+    <div class="step-image-status"></div>
+    <div class="step-image-preview">
+      <img alt="Preview screenshot" class="step-preview-img">
+      <p class="hint">Ketuk gambar untuk memeriksa lagi, pastikan tidak ada data pribadi.</p>
+      <button type="button" class="mini-btn danger btn-remove-image">Hapus</button>
+    </div>
+    <textarea class="step-body" maxlength="${MAX_STEP_CHARS}" placeholder="Jelaskan apa yang harus dilakukan di langkah ini..."></textarea>
+    <div class="counter"><span class="count">0</span>/${MAX_STEP_CHARS}</div>
+  `;
+
+  const fileInput = card.querySelector('.step-image-file');
+  const pickLabel = card.querySelector('.file-pick');
+  const statusEl = card.querySelector('.step-image-status');
+  const previewBox = card.querySelector('.step-image-preview');
+  const previewImg = previewBox.querySelector('img');
+  const body = card.querySelector('.step-body');
+  const count = card.querySelector('.count');
+
+  body.addEventListener('input', () => { count.textContent = body.value.length; });
+
+  function clearImage(){
+    if(card._previewUrl) URL.revokeObjectURL(card._previewUrl);
+    card._blob = null; card._previewUrl = null;
+    previewBox.classList.remove('show');
+    previewImg.removeAttribute('src');
+    fileInput.value = '';
+    pickLabel.style.display = '';
+    statusEl.className = 'step-image-status';
+    statusEl.textContent = '';
+  }
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if(!file) return;
+    statusEl.className = 'step-image-status';
+    statusEl.textContent = 'Menyiapkan gambar...';
+    card._processing = true;
+    try{
+      const blob = await compressImage(file);
+      clearImage();
+      card._blob = blob;
+      card._previewUrl = URL.createObjectURL(blob);
+      previewImg.src = card._previewUrl;
+      previewBox.classList.add('show');
+      pickLabel.style.display = 'none';
+      statusEl.textContent = `Siap dikirim (${Math.max(1, Math.round(blob.size / 1024))} KB).`;
+    }catch(err){
+      console.error(err);
+      clearImage();
+      statusEl.className = 'step-image-status error';
+      statusEl.textContent = err.message || 'Gambar gagal diproses, coba gambar lain.';
+    }finally{
+      card._processing = false;
+    }
+  });
+
+  card.querySelector('.btn-remove-image').addEventListener('click', clearImage);
+  card.querySelector('.btn-remove-step').addEventListener('click', () => {
+    if(stepsList.children.length <= 1){ clearImage(); body.value = ''; count.textContent = '0'; card.querySelector('.step-title-input').value = ''; return; }
+    clearImage();
+    card.remove();
+    refreshSteps();
+  });
+  card.querySelector('.btn-up').addEventListener('click', () => {
+    if(card.previousElementSibling) stepsList.insertBefore(card, card.previousElementSibling);
+    refreshSteps();
+  });
+  card.querySelector('.btn-down').addEventListener('click', () => {
+    if(card.nextElementSibling) stepsList.insertBefore(card.nextElementSibling, card);
+    refreshSteps();
+  });
+
+  stepsList.appendChild(card);
+  refreshSteps();
+  return card;
+}
+
+function refreshSteps(){
+  const cards = [...stepsList.children];
+  cards.forEach((card, i) => {
+    card.querySelector('.step-no').textContent = `Langkah ${i + 1}`;
+    card.querySelector('.btn-up').disabled = i === 0;
+    card.querySelector('.btn-down').disabled = i === cards.length - 1;
+  });
+  btnAddStep.disabled = cards.length >= MAX_STEPS;
+  btnAddStep.textContent = cards.length >= MAX_STEPS ? `Maksimal ${MAX_STEPS} langkah` : '+ Tambah Langkah';
+}
+
+btnAddStep.addEventListener('click', () => {
+  const card = addStepField();
+  if(card) card.querySelector('.step-body').focus();
+});
+
+function resetForm(){
+  [...stepsList.children].forEach(c => { if(c._previewUrl) URL.revokeObjectURL(c._previewUrl); });
+  form.reset();
+  stepsList.innerHTML = '';
+  addStepField();
+  addStepField();
+}
+addStepField();
+addStepField();
+
+/* ---------- kirim ---------- */
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setStatus('', '');
+
+  if($('website').value) return; // bot
+
+  const cards = [...stepsList.children];
+  if(cards.some(c => c._processing)){
+    setStatus('error', 'Tunggu sebentar, gambar masih disiapkan.');
+    return;
+  }
+
+  const categoryId = catSelect.value;
+  const category = categoriesCache.find(c => c.id === categoryId);
+  const topicTitle = $('topic-title').value.trim();
+  const submitterName = $('submitter-name').value.trim();
+
+  const filled = cards
+    .map(card => ({
+      card,
+      title: card.querySelector('.step-title-input').value.trim(),
+      body: card.querySelector('.step-body').value.trim()
+    }))
+    .filter(s => s.body);
+
+  const withImageButNoText = cards.filter(c => c._blob && !c.querySelector('.step-body').value.trim());
+
+  if(!category){ setStatus('error', 'Pilih kategori tujuan dulu.'); catSelect.focus(); return; }
+  if(!currentUser){ setStatus('error', 'Sesi login habis. Muat ulang halaman lalu masuk lagi.'); return; }
+  if(!submitterName){ setStatus('error', 'Isi nama kamu dulu.'); $('submitter-name').focus(); return; }
+  if(topicTitle.length < 3){ setStatus('error', 'Judul tutorial belum diisi.'); $('topic-title').focus(); return; }
+  if(withImageButNoText.length){
+    setStatus('error', 'Ada langkah yang punya screenshot tapi belum ada penjelasannya. Isi penjelasannya dulu.');
+    withImageButNoText[0].querySelector('.step-body').focus();
+    return;
+  }
+  if(filled.length === 0){ setStatus('error', 'Isi minimal 1 langkah tutorial.'); cards[0].querySelector('.step-body').focus(); return; }
+  if(!$('privacy-check').checked){ setStatus('error', 'Centang konfirmasi bahwa usulan tidak memuat data pribadi.'); $('privacy-check').focus(); return; }
+
+  btnSubmit.disabled = true;
+  btnAddStep.disabled = true;
+
+  try{
+    const toUpload = filled.filter(s => s.card._blob);
+    let done = 0;
+    const steps = [];
+    for(const s of filled){
+      let imageRef = '';
+      if(s.card._blob){
+        setStatus('info', `Mengirim screenshot ${done + 1} dari ${toUpload.length}...`);
+        btnSubmit.textContent = 'Mengirim gambar...';
+        // Screenshot disimpan tertutup di database (hanya admin yang bisa lihat).
+        // Baru dipindah ke GitHub (publik) kalau usulan disetujui.
+        const ref = await addDoc(collection(db, 'pending_images'), {
+          data: await blobToBase64(s.card._blob),
+          mime: s.card._blob.type,
+          createdAt: serverTimestamp()
+        });
+        imageRef = ref.id;
+        done++;
+      }
+      const step = s.title ? { image: '', title: s.title, desc: s.body } : { image: '', text: s.body };
+      if(imageRef) step.imageRef = imageRef;
+      steps.push(step);
+    }
+
+    btnSubmit.textContent = 'Mengirim...';
+    setStatus('info', 'Mengirim usulan...');
+    await addDoc(collection(db, 'pending_topics'), {
+      categoryId,
+      categoryTitle: category.title,
+      topicTitle,
+      steps,
+      submitterName,
+      submitterUid: currentUser.uid,
+      submitterEmail: currentUser.email || hubEmail || null,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    try{ localStorage.setItem(NAME_KEY, submitterName); }catch(_){}
+    resetForm();
+    $('submitter-name').value = submitterName;
+    setStatus('success', 'Terima kasih! Usulan sudah terkirim dan akan direview admin sebelum tayang.');
+  }catch(err){
+    console.error(err);
+    setStatus('error', 'Usulan belum terkirim. Periksa koneksi internet lalu tekan Kirim Usulan lagi. Isian kamu tidak hilang.');
+  }finally{
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = 'Kirim Usulan';
+    refreshSteps();
+  }
+});
+</script>
+</body>
+</html>

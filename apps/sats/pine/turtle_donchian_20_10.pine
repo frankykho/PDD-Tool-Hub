@@ -1,0 +1,48 @@
+//@version=6
+// Turtle (Donchian 20/10) — aturan SAMA PERSIS dengan engine dashboard SATS Radar (worker/src/strategies/turtle.ts)
+//   BUY  : close > highest(high, 20) dari 20 bar SEBELUMNYA
+//   Stop : entry − 2 × ATR(20), tetap. Tersentuh (low ≤ stop) -> keluar
+//   Exit : close < lowest(low, 10) dari 10 bar SEBELUMNYA -> keluar
+//   Tidak masuk lagi di bar yang sama dengan bar keluar. Long only.
+// Label dicetak saat candle berjalan juga; sinyal sah setelah candle harian TUTUP (sama seperti dashboard EOD).
+indicator("Turtle Donchian 20/10 (SATS Radar)", overlay = true)
+
+entryLen = input.int(20, "Breakout (hari)", minval = 2)
+exitLen  = input.int(10, "Exit (hari)", minval = 2)
+atrLen   = input.int(20, "ATR", minval = 2)
+stopMult = input.float(2.0, "Stop (× ATR)", minval = 0.5, step = 0.1)
+
+hh = ta.highest(high, entryLen)[1]
+ll = ta.lowest(low, exitLen)[1]
+N  = ta.atr(atrLen)
+
+var bool  inPos = false
+var float stop  = na
+bool buySig  = false
+bool exitSig = false
+bool stopHit = false
+
+if inPos
+    if low <= stop
+        exitSig := true
+        stopHit := true
+        inPos   := false
+    else if close < ll
+        exitSig := true
+        inPos   := false
+else if not na(N) and close > hh
+    buySig := true
+    inPos  := true
+    stop   := close - stopMult * N
+
+plot(hh, "Donchian atas (20)", color = color.new(color.teal, 40))
+plot(ll, "Donchian bawah (10)", color = color.new(color.orange, 40))
+plot(inPos ? stop : na, "Stop 2×ATR", color = color.red, style = plot.style_linebr, linewidth = 2)
+plot(inPos ? math.max(stop, ta.lowest(low, exitLen)) : na, "Level keluar", color = color.new(color.red, 60), style = plot.style_linebr)
+
+plotshape(buySig, "BUY", shape.labelup, location.belowbar, color.green, text = "BUY", textcolor = color.white, size = size.small)
+plotshape(exitSig, "EXIT", shape.labeldown, location.abovebar, stopHit ? color.maroon : color.red, text = stopHit ? "STOP" : "EXIT", textcolor = color.white, size = size.small)
+bgcolor(inPos ? color.new(color.teal, 93) : na, title = "Dalam posisi")
+
+alertcondition(buySig, "Turtle BUY", "Turtle BUY {{ticker}} @ {{close}}")
+alertcondition(exitSig, "Turtle EXIT", "Turtle EXIT {{ticker}} @ {{close}}")

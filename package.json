@@ -1,0 +1,12 @@
+{
+  "name": "tool-hub-project",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "node scripts/deploy.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}

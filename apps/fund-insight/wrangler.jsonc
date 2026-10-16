@@ -1,0 +1,11 @@
+// Fund Insight: data & analisis reksa dana. Secret: SSO_SECRET, ADMIN_KEY, NOTIFY_WEBHOOK (opsional)
+// Agenda makro (data Story Generator) & PDF produk (rilis "pdf") dibaca dari repo GitHub publik = GITHUB_REPO (diisi deploy.mjs).
+{
+  "name": "fund-insight",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // tarik data pagi & sore, sisanya pekerjaan latar & ringkasan mingguan (lihat scheduled())
+  "triggers": { "crons": ["*/30 * * * *"] },
+  // database dipakai bersama Competitor Intel & Content Insight
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }]
+}
