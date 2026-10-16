@@ -5,7 +5,7 @@
 //
 // Sumber (semua publik, diambil di sisi server):
 //   TradingView scanner : harga, volume, nilai transaksi, biaya, kinerja indeks IDX30, ETF EIDO & kurs USD/IDR
-//   Yahoo Finance       : riwayat harga harian 1 tahun ETF KISI
+//   Yahoo Finance       : riwayat harga harian ETF KISI (sejak data tersedia)
 //   Fund Insight (D1)   : NAB, AUM, return NAB dari data pasar Bareksa (tabel mktsnap, hanya dibaca)
 // Tidak ada cron dan tidak menulis ke D1; hasil disimpan di cache 10 menit.
 import { profile, title, profileScript } from "../../shared/profile.js";
@@ -123,13 +123,12 @@ function retAt(series, end) {
 async function market(env) {
   if (!env.DB) return { at: null, f: {}, names: {}, hist: [] };
   const pids = [...new Set(Object.values(ETFS).map((x) => x[0]))], ph = pids.map(() => "?").join(",");
-  const since = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
   const kp = Object.values(KISI).map((k) => k.pid);
   const [f, n, a, h] = await env.DB.batch([
     env.DB.prepare(`SELECT j.key k, j.value v FROM mktsnap, json_each(mktsnap.v, '$.f') j WHERE mktsnap.d='latest' AND j.key IN (${ph})`).bind(...pids),
     env.DB.prepare(`SELECT j.key k, j.value v FROM mktsnap, json_each(mktsnap.v, '$.names') j WHERE mktsnap.d='latest' AND j.key IN (${ph})`).bind(...pids),
     env.DB.prepare("SELECT json_extract(v, '$.at') at FROM mktsnap WHERE d='latest'"),
-    env.DB.prepare(`SELECT d, ${kp.map((p) => `json_extract(v, '$."${p}"') AS "${p}"`).join(", ")} FROM mktsnap WHERE d <> 'latest' AND d >= ? ORDER BY d`).bind(since),
+    env.DB.prepare(`SELECT d, ${kp.map((p) => `json_extract(v, '$."${p}"') AS "${p}"`).join(", ")} FROM mktsnap WHERE d <> 'latest' ORDER BY d`),
   ]);
   const J = (s) => { try { return typeof s === "string" ? JSON.parse(s) : s; } catch { return null; } };
   return {
@@ -164,15 +163,27 @@ function flows(pid, hist, latest) {
   return out.slice(-12);
 }
 
+const prevWeekday = (d) => { const t = new Date(d + "T00:00:00Z"); do t.setUTCDate(t.getUTCDate() - 1); while (t.getUTCDay() % 6 === 0); return t.toISOString().slice(0, 10); };
+// Return per tahun kalender dari deret harian; tahun berjalan = sampai tanggal `end`.
+function yearsOf(series, end) {
+  const at = (d) => { let v = null; for (const p of series) { if (p[0] > d) break; v = p[1]; } return v; };
+  const out = {}, y1 = +end.slice(0, 4);
+  for (let y = +series[0][0].slice(0, 4) + 1; y <= y1; y++) {
+    const v0 = at(`${y - 1}-12-31`), v1 = y === y1 ? at(end) : at(`${y}-12-31`);
+    if (v0 && v1) out[y] = (v1 / v0 - 1) * 100;
+  }
+  return out;
+}
+
 async function build(env) {
   const cols = ["name", "description", "close", "change", "volume", "Value.Traded", "average_volume_10d_calc", "expense_ratio", "nav_discount_premium", ...PERF];
   const [etfs, idx, eido, fx, mk, ...charts] = await Promise.all([
     tv("indonesia", { filter: [{ left: "type", operation: "equal", right: "fund" }], columns: cols, range: [0, 300] }),
-    tv("indonesia", { symbols: { tickers: ["IDX:IDX30"] }, columns: ["close", ...PERF] }),
+    tv("indonesia", { symbols: { tickers: ["IDX:IDX30"] }, columns: ["close", "close[1]", ...PERF] }),
     yahoo("EIDO", "5y").catch(() => []),
     yahoo("IDR=X", "5y").catch(() => []),
     market(env).catch((e) => ({ at: null, f: {}, names: {}, hist: [], error: e.message })),
-    ...Object.keys(KISI).map((c) => yahoo(c + ".JK").catch(() => [])),
+    ...Object.keys(KISI).map((c) => yahoo(c + ".JK", "10y").catch(() => [])),
   ]);
   const lastDate = (code) => { const c = charts[Object.keys(KISI).indexOf(code)]; return c && c.length ? c[c.length - 1][0] : null; };
   // Pembanding indeks, dihitung sampai tanggal harga terakhir ETF supaya sebanding dengan return harga pasar.
@@ -181,9 +192,16 @@ async function build(env) {
   let fi = 0;
   const proxy = eido.map(([d, c]) => { while (fi + 1 < fx.length && fx[fi + 1][0] <= d) fi++; return fx[fi] && fx[fi][0] <= d ? [d, c * fx[fi][1]] : null; }).filter(Boolean);
   const mEnd = lastDate("XKMS"), msciEnd = mEnd && proxy.length ? (proxy.findLast((p) => p[0] <= mEnd) || [null])[0] : null;
+  const xEnd = lastDate("XKID"), iR = idx[0] ? perfOf(idx[0].d, 2) : {}, iC = idx[0] ? num(idx[0].d[0]) : null, iP = idx[0] ? num(idx[0].d[1]) : null;
+  const yr = xEnd ? +xEnd.slice(0, 4) : null;
   const bench = {
-    idx30: { name: "IDX30", asOf: lastDate("XKID"), note: "Indeks IDX30 dari TradingView", ret: idx[0] ? perfOf(idx[0].d, 1) : {} },
-    msci: { name: "MSCI Indonesia (perkiraan)", asOf: msciEnd, ret: msciEnd ? retAt(proxy, msciEnd) : {},
+    idx30: { name: "IDX30", asOf: xEnd, note: "Indeks IDX30 dari TradingView", ret: iR, years: yr && iR.ytd != null ? { [yr]: iR.ytd } : {},
+      // Indeks pada tanggal NAB, supaya bisa dibandingkan dengan return NAB. TradingView hanya memberi penutupan hari ini & kemarin,
+      // jadi hanya bisa kalau NAB bertanggal hari harga terakhir atau hari kerja sebelumnya; titik awal periodenya bergeser 1 hari (perkiraan).
+      atNav: (d) => (!d || !xEnd || !iC ? null : d === xEnd ? { ret: iR, approx: false } : d === prevWeekday(xEnd) && iP
+        ? { ret: Object.fromEntries(PK.map((k) => [k, iR[k] == null ? null : ((1 + iR[k] / 100) * (iP / iC) - 1) * 100])), approx: true } : null) },
+    msci: { name: "MSCI Indonesia (perkiraan)", asOf: msciEnd, ret: msciEnd ? retAt(proxy, msciEnd) : {}, years: msciEnd ? yearsOf(proxy, msciEnd) : {},
+      atNav: (d) => (d && proxy.length && proxy[0][0] <= d ? { ret: retAt(proxy, d), approx: false } : null),
       note: "Indeks MSCI Indonesia diperkirakan dari ETF iShares MSCI Indonesia (EIDO, bursa AS) yang dikonversi ke rupiah dengan kurs USD/IDR" },
   };
   const navRet = (r) => (r ? { m1: num(r[8]), m3: num(r[9]), m6: num(r[4]), ytd: num(r[10]), y1: num(r[5]), y3: num(r[6]) } : {});
@@ -201,10 +219,11 @@ async function build(env) {
     const last20 = ch.slice(-20), vals = last20.map((c) => c[1] * c[2]);
     const navPts = mk.hist.filter((h) => h[k.pid]).map((h) => [h.d, h[k.pid][0]]);
     if (p.nav && p.navDate && !navPts.some((n) => n[0] === p.navDate)) navPts.push([p.navDate, p.nav]);
-    const end = lastDate(code), bx = bench[k.bench];
+    const end = lastDate(code), { atNav: idxAtNav, ...bx } = bench[k.bench], an = idxAtNav(p.navDate);
     return {
-      ...p, price: trim(p.price, k.listedAt, end), ret: trim(p.ret, k.listedAt, p.navDate || end), bench: { ...bx, ret: trim(bx.ret, k.listedAt, bx.asOf || end) },
-      index: k.index, listed: k.listed, priceDate: end,
+      ...p, price: trim(p.price, k.listedAt, end), ret: trim(p.ret, k.listedAt, p.navDate || end),
+      bench: { ...bx, ret: trim(bx.ret, k.listedAt, bx.asOf || end), atNav: an && { ...an, ret: trim(an.ret, k.listedAt, p.navDate) } },
+      index: k.index, listed: k.listed, listedAt: k.listedAt, priceDate: end,
       premium: atNav && p.nav ? (atNav[1] / p.nav - 1) * 100 : null, premiumClose: atNav ? atNav[1] : null,
       liq: { avgValue20: vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null, zeroDays20: last20.filter((c) => !c[2]).length, days: last20.length },
       chart: { price: ch.map((c) => [c[0], c[1]]), nav: navPts.sort((a, b) => (a[0] < b[0] ? -1 : 1)) },
@@ -217,7 +236,7 @@ async function build(env) {
 let MEM = null;
 async function data(env, ctx, fresh) {
   if (!fresh && MEM && Date.now() - MEM.t < 10 * 60e3) return MEM.body;
-  const cache = caches.default, key = new Request("https://etf-insight.cache/api/etf-v1");
+  const cache = caches.default, key = new Request("https://etf-insight.cache/api/etf-v2");
   if (!fresh) { const hit = await cache.match(key); if (hit) { MEM = { t: Date.now(), body: await hit.text() }; return MEM.body; } }
   const body = JSON.stringify(await build(env));
   MEM = { t: Date.now(), body };

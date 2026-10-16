@@ -46,6 +46,9 @@
   "tools": {
     "story": { "bondLink": "" },   // link CTA Weekly Bond Picks
     "email": { "icons": { "play": "", "app": "", "fb": "", "ig": "", "wach": "", "tiktok": "", "yt": "" } },  // URL gambar ikon footer; kosong = teks
+    // ETF Insight: fakta produk dari prospektus / fund fact sheet per kode ETF; kolom kosong disembunyikan.
+    // Contoh: "XKMS": { "fee": "maks. 1% per tahun", "custodian": "...", "risk": "Tinggi", "effective": "11 Nov 2020", "prospectus": "https://...", "factsheet": "https://..." }
+    "etf": { "facts": {} },
     "tutorial": { "firebase": {} } // firebaseConfig proyek Firebase Tutorial (apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId)
   }
 }

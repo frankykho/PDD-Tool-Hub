@@ -27,7 +27,7 @@ html[data-theme="dark"] .btn:not(.s){color:#0E1A15}
 .etf{text-align:left;width:100%;color:inherit;display:block}.etf[aria-pressed="true"]{border-color:var(--brand2);box-shadow:0 0 0 2px var(--tint)}
 .etf .c{font-size:12px;font-weight:700;color:var(--brand2);letter-spacing:.5px}.etf .n{font-size:16px;font-weight:700;margin:2px 0 8px}
 .etf .r{display:flex;gap:18px;flex-wrap:wrap}.etf .r small{display:block;font-size:11px;color:var(--m)}.etf .r b{font-size:15px}
-.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+.kpis{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px;margin:14px 0}
 .kpi{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:10px 12px;min-width:0}
 .kpi small{display:block;font-size:11px;color:var(--m)}.kpi b{display:block;font-size:19px;margin-top:2px}.kpi span{font-size:11px;color:var(--m)}
 .up{color:var(--up)}.down{color:var(--down)}
@@ -59,20 +59,26 @@ select{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;p
 .sh .hd img{height:30px}.sh .hd b{font-size:15px;color:var(--brand)}.sh .hd .sp{flex:1}
 .hero{background:var(--brand);color:#fff;border-radius:14px;padding:18px 20px}
 .hero .k{font-size:11px;font-weight:700;letter-spacing:.6px;color:#BFF0D5}.hero h1{margin:4px 0 2px;font-size:24px;line-height:1.2}.hero p{margin:0;color:#D5EDE1;font-size:13px}
-.sh .grid2{grid-template-columns:1fr}
 .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.facts div{background:var(--p2);border-radius:9px;padding:7px 10px;min-width:0}
 .facts small{display:block;font-size:11px;color:var(--m)}.facts b{font-size:13px}
 .buy{margin:12px 0 0;font-size:13px}
 .disc{font-size:11px;color:var(--m);margin-top:14px;line-height:1.5}
-@media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.facts.st{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:10px}.facts.st b{font-size:15px}.facts.st span{font-size:11px;color:var(--m)}
+.facts.st>div:last-child:nth-child(odd){grid-column:1/-1}
+.simf{gap:12px;margin-bottom:10px}.simf label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--m)}
+.simf input{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;padding:5px 8px;background:var(--p);color:var(--t);width:140px}
+.simt{margin:0 0 10px;font-size:13px}
+.hint{font-size:12px;color:var(--warn);margin:8px 0 0}
+@media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.kpis{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media print{
   @page{size:A4;margin:10mm}
   body{background:#fff;color:#14201B;font-size:11.5px}
   .noprint{display:none!important}
   .wrap{padding:0;max-width:none}.card,.kpi{break-inside:avoid;border-color:#DCE5E0}
-  .kpis{grid-template-columns:repeat(4,1fr)}.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .grid2{grid-template-columns:1fr 1fr}.sh .grid2{grid-template-columns:1fr}.sec{margin-top:8px}.card{padding:10px 12px}
+  .kpis{grid-auto-flow:column;grid-template-columns:none}.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grid2{grid-template-columns:1fr 1fr}.sec{margin-top:8px}.card{padding:10px 12px}
   .facts{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px}.facts div{padding:5px 8px}
+  .facts.st{grid-template-columns:repeat(2,minmax(0,1fr))!important;margin-bottom:6px}.facts.st b{font-size:13px}.simt{margin-bottom:6px;font-size:11.5px}
   .sh .hd{margin-bottom:10px;padding-bottom:6px}.hero{padding:12px 16px}.hero h1{font-size:20px}.kpis{margin:10px 0;gap:8px}.kpi{padding:7px 10px}.kpi b{font-size:16px}
   h2{margin-bottom:6px}td,th{padding:4px 6px}.note{margin-top:4px}.disc{margin-top:8px;font-size:9.5px}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -96,11 +102,13 @@ const fYm=ym=>ym?`${MON[ym%100-1]} ${Math.floor(ym/100)}`:"–";
 const fDT=s=>s?new Date(s).toLocaleString("id-ID",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"})+" WIB":"–";
 const toast=m=>{const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)};
 const PER=[["m1","1 bln"],["m3","3 bln"],["m6","6 bln"],["ytd","YTD"],["y1","1 thn"],["y3","3 thn"]];
-let D=null,cur="XKMS",grp=null,sortK="aum",sortD=-1,range="y1";
+// fakta produk dari prospektus: profile.json -> tools.etf.facts.<KODE> = {fee, custodian, risk, effective, prospectus, factsheet}
+const FX=(PF.tools&&PF.tools.etf&&PF.tools.etf.facts)||{};
+let D=null,cur="XKMS",grp=null,sortK="aum",sortD=-1,range="y1",sim={mode:"m",amt:1000000,start:null};
 
 /* ---------- grafik harga vs NAB (satu sumbu: rupiah per unit) ---------- */
 function chart(el,e,rng){
-  const cut={m3:91,m6:182,y1:400}[rng],from=new Date(Date.now()-cut*864e5).toISOString().slice(0,10);
+  const cut={m3:91,m6:182,y1:365,all:1e5}[rng],from=new Date(Date.now()-cut*864e5).toISOString().slice(0,10);
   const P=e.chart.price.filter(x=>x[0]>=from);
   if(P.length<2){el.innerHTML='<div class="msg">Riwayat harga belum tersedia.</div>';return}
   const N=e.chart.nav.filter(x=>x[0]>=P[0][0]&&x[0]<=P[P.length-1][0]);
@@ -140,10 +148,12 @@ function chart(el,e,rng){
 const premTxt=e=>e.premium==null?"–":(e.premium>0?"Premium ":"Diskon ")+nf(Math.abs(e.premium),2)+"%";
 const navAsOf=e=>e.navDate?"per "+fD(e.navDate):"NAB terbaru di Bareksa, diambil "+fD(D.navAt);
 function kpis(e,share){
-  const k=[["Harga pasar",nf(e.close),(e.change==null?"":`<span class="${cls(e.change)}">${pct(e.change)}</span> `)+"per "+fD(e.priceDate)],
+  const lot=e.close?rp(e.close*100):"–";
+  const k=[["Harga pasar",nf(e.close),(e.change==null?"":`<span class="${cls(e.change)}">${pct(e.change)}</span> `)+"per "+fD(e.priceDate)+(share?"":" · 1 lot ≈ "+lot)],
     ["NAB per unit",nf(e.nav,2),navAsOf(e)]];
   if(!share||e.premium!=null)k.push(["Harga vs NAB",premTxt(e),e.premium==null?"butuh harga & NAB di tanggal yang sama":`harga ${nf(e.premiumClose)} pada ${fD(e.navDate)}`]);
   k.push(["Dana kelolaan (AUM)",bn(e.aum),e.aumYm?"per "+fYm(e.aumYm):""]);
+  if(share)k.push(["Modal minimal (1 lot)",lot,"100 unit × harga, belum termasuk biaya transaksi"]);
   if(!share)k.push(["Nilai transaksi / hari",rp(e.liq.avgValue20),`rata-rata ${e.liq.days} hari bursa · ${e.liq.zeroDays20} hari tanpa transaksi`]);
   return`<div class="kpis">${k.map(([a,b,c])=>`<div class="kpi"><small>${a}</small><b>${b}</b><span>${c}</span></div>`).join("")}</div>`;
 }
@@ -152,13 +162,100 @@ function kpis(e,share){
 function perfTable(e,share){
   const bx=e.bench||{ret:{}},rows=[["Harga di bursa",fD(e.priceDate),e.price],["NAB (dari Bareksa)",e.navDate?fD(e.navDate):"diambil "+fD(D.navAt),e.ret],
     [(share?"Indeks acuan: ":"Pembanding: ")+esc(bx.name),fD(bx.asOf||e.priceDate),bx.ret]];
-  if(!share)rows.push(["Selisih harga di bursa vs indeks",fD(e.priceDate),Object.fromEntries(PER.map(([k])=>[k,e.price[k]!=null&&bx.ret[k]!=null?e.price[k]-bx.ret[k]:null])),1]);
+  const diff=(a,b)=>Object.fromEntries(PER.map(([k])=>[k,a[k]!=null&&b[k]!=null?a[k]-b[k]:null]));
+  if(!share)rows.push(["Selisih harga di bursa vs indeks",fD(e.priceDate),diff(e.price,bx.ret),1]);
+  // tracking difference: NAB vs indeks pada tanggal NAB yang sama
+  const an=bx.atNav;if(!share&&an)rows.push(["Selisih NAB vs indeks",fD(e.navDate)+(an.approx?" (perkiraan)":""),diff(e.ret,an.ret),1]);
   return`<div class="tblw"><table><thead><tr><th></th><th>Per</th>${PER.map(p=>`<th class="n">${p[1]}</th>`).join("")}</tr></thead><tbody>
     ${rows.map(([l,dt,r,d])=>`<tr${d?' style="font-weight:600"':""}><td>${l}</td><td style="white-space:nowrap;color:var(--m)">${dt}</td>${PER.map(([k])=>`<td class="n ${cls(r[k])}">${d&&r[k]!=null?(r[k]>0?"+":"")+nf(r[k],2)+" poin":pct(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note">${esc(bx.note||"")}. Return indeks adalah return harga (tanpa dividen). Return NAB dihitung Bareksa sampai tanggal NAB${share?"":", jadi tidak dikurangkan langsung dengan indeks yang tanggalnya berbeda"}.</p>`;
+    <p class="note">${esc(bx.note||"")}. Return indeks adalah return harga (tanpa dividen). Return NAB dihitung Bareksa sampai tanggal NAB.${share?"":an
+      ?` Selisih NAB vs indeks memakai nilai indeks pada tanggal NAB${an.approx?" (IDX30: perkiraan, titik awal periode bergeser 1 hari bursa)":""}; selisih positif wajar karena dividen saham masuk ke NAB, sedangkan indeks tidak memasukkan dividen.`
+      :" Selisih NAB vs indeks muncul setelah tanggal NAB tersedia dan sama dengan hari harga terakhir atau 1 hari bursa sebelumnya."}</p>`;
+}
+
+/* ---------- risiko, kinerja per tahun & simulasi (dihitung di browser dari riwayat harga & NAB) ---------- */
+const monthEnds=s=>{const m={};for(const p of s)m[p[0].slice(0,7)]=p;return Object.values(m).sort((a,b)=>a[0]<b[0]?-1:1)};
+const valAt=(s,d)=>{let v=null;for(const p of s){if(p[0]>d)break;v=p}return v};
+// return per tahun kalender; titik awal harus ada di bulan Desember tahun sebelumnya dan setelah ETF tercatat
+function yearRets(s,listedAt){
+  const out={};if(s.length<2)return out;const last=s[s.length-1],y1=+last[0].slice(0,4);
+  for(let y=+s[0][0].slice(0,4)+1;y<=y1;y++){
+    const b=valAt(s,`${y-1}-12-31`),e=y===y1?last:valAt(s,`${y}-12-31`);
+    if(b&&e&&b[0]>=`${y-1}-12-01`&&b[0]>=listedAt)out[y]=(e[1]/b[1]-1)*100;
+  }
+  return out;
+}
+function risk(e){
+  const P=e.chart.price;if(P.length<30)return null;
+  const end=P[P.length-1][0],one=new Date(Date.parse(end)-365*864e5).toISOString().slice(0,10),r=[];
+  for(let i=1;i<P.length;i++)if(P[i][0]>one)r.push(Math.log(P[i][1]/P[i-1][1]));
+  // disetahunkan dengan jumlah hari bursa yang benar-benar ada datanya dalam 1 tahun terakhir
+  const mu=r.reduce((a,b)=>a+b,0)/r.length,vol=Math.sqrt(r.reduce((a,b)=>a+(b-mu)**2,0)/(r.length-1)*r.length)*100;
+  let pk=P[0],dd={v:0};for(const p of P){if(p[1]>pk[1])pk=p;const v=p[1]/pk[1]-1;if(v<dd.v)dd={v,peak:pk,trough:p}}
+  const rec=dd.trough?P.find(p=>p[0]>dd.trough[0]&&p[1]>=dd.peak[1]):null;
+  const high=P.reduce((a,p)=>p[1]>a[1]?p:a,P[0]);
+  let M=monthEnds(e.chart.nav).filter(p=>p[0]>=e.listedAt),best=null,worst=null;
+  if(M.length&&M[M.length-1][0].slice(0,7)===end.slice(0,7))M=M.slice(0,-1);   // bulan berjalan belum lengkap
+  for(let i=1;i<M.length;i++){const a=M[i-1][0],b=M[i][0];if((+b.slice(0,4)*12+ +b.slice(5,7))-(+a.slice(0,4)*12+ +a.slice(5,7))!==1)continue;
+    const v=(M[i][1]/M[i-1][1]-1)*100;if(!best||v>best.v)best={v,d:b};if(!worst||v<worst.v)worst={v,d:b}}
+  return{from:P[0][0],vol,days:r.length,dd,rec,high,now:(P[P.length-1][1]/high[1]-1)*100,best,worst};
+}
+const ymOf=d=>+d.slice(0,4)*100+ +d.slice(5,7);
+function riskBox(e,share){
+  const k=risk(e);if(!k)return`<div class="card"><h2>Risiko & kinerja per tahun</h2><div class="msg">Riwayat harga belum cukup.</div></div>`;
+  const atLow=Math.abs(k.now-k.dd.v*100)<0.05;   // harga terakhir = titik terendah: kotak "dari harga tertinggi" sama isinya
+  const t=[[share?"Naik-turun harga (volatilitas)":"Volatilitas 1 thn",nf(k.vol,1)+"% per tahun",`dari ${k.days} hari bursa terakhir`],
+    ["Penurunan terdalam",`<span class="down">${pct(k.dd.v*100,1)}</span>`,k.dd.peak?`${fD(k.dd.peak[0])} → ${fD(k.dd.trough[0])} · ${k.rec?"pulih "+fD(k.rec[0]):atLow?"harga terakhir masih di titik terendah":"belum kembali ke puncak"}`:""],
+    !atLow&&["Dari harga tertinggi",`<span class="${cls(k.now)}">${pct(k.now,1)}</span>`,`tertinggi ${nf(k.high[1])} pada ${fD(k.high[0])}`],
+    k.best&&["Bulan terbaik / terburuk (NAB)",`<span class="up">${pct(k.best.v,1)}</span> / <span class="down">${pct(k.worst.v,1)}</span>`,`${fYm(ymOf(k.best.d))} / ${fYm(ymOf(k.worst.d))}`]].filter(Boolean);
+  const la=e.listedAt||"",bx=e.bench||{},R=[["Harga di bursa",yearRets(e.chart.price,la)],["NAB",yearRets(e.chart.nav,la)],
+    ["Indeks acuan",Object.fromEntries(Object.entries(bx.years||{}).filter(([y])=>`${y-1}-12-31`>=la))]];
+  const ys=[...new Set(R.slice(0,2).flatMap(([,o])=>Object.keys(o)))].sort().slice(-4),cy=String(new Date().getFullYear());
+  return`<div class="card"><h2>Risiko & kinerja per tahun</h2>
+    <div class="facts st">${t.map(([a,b,c])=>`<div><small>${a}</small><b>${b}</b><br><span>${c}</span></div>`).join("")}</div>
+    ${ys.length?`<div class="tblw"><table><thead><tr><th></th>${ys.map(y=>`<th class="n">${y}${y===cy?" (YTD)":""}</th>`).join("")}</tr></thead><tbody>
+      ${R.map(([l,o])=>`<tr><td>${l}</td>${ys.map(y=>`<td class="n ${cls(o[y])}">${pct(o[y])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:""}
+    <p class="note">Volatilitas & penurunan dari harga harian di bursa sejak ${fD(k.from)} (Yahoo Finance). Kinerja per tahun: harga & indeks (${esc(bx.name||"")}) akhir tahun, NAB akhir bulan dari Bareksa; tahun berjalan sampai data terakhir.${bx.years&&!Object.keys(bx.years).some(y=>y!==cy)?" Riwayat tahunan indeks IDX30 tidak tersedia dari sumber publik; hanya tahun berjalan.":""}</p></div>`;
+}
+function simCalc(e){
+  const M=monthEnds(e.chart.nav).filter(p=>p[0]>=e.listedAt);if(M.length<2)return null;
+  const last=M[M.length-1],opts=M.slice(0,-1);
+  if(!sim.start||!opts.some(p=>p[0].slice(0,7)===sim.start)){const y=new Date(Date.parse(last[0])-365*864e5).toISOString().slice(0,7);sim.start=(opts.find(p=>p[0].slice(0,7)>=y)||opts[0])[0].slice(0,7)}
+  const buys=opts.filter(p=>p[0].slice(0,7)>=sim.start),list=sim.mode==="m"?buys:buys.slice(0,1);
+  let cash=0,units=0,modal=0;
+  for(const p of list){cash+=sim.amt;modal+=sim.amt;const lots=Math.floor(cash/(p[1]*100));units+=lots*100;cash-=lots*100*p[1]}
+  return{opts,last,n:list.length,first:list[0],modal,units,cash,value:units*last[1]+cash};
+}
+const rpF=v=>v==null||!isFinite(v)?"–":(v<0?"−":"")+"Rp"+nf(Math.abs(Math.round(v)));
+function simOut(e){
+  const s=simCalc(e);if(!s)return'<div class="msg">Riwayat NAB belum cukup.</div>';
+  const g=s.value-s.modal,how=sim.mode==="m"?`${rpF(sim.amt)} setiap akhir bulan sejak ${fYm(ymOf(s.first[0]))} (${s.n} kali)`:`${rpF(sim.amt)} sekali pada akhir ${fYm(ymOf(s.first[0]))}`;
+  return`<p class="simt">Jika membeli ${esc(e.code)} ${how}, nilainya per ${fD(s.last[0])}:</p>
+    <div class="facts st"><div><small>Total modal</small><b>${rpF(s.modal)}</b></div><div><small>Nilai sekarang</small><b>${rpF(s.value)}</b></div>
+    <div><small>Untung / rugi</small><b class="${cls(g)}">${g>0?"+":g<0?"−":""}${rpF(Math.abs(g))} (${pct(s.modal?g/s.modal*100:null,1)})</b></div>
+    <div><small>Unit dimiliki</small><b>${nf(s.units)} unit</b><br><span>${nf(s.units/100)} lot${s.cash>=1?" · sisa uang "+rpF(s.cash):""}</span></div></div>
+    ${s.units?"":`<p class="hint">Nominal belum cukup untuk membeli 1 lot (± ${rpF(s.first[1]*100)}).</p>`}`;
+}
+function simBox(e){
+  const s=simCalc(e);
+  return`<div class="card"><h2>Simulasi investasi <small>dengan NAB akhir bulan</small></h2>
+    ${s?`<div class="row simf noprint"><label>Cara<select id="sMode"><option value="m"${sim.mode==="m"?" selected":""}>Rutin tiap bulan</option><option value="o"${sim.mode==="o"?" selected":""}>Sekali di awal</option></select></label>
+      <label>Nominal (Rp)<input id="sAmt" type="number" min="100000" step="100000" value="${sim.amt}" inputmode="numeric"></label>
+      <label>Mulai<select id="sStart">${s.opts.map(p=>{const m=p[0].slice(0,7);return`<option value="${m}"${m===sim.start?" selected":""}>${fYm(ymOf(p[0]))}</option>`}).join("")}</select></label></div>`:""}
+    <div id="simOut">${simOut(e)}</div>
+    <p class="note">Ilustrasi dengan NAB akhir bulan dari Bareksa (sudah termasuk dividen yang diinvestasikan kembali ke NAB), dibeli per lot (100 unit), sisa uang dibawa ke bulan berikutnya. Belum termasuk biaya transaksi & pajak; harga beli di bursa bisa sedikit berbeda dari NAB. Kinerja masa lalu tidak menjamin kinerja masa depan.</p></div>`;
+}
+function factList(e,share){
+  const f=FX[e.code]||{},url=u=>/^https?:\/\//.test(u||"")?esc(u):"";
+  const L=[["Kode di bursa",`<b>${esc(e.code)}</b>`],["Indeks acuan",esc(e.index)],["Tercatat di BEI",esc(e.listed)],f.effective&&["Efektif OJK",esc(f.effective)],["Satuan perdagangan","1 lot = 100 unit"],
+    f.fee?["Biaya pengelolaan",esc(f.fee)]:e.fee!=null&&["Biaya per tahun",nf(e.fee,2)+'%<br><span style="font-size:11px;font-weight:400;color:var(--m)">data TradingView</span>'],
+    f.custodian&&["Bank kustodian",esc(f.custodian)],f.risk&&["Tingkat risiko",esc(f.risk)],e.im&&["Manajer investasi",esc(e.im)]].filter(Boolean);
+  const docs=[url(f.prospectus)&&`<a href="${url(f.prospectus)}" target="_blank" rel="noopener">Prospektus ↗</a>`,url(f.factsheet)&&`<a href="${url(f.factsheet)}" target="_blank" rel="noopener">Fund fact sheet ↗</a>`].filter(Boolean).join(" · ");
+  return`<div class="facts">${L.map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join("")}</div>${docs?`<p class="buy">${docs}</p>`:""}
+    ${!share&&!FX[e.code]?`<p class="hint">Biaya pengelolaan, bank kustodian, tingkat risiko & link prospektus belum diisi: tambahkan di profile.json → tools.etf.facts.${esc(e.code)}.</p>`:""}`;
 }
 const chartBox=(e,share)=>`<div class="card sec"><div class="chead"><h2 style="margin:0">Harga pasar vs NAB</h2><div class="legend"><span><i style="background:var(--s1)"></i>Harga pasar (harian)</span><span><i style="background:var(--s2)"></i>NAB per unit</span></div><div class="sp"></div>
-  <div class="seg noprint" role="group" aria-label="Rentang waktu">${[["m3","3 bln"],["m6","6 bln"],["y1","1 thn"]].map(([k,l])=>`<button type="button" data-rng="${k}" aria-pressed="${k===range}">${l}</button>`).join("")}</div></div>
+  <div class="seg noprint" role="group" aria-label="Rentang waktu">${[["m3","3 bln"],["m6","6 bln"],["y1","1 thn"],["all","Semua"]].map(([k,l])=>`<button type="button" data-rng="${k}" aria-pressed="${k===range}">${l}</button>`).join("")}</div></div>
   <div class="chart" id="ch"></div><p class="note">Harga penutupan harian dari Yahoo Finance. NAB dari Bareksa${share?"":" (tidak harian sebelum ada data terbaru)"}. Harga di bursa bisa berbeda dari NAB (premium/diskon).</p></div>`;
 
 /* ---------- aplikasi internal ---------- */
@@ -173,8 +270,10 @@ function renderApp(){
     ${kpis(e)}
     <div class="row noprint"><a class="btn" href="${share}" target="_blank" rel="noopener">Halaman nasabah ${esc(e.code)} ↗</a><button class="btn s" type="button" id="bCopy">Salin link nasabah</button><a class="btn s" href="${share}?print=1" target="_blank" rel="noopener">PDF untuk nasabah</a></div>
     ${chartBox(e)}
-    <div class="grid2 sec"><div class="card"><h2>Kinerja <small>NAB vs harga pasar vs indeks</small></h2>${perfTable(e)}</div>
-      <div class="card"><h2>Arus dana bulanan <small>perkiraan, Rp</small></h2>${flowTable(e)}</div></div>
+    <div class="card sec"><h2>Kinerja <small>NAB vs harga pasar vs indeks</small></h2>${perfTable(e)}</div>
+    <div class="grid2 sec">${riskBox(e)}${simBox(e)}</div>
+    <div class="grid2 sec"><div class="card"><h2>Arus dana bulanan <small>perkiraan, Rp</small></h2>${flowTable(e)}</div>
+      <div class="card"><h2>Fakta produk</h2>${factList(e)}</div></div>
     <div class="card sec"><div class="chead"><h2 style="margin:0">Pembanding ETF di BEI</h2><div class="sp"></div>
       <label class="row" style="font-size:12px;color:var(--m)">Kelompok <select id="fGrp"><option value="all">Semua ETF (${D.peers.length})</option>${Object.entries(D.groups).filter(([g])=>D.peers.some(p=>p.group===g)).map(([g,l])=>`<option value="${g}"${g===grp?" selected":""}>${esc(l)} (${D.peers.filter(p=>p.group===g).length})</option>`).join("")}</select></label></div>
       <div class="tblw" id="peers"></div>
@@ -206,6 +305,11 @@ document.addEventListener("click",async ev=>{
   if(t.id==="bPrint")window.print();
 });
 document.addEventListener("change",ev=>{if(ev.target.id==="fGrp"){grp=ev.target.value;peerTable()}});
+// simulasi: hitung ulang hasilnya saja (form tidak digambar ulang supaya fokus input tidak hilang)
+const simUpd=()=>{const e=D&&D.kisi.find(x=>x.code===(MODE==="share"?CODE:cur)),o=$("simOut");if(e&&o)o.innerHTML=simOut(e)};
+document.addEventListener("input",ev=>{const id=ev.target.id;
+  if(id==="sMode")sim.mode=ev.target.value;else if(id==="sStart")sim.start=ev.target.value;
+  else if(id==="sAmt"){const v=Math.round(+ev.target.value);if(!(v>0))return;sim.amt=Math.min(v,1e12)}else return;simUpd()});
 // gambar ulang grafik saat lebar berubah dan sebelum/sesudah cetak (lebar kertas berbeda dari layar)
 const redraw=()=>{const el=$("ch"),e=D&&D.kisi.find(x=>x.code===(MODE==="share"?CODE:cur));if(el&&e)chart(el,e,range)};
 let rz;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(redraw,150)});addEventListener("beforeprint",redraw);addEventListener("afterprint",redraw);
@@ -214,19 +318,17 @@ let rz;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(redraw,150)
 function renderShare(){
   const e=D.kisi.find(x=>x.code===CODE);if(!e){$("root").innerHTML='<div class="msg">ETF tidak ditemukan.</div>';return}
   document.querySelector(".wrap").classList.add("sh");
-  const lot=e.close?e.close*100:null,app=AP.name||"aplikasi kami";
+  const app=AP.name||"aplikasi kami";
   const links=[AP.ios&&`<a href="${esc(AP.ios)}" target="_blank" rel="noopener">App Store</a>`,AP.android&&`<a href="${esc(AP.android)}" target="_blank" rel="noopener">Google Play</a>`].filter(Boolean).join(" · ");
   const disc=B.disclaimer||"Investasi melalui reksa dana mengandung risiko. Sebelum memutuskan berinvestasi, calon investor wajib membaca dan memahami prospektus. Kinerja masa lalu tidak mencerminkan kinerja masa datang. Harga ETF di bursa dapat berbeda dari NAB.";
   $("root").innerHTML=`<div class="hd">${B.logo?`<img src="${esc(B.logo)}" alt="${esc(B.short||"")}">`:B.short?`<b>${esc(B.short)}</b>`:""}<div class="sp"></div><button class="btn s noprint" type="button" id="bPrint">Simpan PDF</button></div>
     <div class="hero"><div class="k">REKSA DANA INDEKS · ETF · KODE BEI ${esc(e.code)}</div><h1>${esc(e.name)}</h1><p>Mengikuti indeks ${esc(e.index)}${e.im?" · Manajer investasi: "+esc(e.im):""}</p></div>
     ${kpis(e,true)}
     ${chartBox(e,true)}
-    <div class="grid2 sec"><div class="card"><h2>Kinerja</h2>${perfTable(e,true)}</div>
-      <div class="card"><h2>Informasi produk</h2><div class="facts">
-        ${[["Kode di bursa",`<b>${esc(e.code)}</b>`],["Indeks acuan",esc(e.index)],["Tercatat di BEI",esc(e.listed)],["Satuan perdagangan","1 lot = 100 unit"],
-          ["Perkiraan modal 1 lot",rp(lot)+'<br><span style="font-size:11px;font-weight:400;color:var(--m)">harga × 100, belum termasuk biaya transaksi</span>'],
-          e.fee!=null&&["Biaya pengelolaan",nf(e.fee,2)+"% per tahun"],e.im&&["Manajer investasi",esc(e.im)]].filter(Boolean).map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join("")}</div>
-      <p class="buy"><b>Cara membeli:</b> ETF dibeli dan dijual di bursa seperti saham. Cari kode <b>${esc(e.code)}</b> di ${esc(app)}, lalu beli minimal 1 lot.${links?" Unduh: "+links:""}</p></div></div>
+    <div class="card sec"><h2>Kinerja</h2>${perfTable(e,true)}</div>
+    <div class="grid2 sec">${riskBox(e,true)}${simBox(e)}</div>
+    <div class="card sec"><h2>Informasi produk</h2>${factList(e,true)}
+      <p class="buy"><b>Cara membeli:</b> ETF dibeli dan dijual di bursa seperti saham. Cari kode <b>${esc(e.code)}</b> di ${esc(app)}, lalu beli minimal 1 lot.${links?" Unduh: "+links:""}</p></div>
     <p class="disc">${esc(disc)}<br>Data per ${fDT(D.at)} dari sumber publik (TradingView, Yahoo Finance, Bareksa) dan dapat terlambat atau berubah. ${esc(e.bench?e.bench.note:"")}.${B.company?" Disusun oleh "+esc(B.company)+(B.license?" · "+esc(B.license):"")+".":""}</p>`;
   chart($("ch"),e,range);
   if(new URLSearchParams(location.search).has("print"))setTimeout(()=>window.print(),600);

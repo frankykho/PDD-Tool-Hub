@@ -15,7 +15,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Market Proxy | `apps/market-proxy` | Komoditas, market breadth & sektor (dipanggil Story Data) |
 | Fund Insight | `apps/fund-insight` | Data & analisis reksa dana |
 | Bond Insight | `apps/bond-insight` | Data & analisis obligasi |
-| ETF Insight | `apps/etf-insight` | ETF KISI (XKMS, XKID): harga vs NAB, kinerja vs indeks, arus dana, pembanding semua ETF di BEI, halaman nasabah `/p/<KODE>` |
+| ETF Insight | `apps/etf-insight` | ETF KISI (XKMS, XKID): harga vs NAB, kinerja vs indeks, risiko & kinerja per tahun, simulasi investasi, arus dana, pembanding semua ETF di BEI, halaman nasabah `/p/<KODE>`; fakta produk dari `tools.etf.facts` di profil |
 | Competitor Intel | `apps/competitor-intel` | Pantau promo investasi kompetitor |
 | Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor |
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
