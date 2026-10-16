@@ -9,7 +9,12 @@ const BOND = (process.env.BOND_URL || '').replace(/\/+$/, '');
 if (!FUND || !BOND) { console.error('FUND_URL dan BOND_URL wajib diisi (alamat Fund Insight & Bond Insight).'); process.exit(1); }
 fs.mkdirSync('out', { recursive: true });
 
-const getJson = async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(url + ' -> HTTP ' + r.status); return r.json(); };
+// "fetch failed" saja tidak menjelaskan apa-apa: sertakan alamat dan sebab jaringannya (mis. ENOTFOUND = alamat tidak ada)
+const getJson = async (url) => {
+  let r; try { r = await fetch(url); } catch (e) { const c = e.cause || {}; throw new Error(`${url} -> ${e.message}${c.code || c.message ? ` (${c.code || c.message})` : ''}`); }
+  if (!r.ok) throw new Error(url + ' -> HTTP ' + r.status); return r.json();
+};
+console.log(`Fund Insight: ${FUND}\nBond Insight: ${BOND}`);
 const browser = await chromium.launch();
 const keep = [], result = {};
 

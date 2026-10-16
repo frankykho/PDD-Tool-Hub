@@ -36,7 +36,7 @@ npm install
 
 1. Buka <https://dash.cloudflare.com/sign-up> dan daftar dengan email baru. Pilih paket **Free**.
 2. Setelah masuk, klik **Workers & Pages** di menu kiri (kadang ada di bawah **Compute**).
-3. Di sisi kanan halaman ada bagian **Subdomain**. Klik **Set up** atau **Change**, lalu isi nama pendek, misalnya `frankykho`. Gunakan huruf kecil, angka, atau tanda `-` saja, tanpa spasi.
+3. Di sisi kanan halaman ada bagian **Subdomain**. Klik **Set up** atau **Change**, lalu isi nama pendek, misalnya `pdd-team`. Gunakan huruf kecil, angka, atau tanda `-` saja, tanpa spasi.
 4. **Catat nama subdomain ini.** Nanti alamat tool menjadi `https://tool-hub.<subdomain>.workers.dev`.
 
 ### 1b. Repo GitHub baru
@@ -47,15 +47,15 @@ npm install
 4. Pilih **Public**.
 5. **Jangan** centang "Add a README file", dan biarkan .gitignore dan license berisi "None". Repo harus benar-benar kosong.
 6. Klik **Create repository**.
-7. Catat nama lengkapnya dalam format `username/nama-repo`, misalnya `frankykho/tool-hub`.
+7. Catat nama lengkapnya dalam format `username/nama-repo`, misalnya `frankykho/PDD-Tool-Hub`.
 
 ### 1c. Isi `profile.json`
 
 1. Di VS Code, buka berkas `profile.json` (panel kiri).
 2. Pastikan dua bagian ini sudah benar:
    ```jsonc
-   "subdomain": "frankykho",                                   // dari langkah 1a
-   "github": { "repo": "frankykho/tool-hub", "branch": "main" }, // dari langkah 1b
+   "subdomain": "pdd-team",                                    // dari langkah 1a
+   "github": { "repo": "frankykho/PDD-Tool-Hub", "branch": "main" }, // dari langkah 1b
    ```
 3. Simpan (<kbd>Ctrl</kbd> + <kbd>S</kbd>).
 
@@ -285,9 +285,9 @@ Folder `apps/tutorial/site/images/` berisi tangkapan layar aplikasi lama. Repo i
    ```
    git rebase --root --exec "git commit --amend --reset-author --no-edit"
    ```
-4. Sambungkan ke repo GitHub, lalu kirim. **Ganti `frankykho/tool-hub` dengan isi `"repo"` di `profile.json`**, persis sama termasuk huruf besar-kecilnya. Kalau tidak sama, akan muncul `Repository not found`:
+4. Sambungkan ke repo GitHub, lalu kirim. **Ganti `frankykho/PDD-Tool-Hub` dengan isi `"repo"` di `profile.json`**, persis sama termasuk huruf besar-kecilnya. Kalau tidak sama, akan muncul `Repository not found`:
    ```
-   git remote add origin https://github.com/frankykho/tool-hub.git
+   git remote add origin https://github.com/frankykho/PDD-Tool-Hub.git
    git push -u origin main
    ```
    Kalau jendela login GitHub muncul, masuk dan izinkan.
@@ -313,16 +313,16 @@ Di repo GitHub, buka tab **Actions**. Untuk setiap workflow di bawah, klik naman
 ## 5. Firebase (untuk Tutorial)
 
 1. Buka <https://console.firebase.google.com> → proyek **Tutorial** → **Authentication** (menu kiri, di bawah Build) → tab **Settings** → **Authorized domains** → **Add domain**.
-   Tambahkan dua alamat ini satu per satu (ganti `frankykho` dengan subdomain Anda):
-   - `tutorial.frankykho.workers.dev`
-   - `tool-hub.frankykho.workers.dev`
-2. Buka halaman admin Tutorial: `https://tutorial.frankykho.workers.dev/admin.html`. Cari kotak **Pindahkan gambar lama ke GitHub**, lalu klik **Pindahkan** dan tunggu sampai selesai. Lakukan ini selagi akun lama masih aktif.
+   Tambahkan dua alamat ini satu per satu (ganti `pdd-team` kalau subdomain Anda berbeda):
+   - `tutorial.pdd-team.workers.dev`
+   - `tool-hub.pdd-team.workers.dev`
+2. Buka halaman admin Tutorial: `https://tutorial.pdd-team.workers.dev/admin.html`. Cari kotak **Pindahkan gambar lama ke GitHub**, lalu klik **Pindahkan** dan tunggu sampai selesai. Lakukan ini selagi akun lama masih aktif.
 
 ---
 
 ## 6. Coba, lalu umumkan
 
-1. Buka `https://tool-hub.frankykho.workers.dev` (pakai subdomain Anda), login, lalu buka **setiap tool** satu per satu. Pastikan datanya ada: akun pengguna, draf, riwayat, dan artikel.
+1. Buka `https://tool-hub.pdd-team.workers.dev` (pakai subdomain Anda), login, lalu buka **setiap tool** satu per satu. Pastikan datanya ada: akun pengguna, draf, riwayat, dan artikel.
 2. **Pasang ulang bookmarklet.** Bookmarklet lama masih mengarah ke alamat lama. Buka tool berikut, lalu tarik lagi tombol bookmarklet-nya ke bookmark bar browser:
    - **Content Insight**: "Simpan ke Content Insight"
    - **Story Generator**: Foreign Lens, Wrap, Kalender
@@ -367,6 +367,7 @@ Di repo GitHub, buka tab **Actions**. Untuk setiap workflow di bawah, klik naman
 | `.secrets.json belum ada` | Salin `.secrets.example.json` lalu ganti namanya menjadi `.secrets.json` (langkah 3). |
 | `Unexpected token` saat `deploy.mjs secrets` | Ada salah ketik di `.secrets.json`, biasanya tanda kutip atau koma yang hilang. Periksa baris yang ditunjuk. |
 | `remote origin already exists` (saat `git remote add`) | Jalankan `git remote set-url origin https://github.com/username/nama-repo.git`, lalu `git push -u origin main`. |
+| `Permission to ... denied to <akun-lain>` (403) saat `git push` | Laptop menyimpan login akun GitHub lain. Jalankan `git remote set-url origin https://USERNAME@github.com/USERNAME/NAMA-REPO.git` (ganti USERNAME dengan akun pemilik repo), lalu `git push -u origin main` dan masuk dengan akun pemilik repo. |
 | Workflow di GitHub gagal (tanda ✗ merah) | Klik workflow-nya untuk melihat error. Biasanya secret repo (langkah 4b) belum diisi atau salah ketik namanya. |
 | Tutorial menampilkan "Tutorial belum tersambung" | `FIREBASE_SA` belum diisi atau tidak lengkap. Ulangi langkah 3c, lalu jalankan `node scripts/deploy.mjs secrets hub`. |
 | Login Tutorial gagal (`unauthorized-domain`) | Domain belum ditambahkan di Firebase (langkah 5.1). |
