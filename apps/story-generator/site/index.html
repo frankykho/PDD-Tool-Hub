@@ -1990,8 +1990,11 @@ const BOND_SRC=(()=>{try{return new URL(PS.bondPage||PS.bondApi).hostname.replac
   document.querySelectorAll('[data-plegal]').forEach(e=>{if(LEGAL_TXT){e.textContent=LEGAL_TXT;e.after(document.createElement('br'));}else e.remove();});
   document.querySelectorAll('[data-papp]').forEach(e=>e.textContent=PA.name?`Tersedia di aplikasi ${PA.name}`:'Tersedia di aplikasi');
   // logo: brand.logo untuk latar terang, brand.logoDark untuk latar gelap; tanpa logo -> teks brand.short; keduanya kosong -> disembunyikan
+  // tools.story.logo/logoDark (opsional) menggantikan logo brand khusus di story, mis. ikon persegi yang boleh diakses
+  // lintas situs (CORS) supaya ikut tergambar di PNG; boleh alamat relatif seperti "img/brand-logo.png"
+  const SL=PT.logo?{l:PT.logo,d:PT.logoDark||PT.logo}:{l:PB.logo,d:PB.logoDark||PB.logo};
   document.querySelectorAll('img[data-plogo]').forEach(img=>{
-    const src=img.dataset.plogo==='dark'?(PB.logoDark||PB.logo):PB.logo,box=/logo/.test(img.parentNode.className)?img.parentNode:null;
+    const src=img.dataset.plogo==='dark'?SL.d:SL.l,box=/logo/.test(img.parentNode.className)?img.parentNode:null;
     if(src){img.src=src;img.alt=PB.short||'';return;}
     if(!PB.short){(box||img).remove();return;}
     const t=document.createElement('span');t.className=(box?'':img.className+' ')+'p-logo-txt';t.textContent=PB.short;
