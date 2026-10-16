@@ -295,6 +295,8 @@ async function pull(env, iso, mkt = false) {
         let ti = types.indexOf(d.ptype_name);
         if (ti < 0) ti = types.push(d.ptype_name) - 1;
         row.push(ti, num(d.return?.sixmonth), num(d.return?.oneyear), num(d.return?.threeyear));
+        // kolom tambahan (dibaca ETF Insight): tanggal NAB, return 1 bulan, 3 bulan, YTD
+        row.push(isoDate(d.nav?.date, null), num(d.return?.onemonth), num(d.return?.threemonth), num(d.return?.ytd));
         names[d.pid] = [d.name || "", d.im?.name || ""]; // untuk daftar peluang produk baru di Insight
       }
       f[d.pid] = row;

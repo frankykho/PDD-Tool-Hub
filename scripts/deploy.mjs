@@ -24,6 +24,7 @@ export const APPS = [
   { id: "email", dir: "apps/email-studio" },
   { id: "fund", dir: "apps/fund-insight" },
   { id: "bond", dir: "apps/bond-insight" },
+  { id: "etf", dir: "apps/etf-insight" },
   { id: "competitor", dir: "apps/competitor-intel" },
   { id: "content", dir: "apps/content-insight" },
   { id: "edukasi", dir: "apps/edukasi-studio" },

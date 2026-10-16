@@ -1,0 +1,9 @@
+// ETF Insight: data & analisis ETF (XKMS, XKID) + pembanding semua ETF di BEI. Secret: SSO_SECRET
+// Tanpa cron (batas paket gratis 5 cron per akun) dan tanpa menulis ke D1: data diambil saat halaman dibuka, disimpan di cache.
+// DB = database Fund Insight (hanya dibaca): NAB, AUM, dan return dari data pasar (tabel mktsnap).
+{
+  "name": "etf-insight",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }]
+}

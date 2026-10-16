@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETF Insight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Tema terang bawaan; tema gelap mengikuti tombol tema Tool Hub (html[data-theme="dark"], lihat shared/theme.js) */
+:root{color-scheme:light;--bg:#F4F7F5;--p:#FFFFFF;--p2:#EEF3F0;--l:#DCE5E0;--t:#14201B;--m:#56665F;--brand:#1F5E4B;--brand2:#3FAE78;--tint:#E6F3EC;
+  --s1:#2a78d6;--s2:#eb6834;--grid:#E6ECE9;--up:#0F7A47;--down:#B42318;--warn:#8A5A00}
+html[data-theme="dark"]{color-scheme:dark;--bg:#111614;--p:#1a1a19;--p2:#232826;--l:#2E3632;--t:#EEF2EF;--m:#A9B5AF;--brand:#7FD3A6;--brand2:#3FAE78;--tint:#1C2D25;
+  --s1:#3987e5;--s2:#d95926;--grid:#2A302D;--up:#5BC98F;--down:#F08A80;--warn:#E3B45C}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 'Plus Jakarta Sans',system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;cursor:pointer}a{color:var(--brand)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.top h1{margin:0;font-size:20px;letter-spacing:.2px}.top h1 span{color:var(--brand2)}
+.top .sp{flex:1}.asof{font-size:12px;color:var(--m)}
+.btn{border:1px solid var(--brand);background:var(--brand);color:#fff;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600}
+html[data-theme="dark"] .btn:not(.s){color:#0E1A15}
+.btn.s{background:var(--p);color:var(--t);border-color:var(--l)}.btn.s:hover{border-color:var(--brand2)}
+.card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:16px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.grid2>*{min-width:0}
+.etf{text-align:left;width:100%;color:inherit;display:block}.etf[aria-pressed="true"]{border-color:var(--brand2);box-shadow:0 0 0 2px var(--tint)}
+.etf .c{font-size:12px;font-weight:700;color:var(--brand2);letter-spacing:.5px}.etf .n{font-size:16px;font-weight:700;margin:2px 0 8px}
+.etf .r{display:flex;gap:18px;flex-wrap:wrap}.etf .r small{display:block;font-size:11px;color:var(--m)}.etf .r b{font-size:15px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+.kpi{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:10px 12px;min-width:0}
+.kpi small{display:block;font-size:11px;color:var(--m)}.kpi b{display:block;font-size:19px;margin-top:2px}.kpi span{font-size:11px;color:var(--m)}
+.up{color:var(--up)}.down{color:var(--down)}
+h2{font-size:15px;margin:0 0 10px}h2 small{font-weight:400;color:var(--m);font-size:12px;margin-left:6px}
+.sec{margin-top:14px}
+.seg{display:inline-flex;border:1px solid var(--l);border-radius:9px;overflow:hidden}.seg button{border:0;background:var(--p);color:var(--m);padding:5px 10px;font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--tint);color:var(--brand);font-weight:700}
+.chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}.chead .sp{flex:1}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--m)}.legend i{display:inline-block;width:14px;height:2px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.chart{position:relative}.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .tip{position:absolute;pointer-events:none;background:var(--p);border:1px solid var(--l);border-radius:8px;padding:6px 9px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.12);white-space:nowrap}
+.chart .tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11.5px;color:var(--m);font-weight:600;padding:7px 8px;border-bottom:1px solid var(--l);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.k td{background:var(--tint)}tr.k td:first-child{font-weight:700}
+th[data-sort]{cursor:pointer}th[data-sort]:hover{color:var(--t)}
+.tblw{overflow-x:auto}
+.note{font-size:12px;color:var(--m);margin:8px 0 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;color:var(--brand);background:var(--tint);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+select{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;padding:5px 8px;background:var(--p);color:var(--t)}
+.msg{padding:14px;border-radius:10px;background:var(--p2);color:var(--m)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--t);color:var(--bg);padding:8px 14px;border-radius:9px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1}
+/* ---- halaman nasabah ---- */
+.sh{max-width:860px}
+.sh .hd{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--brand2);padding-bottom:10px;margin-bottom:16px}
+.sh .hd img{height:30px}.sh .hd b{font-size:15px;color:var(--brand)}.sh .hd .sp{flex:1}
+.hero{background:var(--brand);color:#fff;border-radius:14px;padding:18px 20px}
+.hero .k{font-size:11px;font-weight:700;letter-spacing:.6px;color:#BFF0D5}.hero h1{margin:4px 0 2px;font-size:24px;line-height:1.2}.hero p{margin:0;color:#D5EDE1;font-size:13px}
+.sh .grid2{grid-template-columns:1fr}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.facts div{background:var(--p2);border-radius:9px;padding:7px 10px;min-width:0}
+.facts small{display:block;font-size:11px;color:var(--m)}.facts b{font-size:13px}
+.buy{margin:12px 0 0;font-size:13px}
+.disc{font-size:11px;color:var(--m);margin-top:14px;line-height:1.5}
+@media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{
+  @page{size:A4;margin:10mm}
+  body{background:#fff;color:#14201B;font-size:11.5px}
+  .noprint{display:none!important}
+  .wrap{padding:0;max-width:none}.card,.kpi{break-inside:avoid;border-color:#DCE5E0}
+  .kpis{grid-template-columns:repeat(4,1fr)}.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grid2{grid-template-columns:1fr 1fr}.sh .grid2{grid-template-columns:1fr}.sec{margin-top:8px}.card{padding:10px 12px}
+  .facts{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px}.facts div{padding:5px 8px}
+  .sh .hd{margin-bottom:10px;padding-bottom:6px}.hero{padding:12px 16px}.hero h1{font-size:20px}.kpis{margin:10px 0;gap:8px}.kpi{padding:7px 10px}.kpi b{font-size:16px}
+  h2{margin-bottom:6px}td,th{padding:4px 6px}.note{margin-top:4px}.disc{margin-top:8px;font-size:9.5px}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><div class="msg">Memuat data ETF…</div></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const MODE=window.ETF_MODE||"app",CODE=window.ETF_CODE||"",PF=window.PROFILE||{},B=PF.brand||{},AP=PF.app||{};
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nf=(v,d=0)=>v==null||!isFinite(v)?"–":v.toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(v,d=2)=>v==null||!isFinite(v)?"–":(v>0?"+":"")+nf(v,d)+"%";
+const cls=v=>v==null?"":v>0?"up":v<0?"down":"";
+const rp=v=>{if(v==null||!isFinite(v))return"–";const a=Math.abs(v),s=v<0?"−":"";return s+(a>=1e12?"Rp "+nf(a/1e12,2)+" T":a>=1e9?"Rp "+nf(a/1e9,2)+" M":a>=1e6?"Rp "+nf(a/1e6,1)+" jt":"Rp "+nf(a))};
+const bn=v=>v==null?"–":rp(v*1e9);   // AUM dalam miliar
+const MON=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const fD=s=>{if(!s)return"–";const[y,m,d]=s.slice(0,10).split("-");return`${+d} ${MON[m-1]} ${y}`};
+const fYm=ym=>ym?`${MON[ym%100-1]} ${Math.floor(ym/100)}`:"–";
+const fDT=s=>s?new Date(s).toLocaleString("id-ID",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"})+" WIB":"–";
+const toast=m=>{const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)};
+const PER=[["m1","1 bln"],["m3","3 bln"],["m6","6 bln"],["ytd","YTD"],["y1","1 thn"],["y3","3 thn"]];
+let D=null,cur="XKMS",grp=null,sortK="aum",sortD=-1,range="y1";
+
+/* ---------- grafik harga vs NAB (satu sumbu: rupiah per unit) ---------- */
+function chart(el,e,rng){
+  const cut={m3:91,m6:182,y1:400}[rng],from=new Date(Date.now()-cut*864e5).toISOString().slice(0,10);
+  const P=e.chart.price.filter(x=>x[0]>=from);
+  if(P.length<2){el.innerHTML='<div class="msg">Riwayat harga belum tersedia.</div>';return}
+  const N=e.chart.nav.filter(x=>x[0]>=P[0][0]&&x[0]<=P[P.length-1][0]);
+  // lebar SVG = lebar kotak, supaya teks sumbu tidak ikut membesar/mengecil
+  const W=Math.max(300,Math.round(el.clientWidth||760)),H=matchMedia("print").matches?170:W<500?220:260,L=8,R=58,T=10,Bt=24,t=s=>Date.parse(s),x0=t(P[0][0]),x1=t(P[P.length-1][0]);
+  const all=[...P,...N].map(x=>x[1]),lo=Math.min(...all),hi=Math.max(...all),pad=(hi-lo)*.08||1,y0=lo-pad,y1=hi+pad;
+  const X=s=>L+(t(s)-x0)/(x1-x0||1)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-Bt);
+  const path=a=>a.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join("");
+  const ticks=[];for(let i=0;i<=3;i++){const v=y0+(y1-y0)*i/3;ticks.push(v)}
+  const nx=W<500?2:3,xt=[];for(let i=0;i<=nx;i++){const p=P[Math.round((P.length-1)*i/nx)];xt.push(p)}
+  const lp=P[P.length-1],ln=N[N.length-1];
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik harga pasar dan NAB ${esc(e.code)}">
+    ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${W-R+6}" y="${Y(v)+4}" font-size="11" fill="var(--m)">${nf(v)}</text>`).join("")}
+    ${xt.map((p,i)=>`<text x="${X(p[0])}" y="${H-6}" font-size="11" fill="var(--m)" text-anchor="${i===0?"start":i===xt.length-1?"end":"middle"}">${MON[+p[0].slice(5,7)-1]} ${p[0].slice(2,4)}</text>`).join("")}
+    <path d="${path(P)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>
+    ${N.length>1?`<path d="${path(N)}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"/>`:""}
+    ${N.map(p=>`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${N.length>40?2:3.5}" fill="var(--s2)" stroke="var(--p)" stroke-width="2"/>`).join("")}
+    <circle cx="${X(lp[0])}" cy="${Y(lp[1])}" r="4" fill="var(--s1)" stroke="var(--p)" stroke-width="2"/>
+    <g class="hv" visibility="hidden"><line class="hx" y1="${T}" y2="${H-Bt}" stroke="var(--m)" stroke-dasharray="3 3"/><circle class="hp" r="4.5" fill="var(--s1)" stroke="var(--p)" stroke-width="2"/></g>
+    <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bt}" fill="transparent" class="hit"/>
+  </svg><div class="tip" hidden></div>`;
+  const svg=el.querySelector("svg"),hv=svg.querySelector(".hv"),tip=el.querySelector(".tip");
+  const near=(a,ts)=>{let b=null,bd=1e18;for(const p of a){const d=Math.abs(t(p[0])-ts);if(d<bd){bd=d;b=p}}return[b,bd]};
+  svg.querySelector(".hit").addEventListener("pointermove",ev=>{
+    const r=svg.getBoundingClientRect(),sx=(ev.clientX-r.left)/r.width*W,ts=x0+(sx-L)/(W-L-R)*(x1-x0);
+    const[p]=near(P,ts),[n,nd]=near(N,ts);if(!p)return;
+    hv.setAttribute("visibility","visible");hv.querySelector(".hx").setAttribute("x1",X(p[0]));hv.querySelector(".hx").setAttribute("x2",X(p[0]));
+    const c=hv.querySelector(".hp");c.setAttribute("cx",X(p[0]));c.setAttribute("cy",Y(p[1]));
+    const nOk=n&&nd<4*864e5;
+    tip.innerHTML=`<b>${fD(p[0])}</b><br><i style="background:var(--s1)"></i>Harga ${nf(p[1])}${nOk?`<br><i style="background:var(--s2)"></i>NAB ${nf(n[1],2)} <span style="color:var(--m)">(${fD(n[0])})</span>`:""}`;
+    tip.hidden=false;const px=X(p[0])/W*r.width;tip.style.left=Math.min(Math.max(px+12,0),r.width-tip.offsetWidth-4)+"px";tip.style.top="8px";
+  });
+  svg.querySelector(".hit").addEventListener("pointerleave",()=>{hv.setAttribute("visibility","hidden");tip.hidden=true});
+}
+
+/* ---------- potongan tampilan ---------- */
+const premTxt=e=>e.premium==null?"–":(e.premium>0?"Premium ":"Diskon ")+nf(Math.abs(e.premium),2)+"%";
+const navAsOf=e=>e.navDate?"per "+fD(e.navDate):"NAB terbaru di Bareksa, diambil "+fD(D.navAt);
+function kpis(e,share){
+  const k=[["Harga pasar",nf(e.close),(e.change==null?"":`<span class="${cls(e.change)}">${pct(e.change)}</span> `)+"per "+fD(e.priceDate)],
+    ["NAB per unit",nf(e.nav,2),navAsOf(e)]];
+  if(!share||e.premium!=null)k.push(["Harga vs NAB",premTxt(e),e.premium==null?"butuh harga & NAB di tanggal yang sama":`harga ${nf(e.premiumClose)} pada ${fD(e.navDate)}`]);
+  k.push(["Dana kelolaan (AUM)",bn(e.aum),e.aumYm?"per "+fYm(e.aumYm):""]);
+  if(!share)k.push(["Nilai transaksi / hari",rp(e.liq.avgValue20),`rata-rata ${e.liq.days} hari bursa · ${e.liq.zeroDays20} hari tanpa transaksi`]);
+  return`<div class="kpis">${k.map(([a,b,c])=>`<div class="kpi"><small>${a}</small><b>${b}</b><span>${c}</span></div>`).join("")}</div>`;
+}
+// Selisih hanya untuk dua angka yang berakhir di tanggal yang sama: harga pasar ETF vs indeks (keduanya per tanggal harga terakhir).
+// Return NAB berakhir di tanggal NAB (biasanya 1 hari bursa lebih lama), jadi tidak dikurangkan dengan indeks.
+function perfTable(e,share){
+  const bx=e.bench||{ret:{}},rows=[["Harga di bursa",fD(e.priceDate),e.price],["NAB (dari Bareksa)",e.navDate?fD(e.navDate):"diambil "+fD(D.navAt),e.ret],
+    [(share?"Indeks acuan: ":"Pembanding: ")+esc(bx.name),fD(bx.asOf||e.priceDate),bx.ret]];
+  if(!share)rows.push(["Selisih harga di bursa vs indeks",fD(e.priceDate),Object.fromEntries(PER.map(([k])=>[k,e.price[k]!=null&&bx.ret[k]!=null?e.price[k]-bx.ret[k]:null])),1]);
+  return`<div class="tblw"><table><thead><tr><th></th><th>Per</th>${PER.map(p=>`<th class="n">${p[1]}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(([l,dt,r,d])=>`<tr${d?' style="font-weight:600"':""}><td>${l}</td><td style="white-space:nowrap;color:var(--m)">${dt}</td>${PER.map(([k])=>`<td class="n ${cls(r[k])}">${d&&r[k]!=null?(r[k]>0?"+":"")+nf(r[k],2)+" poin":pct(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="note">${esc(bx.note||"")}. Return indeks adalah return harga (tanpa dividen). Return NAB dihitung Bareksa sampai tanggal NAB${share?"":", jadi tidak dikurangkan langsung dengan indeks yang tanggalnya berbeda"}.</p>`;
+}
+const chartBox=(e,share)=>`<div class="card sec"><div class="chead"><h2 style="margin:0">Harga pasar vs NAB</h2><div class="legend"><span><i style="background:var(--s1)"></i>Harga pasar (harian)</span><span><i style="background:var(--s2)"></i>NAB per unit</span></div><div class="sp"></div>
+  <div class="seg noprint" role="group" aria-label="Rentang waktu">${[["m3","3 bln"],["m6","6 bln"],["y1","1 thn"]].map(([k,l])=>`<button type="button" data-rng="${k}" aria-pressed="${k===range}">${l}</button>`).join("")}</div></div>
+  <div class="chart" id="ch"></div><p class="note">Harga penutupan harian dari Yahoo Finance. NAB dari Bareksa${share?"":" (tidak harian sebelum ada data terbaru)"}. Harga di bursa bisa berbeda dari NAB (premium/diskon).</p></div>`;
+
+/* ---------- aplikasi internal ---------- */
+function renderApp(){
+  const e=D.kisi.find(x=>x.code===cur)||D.kisi[0];grp=grp||e.group;
+  const share=location.origin+"/p/"+e.code;
+  $("root").innerHTML=`<div class="top"><h1>${B.short?esc(B.short)+" ":""}<span>ETF Insight</span></h1><div class="sp"></div>
+    <span class="asof">Harga: ${fDT(D.at)} · Data NAB: ${fDT(D.navAt)}</span><button class="btn s" type="button" id="bRef">Muat ulang data</button></div>
+    ${D.dbError?`<div class="msg" style="margin-bottom:12px">Data NAB/AUM dari Fund Insight belum terbaca: ${esc(D.dbError)}</div>`:""}
+    <div class="grid2">${D.kisi.map(k=>`<button type="button" class="card etf" data-etf="${k.code}" aria-pressed="${k.code===e.code}"><div class="c">${esc(k.code)} · ${esc(k.index)}</div><div class="n">${esc(k.name)}</div>
+      <div class="r"><div><small>Harga</small><b>${nf(k.close)}</b> <span class="${cls(k.change)}" style="font-size:12px">${pct(k.change)}</span></div><div><small>NAB</small><b>${nf(k.nav,2)}</b></div><div><small>Harga vs NAB</small><b>${premTxt(k)}</b></div><div><small>AUM</small><b>${bn(k.aum)}</b></div><div><small>NAB YTD</small><b class="${cls(k.ret.ytd)}">${pct(k.ret.ytd)}</b></div></div></button>`).join("")}</div>
+    ${kpis(e)}
+    <div class="row noprint"><a class="btn" href="${share}" target="_blank" rel="noopener">Halaman nasabah ${esc(e.code)} ↗</a><button class="btn s" type="button" id="bCopy">Salin link nasabah</button><a class="btn s" href="${share}?print=1" target="_blank" rel="noopener">PDF untuk nasabah</a></div>
+    ${chartBox(e)}
+    <div class="grid2 sec"><div class="card"><h2>Kinerja <small>NAB vs harga pasar vs indeks</small></h2>${perfTable(e)}</div>
+      <div class="card"><h2>Arus dana bulanan <small>perkiraan, Rp</small></h2>${flowTable(e)}</div></div>
+    <div class="card sec"><div class="chead"><h2 style="margin:0">Pembanding ETF di BEI</h2><div class="sp"></div>
+      <label class="row" style="font-size:12px;color:var(--m)">Kelompok <select id="fGrp"><option value="all">Semua ETF (${D.peers.length})</option>${Object.entries(D.groups).filter(([g])=>D.peers.some(p=>p.group===g)).map(([g,l])=>`<option value="${g}"${g===grp?" selected":""}>${esc(l)} (${D.peers.filter(p=>p.group===g).length})</option>`).join("")}</select></label></div>
+      <div class="tblw" id="peers"></div>
+      <p class="note">Harga, volume, nilai transaksi & biaya dari TradingView (biaya tidak selalu tersedia). NAB, AUM & return NAB dari Bareksa lewat data pasar Fund Insight. Klik judul kolom untuk mengurutkan.</p></div>`;
+  chart($("ch"),e,range);peerTable();
+}
+function flowTable(e){
+  const f=(e.flows||[]).slice(-6).reverse();
+  if(!f.length)return'<div class="msg">Riwayat AUM belum cukup.</div>';
+  return`<table><thead><tr><th>Bulan</th><th class="n">AUM</th><th class="n">Arus dana bersih</th></tr></thead><tbody>${f.map(r=>`<tr><td>${fYm(r.ym)}</td><td class="n">${bn(r.aum)}</td><td class="n ${cls(r.flow)}">${r.flow==null?"–":(r.flow>0?"+":"")+bn(r.flow)}</td></tr>`).join("")}</tbody></table>
+  <p class="note">Arus dana = AUM bulan ini − AUM bulan lalu × perubahan NAB. Positif = ada pembentukan unit baru (uang masuk), negatif = penebusan.</p>`;
+}
+const PCOL=[["code","Kode",0],["name","Nama ETF",0],["aum","AUM",1],["ret.m1","NAB 1 bln",1],["ret.ytd","NAB YTD",1],["ret.y1","NAB 1 thn",1],["fee","Biaya/thn",1],["close","Harga",1],["value","Nilai transaksi hari ini",1],["avgVol10","Rata-rata volume 10 hari",1]];
+const gv=(p,k)=>k.includes(".")?p[k.split(".")[0]][k.split(".")[1]]:p[k];
+function peerTable(){
+  const L=D.peers.filter(p=>grp==="all"||p.group===grp).slice().sort((a,b)=>{const x=gv(a,sortK),y=gv(b,sortK);if(x==null)return 1;if(y==null)return-1;return(typeof x==="string"?x.localeCompare(y):x-y)*sortD});
+  $("peers").innerHTML=`<table><thead><tr>${PCOL.map(([k,l,n])=>`<th class="${n?"n":""}" data-sort="${k}" aria-sort="${k===sortK?(sortD>0?"ascending":"descending"):"none"}">${l}${k===sortK?(sortD>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>
+    ${L.map(p=>`<tr class="${p.kisi?"k":""}"><td>${esc(p.code)}</td><td>${esc(p.name)}${p.kisi?'<span class="pill">KISI</span>':""}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td>
+      <td class="n">${bn(p.aum)}</td><td class="n ${cls(p.ret.m1)}">${pct(p.ret.m1)}</td><td class="n ${cls(p.ret.ytd)}">${pct(p.ret.ytd)}</td><td class="n ${cls(p.ret.y1)}">${pct(p.ret.y1)}</td>
+      <td class="n">${p.fee==null?"–":nf(p.fee,2)+"%"}</td><td class="n">${nf(p.close)}</td><td class="n">${rp(p.value)}</td><td class="n">${nf(p.avgVol10)}</td></tr>`).join("")}</tbody></table>`;
+}
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-etf],[data-rng],[data-sort],#bCopy,#bRef,#bPrint");if(!t)return;
+  if(t.dataset.etf){cur=t.dataset.etf;grp=null;renderApp();return}
+  if(t.dataset.rng){range=t.dataset.rng;document.querySelectorAll("[data-rng]").forEach(b=>b.setAttribute("aria-pressed",b===t));chart($("ch"),D.kisi.find(x=>x.code===(MODE==="share"?CODE:cur)),range);return}
+  if(t.dataset.sort){const k=t.dataset.sort;if(k===sortK)sortD=-sortD;else{sortK=k;sortD=k==="code"||k==="name"?1:-1}peerTable();return}
+  if(t.id==="bCopy"){const u=location.origin+"/p/"+cur;try{await navigator.clipboard.writeText(u);toast("Link disalin")}catch(e){prompt("Salin link ini:",u)}return}
+  if(t.id==="bRef"){t.disabled=true;t.textContent="Memuat…";await load(true);return}
+  if(t.id==="bPrint")window.print();
+});
+document.addEventListener("change",ev=>{if(ev.target.id==="fGrp"){grp=ev.target.value;peerTable()}});
+// gambar ulang grafik saat lebar berubah dan sebelum/sesudah cetak (lebar kertas berbeda dari layar)
+const redraw=()=>{const el=$("ch"),e=D&&D.kisi.find(x=>x.code===(MODE==="share"?CODE:cur));if(el&&e)chart(el,e,range)};
+let rz;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(redraw,150)});addEventListener("beforeprint",redraw);addEventListener("afterprint",redraw);
+
+/* ---------- halaman nasabah ---------- */
+function renderShare(){
+  const e=D.kisi.find(x=>x.code===CODE);if(!e){$("root").innerHTML='<div class="msg">ETF tidak ditemukan.</div>';return}
+  document.querySelector(".wrap").classList.add("sh");
+  const lot=e.close?e.close*100:null,app=AP.name||"aplikasi kami";
+  const links=[AP.ios&&`<a href="${esc(AP.ios)}" target="_blank" rel="noopener">App Store</a>`,AP.android&&`<a href="${esc(AP.android)}" target="_blank" rel="noopener">Google Play</a>`].filter(Boolean).join(" · ");
+  const disc=B.disclaimer||"Investasi melalui reksa dana mengandung risiko. Sebelum memutuskan berinvestasi, calon investor wajib membaca dan memahami prospektus. Kinerja masa lalu tidak mencerminkan kinerja masa datang. Harga ETF di bursa dapat berbeda dari NAB.";
+  $("root").innerHTML=`<div class="hd">${B.logo?`<img src="${esc(B.logo)}" alt="${esc(B.short||"")}">`:B.short?`<b>${esc(B.short)}</b>`:""}<div class="sp"></div><button class="btn s noprint" type="button" id="bPrint">Simpan PDF</button></div>
+    <div class="hero"><div class="k">REKSA DANA INDEKS · ETF · KODE BEI ${esc(e.code)}</div><h1>${esc(e.name)}</h1><p>Mengikuti indeks ${esc(e.index)}${e.im?" · Manajer investasi: "+esc(e.im):""}</p></div>
+    ${kpis(e,true)}
+    ${chartBox(e,true)}
+    <div class="grid2 sec"><div class="card"><h2>Kinerja</h2>${perfTable(e,true)}</div>
+      <div class="card"><h2>Informasi produk</h2><div class="facts">
+        ${[["Kode di bursa",`<b>${esc(e.code)}</b>`],["Indeks acuan",esc(e.index)],["Tercatat di BEI",esc(e.listed)],["Satuan perdagangan","1 lot = 100 unit"],
+          ["Perkiraan modal 1 lot",rp(lot)+'<br><span style="font-size:11px;font-weight:400;color:var(--m)">harga × 100, belum termasuk biaya transaksi</span>'],
+          e.fee!=null&&["Biaya pengelolaan",nf(e.fee,2)+"% per tahun"],e.im&&["Manajer investasi",esc(e.im)]].filter(Boolean).map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join("")}</div>
+      <p class="buy"><b>Cara membeli:</b> ETF dibeli dan dijual di bursa seperti saham. Cari kode <b>${esc(e.code)}</b> di ${esc(app)}, lalu beli minimal 1 lot.${links?" Unduh: "+links:""}</p></div></div>
+    <p class="disc">${esc(disc)}<br>Data per ${fDT(D.at)} dari sumber publik (TradingView, Yahoo Finance, Bareksa) dan dapat terlambat atau berubah. ${esc(e.bench?e.bench.note:"")}.${B.company?" Disusun oleh "+esc(B.company)+(B.license?" · "+esc(B.license):"")+".":""}</p>`;
+  chart($("ch"),e,range);
+  if(new URLSearchParams(location.search).has("print"))setTimeout(()=>window.print(),600);
+}
+
+async function load(fresh){
+  try{const r=await fetch("/api/etf"+(fresh?"?refresh=1":""),{cache:"no-store"});const j=await r.json();if(!r.ok||j.error)throw Error(j.error||"HTTP "+r.status);D=j}
+  catch(e){$("root").innerHTML=`<div class="msg">Data belum bisa dimuat: ${esc(e.message)}. Coba muat ulang beberapa saat lagi.</div>`;return}
+  MODE==="share"?renderShare():renderApp();
+}
+load();
+</script>
+</body>
+</html>
