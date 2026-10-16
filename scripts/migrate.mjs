@@ -95,6 +95,62 @@ function exportAll() {
   console.log(`\n✓ Data tersimpan di ${DIR}. Sekarang login ke akun BARU, jalankan deploy, lalu: node scripts/migrate.mjs import`);
 }
 
+// D1 menolak pernyataan SQL di atas 100 KB (SQLITE_TOOBIG). Baris besar (JSON cache, gambar base64) dipecah:
+// INSERT dengan kolom besar dikosongkan, lalu isinya disambung lewat beberapa UPDATE "kolom" = "kolom" || 'potongan'.
+const STMT_MAX = 90_000, CHUNK = 20_000; // CHUNK dalam karakter: maks ~60 KB UTF-8
+function splitTop(s) { // pisah di koma level atas, abaikan koma di dalam '...' dan (...)
+  const out = []; let depth = 0, q = false, start = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) { if (c === "'") { if (s[i + 1] === "'") i++; else q = false; } }
+    else if (c === "'") q = true;
+    else if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "," && depth === 0) { out.push(s.slice(start, i)); start = i + 1; }
+  }
+  out.push(s.slice(start));
+  return out;
+}
+function closeQuote(s, a) { for (let i = a + 1; i < s.length; i++) if (s[i] === "'") { if (s[i + 1] === "'") i++; else return i; } return -1; }
+function splitStatement(line) {
+  const m = line.match(/^(INSERT OR REPLACE INTO ("[^"]+"|\w+)) \((.+?)\) VALUES\((.*)\);\s*$/s);
+  if (!m) die(`Pernyataan terlalu panjang dan tidak dikenali:\n${line.slice(0, 200)}…`);
+  const [, head, table, colStr, valStr] = m, cols = splitTop(colStr), vals = splitTop(valStr);
+  if (cols.length !== vals.length) die(`Jumlah kolom & nilai tidak cocok:\n${line.slice(0, 200)}…`);
+  const big = vals.map((v) => Buffer.byteLength(v) > CHUNK);
+  const where = cols.map((c, i) => (big[i] ? "" : `${c} IS ${vals[i]}`)).filter(Boolean).join(" AND ");
+  if (!where) die(`Tidak ada kolom kecil untuk WHERE:\n${line.slice(0, 200)}…`);
+  const out = [`${head} (${colStr}) VALUES(${vals.map((v, i) => (big[i] ? "''" : v)).join(",")});`];
+  vals.forEach((v, i) => {
+    if (!big[i]) return;
+    // nilai berupa '...' atau dibungkus replace('...','\n',char(10)): potong literalnya, bungkus ulang tiap potongan
+    const a = v.indexOf("'"), b = closeQuote(v, a);
+    if (a < 0 || b < 0) die(`Nilai besar bukan teks di ${table}.${cols[i]}`);
+    const pre = v.slice(0, a), lit = v.slice(a + 1, b), post = v.slice(b + 1);
+    const escapes = [...post.matchAll(/'((?:[^']|'')*)'/g)].map((x) => x[1]).filter((t) => t.length > 1);
+    const bad = (e) => lit[e - 1] === "'" || /[\uD800-\uDBFF]/.test(lit[e - 1]) ||
+      escapes.some((t) => { for (let k = 1; k < t.length; k++) if (lit.startsWith(t, e - k)) return true; return false; });
+    for (let p = 0; p < lit.length;) {
+      let e = Math.min(p + CHUNK, lit.length);
+      while (e < lit.length && bad(e)) e--;
+      out.push(`UPDATE ${table} SET ${cols[i]} = ${cols[i]} || ${pre}'${lit.slice(p, e)}'${post} WHERE ${where};`);
+      p = e;
+    }
+  });
+  for (const s of out) if (Buffer.byteLength(s) > STMT_MAX) die(`Potongan masih terlalu besar di ${table}:\n${s.slice(0, 200)}…`);
+  return out.join("\n");
+}
+function splitLong(file) {
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  let n = 0;
+  const sql = lines.map((l) => (Buffer.byteLength(l) > STMT_MAX ? (n++, splitStatement(l)) : l)).join("\n");
+  if (!n) return file;
+  const out = file.replace(/\.sql$/, ".import.sql");
+  fs.writeFileSync(out, sql);
+  console.log(`  ${n} baris besar dipecah -> ${path.basename(out)}`);
+  return out;
+}
+
 function importAll() {
   const d1 = d1List(), kv = kvList();
   for (const target of TARGET_D1) {
@@ -102,7 +158,7 @@ function importAll() {
     if (!fs.existsSync(file)) continue;
     const db = d1.find((d) => d.name === target) || die(`D1 "${target}" belum ada di akun baru. Jalankan dulu: node scripts/deploy.mjs`);
     console.log(`▶ D1 ${target}`);
-    wrangler(["d1", "execute", target, "--remote", "--yes", "--file", file, "-c", d1Config(target, db.uuid)], { capture: false });
+    wrangler(["d1", "execute", target, "--remote", "--yes", "--file", splitLong(file), "-c", d1Config(target, db.uuid)], { capture: false });
   }
   for (const target of TARGET_KV) {
     const file = path.join(DIR, `${target}.kv.json`);

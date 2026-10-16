@@ -155,7 +155,9 @@ function secrets(ids) {
   const all = parseJsonc(fs.readFileSync(file, "utf8"));
   const profile = loadProfile();
   for (const app of APPS.filter((a) => !ids.length || ids.includes(a.id))) {
-    const vals = Object.fromEntries(Object.entries({ ...(all["*"] || {}), ...(all[app.id] || {}) }).filter(([, v]) => v));
+    // nilai berupa objek (mis. FIREBASE_SA yang ditempel utuh dari berkas .json) dikirim sebagai teks JSON
+    const vals = Object.fromEntries(Object.entries({ ...(all["*"] || {}), ...(all[app.id] || {}) })
+      .filter(([, v]) => v).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
     if (!Object.keys(vals).length) continue;
     const cfg = resolve(app, profile, false);
     const tmp = path.join(ROOT, app.dir, ".secrets.tmp.json");
