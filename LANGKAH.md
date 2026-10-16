@@ -19,7 +19,7 @@ Data yang dipindah adalah akun pengguna Tool Hub, data reksa dana, promo kompeti
 npx wrangler login                       # pilih akun Cloudflare LAMA di browser
 node scripts/migrate.mjs list            # tampilkan database & KV lama
 ```
-Buka `.migrate/map.json`. Ganti setiap `NAMA_LAMA` dengan nama dari daftar tadi dan hapus baris yang tidak punya padanan. Isi `NAMA_KOLOM_LAMA` sesuai catatan di `NILAI-LAMA.md`.
+Buka `.migrate/map.json`. Ganti setiap `NAMA_LAMA` dengan nama dari daftar tadi dan hapus baris yang tidak punya padanan.
 
 ```bash
 node scripts/migrate.mjs export          # unduh data lama ke folder .migrate/

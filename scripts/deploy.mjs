@@ -78,6 +78,8 @@ function loadProfile(dry = false) {
   if (!raw && !dry) die("profile.json belum ada. Salin profile.example.json menjadi profile.json lalu isi.");
   const p = raw ? parseJsonc(raw) : {};
   if (dry) p.subdomain ||= "contoh";
+  if (p.subdomain && !/^[a-z0-9-]+$/.test(p.subdomain))
+    die(`"subdomain" di profile.json tidak sah: "${p.subdomain}". Isi persis seperti di Cloudflare (Workers & Pages -> Subdomain), huruf kecil tanpa spasi, mis. "frankykho".`);
   if (!p.subdomain && !APPS.every((a) => p.urls && p.urls[a.id])) die("Isi \"subdomain\" di profile.json (nama subdomain workers.dev akun Cloudflare Anda).");
   // alamat setiap tool: dari profile.urls kalau diisi (domain sendiri), selain itu https://<nama-worker>.<subdomain>.workers.dev
   p.urls = { ...(p.urls || {}) };
