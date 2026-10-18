@@ -11,6 +11,11 @@
 import { profile, title, profileScript } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import PAGE from "./page.html";
+import { newsFor } from "../../shared/news.js";
+
+// Berita (internal): ETF & indeks yang diikuti (MSCI Indonesia, IDX30; didahulukan), plus penggerak bursa (IHSG, BEI, dana asing)
+export const ETF_TOP_RE = /\bETF\b|reksa ?dana indeks|LQ ?45|IDX ?30|IDX ?80|Kompas ?100|MSCI|FTSE|SRI[- ]KEHATI/i;
+export const ETF_NEWS_RE = new RegExp(ETF_TOP_RE.source + /|IHSG|indeks saham|pasar saham|bursa|\bBEI\b|\basing\b|net (buy|sell)/.source, "i");
 
 /* =========================================================
    LOGIN LEWAT TOOL HUB
@@ -266,6 +271,7 @@ export default {
         return Response.json({ error: "Data belum bisa diambil: " + e.message }, { status: 502 });
       }
     }
+    if (path === "/api/news") return Response.json(await newsFor(ETF_NEWS_RE, 12, ETF_TOP_RE), { headers: { "cache-control": "public, max-age=1800" } });
     const pm = /^\/p\/([A-Za-z0-9-]{3,10})\/?$/.exec(path);
     if (pm) {
       const code = pm[1].toUpperCase();

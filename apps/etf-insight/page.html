@@ -48,6 +48,7 @@ tr.k td{background:var(--tint)}tr.k td:first-child{font-weight:700}
 th[data-sort]{cursor:pointer}th[data-sort]:hover{color:var(--t)}
 .tblw{overflow-x:auto}
 .note{font-size:12px;color:var(--m);margin:8px 0 0}
+.news{list-style:none;margin:0;padding:0}.news li{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-bottom:1px solid var(--l)}.news li:last-child{border-bottom:0}.news a{color:var(--t);font-weight:600;text-decoration:none}.news a:hover{text-decoration:underline}.news small{font-size:11.5px;color:var(--m)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pill{display:inline-block;font-size:10.5px;font-weight:700;color:var(--brand);background:var(--tint);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 select{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;padding:5px 8px;background:var(--p);color:var(--t)}
@@ -274,12 +275,19 @@ function renderApp(){
     <div class="grid2 sec">${riskBox(e)}${simBox(e)}</div>
     <div class="grid2 sec"><div class="card"><h2>Arus dana bulanan <small>perkiraan, Rp</small></h2>${flowTable(e)}</div>
       <div class="card"><h2>Fakta produk</h2>${factList(e)}</div></div>
+    <div class="card sec noprint"><h2>Berita terkait <small>7 hari terakhir</small></h2><div id="news">${newsList()}</div>
+      <p class="note">Judul dari CNBC Indonesia, Antara, Kontan, dan IDX Channel, disaring topik ETF, indeks (MSCI, IDX30, LQ45), IHSG, BEI, dan dana asing. Klik untuk membaca di situs media.</p></div>
     <div class="card sec"><div class="chead"><h2 style="margin:0">Pembanding ETF di BEI</h2><div class="sp"></div>
       <label class="row" style="font-size:12px;color:var(--m)">Kelompok <select id="fGrp"><option value="all">Semua ETF (${D.peers.length})</option>${Object.entries(D.groups).filter(([g])=>D.peers.some(p=>p.group===g)).map(([g,l])=>`<option value="${g}"${g===grp?" selected":""}>${esc(l)} (${D.peers.filter(p=>p.group===g).length})</option>`).join("")}</select></label></div>
       <div class="tblw" id="peers"></div>
       <p class="note">Harga, volume, nilai transaksi & biaya dari TradingView (biaya tidak selalu tersedia). NAB, AUM & return NAB dari Bareksa lewat data pasar Fund Insight. Klik judul kolom untuk mengurutkan.</p></div>`;
   chart($("ch"),e,range);peerTable();
 }
+// berita dimuat sekali; renderApp menggambar ulang dari NEWS saat ganti ETF
+let NEWS=null;
+const ago=a=>{const h=Math.round((Date.now()-Date.parse(a))/36e5);return isNaN(h)?"":h<1?"baru saja":h<24?h+" jam lalu":Math.round(h/24)+" hari lalu"};
+const newsList=()=>NEWS==null?'<div class="note">Memuat berita…</div>':NEWS.length?`<ul class="news">${NEWS.slice(0,8).map(x=>`<li><a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer">${esc(x.t)}</a><small>${esc(x.src||"")}${x.at?" · "+ago(x.at):""}</small></li>`).join("")}</ul>`:'<div class="note">Berita belum bisa dimuat. Coba muat ulang beberapa saat lagi.</div>';
+async function loadNews(){try{const r=await fetch("/api/news");NEWS=r.ok?await r.json():[]}catch(e){NEWS=[]}const el=$("news");if(el)el.innerHTML=newsList()}
 function flowTable(e){
   const f=(e.flows||[]).slice(-6).reverse();
   if(!f.length)return'<div class="msg">Riwayat AUM belum cukup.</div>';
@@ -340,6 +348,7 @@ async function load(fresh){
   MODE==="share"?renderShare():renderApp();
 }
 load();
+if(MODE!=="share")loadNews();
 </script>
 </body>
 </html>
