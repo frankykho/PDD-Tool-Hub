@@ -22,6 +22,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
+| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS (tanpa halaman) |
 | PDF Generator | `jobs/pdf-generator` | PDF produk harian (GitHub Actions) |
 
 Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`. Nama worker ada di `wrangler.jsonc` masing-masing.
@@ -74,7 +75,7 @@ Setelah repo di GitHub punya secret `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_
 
 | Batas | Pemakaian |
 |---|---|
-| 5 Cron Trigger per akun | **Terpakai semua**: fund-insight, competitor-intel, edukasi-studio, story-data, sats-radar. Jangan tambah cron; Bond Insight memperbarui data saat dibuka. |
+| 5 Cron Trigger per akun | **Terpakai 1**: hanya `apps/cron` (tiap 5 menit), yang memanggil `scheduled()` tool lain lewat service binding. Jadwal baru ditambahkan di `apps/cron/worker.js`, bukan sebagai cron baru; cek dengan `node apps/cron/test.mjs`. |
 | CPU 10 ms per permintaan | Pekerjaan berat dipecah bertahap lewat cron, atau dikerjakan di GitHub Actions. |
 | KV 1.000 tulis per hari | Bond Insight hanya menulis saat data berubah. |
 | GitHub Actions | Gratis tanpa batas untuk repo publik. |

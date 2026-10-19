@@ -1,0 +1,16 @@
+// Cron: satu-satunya Cron Trigger di akun; jadwal semua tool ada di worker.js. Secret: SSO_SECRET
+// Di-deploy paling akhir: tool lain harus sudah melepas cron masing-masing (batas 5 cron per akun).
+{
+  "name": "tool-cron",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "workers_dev": false,
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "services": [
+    { "binding": "FUND", "service": "fund-insight" },
+    { "binding": "COMPETITOR", "service": "competitor-intel" },
+    { "binding": "EDUKASI", "service": "edukasi-studio" },
+    { "binding": "STORYDATA", "service": "story-data" },
+    { "binding": "SATS", "service": "sats-radar" }
+  ]
+}

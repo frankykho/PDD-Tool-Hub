@@ -23,6 +23,7 @@
  * workers.dev (error 1042), jadi Market Proxy dipanggil lewat SERVICE BINDING bernama MARKET (wrangler.jsonc).
  */
 import { profile } from '../../shared/profile.js';
+import { withCron } from '../../shared/cron.js';
 
 // Alamat apa saja: permintaan lewat service binding tidak keluar ke internet, hanya path & query yang dipakai.
 const MARKET_URL = 'https://market-proxy/';
@@ -71,7 +72,7 @@ const CORS = {
   'Cache-Control': 'no-store',
 };
 
-export default {
+export default withCron({
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
     const url = new URL(request.url);
@@ -96,7 +97,7 @@ export default {
 
   // Cron Trigger: catat closing LME setiap hari walau tombol generator tidak diklik.
   async scheduled(event, env, ctx) {
-    // SATU cron saja (batas akun gratis 5 cron): "*/5 * * * 1-5" = tiap 5 menit, Senin–Jumat (UTC).
+    // Dipanggil apps/cron tiap 5 menit, Senin–Jumat (UTC).
     // Worker memilih tugas berdasarkan jam:
     //   09:50 & 10:25 UTC (16:50 & 17:25 WIB) → ambil data Wrap (GitHub Actions mode wrap)
     //   19:30 & 23:00 UTC (02:30 & 06:00 WIB) → catat harga LME langsung dari worker ini ke LME_KV.
@@ -108,7 +109,7 @@ export default {
     if (LME_TIMES_UTC.includes(m))
       ctx.waitUntil(Promise.all(Object.keys(LME_CLOSING).map(k => lmeClosing(k, env).catch(() => null))));
   },
-};
+});
 
 /** Nyalakan workflow GitHub "Data IDX (Wrap & Kalender)" (story-data.yml) di repo GITHUB_REPO. */
 async function dispatchIdx(env, mode) {

@@ -3,8 +3,8 @@
   "name": "story-data",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
-  // satu cron; worker memilih tugas sesuai jam (lihat scheduled())
-  "triggers": { "crons": ["*/5 * * * 1-5"] },
+  // dipanggil apps/cron tiap 5 menit Senin–Jumat; worker memilih tugas sesuai jam (lihat scheduled())
+  "triggers": { "crons": [] },
   "kv_namespaces": [{ "binding": "LME_KV", "id": "auto" }],
   "services": [{ "binding": "MARKET", "service": "market-proxy" }]
 }

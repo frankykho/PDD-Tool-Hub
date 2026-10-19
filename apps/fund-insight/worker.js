@@ -3,6 +3,7 @@
 import { profile, appUrl, title, profileScript } from "../../shared/profile.js";
 import { newsFor } from "../../shared/news.js";
 import { STORY_DIR, macroItems } from "../../shared/macro.js";
+import { withCron } from "../../shared/cron.js";
 
 // [pid Bareksa, nama, jenis, risiko, min_subs] — dari daftar produk (Excel). pid null = belum ada di Bareksa.
 // Daftar bawaan; admin bisa menggantinya lewat menu "Daftar RD" (disimpan di meta.funds).
@@ -585,7 +586,7 @@ async function backfill(env, n = 3) {
 }
 
 
-export default {
+export default withCron({
   // Satu tarikan Bareksa per jalan (parsing ~1.500 dana itu berat untuk batas CPU paket gratis).
   async scheduled(e, env) {
     await loadFunds(env);
@@ -821,4 +822,4 @@ export default {
       return new Response("ERROR: " + e.message, { status: 500 });
     }
   },
-};
+});

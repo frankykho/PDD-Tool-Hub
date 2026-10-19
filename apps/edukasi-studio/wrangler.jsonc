@@ -3,7 +3,7 @@
   "name": "edukasi-studio",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
-  "triggers": { "crons": ["*/15 * * * *"] },
+  "triggers": { "crons": [] },  // dijadwalkan oleh apps/cron (:15/:25/:45/:55 UTC)
   "ai": { "binding": "AI" },
   "d1_databases": [{ "binding": "DB", "database_name": "edukasi-db", "database_id": "auto" }]
 }

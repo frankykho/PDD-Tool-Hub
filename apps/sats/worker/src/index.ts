@@ -22,6 +22,7 @@ import { STRATEGIES, isStrategyId, type StrategyId } from "./strategies/types";
 import { FUND_DDL } from "./fundamentals/schema";
 import { accessEnabled, authEnabled, ensureAuthSchema, googleEnabled, handleGoogleAuth, handleHubAuth, handlePasswordAuth, hubEnabled, hubUrl, identify, loadMe, passwordEnabled, type AuthEnv, type Me } from "./auth";
 import { profile } from "../../../../shared/profile.js";
+import { withCron } from "../../../../shared/cron.js";
 import { themeHead } from "../../../../shared/theme.js";
 import { SATS_THEME_CSS } from "./theme";
 
@@ -594,7 +595,7 @@ async function handleAuthRoutes(url: URL, request: Request, env: Env, me: Me): P
   return null;
 }
 
-export default {
+export default withCron({
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(dispatchEod(env));
   },
@@ -652,4 +653,4 @@ export default {
       return json({ error: error instanceof Error ? error.message : "internal error" }, 500);
     }
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env>);

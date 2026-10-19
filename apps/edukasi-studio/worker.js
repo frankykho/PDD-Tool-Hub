@@ -19,6 +19,7 @@
 // di luar itu jadwal hanya mengambil artikel yang masih antre.
 
 import { profile, appUrl } from '../../shared/profile.js';
+import { withCron } from '../../shared/cron.js';
 
 const APP_ID = 'edukasi';
 // User-Agent bot menyertakan alamat tool ini (dari profil) supaya pemilik situs tahu asalnya
@@ -843,7 +844,7 @@ renderPicked();loadStats().then(function(){loadList(true)});
 })();`;
 
 export { robotsAllows, parseXml, topicOf, looksEdu };
-export default {
+export default withCron({
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!configured(env)) return new Response(setupPage(env), { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
@@ -871,4 +872,4 @@ export default {
     // jadi berhenti setelah langkah sitemap (paling berat) supaya tidak melewati batas paket gratis.
     for (let i = 0; i < 3; i++) { const r = await step(env); if (r.did === 'idle' || r.did === 'discover') break; }
   },
-};
+});

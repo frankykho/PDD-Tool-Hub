@@ -3,6 +3,6 @@
   "name": "competitor-intel",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
-  "triggers": { "crons": ["*/30 * * * *"] },
+  "triggers": { "crons": [] },  // dijadwalkan oleh apps/cron (:10/:40 UTC)
   "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }]
 }

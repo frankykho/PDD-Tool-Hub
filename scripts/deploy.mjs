@@ -36,6 +36,8 @@ export const APPS = [
   { id: "planner", dir: "apps/content-planner" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
+  // paling akhir: memanggil tool lain lewat service binding, dan tool lain harus sudah melepas cron lamanya
+  { id: "cron", dir: "apps/cron" },
 ];
 const SHARED = ["shared/", "scripts/deploy.mjs", "package.json"];
 
