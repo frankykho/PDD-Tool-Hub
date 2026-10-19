@@ -22,7 +22,8 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
-| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS (tanpa halaman) |
+| Market Recap | `apps/market-recap` | Rangkuman IHSG sesi 1 & penutupan setiap hari bursa: penggerak indeks (poin), sektor, asing, global, berita, agenda + narasi AI; draf disunting & diterbitkan tim, publik di `/p`; gambar IG & PDF; arsip |
+| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap (tanpa halaman) |
 | PDF Generator | `jobs/pdf-generator` | PDF produk harian (GitHub Actions) |
 
 Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`. Nama worker ada di `wrangler.jsonc` masing-masing.

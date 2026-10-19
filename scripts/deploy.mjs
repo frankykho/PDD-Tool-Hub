@@ -34,6 +34,8 @@ export const APPS = [
   { id: "tutorial", dir: "apps/tutorial" },
   // setelah fund & bond: memakai keduanya lewat service binding
   { id: "planner", dir: "apps/content-planner" },
+  // setelah storydata: memakainya lewat service binding
+  { id: "recap", dir: "apps/market-recap" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
   // paling akhir: memanggil tool lain lewat service binding, dan tool lain harus sudah melepas cron lamanya

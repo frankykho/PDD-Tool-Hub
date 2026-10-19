@@ -18,7 +18,7 @@ assert.deepEqual(seen, [5]);
 // dispatcher: simulasikan satu minggu (Senin 2026-10-19 00:00 UTC) tiap 5 menit
 const calls = {};
 const bind = (b) => ({ fetch: async (url, init) => { assert.equal(init.headers["x-cron-key"], "rahasia"); (calls[b] ||= []).push(Number(new URL(url).searchParams.get("t"))); return new Response("ok"); } });
-const denv = { SSO_SECRET: "rahasia", ...Object.fromEntries(["FUND", "COMPETITOR", "EDUKASI", "STORYDATA", "SATS"].map((b) => [b, bind(b)])) };
+const denv = { SSO_SECRET: "rahasia", ...Object.fromEntries(["FUND", "COMPETITOR", "EDUKASI", "STORYDATA", "SATS", "RECAP"].map((b) => [b, bind(b)])) };
 const start = Date.UTC(2026, 9, 19);
 let heavyClash = 0;
 for (let t = start; t < start + 7 * 864e5; t += 3e5) {
@@ -35,6 +35,8 @@ assert.equal(calls.EDUKASI.length, 7 * 96);       // */15 seperti dulu
 assert.equal(calls.STORYDATA.length, 5 * 288);    // */5 Senin–Jumat seperti dulu
 assert.deepEqual([...new Set(calls.SATS.map(hhmm))], ["10:20", "12:20"]);
 assert.equal(calls.SATS.length, 10);
+assert.equal(calls.RECAP.length, 5 * 48);         // :20/:50 Senin–Jumat
+assert(calls.RECAP.every((t) => new Date(t).getUTCMinutes() % 30 === 20));
 // waktu Story Data penting (Wrap 09:50 & 10:25, LME 19:30 & 23:00) ikut terkirim tepat
 for (const s of ["09:50", "10:25", "19:30", "23:00"]) assert(calls.STORYDATA.some((t) => hhmm(t) === s), s);
 // LME di :00/:30 tidak berbarengan dengan pekerjaan berat

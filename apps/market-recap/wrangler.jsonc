@@ -1,0 +1,10 @@
+// Market Recap: rangkuman IHSG sesi 1 & penutupan + arsip; halaman publik /p. Secret: SSO_SECRET, ANTHROPIC_API_KEY (opsional)
+// Dijadwalkan oleh apps/cron (:20/:50 UTC hari kerja). Tanpa ANTHROPIC_API_KEY, narasi ditulis Workers AI (binding AI).
+{
+  "name": "market-recap",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "recap-db", "database_id": "auto" }],
+  "services": [{ "binding": "STORYDATA", "service": "story-data" }]
+}

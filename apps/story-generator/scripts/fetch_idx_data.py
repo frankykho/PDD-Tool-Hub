@@ -6,7 +6,8 @@ Ambil data gratis untuk Story Generator. Dijalankan oleh GitHub Actions.
     python scripts/fetch_idx_data.py lme        -> site/public/lme.json (LME Closing Price 3-month timah & nikel)
 
 wrap     : ringkasan penutupan resmi IDX — IHSG (close, high, low, volume, nilai),
-           indeks sektoral, dan harga penutupan semua saham (untuk breadth & % kontribusi).
+           indeks sektoral, harga penutupan semua saham (untuk breadth & % kontribusi),
+           dan transaksi asing per saham (dipakai Market Recap).
 calendar : agenda emiten dari kalender IDX (corporate action, RUPS, public expose, IPO)
            + jadwal rilis CPI & NFP dari kalender resmi BLS (AS).
 
@@ -154,7 +155,8 @@ def wrap():
         if d:
             dates.add(d)
         stocks[code] = [num(pick(r, "Close")), num(pick(r, "Previous", "Prev")),
-                        num(pick(r, "Change")), num(pick(r, "Volume")), num(pick(r, "Value"))]
+                        num(pick(r, "Change")), num(pick(r, "Volume")), num(pick(r, "Value")),
+                        num(pick(r, "ForeignBuy")), num(pick(r, "ForeignSell"))]
 
     indices = {}
     for r in index_rows:
@@ -195,6 +197,8 @@ def wrap():
         "date": trade_date, "fetchedAt": datetime.now(timezone.utc).isoformat(),
         "ihsg": comp, "sectors": sectors,
         "stocks": {k: v[:4] for k, v in stocks.items()},   # [close, prev, change, volume]
+        # transaksi asing (lembar) untuk Market Recap; kosong kalau IDX tidak mengirim kolomnya
+        "foreign": {k: v[5:7] for k, v in stocks.items() if v[5] or v[6]},   # [beli, jual]
     })
 
 

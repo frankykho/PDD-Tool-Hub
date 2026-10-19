@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Market Recap</title>
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--up:#13804b;--dn:#c0392b;--warn:#b7791f;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#9db0a3;--g:#4fc285;--g2:#1d3327;--up:#4fc285;--dn:#ef6b5e;--warn:#e0a84a;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.55 var(--font)}
+button,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:var(--g)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:220px 1fr;gap:16px}
+.bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h1{font-size:20px;margin:0;font-weight:800}
+.bar img{height:30px}
+.sp{flex:1}
+.muted{color:var(--t2)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 11px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.side{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;align-self:start;max-height:80vh;overflow:auto}
+.side h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin:6px 8px}
+.day{display:flex;gap:6px;align-items:center;width:100%;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer;text-align:left;text-decoration:none;color:var(--t)}
+.day:hover,.day.on{background:var(--g2)}
+.day small{margin-left:auto}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
+.dot.published{background:var(--g)}
+main{display:grid;gap:16px;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.ch h2{margin:0;font-size:17px}
+.st{font-size:12px;font-weight:700;border-radius:20px;padding:2px 9px;background:var(--line);color:var(--t2)}
+.st.published{background:var(--g2);color:var(--g)}
+.big{font-size:30px;font-weight:800;letter-spacing:-.5px}
+.big span{font-size:17px;font-weight:700;margin-left:6px}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.kv{display:flex;gap:16px;flex-wrap:wrap;color:var(--t2);margin:4px 0 10px}
+.kv b{color:var(--t)}
+.breadth{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line);margin:4px 0 2px}
+.breadth i{display:block}
+.nar h3{margin:12px 0 4px;font-size:16px}
+.nar p{margin:0 0 8px}
+textarea.f{width:100%;min-height:200px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;resize:vertical}
+.warn{color:var(--warn);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:12px}
+.grid h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td{padding:3px 0;border-bottom:1px solid var(--line)}
+td:not(:first-child){text-align:right}
+ul.l{margin:0;padding-left:18px}
+ul.l li{margin:3px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.note{font-size:12px;color:var(--t2);margin-top:14px}
+.empty{padding:30px;text-align:center}
+#ig{position:fixed;left:-99999px;top:0;width:1080px;height:1350px;padding:70px 72px;color:#fff;font-family:var(--font);
+  background:linear-gradient(160deg,#0d3b26,#145c3a 55%,#0a2a1c);display:flex;flex-direction:column;gap:26px}
+#ig .k{font-size:26px;letter-spacing:2px;text-transform:uppercase;opacity:.8}
+#ig .h{font-size:50px;font-weight:800;line-height:1.15}
+#ig .n{font-size:110px;font-weight:800;letter-spacing:-2px;line-height:1}
+#ig .c{font-size:44px;font-weight:700}
+#ig .row{display:flex;gap:40px;font-size:28px}
+#ig .cols{display:grid;grid-template-columns:1fr 1fr;gap:36px;font-size:30px}
+#ig .cols b{display:block;font-size:24px;letter-spacing:1px;text-transform:uppercase;opacity:.75;margin-bottom:8px}
+#ig .ft{margin-top:auto;font-size:20px;opacity:.75;line-height:1.4}
+#ig .gu{color:#7fe3a8}#ig .gd{color:#ff9a8f}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}.side{max-height:none}}
+@media print{
+  :root{--bg:#fff;--card:#fff;--t:#111;--t2:#555;--line:#ddd}
+  .side,.acts,.noprint,#ig{display:none!important}
+  .wrap{display:block;padding:0}
+  .card{border:0;padding:8px 0;break-inside:avoid}
+  .printonly{display:block!important}
+}
+.printonly{display:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><img id="logo" alt="" hidden><h1>Market Recap</h1><span class="muted" id="sub"></span><span class="sp"></span>
+    <span class="noprint" id="topActs"></span></div>
+  <nav class="side noprint" id="side"></nav>
+  <main id="main"><div class="card empty muted">Memuat…</div></main>
+</div>
+<div id="ig"></div>
+<script>
+const C = window.RC, P = window.PROFILE || {}, B = P.brand || {}, TEAM = C.mode === "team";
+const SES = { s1: "Sesi 1", close: "Penutupan" };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (v, d = 2) => (v == null || !isFinite(v) ? "–" : Number(v).toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d }));
+const sgn = (v, d = 2) => (v > 0 ? "+" : "") + fmt(v, d);
+const cls = (v) => (v > 0 ? "up" : v < 0 ? "dn" : "");
+const rp = (v) => { const a = Math.abs(v); return (v < 0 ? "−" : "") + "Rp" + (a >= 1e12 ? fmt(a / 1e12) + " T" : a >= 1e9 ? fmt(a / 1e9, 1) + " M" : fmt(a / 1e6, 0) + " jt"); };
+const dateID = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const time = (iso) => new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) + " WIB";
+const split = (t) => { const [h, ...rest] = String(t || "").trim().split("\n"); return { title: h || "", paras: rest.join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) }; };
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || j.skip || "HTTP " + r.status);
+  return j;
+}
+if (B.logo) { const l = $("#logo"); l.src = matchMedia("(prefers-color-scheme: dark)").matches && B.logoDark ? B.logoDark : B.logo; l.hidden = false; }
+
+let DAY = [], DATE = C.date || C.today;
+
+function card(r) {
+  const d = r.data, i = d.ihsg, br = d.breadth || {}, tot = (br.up + br.down + br.flat) || 1, n = split(r.narrative), m = d.movers || {};
+  const list = (rows, f) => `<table>${rows.map(f).join("")}</table>`;
+  const failed = !r.narrative && /^gagal/.test(r.model || "");
+  return `<section class="card" data-s="${r.session}">
+  <div class="ch"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
+    <small class="muted">${d.official ? "Data penutupan resmi IDX" : r.session === "s1" ? "Data akhir sesi 1" : "Data live (belum resmi IDX)"} · ${time(d.at)}</small></div>
+  <div class="big">${fmt(i.close)}<span class="${cls(i.chg)}">${sgn(i.chg)} (${sgn(i.pct)}%)</span></div>
+  <div class="kv">${i.high != null ? `<span>Tertinggi <b>${fmt(i.high)}</b></span><span>Terendah <b>${fmt(i.low)}</b></span>` : ""}
+    ${i.value ? `<span>Nilai transaksi <b>${rp(i.value)}</b></span>` : ""}${i.freq ? `<span>Frekuensi <b>${fmt(i.freq, 0)}</b></span>` : ""}
+    <span>Naik <b class="up">${br.up}</b> · Turun <b class="dn">${br.down}</b> · Stagnan <b>${br.flat}</b></span></div>
+  <div class="breadth"><i style="width:${(br.up / tot) * 100}%;background:var(--up)"></i><i style="width:${(br.flat / tot) * 100}%;background:var(--line)"></i><i style="width:${(br.down / tot) * 100}%;background:var(--dn)"></i></div>
+  <div class="nar">${TEAM && C.canEdit ? `<textarea class="f" data-n="${r.session}" aria-label="Narasi ${SES[r.session]}">${esc(r.narrative)}</textarea>`
+    : `<h3>${esc(n.title)}</h3>${n.paras.map((p) => `<p>${esc(p)}</p>`).join("")}`}
+    ${failed ? `<p class="warn">Narasi gagal dibuat (${esc(r.model.replace(/^gagal: /, ""))}). Tulis manual atau klik Susun ulang.</p>` : ""}</div>
+  <div class="grid">
+    <div><h4>Penggerak IHSG (poin)</h4>${list([...(m.up || []).map((x) => [x, "up"]), ...(m.down || []).map((x) => [x, "dn"])], ([x, c]) =>
+      `<tr><td><b>${esc(x.code)}</b> <small class="muted">${fmt(x.close, 0)} (${sgn(x.pct)}%)</small></td><td class="${c}">${sgn(x.pts)}</td></tr>`)}
+      <small class="muted">Perkiraan dari kapitalisasi pasar.</small></div>
+    <div><h4>Sektor</h4>${list(d.sectors || [], (s) => `<tr><td>${esc(s.name)}</td><td class="${cls(s.pct)}">${sgn(s.pct)}%</td></tr>`)}</div>
+    ${d.foreign ? `<div><h4>Asing: <span class="${cls(d.foreign.net)}">${d.foreign.net > 0 ? "net beli" : "net jual"} ${rp(Math.abs(d.foreign.net))}</span></h4>
+      ${list([...d.foreign.buy, ...d.foreign.sell], (x) => `<tr><td>${esc(x.code)}</td><td class="${cls(x.net)}">${rp(x.net)}</td></tr>`)}
+      <small class="muted">≈ lembar bersih × harga penutupan.</small></div>` : ""}
+    <div><h4>Global & komoditas</h4>${list([...(d.global || []), ...(d.commodities || [])], (g) => `<tr><td>${esc(g.label)}</td><td>${fmt(g.close)}</td><td class="${cls(g.pct)}">${sgn(g.pct)}%</td></tr>`)}</div>
+    ${(d.news || []).length ? `<div><h4>Berita hari ini</h4><ul class="l">${d.news.map((x) => `<li><a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.t)}</a> <small class="muted">${esc(x.src)}</small></li>`).join("")}</ul></div>` : ""}
+    ${(d.agenda || []).length ? `<div><h4>Agenda berikutnya</h4><ul class="l">${d.agenda.map((a) => `<li>${esc(a.d.slice(8))}/${esc(a.d.slice(5, 7))} ${esc(a.time)} <b>${esc(a.country)}</b> ${esc(a.t)}</li>`).join("")}</ul></div>` : ""}
+  </div>
+  ${TEAM ? `<div class="acts">
+    ${C.canEdit ? `<button class="btn" data-a="save">Simpan narasi</button>
+    <button class="btn pri" data-a="publish">${r.status === "published" ? "Tarik dari publik" : "Terbitkan"}</button>
+    ${DATE === C.today ? `<button class="btn" data-a="rebuild">Susun ulang</button>` : ""}` : ""}
+    <button class="btn" data-a="ig">Gambar IG</button></div>
+    <div class="note">Diperbarui ${esc(r.updated_by)} · ${time(r.updated_at)}${r.model && !failed ? " · narasi: " + esc(r.model) : ""}</div>` : ""}
+</section>`;
+}
+
+function render() {
+  $("#sub").textContent = DATE ? dateID(DATE) : "";
+  const missing = TEAM && C.canEdit && DATE === C.today ? Object.keys(SES).filter((s) => !DAY.some((r) => r.session === s)) : [];
+  $("#main").innerHTML = (DAY.length ? DAY.map(card).join("") : `<div class="card empty muted">${TEAM ? "Belum ada rangkuman untuk tanggal ini. Sesi 1 tersusun otomatis sekitar 12:20 WIB, penutupan sekitar 17:20 WIB."
+      : "Belum ada rangkuman yang diterbitkan."}</div>`) +
+    (missing.length ? `<div class="card noprint">${missing.map((s) => `<button class="btn" data-a="rebuild" data-s="${s}">Susun ${SES[s].toLowerCase()} sekarang</button> `).join("")}</div>` : "") +
+    `<div class="card printonly note">${esc(B.company || "")} ${esc(B.license || "")}</div>` +
+    (B.disclaimer ? `<div class="note">${esc(B.disclaimer)}</div>` : "");
+}
+
+async function side() {
+  if (!TEAM) {
+    $("#side").innerHTML = `<h3>Arsip</h3>` + (C.days || []).map((d) => `<a class="day${d === DATE ? " on" : ""}" href="/p/${d}">${dateID(d)}</a>`).join("");
+    return;
+  }
+  const rows = await api("/api/days"), by = {};
+  for (const r of rows) (by[r.date] ||= []).push(r);
+  if (!by[C.today]) by[C.today] = [];
+  $("#side").innerHTML = `<h3>Arsip</h3>` + Object.keys(by).sort().reverse().map((d) => {
+    const close = by[d].find((r) => r.session === "close") || by[d][0];
+    return `<button class="day${d === DATE ? " on" : ""}" data-d="${d}">${by[d].map((r) => `<span class="dot ${r.status}" title="${SES[r.session]}: ${r.status === "published" ? "terbit" : "draf"}"></span>`).join("")}
+      ${esc(new Date(d + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "2-digit" }))}
+      ${close && close.pct != null ? `<small class="${cls(close.pct)}">${sgn(close.pct)}%</small>` : ""}</button>`;
+  }).join("");
+}
+
+async function load(date) {
+  DATE = date;
+  if (TEAM) DAY = await api("/api/day?date=" + date); else DAY = C.day || [];
+  render();
+  document.querySelectorAll(".day").forEach((b) => b.classList.toggle("on", b.dataset.d === date));
+}
+
+function ig(r) {
+  const d = r.data, i = d.ihsg, m = d.movers || {}, s = d.sectors || [], n = split(r.narrative), up = i.chg >= 0;
+  const mv = (x) => `<div>${esc(x.code)} <span class="${x.pts > 0 ? "gu" : "gd"}">${sgn(x.pts)}</span></div>`;
+  $("#ig").innerHTML = `<div class="k">${esc(B.short ? B.short + " " : "")}Market Recap · ${SES[r.session]}</div>
+    <div class="k" style="opacity:.65">${esc(dateID(r.date))}</div>
+    <div class="h">${esc(n.title)}</div>
+    <div><div class="k">IHSG</div><div class="n">${fmt(i.close)}</div><div class="c ${up ? "gu" : "gd"}">${sgn(i.chg)} (${sgn(i.pct)}%)</div></div>
+    <div class="row">${i.high != null ? `<span>H ${fmt(i.high)}</span><span>L ${fmt(i.low)}</span>` : ""}<span>▲ ${d.breadth.up}</span><span>▼ ${d.breadth.down}</span>${d.foreign ? `<span>Asing ${d.foreign.net > 0 ? "net beli" : "net jual"} ${rp(Math.abs(d.foreign.net))}</span>` : ""}</div>
+    <div class="cols"><div><b>Pendorong (poin)</b>${(m.up || []).slice(0, 3).map(mv).join("")}</div><div><b>Penekan (poin)</b>${(m.down || []).slice(0, 3).map(mv).join("")}</div>
+      <div><b>Sektor terkuat</b>${s.slice(0, 2).map((x) => `<div>${esc(x.name)} <span class="${x.pct >= 0 ? "gu" : "gd"}">${sgn(x.pct)}%</span></div>`).join("")}</div>
+      <div><b>Sektor terlemah</b>${s.slice(-2).reverse().map((x) => `<div>${esc(x.name)} <span class="${x.pct >= 0 ? "gu" : "gd"}">${sgn(x.pct)}%</span></div>`).join("")}</div></div>
+    <div class="ft">${esc(B.company || "")}${B.license ? " · " + esc(B.license) : ""}<br>Informasi ini bukan rekomendasi jual/beli. Kontribusi poin adalah perkiraan.</div>`;
+  return html2canvas($("#ig"), { scale: 1, useCORS: true, backgroundColor: null }).then((cv) => new Promise((ok) => cv.toBlob((b) => {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `market-recap-${r.date}-${r.session}.png`; a.click(); ok();
+  })));
+}
+
+document.addEventListener("click", async (e) => {
+  const day = e.target.closest("button.day");
+  if (day) return load(day.dataset.d).catch((err) => alert(err.message));
+  const b = e.target.closest("[data-a]");
+  if (!b) return;
+  const sec = b.closest(".card"), s = b.dataset.s || (sec && sec.dataset.s), r = DAY.find((x) => x.session === s), a = b.dataset.a;
+  const ta = sec && sec.querySelector("textarea");
+  b.disabled = true;
+  try {
+    if (a === "save") { await api("/api/save", { date: DATE, session: s, narrative: ta.value }); r.narrative = ta.value; b.textContent = "Tersimpan ✓"; setTimeout(() => (b.textContent = "Simpan narasi"), 1500); }
+    if (a === "publish") {
+      if (ta && ta.value !== r.narrative) await api("/api/save", { date: DATE, session: s, narrative: ta.value });
+      await api("/api/publish", { date: DATE, session: s, on: r.status !== "published" }); await load(DATE); await side();
+    }
+    if (a === "rebuild") {
+      if (r && !confirm(r.status === "published" ? "Rangkuman ini sudah terbit. Susun ulang akan mengganti data & narasi dan mengembalikannya ke draf. Lanjut?" : "Susun ulang mengganti data & narasi (suntingan hilang). Lanjut?")) return;
+      b.textContent = "Menyusun… (±30 detik)"; await api("/api/rebuild", { date: DATE, session: s }); await load(DATE); await side();
+    }
+    if (a === "ig") { if (ta) r.narrative = ta.value; await ig(r); }
+    if (a === "pdf") window.print();
+  } catch (err) { alert(err.message); } finally { b.disabled = false; }
+});
+
+$("#topActs").innerHTML = (TEAM ? `<a class="btn" href="${esc(C.publicUrl)}" target="_blank" rel="noopener">Halaman publik ↗</a> ` : "") + `<button class="btn" data-a="pdf">PDF</button>`;
+side().then(() => load(DATE || C.today)).catch((err) => { $("#main").innerHTML = `<div class="card empty warn">${esc(err.message)}</div>`; });
+</script>
+</body>
+</html>

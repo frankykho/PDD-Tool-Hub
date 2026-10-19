@@ -11,6 +11,7 @@
     { "binding": "COMPETITOR", "service": "competitor-intel" },
     { "binding": "EDUKASI", "service": "edukasi-studio" },
     { "binding": "STORYDATA", "service": "story-data" },
-    { "binding": "SATS", "service": "sats-radar" }
+    { "binding": "SATS", "service": "sats-radar" },
+    { "binding": "RECAP", "service": "market-recap" }
   ]
 }

@@ -7,6 +7,7 @@
 //   :05/:35          Fund Insight      (dulu */30)
 //   :10/:40          Competitor Intel  (dulu */30)
 //   :15/:45, :25/:55 Edukasi Studio    (dulu */15)
+//   :20/:50          Market Recap, Senin–Jumat; memilih sendiri sesi 1 / penutupan menurut jam
 //   10:20 & 12:20    SATS, Senin–Jumat (dulu 10:17 & 12:17)
 //   tiap 5 menit     Story Data, Senin–Jumat; memilih tugas sendiri menurut jam (dulu */5 * * * 1-5)
 const SLOTS = { 5: "FUND", 10: "COMPETITOR", 15: "EDUKASI", 25: "EDUKASI" };
@@ -17,6 +18,7 @@ export default {
     const weekday = d.getUTCDay() >= 1 && d.getUTCDay() <= 5;
     const jobs = [SLOTS[m]];
     if (weekday) jobs.push("STORYDATA");
+    if (weekday && m === 20) jobs.push("RECAP");
     if (weekday && d.getUTCMinutes() === 20 && (h === 10 || h === 12)) jobs.push("SATS");
 
     const res = await Promise.allSettled(jobs.filter(Boolean).map(async (b) => {
