@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Content Planner</title>
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--warn:#b7791f;--bad:#c0392b;
+  --s-ide:#eef1f4;--s-ide-t:#4a5560;--s-draf:#fff4dc;--s-draf-t:#8a5a00;--s-review:#e7efff;--s-review-t:#2a4fa8;--s-terbit:#e1f5e9;--s-terbit-t:#1d6b41;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#9db0a3;--g:#4fc285;--g2:#1d3327;--warn:#e0a84a;--bad:#ef6b5e;
+  --s-ide:#242c33;--s-ide-t:#b8c2cc;--s-draf:#3a2f15;--s-draf-t:#f0c66b;--s-review:#1d2a47;--s-review-t:#9cb6f5;--s-terbit:#173726;--s-terbit-t:#7fdba6;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 16px 60px}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.2px}
+.sp{flex:1}
+.nav{display:inline-flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.sm{padding:5px 9px;font-size:12.5px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,.day:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;font-weight:600;color:var(--t2)}
+.seg button.on{background:var(--g2);color:var(--g)}
+select.f,input.f,textarea.f{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;min-width:0}
+textarea.f{width:100%;resize:vertical}
+.muted{color:var(--t2)}
+.small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.msg{padding:10px 12px;border-radius:10px;background:var(--s-draf);color:var(--s-draf-t);margin:10px 0}
+.msg.err{background:#fde8e6;color:var(--bad)}
+:root[data-theme="dark"] .msg.err{background:#3a1d1a}
+
+/* ---------- Kalender ---------- */
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px}
+.stat{font-size:12.5px;padding:4px 10px;border-radius:99px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--line);gap:1px}
+.dow{background:var(--card);padding:8px;font-size:12px;font-weight:700;color:var(--t2);text-align:center}
+.day{background:var(--card);min-height:118px;padding:6px;display:flex;flex-direction:column;gap:4px;cursor:pointer;position:relative}
+.day.out{background:color-mix(in srgb,var(--card) 70%,var(--bg))}
+.day.out .dn{opacity:.45}
+.day.today .dn{background:var(--g);color:#fff}
+.day.drop{outline:2px dashed var(--g);outline-offset:-3px}
+.dn{font-size:12px;font-weight:700;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.day .add{position:absolute;top:5px;right:6px;opacity:0;font-size:16px;color:var(--g);line-height:1}
+.day:hover .add{opacity:1}
+.chip{display:block;width:100%;text-align:left;border:0;border-radius:7px;padding:4px 6px;font-size:12px;line-height:1.3;cursor:pointer;overflow:hidden}
+.chip b{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip small{opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.st-ide{background:var(--s-ide);color:var(--s-ide-t)}
+.st-draf{background:var(--s-draf);color:var(--s-draf-t)}
+.st-review{background:var(--s-review);color:var(--s-review-t)}
+.st-terbit{background:var(--s-terbit);color:var(--s-terbit-t)}
+.more{font-size:11.5px;color:var(--t2);padding:0 4px}
+.list .lday{margin:14px 0 6px;font-weight:700}
+.list .lday.today{color:var(--g)}
+.list .chip{padding:9px 11px;font-size:13.5px;margin-bottom:6px;border:1px solid var(--line)}
+.list .empty{padding:30px;text-align:center}
+
+/* ---------- Dialog ---------- */
+dialog{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 24px));background:var(--card);color:var(--t);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(10,20,15,.45)}
+.dlg{padding:20px}
+.dlg h2{margin:0 0 14px;font-size:17px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.fld label{font-size:12.5px;font-weight:600;color:var(--t2)}
+.fld .f{width:100%}
+.acts{display:flex;gap:8px;align-items:center;margin-top:6px}
+
+/* ---------- Paket ---------- */
+.pk{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+.pk h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.pk h3{font-size:13px;margin:14px 0 6px;color:var(--t2);text-transform:uppercase;letter-spacing:.4px}
+.pk .card+.card{margin-top:16px}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font-size:11.5px;color:var(--t2);font-weight:600;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.t td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.up{color:var(--g)} .down{color:var(--bad)}
+.ag{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.ag:last-child{border-bottom:0}
+.ag .d{min-width:92px;font-weight:600;font-size:13px}
+.tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--g2);color:var(--g);margin-left:6px;white-space:nowrap}
+.draft textarea{min-height:260px;font-size:13px;line-height:1.55}
+.sug{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.sug:last-child{border-bottom:0}
+.sug input[type=date]{width:150px}
+.sug .ti{flex:1;min-width:0}
+.sug .ti small{display:block}
+@media (max-width:900px){.pk{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}.sug{flex-wrap:wrap}.sug .ti{flex-basis:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============ KALENDER ============ -->
+<section id="vCal" hidden>
+  <div class="bar">
+    <h1>Kalender Konten</h1>
+    <span class="nav"><button class="btn sm" id="prev" aria-label="Sebelumnya">‹</button>
+    <strong id="period" style="min-width:130px;text-align:center"></strong>
+    <button class="btn sm" id="next" aria-label="Berikutnya">›</button>
+    <button class="btn sm" id="today">Hari ini</button></span>
+    <span class="sp"></span>
+    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth" class="on">Bulan</button><button id="vList">Daftar</button></div>
+    <select class="f" id="fCh" aria-label="Filter kanal"><option value="">Semua kanal</option></select>
+    <select class="f" id="fSt" aria-label="Filter status"><option value="">Semua status</option></select>
+    <select class="f" id="fOw" aria-label="Filter penanggung jawab"><option value="">Semua orang</option></select>
+    <button class="btn pri" id="addBtn">+ Rencana</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="calErr"></div>
+  <div id="calBox"></div>
+  <p class="muted small" style="margin-top:10px">Klik tanggal untuk menambah rencana, klik rencana untuk mengubah. Rencana bisa digeser ke tanggal lain (tarik &amp; lepas).</p>
+</section>
+
+<!-- ============ PAKET MINGGUAN ============ -->
+<section id="vPk" hidden>
+  <div class="bar">
+    <h1>Paket Konten Mingguan</h1>
+    <span class="muted small" id="pkInfo"></span>
+    <span class="sp"></span>
+    <button class="btn" id="pkRefresh">↻ Ambil ulang data</button>
+    <a class="btn" id="pkStory" target="_top" hidden>Buka Story Generator ↗</a>
+  </div>
+  <div id="pkErr"></div>
+  <div class="pk" id="pkBody" hidden>
+    <div>
+      <div class="card"><h2>Reksa dana</h2><div id="pkFund"></div></div>
+      <div class="card"><h2>Obligasi</h2><div id="pkBond"></div></div>
+      <div class="card"><h2>Agenda pekan depan <span class="muted small" id="pkWeek" style="font-weight:400"></span></h2><div id="pkAgenda"></div></div>
+    </div>
+    <div>
+      <div class="card draft"><h2>Draf caption <span class="sp"></span><button class="btn sm" data-copy="dCap">Salin</button></h2>
+        <textarea class="f" id="dCap" aria-label="Draf caption"></textarea>
+        <p class="muted small" style="margin:6px 0 0">Bebas diubah sebelum disalin. Periksa ulang angka &amp; disclaimer sebelum terbit.</p></div>
+      <div class="card draft"><h2>Poin email <span class="sp"></span><button class="btn sm" data-copy="dMail">Salin</button></h2>
+        <textarea class="f" id="dMail" aria-label="Poin email"></textarea></div>
+      <div class="card"><h2>Masukkan ke kalender</h2>
+        <div id="pkSug"></div>
+        <div class="acts" style="margin-top:12px"><button class="btn pri" id="pkAdd">Masukkan yang dicentang</button><span class="muted small" id="pkAddMsg"></span></div></div>
+    </div>
+  </div>
+  <p class="muted small" id="pkLoading">⏳ Menyusun paket dari Fund Insight, Bond Insight, dan agenda…</p>
+</section>
+</div>
+
+<dialog id="dlg">
+  <form class="dlg" id="form" method="dialog">
+    <h2 id="dlgTitle">Rencana konten</h2>
+    <div class="fld"><label for="iTitle">Judul / isi konten</label><input class="f" id="iTitle" maxlength="160" required placeholder="mis. Weekly Update Reksa Dana"></div>
+    <div class="grid2">
+      <div class="fld"><label for="iDate">Tanggal terbit</label><input class="f" type="date" id="iDate" required></div>
+      <div class="fld"><label for="iCh">Kanal</label><select class="f" id="iCh"></select></div>
+      <div class="fld"><label for="iSt">Status</label><select class="f" id="iSt"></select></div>
+      <div class="fld"><label for="iOw">Penanggung jawab</label><input class="f" id="iOw" maxlength="60" list="owners" placeholder="nama"></div>
+    </div>
+    <div class="fld"><label for="iLink">Link hasil / bahan (opsional)</label><input class="f" id="iLink" maxlength="500" placeholder="https://…"></div>
+    <div class="fld"><label for="iNote">Catatan (opsional)</label><textarea class="f" id="iNote" rows="4" maxlength="2000"></textarea></div>
+    <p class="muted small" id="iMeta" style="margin:0 0 8px"></p>
+    <div id="dlgErr"></div>
+    <div class="acts"><button type="button" class="btn danger" id="iDel" hidden>Hapus</button><span class="sp"></span><button type="button" class="btn" id="iCancel">Batal</button><button type="submit" class="btn pri" id="iSave">Simpan</button></div>
+  </form>
+</dialog>
+<datalist id="owners"></datalist>
+
+<script>
+(function(){
+const PL=window.PL||{},P=window.PROFILE||{},B=P.brand||{};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit"};
+const MON=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const DAY=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+const iso=d=>d.toISOString().slice(0,10);
+const D=s=>new Date(s+"T00:00:00Z");
+const addD=(s,n)=>{const d=D(s);d.setUTCDate(d.getUTCDate()+n);return iso(d)};
+const todayIso=()=>iso(new Date(Date.now()+7*3600e3));
+const fmtDate=(s,long)=>{const d=D(s);return long?`${DAY[d.getUTCDay()]}, ${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`:`${DAY[d.getUTCDay()].slice(0,3)} ${d.getUTCDate()} ${MON[d.getUTCMonth()].slice(0,3)}`};
+const fmtMY=s=>{const d=D(s);return `${MON[d.getUTCMonth()].slice(0,3)} ${d.getUTCFullYear()}`};
+const num=(x,n=2)=>x==null||!isFinite(x)?"–":Number(x).toLocaleString("id-ID",{minimumFractionDigits:n,maximumFractionDigits:n});
+const pct=(x,n=2)=>x==null||!isFinite(x)?"–":(x>0?"+":"")+num(x,n)+"%";
+async function api(path,body){
+  const r=await fetch(path,body?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{cache:"no-store"});
+  const j=await r.json().catch(()=>({error:"Respons tidak terbaca (HTTP "+r.status+")"}));
+  if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+const showErr=(box,e)=>{$(box).innerHTML=e?`<div class="msg err">${esc(e.message||e)}</div>`:""};
+
+/* =================== KALENDER =================== */
+let cur=todayIso().slice(0,8)+"01",view="month",items=[],range={from:"",to:""};
+function fillSelects(){
+  $("fCh").insertAdjacentHTML("beforeend",PL.channels.map(c=>`<option>${esc(c)}</option>`).join(""));
+  $("fSt").insertAdjacentHTML("beforeend",PL.statuses.map(s=>`<option value="${s}">${STL[s]}</option>`).join(""));
+  $("iCh").innerHTML=PL.channels.map(c=>`<option>${esc(c)}</option>`).join("");
+  $("iSt").innerHTML=PL.statuses.map(s=>`<option value="${s}">${STL[s]}</option>`).join("");
+  try{const v=localStorage.getItem("pl_view");if(v==="list"||v==="month")view=v}catch(e){}
+  if(matchMedia("(max-width:640px)").matches)view="list";
+}
+function calRange(){
+  // grid Senin-Minggu yang mencakup seluruh bulan
+  const first=D(cur),dow=(first.getUTCDay()+6)%7,start=addD(cur,-dow);
+  const last=addD(addD(cur.slice(0,8)+"01",32).slice(0,8)+"01",-1),ldow=(D(last).getUTCDay()+6)%7;
+  return {from:start,to:addD(last,6-ldow)};
+}
+async function loadCal(){
+  range=calRange();
+  const d=D(cur);$("period").textContent=`${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  try{items=await api(`/api/items?from=${range.from}&to=${range.to}`);showErr("calErr");}
+  catch(e){items=[];showErr("calErr",e);}
+  const ow=[...new Set(items.map(i=>i.owner).filter(Boolean).concat(PL.me.name))].sort();
+  const fo=$("fOw"),keep=fo.value;fo.innerHTML='<option value="">Semua orang</option>'+ow.map(o=>`<option>${esc(o)}</option>`).join("");fo.value=ow.includes(keep)?keep:"";
+  $("owners").innerHTML=ow.map(o=>`<option value="${esc(o)}">`).join("");
+  renderCal();
+}
+function shown(){
+  const c=$("fCh").value,s=$("fSt").value,o=$("fOw").value;
+  return items.filter(i=>(!c||i.channel===c)&&(!s||i.status===s)&&(!o||i.owner===o));
+}
+const chip=i=>`<button type="button" class="chip st-${esc(i.status)}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}"><b>${esc(i.title)}</b><small>${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}</small></button>`;
+function renderCal(){
+  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");
+  const list=shown(),mStart=cur,mEnd=addD(addD(cur,32).slice(0,8)+"01",-1),inMonth=list.filter(i=>i.date>=mStart&&i.date<=mEnd);
+  $("stats").innerHTML=PL.statuses.map(s=>`<span class="stat st-${s}">${STL[s]}: ${inMonth.filter(i=>i.status===s).length}</span>`).join("")+`<span class="stat muted">${inMonth.length} rencana bulan ini</span>`;
+  const by={};list.forEach(i=>(by[i.date]=by[i.date]||[]).push(i));
+  const t=todayIso();
+  if(view==="list"){
+    const days=Object.keys(by).filter(d=>d>=mStart&&d<=mEnd).sort();
+    $("calBox").innerHTML=`<div class="list card">${days.length?days.map(d=>`<div class="lday${d===t?" today":""}">${fmtDate(d,true)}</div>${by[d].map(chip).join("")}`).join(""):`<div class="empty muted">Belum ada rencana di bulan ini. Klik “+ Rencana” untuk menambah.</div>`}</div>`;
+  }else{
+    let h=["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(x=>`<div class="dow">${x}</div>`).join("");
+    for(let d=range.from;d<=range.to;d=addD(d,1)){
+      const L=by[d]||[],out=d<mStart||d>mEnd;
+      h+=`<div class="day${out?" out":""}${d===t?" today":""}" data-date="${d}" tabindex="0" aria-label="${fmtDate(d,true)}, ${L.length} rencana"><span class="dn">${D(d).getUTCDate()}</span><span class="add" aria-hidden="true">+</span>${L.slice(0,4).map(chip).join("")}${L.length>4?`<span class="more">+${L.length-4} lagi</span>`:""}</div>`;
+    }
+    $("calBox").innerHTML=`<div class="cal">${h}</div>`;
+  }
+}
+// tambah / ubah
+let editing=null;
+function openForm(it,date){
+  editing=it||null;
+  $("dlgTitle").textContent=it?"Ubah rencana":"Rencana baru";
+  $("iTitle").value=it?it.title:"";$("iDate").value=it?it.date:(date||todayIso());
+  $("iCh").value=it?it.channel:"IG Story";$("iSt").value=it?it.status:"ide";
+  $("iOw").value=it?it.owner||"":PL.me.name;$("iLink").value=it?it.link||"":"";$("iNote").value=it?it.note||"":"";
+  const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
+  $("iMeta").textContent=it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"";
+  $("iDel").hidden=!(it&&(PL.me.adm||it.created_by===PL.me.name));
+  showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
+}
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault();$("iSave").disabled=true;
+  try{
+    await api("/api/items",{id:editing&&editing.id,title:$("iTitle").value,date:$("iDate").value,channel:$("iCh").value,status:$("iSt").value,owner:$("iOw").value,link:$("iLink").value,note:$("iNote").value});
+    $("dlg").close();
+    const d=$("iDate").value;if(d.slice(0,7)!==cur.slice(0,7)&&!(d>=range.from&&d<=range.to))cur=d.slice(0,8)+"01";
+    await loadCal();
+  }catch(err){showErr("dlgErr",err)}
+  finally{$("iSave").disabled=false}
+});
+$("iCancel").onclick=()=>$("dlg").close();
+$("iDel").onclick=async()=>{
+  if(!editing||!confirm(`Hapus rencana “${editing.title}”?`))return;
+  try{await api("/api/items/delete",{id:editing.id});$("dlg").close();await loadCal();}catch(err){showErr("dlgErr",err)}
+};
+$("calBox").addEventListener("click",e=>{
+  const c=e.target.closest(".chip");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
+  const d=e.target.closest(".day");if(d)openForm(null,d.dataset.date);
+});
+$("calBox").addEventListener("keydown",e=>{const d=e.target.closest(".day");if(d&&e.target===d&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openForm(null,d.dataset.date)}});
+// geser tanggal: tarik rencana ke hari lain
+let dragId=null;
+$("calBox").addEventListener("dragstart",e=>{const c=e.target.closest(".chip");if(!c)return;dragId=c.dataset.id;e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dragId)}catch(x){}});
+$("calBox").addEventListener("dragover",e=>{const d=e.target.closest(".day");if(d&&dragId){e.preventDefault();d.classList.add("drop")}});
+$("calBox").addEventListener("dragleave",e=>{const d=e.target.closest(".day");if(d)d.classList.remove("drop")});
+$("calBox").addEventListener("drop",async e=>{
+  const d=e.target.closest(".day");if(!d||!dragId)return;e.preventDefault();d.classList.remove("drop");
+  const it=items.find(i=>i.id===dragId);dragId=null;
+  if(!it||it.date===d.dataset.date)return;
+  try{await api("/api/items",{...it,date:d.dataset.date});await loadCal();}catch(err){showErr("calErr",err)}
+});
+$("calBox").addEventListener("dragend",()=>{dragId=null});
+const shift=n=>{const d=D(cur);d.setUTCMonth(d.getUTCMonth()+n);cur=iso(d).slice(0,8)+"01";loadCal()};
+$("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
+$("today").onclick=()=>{cur=todayIso().slice(0,8)+"01";loadCal()};
+$("addBtn").onclick=()=>openForm(null);
+const setView=v=>{view=v;try{localStorage.setItem("pl_view",v)}catch(e){}renderCal()};
+$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");
+["fCh","fSt","fOw"].forEach(id=>$(id).onchange=renderCal);
+
+/* =================== PAKET MINGGUAN =================== */
+const CATS=["Pasar Uang","Pendapatan Tetap","Campuran","Saham","Indeks"];
+const BT={Government:"Pemerintah",Corporate:"Korporasi",Sukuk:"Sukuk"};
+// return 1 tahun Fund Insight 3 desimal; y1x (persis dari NAB) menentukan urutan kalau seri
+const byY1=(a,b)=>(b.y1-a.y1)||((b.y1x??0)-(a.y1x??0));
+let PK=null,AGENDA_TXT="";
+async function loadPk(fresh){
+  $("pkLoading").hidden=false;$("pkRefresh").disabled=true;showErr("pkErr");
+  try{PK=await api("/api/weekly"+(fresh?"?refresh=1":""));renderPk();}
+  catch(e){showErr("pkErr",e)}
+  finally{$("pkLoading").hidden=true;$("pkRefresh").disabled=false}
+}
+function topFunds(){
+  const rows=(PK.funds&&PK.funds.rows)||[],out={};
+  CATS.forEach(c=>{const L=rows.filter(r=>r.type===c);
+    out[c]={w1:L.filter(r=>r.w1>0).sort((a,b)=>b.w1-a.w1).slice(0,3),y1:L.filter(r=>r.y1>0).sort(byY1).slice(0,3)}});
+  return out;
+}
+function topBonds(){
+  const rows=(PK.bonds&&PK.bonds.rows)||[],out={};
+  Object.keys(BT).forEach(t=>{out[t]=rows.filter(r=>r.type===t).sort((a,b)=>b.yield-a.yield).slice(0,3)});
+  return out;
+}
+function renderPk(){
+  $("pkBody").hidden=false;
+  const errs=[PK.fundsError&&"Reksa dana: "+PK.fundsError,PK.bondsError&&"Obligasi: "+PK.bondsError,PK.agendaError&&"Agenda: "+PK.agendaError].filter(Boolean);
+  $("pkErr").innerHTML=errs.length?`<div class="msg">Sebagian data belum bisa diambil, bagian itu dikosongkan. ${esc(errs.join(" · "))}</div>`:"";
+  const nd=PK.funds&&PK.funds.navDate;
+  $("pkInfo").textContent=(nd?`Data NAV ${fmtDate(nd,true)}`:"")+` · disusun ${new Date(PK.at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}`;
+  $("pkWeek").textContent=`${fmtDate(PK.next.from)} – ${fmtDate(PK.next.to)}`;
+  if(PL.hub&&PL.story){$("pkStory").href=PL.hub+"/#story";$("pkStory").hidden=false}
+  // reksa dana
+  const F=topFunds(),mv=(PK.funds&&PK.funds.movers)||[];
+  const tbl=(L,k,lab)=>L.length?`<table class="t"><thead><tr><th>Produk</th><th class="n">${lab}</th>${k==="w1"?'<th class="n">1 tahun</th>':'<th class="n">1 minggu</th>'}</tr></thead><tbody>${L.map(r=>`<tr><td>${esc(r.name)}</td><td class="n ${r[k]>0?"up":"down"}">${pct(r[k])}</td><td class="n muted">${pct(k==="w1"?r.y1:r.w1)}</td></tr>`).join("")}</tbody></table>`:'<p class="muted small" style="margin:4px 0">Tidak ada yang positif.</p>';
+  $("pkFund").innerHTML=PK.funds?CATS.filter(c=>F[c].w1.length||F[c].y1.length).map(c=>`<h3>${c}</h3><div class="grid2"><div><div class="small muted">Naik terbesar 1 minggu</div>${tbl(F[c].w1,"w1","1 minggu")}</div><div><div class="small muted">Return 1 tahun tertinggi</div>${tbl(F[c].y1,"y1","1 tahun")}</div></div>`).join("")
+    +`<h3>Gerak harian tidak biasa (7 hari)</h3>`+(mv.length?`<table class="t"><tbody>${mv.map(m=>`<tr><td>${esc(m.name)}<div class="small muted">${fmtDate(m.d)} · biasanya ±${num(m.sdd,m.sdd<.1?3:2)}% per hari, ini ${num(Math.abs(m.z),0)}× lipat</div></td><td class="n ${m.pct>0?"up":"down"}">${pct(m.pct)}</td></tr>`).join("")}</tbody></table>`:'<p class="muted small">Tidak ada gerak tidak biasa dalam 7 hari terakhir.</p>')
+    :'<p class="muted">Data reksa dana belum tersedia.</p>';
+  // obligasi
+  const Bd=topBonds(),bAs=PK.bonds&&PK.bonds.refDate;
+  $("pkBond").innerHTML=PK.bonds?Object.keys(BT).filter(t=>Bd[t].length).map(t=>`<h3>${BT[t]}</h3><table class="t"><thead><tr><th>Seri</th><th class="n">Yield</th><th class="n">vs ${bAs?fmtDate(bAs):"minggu lalu"}</th><th class="n">Jatuh tempo</th></tr></thead><tbody>${Bd[t].map(b=>`<tr><td><b>${esc(b.code)}</b>${b.best?'<span class="tag">pilihan</span>':""}<div class="small muted">${esc(b.issuer||b.name)}${b.rating?" · "+esc(b.rating):""}</div></td><td class="n">${num(b.yield,2)}%</td><td class="n ${b.dy>0?"up":b.dy<0?"down":"muted"}">${b.dy==null?"–":(b.dy>0?"+":"")+num(b.dy*100,0)+" bps"}</td><td class="n">${b.maturity?fmtMY(b.maturity):"–"}</td></tr>`).join("")}</tbody></table>`).join("")||'<p class="muted">Tidak ada obligasi yang ditawarkan.</p>'
+    :'<p class="muted">Data obligasi belum tersedia.</p>';
+  // agenda
+  const A=PK.agenda||[];
+  $("pkAgenda").innerHTML=A.length?A.map(a=>`<div class="ag"><span class="d">${fmtDate(a.d)}${a.time?`<div class="small muted">${esc(a.time)}</div>`:""}</span><span>${esc(a.t)}${a.country?`<span class="tag">${esc(a.country)}</span>`:""}${a.k==="internal"?'<span class="tag">internal</span>':""}</span></div>`).join(""):'<p class="muted small">Belum ada agenda untuk pekan depan. Agenda makro diperbarui dari Story Generator; agenda lain bisa ditambahkan di Home Fund Insight.</p>';
+  drafts(F,Bd,A);suggest();
+}
+function drafts(F,Bd,A){
+  const nd=PK.funds&&PK.funds.navDate,src=nd?` (data NAV ${fmtDate(nd,true).replace(/^\w+, /,"")})`:"";
+  const fl=CATS.map(c=>F[c].w1[0]&&`• ${c}: ${F[c].w1[0].name} ${pct(F[c].w1[0].w1)}`).filter(Boolean);
+  const yl=CATS.map(c=>F[c].y1[0]&&`• ${c}: ${F[c].y1[0].name} ${pct(F[c].y1[0].y1)}`).filter(Boolean);
+  const bl=Object.keys(BT).map(t=>Bd[t][0]&&`• ${Bd[t][0].code} (${BT[t]}) yield ${num(Bd[t][0].yield,2)}%`).filter(Boolean);
+  const al=A.filter(a=>a.k!=="internal").slice(0,6).map(a=>`• ${fmtDate(a.d)}: ${a.t}${a.country?` (${a.country})`:""}`);
+  AGENDA_TXT=al.length?["📅 Agenda pekan ini:",...al].join("\n"):"";
+  const legal=[B.license,"Kinerja masa lalu tidak mencerminkan kinerja masa depan."].filter(Boolean).join(" ");
+  const cap=[`📊 Rangkuman Pekan Ini${src}`,"",
+    fl.length&&"Reksa dana dengan kenaikan tertinggi sepekan:",...fl,fl.length&&"",
+    bl.length&&"Obligasi dengan yield menarik:",...bl,bl.length&&"",
+    al.length&&"📅 Agenda pekan depan:",...al,al.length&&"",
+    P.app&&P.app.name?`Investasi mulai sekarang di aplikasi ${P.app.name}.`:"",
+    legal,B.hashtags||""].filter(x=>x!==false&&x!==undefined);
+  $("dCap").value=cap.join("\n").replace(/\n{3,}/g,"\n\n").trim();
+  const mail=[`Rangkuman pekan ini${src}:`,"",
+    yl.length&&"Return 1 tahun tertinggi per kategori reksa dana:",...yl,yl.length&&"",
+    fl.length&&"Kenaikan tertinggi dalam sepekan:",...fl,fl.length&&"",
+    bl.length&&"Obligasi dengan yield tertinggi saat ini:",...bl,bl.length&&"",
+    al.length&&"Agenda ekonomi pekan depan:",...al,al.length&&"",
+    B.disclaimer||legal].filter(x=>x!==false&&x!==undefined);
+  $("dMail").value=mail.join("\n").replace(/\n{3,}/g,"\n\n").trim();
+}
+// usulan rencana pekan depan; catatannya membawa draf supaya bisa langsung dipakai dari kalender
+function suggest(){
+  const n=PK.next.from,S=[
+    {title:"Agenda ekonomi pekan ini",channel:"IG Story",date:n,note:AGENDA_TXT},
+    {title:"Weekly Update Reksa Dana",channel:"IG Story",date:n,note:"Dibuat dari Story Generator → Weekly Update."},
+    {title:"Newsletter rangkuman pekan",channel:"Email",date:n,note:$("dMail").value},
+    {title:"Rangkuman pekan (caption)",channel:"IG Feed",date:addD(n,-3)<todayIso()?n:addD(n,-3),note:$("dCap").value},
+  ];
+  $("pkSug").innerHTML=S.map((s,i)=>`<label class="sug"><input type="checkbox" checked data-i="${i}"><span class="ti"><b>${esc(s.title)}</b><small class="muted">${esc(s.channel)}</small></span><input class="f" type="date" value="${s.date}" data-d="${i}" aria-label="Tanggal ${esc(s.title)}"></label>`).join("");
+  $("pkSug").S=S;
+}
+$("pkAdd").onclick=async()=>{
+  const S=$("pkSug").S||[],pick=[...document.querySelectorAll("#pkSug input[type=checkbox]:checked")].map(c=>{const i=+c.dataset.i;return {...S[i],date:document.querySelector(`#pkSug [data-d="${i}"]`).value,status:"draf",owner:PL.me.name}});
+  if(!pick.length){$("pkAddMsg").textContent="Belum ada yang dicentang.";return}
+  $("pkAdd").disabled=true;$("pkAddMsg").textContent="Menyimpan…";
+  try{const r=await api("/api/items/bulk",{items:pick});$("pkAddMsg").textContent=`✓ ${r.ids.length} rencana masuk ke Kalender (status Draf).`;}
+  catch(e){$("pkAddMsg").textContent="✗ "+(e.message||e)}
+  finally{$("pkAdd").disabled=false}
+};
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-copy]");if(!b)return;
+  const t=$(b.dataset.copy);
+  try{await navigator.clipboard.writeText(t.value)}catch(x){t.select();document.execCommand("copy")}
+  const o=b.textContent;b.textContent="✓ Tersalin";setTimeout(()=>b.textContent=o,1500);
+});
+$("pkRefresh").onclick=()=>loadPk(true);
+
+/* =================== MULAI =================== */
+if(PL.mode==="paket"){$("vPk").hidden=false;loadPk(false)}
+else{$("vCal").hidden=false;fillSelects();loadCal()}
+})();
+</script>
+</body>
+</html>

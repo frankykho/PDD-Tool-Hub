@@ -32,6 +32,8 @@ export const APPS = [
   { id: "storydata", dir: "apps/story-data" },
   { id: "story", dir: "apps/story-generator" },
   { id: "tutorial", dir: "apps/tutorial" },
+  // setelah fund & bond: memakai keduanya lewat service binding
+  { id: "planner", dir: "apps/content-planner" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
 ];

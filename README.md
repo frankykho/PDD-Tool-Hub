@@ -16,6 +16,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Fund Insight | `apps/fund-insight` | Data & analisis reksa dana |
 | Bond Insight | `apps/bond-insight` | Data & analisis obligasi |
 | ETF Insight | `apps/etf-insight` | ETF KISI (XKMS, XKID): harga vs NAB, kinerja vs indeks, risiko & kinerja per tahun, simulasi investasi, arus dana, pembanding semua ETF di BEI, halaman nasabah `/p/<KODE>`; fakta produk dari `tools.etf.facts` di profil |
+| Content Planner | `apps/content-planner` | Kalender konten tim (kanal, penanggung jawab, status Ide → Draf → Review → Terbit) dan Paket Mingguan: rangkuman reksa dana, obligasi, agenda pekan depan + draf caption/email; tanpa cron |
 | Competitor Intel | `apps/competitor-intel` | Pantau promo investasi kompetitor |
 | Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor |
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |

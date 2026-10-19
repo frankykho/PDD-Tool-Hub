@@ -2,6 +2,7 @@
 // Bindings: DB (D1), ADMIN_KEY (secret). Cron: "0 2,7 * * *" (09:00 & 14:00 WIB).
 import { profile, appUrl, title, profileScript } from "../../shared/profile.js";
 import { newsFor } from "../../shared/news.js";
+import { STORY_DIR, macroItems } from "../../shared/macro.js";
 
 // [pid Bareksa, nama, jenis, risiko, min_subs] — dari daftar produk (Excel). pid null = belum ada di Bareksa.
 // Daftar bawaan; admin bisa menggantinya lewat menu "Daftar RD" (disimpan di meta.funds).
@@ -126,16 +127,7 @@ export function yahooPts(j) {
 }
 // Agenda makro otomatis dari Story Generator (satu sumber, diperbarui tim tiap akhir tahun): data/macro.js + public/calendar.json (CPI/NFP dari BLS).
 // Dibaca dari repo publik di GitHub (worker tidak bisa memanggil worker lain di akun yang sama lewat workers.dev). GITHUB_REPO kosong = tanpa agenda otomatis.
-const STORY_DIR = "apps/story-generator/site"; // folder situs Story Generator di repo
-export function macroItems(js, cal) {
-  const out = [];
-  for (const m of String(js || "").matchAll(/\{\s*date:\s*'(\d{4}-\d{2}-\d{2})'\s*,\s*time:\s*(null|'([^']*)')\s*,\s*country:\s*'(\w+)'\s*,\s*event:\s*'([^']*)'/g))
-    out.push({ d: m[1], time: m[3] || "", country: m[4], t: m[5] });
-  for (const e of (cal && cal.macro) || []) if (/^\d{4}-\d{2}-\d{2}$/.test(e.date || "") && e.event) out.push({ d: e.date, time: e.time || "", country: e.country || "", t: e.event });
-  const seen = new Set();
-  return out.filter((x) => { const k = x.d + "|" + x.t; return !seen.has(k) && seen.add(k); })
-    .map((x) => ({ id: "auto-" + x.d + "-" + x.t.length, d: x.d, t: x.t, time: x.time, country: x.country, k: "makro", auto: true }));
-}
+export { macroItems };
 async function storyMacro(env) {
   const repo = env.GITHUB_REPO || profile(env).github.repo;
   if (!repo) return { ok: false, items: [] };
