@@ -85,7 +85,8 @@ function exportAll() {
     const keys = json(wrangler(["kv", "key", "list", "--namespace-id", ns.id, "--remote"]));
     const rows = keys.map((k) => ({
       key: k.name,
-      value: wrangler(["kv", "key", "get", k.name, "--namespace-id", ns.id, "--remote", "--text"]),
+      // wrangler menambah baris baru di akhir keluaran; tanpa dibuang, nilai teks (mis. username -> email) jadi tidak cocok
+      value: wrangler(["kv", "key", "get", k.name, "--namespace-id", ns.id, "--remote", "--text"]).replace(/\n$/, ""),
       ...(k.metadata ? { metadata: k.metadata } : {}),
       ...(k.expiration ? { expiration: k.expiration } : {}),
     }));
@@ -151,16 +152,17 @@ function splitLong(file) {
   return out;
 }
 
-function importAll() {
+// only: "d1" / "kv" = hanya bagian itu (mis. ulang KV saja tanpa menimpa data D1 yang sudah berjalan di akun baru)
+function importAll(only) {
   const d1 = d1List(), kv = kvList();
-  for (const target of TARGET_D1) {
+  for (const target of only === "kv" ? [] : TARGET_D1) {
     const file = path.join(DIR, `${target}.sql`);
     if (!fs.existsSync(file)) continue;
     const db = d1.find((d) => d.name === target) || die(`D1 "${target}" belum ada di akun baru. Jalankan dulu: node scripts/deploy.mjs`);
     console.log(`▶ D1 ${target}`);
     wrangler(["d1", "execute", target, "--remote", "--yes", "--file", splitLong(file), "-c", d1Config(target, db.uuid)], { capture: false });
   }
-  for (const target of TARGET_KV) {
+  for (const target of only === "d1" ? [] : TARGET_KV) {
     const file = path.join(DIR, `${target}.kv.json`);
     if (!fs.existsSync(file)) continue;
     const ns = kv.find((k) => k.title === target) || die(`KV "${target}" belum ada di akun baru. Jalankan dulu: node scripts/deploy.mjs`);
@@ -173,5 +175,5 @@ function importAll() {
 const cmd = process.argv[2];
 if (cmd === "list") list();
 else if (cmd === "export") exportAll();
-else if (cmd === "import") importAll();
-else console.log("Pakai: node scripts/migrate.mjs list | export | import   (lihat keterangan di atas file ini)");
+else if (cmd === "import") importAll(process.argv[3]);
+else console.log("Pakai: node scripts/migrate.mjs list | export | import [d1|kv]   (lihat keterangan di atas file ini)");

@@ -363,6 +363,7 @@ Di repo GitHub, buka tab **Actions**. Untuk setiap workflow di bawah, klik naman
 |---|---|
 | `wrangler belum terpasang` | Jalankan `npm install`, lalu ulangi perintahnya. |
 | `Authentication error`, `Not logged in`, atau `You must be logged in` | Jalankan `npx wrangler login`, lalu ulangi. |
+| `Authentication error [code: 10000]` | Login wrangler tidak cocok dengan akun yang tersimpan. Hapus berkas `node_modules\.cache\wrangler\wrangler-account.json` (dan yang sama di `apps\sats\worker\node_modules\.cache\wrangler\`), jalankan `npx wrangler logout` lalu `npx wrangler login` dengan akun **baru**, cek dengan `npx wrangler whoami`, lalu ulangi perintahnya. |
 | `D1 "..." tidak ada di akun ini` (saat `export`) | Nama di `.migrate/map.json` salah ketik. Bandingkan lagi dengan daftar dari `node scripts/migrate.mjs list`. |
 | `D1 "..." belum ada di akun baru` (saat `import`) | Jalankan `node scripts/deploy.mjs` dulu, lalu `import` lagi. Pastikan `npx wrangler whoami` menunjukkan akun **baru**. |
 | `"subdomain" di profile.json tidak sah` | Subdomain di `profile.json` harus huruf kecil tanpa spasi, persis seperti di Cloudflare (langkah 1a). |
