@@ -266,6 +266,14 @@ async function pull(env, iso, mkt = false) {
       sharpe: num(d.sharpe?.oneyear), vol: num(d.risk?.oneyear),
     };
   }
+  // Bareksa memberi return 3 desimal, jadi dua dana bisa seri. y1x = return 1 tahun persis dari NAB (NAB hari ini / NAB
+  // terakhir pada atau sebelum tanggal yang sama tahun lalu - 1; rumus ini cocok dengan Bareksa sampai 3 desimal), untuk pengurutan.
+  const want = rows.map((d) => String(d.pid)).filter((p) => latest[p]?.nav && latest[p].navDate)
+    .map((p) => ({ p, d: String(+latest[p].navDate.slice(0, 4) - 1) + latest[p].navDate.slice(4) }));
+  if (want.length) {
+    const { results } = await env.DB.prepare("SELECT value->>'p' p, (SELECT nav FROM nav WHERE pid = value->>'p' AND date <= value->>'d' ORDER BY date DESC LIMIT 1) n FROM json_each(?)").bind(JSON.stringify(want)).all();
+    for (const r of results) if (r.n > 0) (latest[r.p].ret ||= {}).y1x =+((latest[r.p].nav / r.n - 1) * 100).toFixed(6);
+  }
   const q = [
     env.DB.prepare("INSERT OR REPLACE INTO nav SELECT value->>'p', value->>'d', value->>'n' FROM json_each(?)").bind(JSON.stringify(nav)),
     env.DB.prepare("INSERT OR IGNORE INTO aum SELECT value->>'p', value->>'m', value->>'a' FROM json_each(?)").bind(JSON.stringify(aum)),

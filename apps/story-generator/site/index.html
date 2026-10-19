@@ -2863,7 +2863,7 @@ function rdhRows(key){
   };
   if(key==='grow'&&!RDH.prev)return [];
   return WK_CATS.map(cat=>{
-    const best=RDH.now.items.filter(x=>x.type===cat).map(x=>({...x,v:val(x)})).filter(x=>isFinite(x.v)&&x.v>0).sort((a,b)=>b.v-a.v)[0];
+    const best=RDH.now.items.filter(x=>x.type===cat).map(x=>({...x,v:val(x)})).filter(x=>isFinite(x.v)&&x.v>0).sort((a,b)=>b.v-a.v||(key==='y1'||key==='y1s'?y1Tie(a,b):0))[0];
     return best?{...best,cat}:null;
   }).filter(Boolean);
 }
@@ -2884,6 +2884,9 @@ function rdhNote(key){
   if(key==='grow')return `Pertumbuhan AUM ${monthID(RDH.prev&&RDH.prev.aumMonth)||'bulan lalu'} → ${am}`;
   return `Return kumulatif (Data NAV ${nav})`;
 }
+// Return 1 tahun dari Fund Insight hanya 3 desimal, jadi bisa seri; y1x (dihitung persis dari NAB) menentukan urutannya.
+// Tampilan tetap memakai return biasa (2 desimal).
+function y1Tie(a,b){return isFinite(a.y1x)&&isFinite(b.y1x)?b.y1x-a.y1x:0;}
 // ===== DATA OTOMATIS DARI FUND INSIGHT (Weekly Update + RD Highlights) =====
 // Satu kali ambil mengisi dua tab. Upload workbook tetap ada sebagai cadangan.
 const FUND_API=PU.fund?PU.fund.replace(/\/+$/,'')+'/api/funds':'';   // alamat Fund Insight dari profil urls.fund
@@ -2905,9 +2908,9 @@ async function fetchFunds(force){
     const items=funds.map(f=>{const t=f.ret||{};return {name:f.name,type:f.type,min:num(f.minSubs),risk:f.risk||'',pid:f.pid,key:normName(f.name),
       shariah:/syariah|sharia|sukuk|falah/i.test(f.name),   // aturan yang sama dengan Fund Insight
       rk1y:NaN,rk1m:NaN,rkaum:NaN,typeN:null,   // peringkat pasar tidak ada di Fund Insight → barisnya tidak tampil
-      m1:num(t.m1),m3:num(t.m3),y1:num(t.y1),ret:num(t.y1),aum:num(f.aum)};});
+      m1:num(t.m1),m3:num(t.m3),y1:num(t.y1),ret:num(t.y1),y1x:num(t.y1x),aum:num(f.aum)};});
     WK_CATS.forEach((cat,ci)=>{
-      WK_DEFAULTS[ci]=items.filter(x=>x.type===cat&&x.ret>0).sort((a,b)=>b.ret-a.ret).slice(0,5);
+      WK_DEFAULTS[ci]=items.filter(x=>x.type===cat&&x.ret>0).sort((a,b)=>b.ret-a.ret||y1Tie(a,b)).slice(0,5);
       safe(()=>setPageActive('wk',ci+1,WK_DEFAULTS[ci].length>0));
     });
     RDH.now={items,navDate,aumMonth,file:'Fund Insight'};
