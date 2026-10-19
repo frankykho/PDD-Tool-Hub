@@ -22,7 +22,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
-| Market Recap | `apps/market-recap` | Rangkuman IHSG sesi 1 & penutupan setiap hari bursa: penggerak indeks (poin), sektor, asing, global, berita, agenda + narasi AI; draf disunting & diterbitkan tim, publik di `/p`; gambar IG & PDF; arsip |
+| Market Recap | `apps/market-recap` | Rangkuman IHSG sesi 1 & penutupan setiap hari bursa sebagai carousel 5 slide 1080×1080 (PNG & PDF): sampul + outlook, penggerak indeks (poin) & sektor, grafik intraday, global/rupiah/komoditas, agenda & berita. Judul tiap slide ditulis AI, disunting & diterbitkan tim; publik di `/p`; arsip |
 | Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap (tanpa halaman) |
 | PDF Generator | `jobs/pdf-generator` | PDF produk harian (GitHub Actions) |
 

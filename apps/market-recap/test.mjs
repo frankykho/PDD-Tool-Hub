@@ -29,3 +29,15 @@ assert.equal(foreignFlow(null), null);
 const html = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
 for (const [, js] of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(js);
 console.log("semua cek lolos");
+
+// Yahoo: intraday (menit WIB, sampai akhir sesi 1), harian, quote
+import { intraday, daily, quote } from "./calc.js";
+const T0 = Date.UTC(2026, 9, 19, 2, 0) / 1000; // 09:00 WIB
+const y = { t: [T0, T0 + 3 * 3600, T0 + 5 * 3600], q: { open: [10, 11, 12], high: [12, 13, 20], low: [9, 10, 11], close: [11, 12, 15] } };
+assert.deepEqual(intraday(y), { pts: [[540, 11], [720, 12], [840, 15]], open: 10, high: 20, low: 9 });
+assert.deepEqual(intraday(y, 720).pts, [[540, 11]]);   // sesi 1 berakhir 12:00
+assert.equal(intraday(null), null);
+assert.deepEqual(daily({ t: [T0, T0 + 86400], q: { close: [5, null] } }, 5), [["2026-10-19", 5]]);
+assert.deepEqual(quote({ meta: { regularMarketPrice: 110, chartPreviousClose: 100, regularMarketTime: T0 } }), { close: 110, pct: 10, date: "2026-10-19" });
+assert.equal(quote({ meta: {} }), null);
+console.log("cek Yahoo lolos");

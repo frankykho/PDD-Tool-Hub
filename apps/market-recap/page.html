@@ -7,18 +7,16 @@
 <title>Market Recap</title>
 <style>
 :root{
-  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--up:#13804b;--dn:#c0392b;--warn:#b7791f;
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--warn:#b7791f;
   --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
 }
-:root[data-theme="dark"]{
-  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#9db0a3;--g:#4fc285;--g2:#1d3327;--up:#4fc285;--dn:#ef6b5e;--warn:#e0a84a;color-scheme:dark
-}
+:root[data-theme="dark"]{--bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#9db0a3;--g:#4fc285;--g2:#1d3327;--warn:#e0a84a;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.55 var(--font)}
 button,textarea{font:inherit;color:inherit}
 [hidden]{display:none!important}
 a{color:var(--g)}
-.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:220px 1fr;gap:16px}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px}
 .bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .bar h1{font-size:20px;margin:0;font-weight:800}
 .bar img{height:30px}
@@ -28,8 +26,8 @@ a{color:var(--g)}
 .btn:hover{border-color:var(--g)}
 .btn.pri{background:var(--g);border-color:var(--g);color:#fff}
 .btn:disabled{opacity:.55;cursor:not-allowed}
-.btn:focus-visible{outline:2px solid var(--g);outline-offset:2px}
-.side{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;align-self:start;max-height:80vh;overflow:auto}
+.btn:focus-visible,.day:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.side{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;align-self:start;max-height:85vh;overflow:auto}
 .side h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin:6px 8px}
 .day{display:flex;gap:6px;align-items:center;width:100%;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer;text-align:left;text-decoration:none;color:var(--t)}
 .day:hover,.day.on{background:var(--g2)}
@@ -37,134 +35,316 @@ a{color:var(--g)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
 .dot.published{background:var(--g)}
 main{display:grid;gap:16px;min-width:0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
-.ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.ch h2{margin:0;font-size:17px}
+.sess{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.sh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sh h2{margin:0;font-size:17px}
 .st{font-size:12px;font-weight:700;border-radius:20px;padding:2px 9px;background:var(--line);color:var(--t2)}
 .st.published{background:var(--g2);color:var(--g)}
-.big{font-size:30px;font-weight:800;letter-spacing:-.5px}
-.big span{font-size:17px;font-weight:700;margin-left:6px}
-.up{color:var(--up)}.dn{color:var(--dn)}
-.kv{display:flex;gap:16px;flex-wrap:wrap;color:var(--t2);margin:4px 0 10px}
-.kv b{color:var(--t)}
-.breadth{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line);margin:4px 0 2px}
-.breadth i{display:block}
-.nar h3{margin:12px 0 4px;font-size:16px}
+.slides{display:grid;grid-template-columns:repeat(var(--cols),max-content);gap:10px;overflow-x:auto;padding-bottom:4px}
+.slides .slide{zoom:var(--z);border-radius:calc(14px / var(--z));box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.edit{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:14px}
+textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;resize:vertical;font-size:13.5px}
 .nar p{margin:0 0 8px}
-textarea.f{width:100%;min-height:200px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;resize:vertical}
 .warn{color:var(--warn);font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:12px}
-.grid h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2)}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-td{padding:3px 0;border-bottom:1px solid var(--line)}
-td:not(:first-child){text-align:right}
-ul.l{margin:0;padding-left:18px}
-ul.l li{margin:3px 0}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.note{font-size:12px;color:var(--t2);margin-top:14px}
+.note{font-size:12px;color:var(--t2);margin-top:10px}
 .empty{padding:30px;text-align:center}
-#ig{position:fixed;left:-99999px;top:0;width:1080px;height:1350px;padding:70px 72px;color:#fff;font-family:var(--font);
-  background:linear-gradient(160deg,#0d3b26,#145c3a 55%,#0a2a1c);display:flex;flex-direction:column;gap:26px}
-#ig .k{font-size:26px;letter-spacing:2px;text-transform:uppercase;opacity:.8}
-#ig .h{font-size:50px;font-weight:800;line-height:1.15}
-#ig .n{font-size:110px;font-weight:800;letter-spacing:-2px;line-height:1}
-#ig .c{font-size:44px;font-weight:700}
-#ig .row{display:flex;gap:40px;font-size:28px}
-#ig .cols{display:grid;grid-template-columns:1fr 1fr;gap:36px;font-size:30px}
-#ig .cols b{display:block;font-size:24px;letter-spacing:1px;text-transform:uppercase;opacity:.75;margin-bottom:8px}
-#ig .ft{margin-top:auto;font-size:20px;opacity:.75;line-height:1.4}
-#ig .gu{color:#7fe3a8}#ig .gd{color:#ff9a8f}
+#stage{position:fixed;left:-20000px;top:0}
 @media (max-width:760px){.wrap{grid-template-columns:1fr}.side{max-height:none}}
+
+/* ---------- slide 1080×1080 ---------- */
+.slide{--s-g:#1f6b56;--s-up:#1f8a5b;--s-dn:#c8352f;--s-dn2:#e08a84;--s-up2:#7cc4a0;--s-t:#1d1d1b;--s-t2:#62625e;--s-line:#e3e3df;
+  width:1080px;height:1080px;background:#f4f4f2;color:var(--s-t);font-family:"Noto Sans","Segoe UI",Inter,system-ui,sans-serif;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;font-variant-numeric:tabular-nums;flex:none}
+.slide .top{height:84px;background:#fff;border-bottom:4px solid #6b2b10;display:flex;align-items:center;justify-content:space-between;padding:0 54px;flex:none}
+.slide .top img{height:38px}.slide .top .brand{font-weight:800;font-size:26px}
+.slide .top .d{font-size:22px;color:var(--s-t2);font-weight:600}
+.slide .body{padding:34px 54px 0;flex:1;display:flex;flex-direction:column;gap:16px;min-height:0}
+.slide .kick{color:var(--s-g);font-weight:700;font-size:23px}
+.slide .hl{font-size:50px;font-weight:800;line-height:1.13;letter-spacing:-.5px;margin:-6px 0 4px}
+.slide .cap{font-size:19px;color:var(--s-t2);font-weight:600}
+.slide .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.slide .c{background:#fff;border:1px solid var(--s-line);border-radius:14px;padding:16px 20px}
+.slide .c small{font-size:19px;color:var(--s-t2);font-weight:600;display:block}
+.slide .c b{display:block;font-size:36px;font-weight:800;margin:2px 0;line-height:1.15}
+.slide .c span{font-size:19px;font-weight:600}
+.slide .up{color:var(--s-up)}.slide .dn{color:var(--s-dn)}
+.slide .box{background:#fff;border:1px solid var(--s-line);border-radius:14px;padding:16px 20px}
+.slide .outlook{background:var(--s-g);color:#fff;border-radius:14px;padding:20px 28px}
+.slide .outlook small{font-size:21px;opacity:.85;font-weight:700}.slide .outlook p{font-size:26px;font-weight:700;margin:4px 0 0;line-height:1.35}
+.slide .foot{padding:12px 54px 22px;font-size:13px;color:var(--s-t2);line-height:1.4;flex:none}
+.slide .news{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 110px 22px 54px;margin-top:auto;border-top:1px solid var(--s-line);flex:none}
+.slide .news.full{grid-template-columns:1fr;border:0;padding:0;margin:0}
+.slide .chip{background:#fff;border:1px solid var(--s-line);border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:center;min-width:0}
+.slide .chip i{width:34px;height:34px;border-radius:8px;background:var(--s-g);color:#fff;font-style:normal;font-weight:800;font-size:14px;display:grid;place-items:center;flex:none}
+.slide .chip b{font-size:16px;color:var(--s-g);display:block;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.slide .chip small{font-size:14px;color:var(--s-t2)}
+.slide .pg{position:absolute;right:54px;bottom:22px;font-size:18px;font-weight:700;color:var(--s-t2)}
+.slide svg{display:block}
+.slide svg text{font-family:inherit}
+.slide .div{display:grid;grid-template-columns:1fr 92px 2px 92px 1fr;align-items:center;row-gap:10px;font-size:22px;font-weight:700}
+.slide .div .bar{height:30px;border-radius:5px}
+.slide .div .l{display:flex;justify-content:flex-end;align-items:center;gap:10px}
+.slide .div .r{display:flex;align-items:center;gap:10px}
+.slide .div .code{text-align:center}
+.slide .div .axis{background:var(--s-line);align-self:stretch}
+.slide .sect{display:grid;grid-template-columns:1fr 1fr;column-gap:30px;row-gap:6px;font-size:19px}
+.slide .sect div{display:grid;grid-template-columns:225px 1fr 78px;align-items:center;gap:10px}
+.slide .sect i{display:block;height:14px;border-radius:4px}
+.slide .sect b{text-align:right}
+.slide .gl{display:grid;gap:8px}
+.slide .gl>div{display:grid;grid-template-columns:230px 1fr 1fr;align-items:center;background:#fff;border:1px solid var(--s-line);border-radius:12px;padding:6px 18px;height:56px}
+.slide .gl>div.me{background:#fbe7e5}
+.slide .gl big{font-size:23px;font-weight:800;display:block;line-height:1.1}.slide .gl small{font-size:15px;color:var(--s-t2)}
+.slide .gl .neg{display:flex;justify-content:flex-end;align-items:center;gap:10px;border-right:2px solid #8a8a86;height:44px;font-size:23px;font-weight:800}
+.slide .gl .pos{display:flex;align-items:center;gap:10px;height:44px;font-size:23px;font-weight:800}
+.slide .gl i{display:block;height:26px;border-radius:5px}
+.slide .comm{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;font-size:19px}
+.slide .comm div{display:flex;justify-content:space-between}
+.slide .ag{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.slide .ag>div{background:#fff;border:1px solid var(--s-line);border-radius:14px;overflow:hidden}
+.slide .ag header{background:var(--s-g);color:#fff;display:flex;justify-content:space-between;align-items:baseline;padding:10px 18px;font-weight:800;font-size:19px}
+.slide .ag header b{font-size:32px}
+.slide .ag p{margin:0;padding:12px 18px 16px;font-size:21px;font-weight:700;line-height:1.3}
+.slide .ag p small{display:block;font-size:16px;color:var(--s-t2);font-weight:500;margin-top:4px}
+.slide .disc{font-size:14px;color:var(--s-t2);line-height:1.45}
+
+@page{size:1080px 1080px;margin:0}
 @media print{
-  :root{--bg:#fff;--card:#fff;--t:#111;--t2:#555;--line:#ddd}
-  .side,.acts,.noprint,#ig{display:none!important}
-  .wrap{display:block;padding:0}
-  .card{border:0;padding:8px 0;break-inside:avoid}
-  .printonly{display:block!important}
+  html,body{background:#fff}
+  .wrap>*:not(main),main>*:not(.printing),.printing>*:not(.slides),#stage{display:none!important}
+  .wrap,main{display:block;padding:0;margin:0;max-width:none}
+  .printing{border:0;padding:0;margin:0}
+  .printing .slides{display:block;overflow:visible}
+  .printing .slide{zoom:1!important;border-radius:0!important;box-shadow:none!important;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
-.printonly{display:none}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 </head>
 <body>
 <div class="wrap">
-  <div class="bar"><img id="logo" alt="" hidden><h1>Market Recap</h1><span class="muted" id="sub"></span><span class="sp"></span>
-    <span class="noprint" id="topActs"></span></div>
-  <nav class="side noprint" id="side"></nav>
-  <main id="main"><div class="card empty muted">Memuat…</div></main>
+  <div class="bar"><img id="logo" alt="" hidden><h1>Market Recap</h1><span class="muted" id="sub"></span><span class="sp"></span><span id="topActs"></span></div>
+  <nav class="side" id="side"></nav>
+  <main id="main"><div class="sess empty muted">Memuat…</div></main>
 </div>
-<div id="ig"></div>
+<div id="stage"></div>
 <script>
 const C = window.RC, P = window.PROFILE || {}, B = P.brand || {}, TEAM = C.mode === "team";
 const SES = { s1: "Sesi 1", close: "Penutupan" };
-const $ = (s) => document.querySelector(s);
+const LABELS = ["JUDUL", "PENGGERAK", "INTRADAY", "GLOBAL", "AGENDA", "OUTLOOK"];
+const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (v, d = 2) => (v == null || !isFinite(v) ? "–" : Number(v).toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d }));
-const sgn = (v, d = 2) => (v > 0 ? "+" : "") + fmt(v, d);
+const sgn = (v, d = 2) => (v > 0 ? "+" : v < 0 ? "–" : "") + fmt(Math.abs(v), d);
 const cls = (v) => (v > 0 ? "up" : v < 0 ? "dn" : "");
-const rp = (v) => { const a = Math.abs(v); return (v < 0 ? "−" : "") + "Rp" + (a >= 1e12 ? fmt(a / 1e12) + " T" : a >= 1e9 ? fmt(a / 1e9, 1) + " M" : fmt(a / 1e6, 0) + " jt"); };
-const dateID = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const time = (iso) => new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) + " WIB";
-const split = (t) => { const [h, ...rest] = String(t || "").trim().split("\n"); return { title: h || "", paras: rest.join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) }; };
+const rpT = (v) => { const a = Math.abs(v); return (v < 0 ? "–" : "") + "Rp" + (a >= 1e12 ? fmt(a / 1e12) + " triliun" : fmt(a / 1e9, 1) + " miliar"); };
+const NEGARA = { ID: "Indonesia", US: "Amerika Serikat", CN: "Tiongkok", JP: "Jepang", EU: "Zona Euro", KR: "Korea Selatan" };
+const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"], HARI = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const dshort = (iso) => `${+iso.slice(8)} ${BULAN[+iso.slice(5, 7) - 1]}`;
+const dlong = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const dhead = (iso) => `${iso} (${HARI[new Date(iso + "T00:00:00Z").getUTCDay()]})`;
+const time = (iso) => new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).replace(":", ".") + " WIB";
+const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}.${String(m % 60).padStart(2, "0")}`;
 async function api(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || j.skip || "HTTP " + r.status);
   return j;
 }
-if (B.logo) { const l = $("#logo"); l.src = matchMedia("(prefers-color-scheme: dark)").matches && B.logoDark ? B.logoDark : B.logo; l.hidden = false; }
+if (C.logo) { const l = $("#logo"); l.src = C.logo; l.hidden = false; }
 
+/* ---------- teks berlabel dari AI / tim ---------- */
+function parse(text) {
+  const o = {}, rest = [];
+  let narr = false;
+  for (const raw of String(text || "").split("\n")) {
+    const line = raw.trim();
+    if (narr) { rest.push(raw); continue; }
+    const m = /^(JUDUL|PENGGERAK|INTRADAY|GLOBAL|AGENDA|OUTLOOK)\s*:\s*(.*)$/i.exec(line);
+    if (m) o[m[1].toUpperCase()] = m[2].trim();
+    else if (/^NARASI\s*:/i.test(line)) { narr = true; const r = line.replace(/^NARASI\s*:\s*/i, ""); if (r) rest.push(r); }
+    else if (line && !Object.keys(o).length) o.JUDUL = line; // teks lama tanpa label: baris pertama = judul
+    else if (line) rest.push(raw);
+  }
+  o.paras = rest.join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  return o;
+}
+// judul cadangan dari data kalau AI gagal / label kosong
+function fallback(r) {
+  const d = r.data, i = d.ihsg, s1 = r.session === "s1", m = d.movers || {}, big = [...(m.down || []), ...(m.up || [])].sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts))[0];
+  const sec = d.sectors || [], w = i.chg < 0 ? sec[sec.length - 1] : sec[0];
+  return {
+    JUDUL: `IHSG ${s1 ? "sesi I" : "ditutup"} ${i.chg < 0 ? "turun" : "naik"} ${fmt(Math.abs(i.pct))}% ke ${fmt(i.close)}`,
+    PENGGERAK: big ? `${big.code} ${sgn(big.pts, 1)} poin${w ? `, sektor ${w.name.toLowerCase()} ${sgn(w.pct)}%` : ""}` : "Penggerak IHSG",
+    INTRADAY: i.high != null ? `IHSG bergerak antara ${fmt(i.low)} dan ${fmt(i.high)}` : "Perjalanan IHSG hari ini",
+    GLOBAL: "Bursa global dan rupiah", AGENDA: "Yang perlu dicermati berikutnya", OUTLOOK: "",
+  };
+}
+
+/* ---------- grafik SVG ---------- */
+function niceTicks(lo, hi, n = 4) {
+  const raw = (hi - lo) / n, p = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((k) => k * p).find((s) => s >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+/** series [[x, y]]; o: x0,x1, w,h, color, xTicks [[x,label]], band [x0,x1], hlines [{y,label,color}], marks [{x,y,label,color,hollow,above}], dec */
+function chart(series, o) {
+  const { w, h } = o, L = 90, R = 30, T = 40, Bm = 46, dec = o.dec ?? 0;
+  const ys = series.map((p) => p[1]).concat((o.hlines || []).map((l) => l.y));
+  let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
+  const x0 = o.x0 ?? series[0][0], x1 = o.x1 ?? series[series.length - 1][0];
+  const X = (x) => L + ((x - x0) / (x1 - x0 || 1)) * (w - L - R), Y = (y) => T + (1 - (y - lo) / (hi - lo)) * (h - T - Bm);
+  const col = o.color || "#1f6b56";
+  // garis putus di jeda: titik yang berjarak > 20 menit memulai segmen baru
+  const segs = [];
+  for (const p of series) { const s = segs[segs.length - 1]; if (!s || (o.gap && p[0] - s[s.length - 1][0] > o.gap)) segs.push([p]); else s.push(p); }
+  const P = (s) => s.map(([x, y], k) => (k ? "L" : "M") + X(x).toFixed(1) + "," + Y(y).toFixed(1)).join("");
+  const d = segs.map(P).join("");
+  const area = o.area ? segs.map((s) => `<path d="${P(s)}L${X(s[s.length - 1][0])},${h - Bm}L${X(s[0][0])},${h - Bm}Z" fill="${col}" opacity=".1"/>`).join("") : "";
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    ${niceTicks(lo, hi).map((t) => `<line x1="${L}" x2="${w - R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#e3e3df"/><text x="${L - 12}" y="${Y(t) + 6}" text-anchor="end" font-size="18" fill="#62625e">${fmt(t, dec)}</text>`).join("")}
+    ${o.band ? `<rect x="${X(o.band[0])}" y="${T - 10}" width="${X(o.band[1]) - X(o.band[0])}" height="${h - Bm - T + 10}" fill="#e9ebe6"/><text x="${(X(o.band[0]) + X(o.band[1])) / 2}" y="${T + 8}" text-anchor="middle" font-size="16" fill="#62625e">Jeda</text>` : ""}
+    ${(o.hlines || []).map((l) => `<line x1="${L}" x2="${w - R}" y1="${Y(l.y)}" y2="${Y(l.y)}" stroke="${l.color}" stroke-dasharray="6 5"/><text x="${l.x ?? L + 8}" y="${Y(l.y) + (l.below ? 22 : -8)}" font-size="18" font-weight="700" fill="${l.color}">${esc(l.label)}</text>`).join("")}
+    ${area}<path d="${d}" fill="none" stroke="${col}" stroke-width="4" stroke-linejoin="round"/>
+    ${(o.xTicks || []).map(([x, t]) => `<text x="${X(x)}" y="${h - 12}" text-anchor="middle" font-size="18" fill="#62625e">${esc(t)}</text>`).join("")}
+    ${(o.marks || []).map((m) => `<circle cx="${X(m.x)}" cy="${Y(m.y)}" r="9" fill="${m.hollow ? "#fff" : m.color}" stroke="${m.color}" stroke-width="4"/>
+      ${m.label ? `<text x="${X(m.x) + (m.dx ?? -14)}" y="${Y(m.y) + (m.above ? -18 : 32)}" text-anchor="${m.anchor || "end"}" font-size="${m.size || 22}" font-weight="800" fill="${m.color}" paint-order="stroke" stroke="#fff" stroke-width="5">${esc(m.label)}</text>` : ""}`).join("")}
+  </svg>`;
+}
+
+/* ---------- slide ---------- */
+function newsFor(d, re, used, n = 2) {
+  const pick = (d.news || []).filter((x) => !used.has(x.link) && re.test(x.t)).concat((d.news || []).filter((x) => !used.has(x.link))).filter((x, i, a) => a.indexOf(x) === i).slice(0, n);
+  pick.forEach((x) => used.add(x.link));
+  return pick;
+}
+const chip = (x) => `<div class="chip"><i>${esc((x.src || "?").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase())}</i><div style="min-width:0"><b>↗ ${esc(x.t)}</b><small>${esc(x.src)}${x.at ? " · " + esc(x.at.slice(5, 7) + "/" + x.at.slice(8, 10)) : ""}</small></div></div>`;
+const chips = (list) => (list.length ? `<div class="news">${list.map(chip).join("")}</div>` : "");
+function frame(r, k, n, kick, hl, inner, foot = "") {
+  const head = C.logo ? `<img src="${esc(C.logo)}" alt="">` : `<span class="brand">${esc(B.company || B.short || "Market Recap")}</span>`;
+  return `<div class="slide"><div class="top">${head}<span class="d">${k > 1 ? esc(`${B.short ? B.short + " " : ""}${SES[r.session]} · `) : ""}${dhead(r.date)}</span></div>
+    <div class="body"><div class="kick">${kick}</div><h1 class="hl">${esc(hl)}</h1>${inner}</div>${foot}<span class="pg">${k} / ${n}</span></div>`;
+}
+function slides(r) {
+  const d = r.data, i = d.ihsg, s1 = r.session === "s1", t = { ...fallback(r) }, p = parse(r.narrative), used = new Set(), N = 5;
+  for (const k of LABELS) if (p[k]) t[k] = p[k];
+  const m = d.movers || {}, br = d.breadth || { up: 0, down: 0, flat: 0 }, tot = br.up + br.down + br.flat || 1, colr = i.chg < 0 ? "#c8352f" : "#1f8a5b";
+  const src = `Sumber: TradingView · Yahoo Finance · ${d.official ? "IDX · " : ""}RSS media · per ${dlong(r.date)} pukul ${time(d.at)}${s1 ? " (jeda Sesi I)" : ""}`;
+  const out = [];
+
+  // 1. Sampul
+  const hist = (d.history || []).map((x, k) => [k, x[1], x[0]]);
+  const big = [...(m.down || []), ...(m.up || [])].sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts))[0];
+  out.push(frame(r, 1, N, esc(`${B.short ? B.short + " " : ""}${SES[r.session]} · Market Recap`), t.JUDUL,
+    (hist.length > 1 ? `<div>${chart(hist, { w: 972, h: 300, color: "#1f6b56", area: true, dec: 0,
+      xTicks: hist.map((x) => [x[0], dshort(x[2])]),
+      marks: [{ x: 0, y: hist[0][1], color: "#62625e", label: fmt(hist[0][1]), anchor: "start", dx: -10, above: true, size: 20 },
+        { x: hist.length - 1, y: i.close, color: colr, hollow: true, label: `${fmt(i.close)} (${sgn(i.pct)}%)`, above: i.chg >= 0 }] })}
+      <div class="cap">Penutupan IHSG ${dshort(hist[0][2])}–${dshort(r.date)} ${r.date.slice(0, 4)}${s1 ? " · titik terakhir: akhir Sesi I" : ""}</div></div>` : "") +
+    `<div class="cards">
+      ${d.lq45 ? `<div class="c"><small>LQ45 · ${s1 ? "Sesi I" : "penutupan"}</small><b class="${cls(d.lq45.pct)}">${fmt(d.lq45.close)}</b><span class="${cls(d.lq45.pct)}">${sgn(d.lq45.pct)}% hari ini</span></div>` : ""}
+      ${big ? `<div class="c"><small>Penggerak terbesar</small><b class="${cls(big.pts)}">${esc(big.code)} ${sgn(big.pts, 1)}</b><span class="${cls(big.pts)}">poin IHSG (perkiraan) · ${sgn(big.pct)}%</span></div>` : ""}
+      <div class="c"><small>Sebaran saham</small><b class="${br.down > br.up ? "dn" : "up"}">${br.down > br.up ? br.down + " turun" : br.up + " naik"}</b><span>${br.down > br.up ? br.up + " naik" : br.down + " turun"} · ${br.flat} stagnan</span></div>
+    </div>` + (t.OUTLOOK ? `<div class="outlook"><small>${s1 ? "Menjelang Sesi II" : "Yang perlu dicermati"}</small><p>${esc(t.OUTLOOK)}</p></div>` : ""),
+    `<div class="foot">${esc(src)}<br>Disusun dengan bantuan kecerdasan artifisial (AI) dari data pasar publik; dapat mengandung kesalahan dan tidak dapat dijadikan satu-satunya dasar pengambilan keputusan.
+      Untuk informasi semata; bukan penawaran, ajakan, maupun rekomendasi investasi.${B.company ? `<br>${esc(B.company)}${B.license ? " · " + esc(B.license) : ""}` : ""}</div>`));
+
+  // 2. Penggerak & sektor
+  const mx = Math.max(1e-9, ...[...(m.up || []), ...(m.down || [])].map((x) => Math.abs(x.pts)));
+  const rows = Math.max((m.up || []).length, (m.down || []).length), sec = d.sectors || [], smx = Math.max(1e-9, ...sec.map((s) => Math.abs(s.pct)));
+  let div = "";
+  for (let k = 0; k < rows; k++) {
+    const a = (m.down || [])[k], b = (m.up || [])[k];
+    div += `<div class="l">${a ? `<span class="dn">${sgn(a.pts, 1)}</span><i class="bar" style="width:${(Math.abs(a.pts) / mx) * 250}px;background:${k < 2 ? "#c8352f" : "#e08a84"}"></i>` : ""}</div>
+      <div class="code">${a ? esc(a.code) : ""}</div><div class="axis"></div><div class="code">${b ? esc(b.code) : ""}</div>
+      <div class="r">${b ? `<i class="bar" style="width:${(b.pts / mx) * 250}px;background:${k < 2 ? "#3f9a6e" : "#7cc4a0"}"></i><span class="up">${sgn(b.pts, 1)}</span>` : ""}</div>`;
+  }
+  out.push(frame(r, 2, N, "Penggerak IHSG", t.PENGGERAK,
+    `<div class="cap">Kontribusi ke IHSG ${s1 ? "Sesi I" : "hari ini"}, perkiraan dari kapitalisasi pasar (poin) · IHSG ${sgn(i.chg)} poin</div>
+    <div class="box"><div class="div" style="margin-bottom:8px;font-size:19px"><div class="l dn">5 penekan terbesar</div><div></div><div></div><div></div><div class="r up">5 pendorong terbesar</div></div><div class="div">${div}</div></div>
+    <div class="cap">Sektor · perubahan ${s1 ? "Sesi I" : "penutupan"} (%)</div>
+    <div class="sect">${sec.map((s) => `<div><span>${esc(s.name)}</span><i style="width:${(Math.abs(s.pct) / smx) * 100}%;background:${s.pct < 0 ? "#e08a84" : "#7cc4a0"}"></i><b class="${cls(s.pct)}">${sgn(s.pct)}%</b></div>`).join("")}</div>`,
+    chips(newsFor(d, new RegExp(`\\b(${[...(m.up || []), ...(m.down || [])].map((x) => x.code).join("|") || "sektor"})\\b|sektor`, "i"), used))));
+
+  // 3. Perjalanan hari ini
+  const fri = new Date(r.date + "T00:00:00Z").getUTCDay() === 5, brk = fri ? [690, 840] : [720, 810], end = s1 ? d.s1End || brk[0] : 960;
+  const pts = (d.intraday || []).filter((x) => x[0] <= end), last = pts[pts.length - 1];
+  const ticks = (s1 ? [540, 600, 660, 720].filter((x) => x <= end) : [540, 600, 660, brk[0], brk[1], 900, 960]).map((x) => [x, hm(x)]);
+  out.push(frame(r, 3, N, s1 ? "Perjalanan Sesi I" : "Perjalanan IHSG hari ini", t.INTRADAY,
+    (pts.length > 1 ? `<div class="box" style="padding:12px 10px 4px">${chart(pts, { w: 950, h: 430, x0: 540, x1: end, color: colr, area: true, gap: 20, band: s1 ? null : brk, xTicks: ticks,
+      hlines: [...(i.high != null ? [{ y: i.high, label: `Tertinggi ${fmt(i.high)}`, color: "#1f8a5b", x: 280 }] : []), ...(i.low != null ? [{ y: i.low, label: `Terendah ${fmt(i.low)}`, color: "#c8352f", x: 560, below: true }] : [])],
+      marks: [...(i.open != null ? [{ x: pts[0][0], y: i.open, color: "#1d1d1b", hollow: true, label: `Buka ${fmt(i.open)}`, anchor: "start", dx: 16, above: true }] : []),
+        { x: last[0], y: i.close, color: colr, label: `${s1 ? "Sesi I" : "Tutup"} ${fmt(i.close)}`, above: true }] })}</div>` : `<div class="box cap">Grafik intraday tidak tersedia.</div>`) +
+    `<div class="cards">
+      <div class="c"><small>${s1 ? "Sesi I" : "Penutupan"} vs kemarin</small><b class="${cls(i.chg)}">${sgn(i.chg)} poin</b><span class="${cls(i.chg)}">${sgn(i.pct)}% · kemarin ${fmt(i.prev)}</span></div>
+      ${i.value ? `<div class="c"><small>Nilai transaksi${s1 ? " · Sesi I" : ""}</small><b>${rpT(i.value)}</b><span class="muted">${i.valueOfficial ? "IDX" : "perkiraan TradingView"}</span></div>` : ""}
+      <div class="c"><small>Sebaran saham</small><svg width="100%" height="18" style="margin:12px 0 8px"><rect width="${(br.down / tot) * 100}%" height="18" rx="4" fill="#c8352f"/><rect x="${(br.down / tot) * 100}%" width="${(br.flat / tot) * 100}%" height="18" fill="#cfd2cc"/><rect x="${((br.down + br.flat) / tot) * 100}%" width="${(br.up / tot) * 100}%" height="18" rx="4" fill="#1f8a5b"/></svg>
+        <span><span class="dn">▼ ${br.down}</span> · ${br.flat} · <span class="up">▲ ${br.up}</span></span></div>
+    </div>`, chips(newsFor(d, /IHSG|sesi|indeks|ditutup|dibuka/i, used))));
+
+  // 4. Global & rupiah
+  const gl = [...(d.global || []), { label: "IHSG", pct: i.pct, date: r.date, me: true }], gmx = Math.max(1e-9, ...gl.map((g) => Math.abs(g.pct)));
+  const usd = (d.global || []).find((g) => /Dow|S&P|Nasdaq/.test(g.label)), rp = d.rupiah;
+  out.push(frame(r, 4, N, "Latar global", t.GLOBAL,
+    `<div class="cap">Perubahan harian (%) · Asia & IHSG: ${dshort(r.date)}${usd ? ` · AS: penutupan ${dshort(usd.date)} (New York)` : ""}</div>
+    <div class="gl">${gl.map((g) => `<div class="${g.me ? "me" : ""}"><div><big>${esc(g.label)}</big><small>Tutup ${dshort(g.date)}${/Dow|S&P|Nasdaq/.test(g.label) ? " (NY)" : ""}</small></div>
+      <div class="neg">${g.pct < 0 ? `<span class="dn">${sgn(g.pct)}%</span><i style="width:${(Math.abs(g.pct) / gmx) * 220}px;background:#c8352f"></i>` : ""}</div>
+      <div class="pos">${g.pct >= 0 ? `<i style="width:${(g.pct / gmx) * 220}px;background:#1f8a5b"></i><span class="up">${sgn(g.pct)}%</span>` : ""}</div></div>`).join("")}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${rp ? `<div class="box" style="padding:12px 16px 4px"><div style="display:flex;justify-content:space-between;font-size:20px;font-weight:700"><span>Rupiah per US$</span><span class="${rp.pct > 0 ? "dn" : "up"}">${fmt(rp.close, 0)} (${sgn(rp.pct)}%)</span></div>
+        ${chart(rp.series.map((x, k) => [k, x[1]]), { w: 440, h: 150, color: rp.pct > 0 ? "#c8352f" : "#1f8a5b", area: true, dec: 0, xTicks: [[0, dshort(rp.series[0][0])], [rp.series.length - 1, dshort(rp.series[rp.series.length - 1][0])]] })}
+        <small class="muted" style="font-size:14px">Yahoo Finance · naik = rupiah melemah</small></div>` : ""}
+      <div class="box"><div style="font-size:20px;font-weight:700;margin-bottom:8px">Komoditas</div><div class="comm">${(d.commodities || []).map((c) => `<div><span>${esc(c.label)}</span><b class="${cls(c.pct)}">${sgn(c.pct)}%</b></div>`).join("")}</div></div>
+    </div>`));
+
+  // 5. Agenda & berita
+  out.push(frame(r, 5, N, "Yang perlu dicermati", t.AGENDA,
+    ((d.agenda || []).length ? `<div class="ag">${d.agenda.slice(0, 3).map((a) => `<div><header><span>${HARI[new Date(a.d + "T00:00:00Z").getUTCDay()].toUpperCase()}</span><b>${+a.d.slice(8)}</b></header>
+      <p>${esc(a.t)}<small>${esc([a.time && a.time + " WIB", NEGARA[a.country] || a.country].filter(Boolean).join(" · "))}</small></p></div>`).join("")}</div>` : "") +
+    `<div class="cap">Berita hari ini</div><div class="news full" style="display:grid;gap:10px">${newsFor(d, /./, used, (d.agenda || []).length ? 4 : 6).map(chip).join("")}</div>
+    <div class="disc" style="margin-top:auto">${B.disclaimer ? esc(B.disclaimer) + "<br>" : ""}Informasi ini disusun dengan bantuan AI dari data pasar publik dan dapat mengandung kesalahan. Bukan penawaran, ajakan, maupun rekomendasi investasi. Kinerja masa lalu tidak mencerminkan hasil di masa depan.${B.company ? "<br>" + esc(B.company) + (B.license ? " · " + esc(B.license) : "") : ""}</div>`,
+    `<div style="height:56px"></div>`));
+  return out;
+}
+
+/* ---------- halaman ---------- */
 let DAY = [], DATE = C.date || C.today;
-
-function card(r) {
-  const d = r.data, i = d.ihsg, br = d.breadth || {}, tot = (br.up + br.down + br.flat) || 1, n = split(r.narrative), m = d.movers || {};
-  const list = (rows, f) => `<table>${rows.map(f).join("")}</table>`;
-  const failed = !r.narrative && /^gagal/.test(r.model || "");
-  return `<section class="card" data-s="${r.session}">
-  <div class="ch"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
-    <small class="muted">${d.official ? "Data penutupan resmi IDX" : r.session === "s1" ? "Data akhir sesi 1" : "Data live (belum resmi IDX)"} · ${time(d.at)}</small></div>
-  <div class="big">${fmt(i.close)}<span class="${cls(i.chg)}">${sgn(i.chg)} (${sgn(i.pct)}%)</span></div>
-  <div class="kv">${i.high != null ? `<span>Tertinggi <b>${fmt(i.high)}</b></span><span>Terendah <b>${fmt(i.low)}</b></span>` : ""}
-    ${i.value ? `<span>Nilai transaksi <b>${rp(i.value)}</b></span>` : ""}${i.freq ? `<span>Frekuensi <b>${fmt(i.freq, 0)}</b></span>` : ""}
-    <span>Naik <b class="up">${br.up}</b> · Turun <b class="dn">${br.down}</b> · Stagnan <b>${br.flat}</b></span></div>
-  <div class="breadth"><i style="width:${(br.up / tot) * 100}%;background:var(--up)"></i><i style="width:${(br.flat / tot) * 100}%;background:var(--line)"></i><i style="width:${(br.down / tot) * 100}%;background:var(--dn)"></i></div>
-  <div class="nar">${TEAM && C.canEdit ? `<textarea class="f" data-n="${r.session}" aria-label="Narasi ${SES[r.session]}">${esc(r.narrative)}</textarea>`
-    : `<h3>${esc(n.title)}</h3>${n.paras.map((p) => `<p>${esc(p)}</p>`).join("")}`}
-    ${failed ? `<p class="warn">Narasi gagal dibuat (${esc(r.model.replace(/^gagal: /, ""))}). Tulis manual atau klik Susun ulang.</p>` : ""}</div>
-  <div class="grid">
-    <div><h4>Penggerak IHSG (poin)</h4>${list([...(m.up || []).map((x) => [x, "up"]), ...(m.down || []).map((x) => [x, "dn"])], ([x, c]) =>
-      `<tr><td><b>${esc(x.code)}</b> <small class="muted">${fmt(x.close, 0)} (${sgn(x.pct)}%)</small></td><td class="${c}">${sgn(x.pts)}</td></tr>`)}
-      <small class="muted">Perkiraan dari kapitalisasi pasar.</small></div>
-    <div><h4>Sektor</h4>${list(d.sectors || [], (s) => `<tr><td>${esc(s.name)}</td><td class="${cls(s.pct)}">${sgn(s.pct)}%</td></tr>`)}</div>
-    ${d.foreign ? `<div><h4>Asing: <span class="${cls(d.foreign.net)}">${d.foreign.net > 0 ? "net beli" : "net jual"} ${rp(Math.abs(d.foreign.net))}</span></h4>
-      ${list([...d.foreign.buy, ...d.foreign.sell], (x) => `<tr><td>${esc(x.code)}</td><td class="${cls(x.net)}">${rp(x.net)}</td></tr>`)}
-      <small class="muted">≈ lembar bersih × harga penutupan.</small></div>` : ""}
-    <div><h4>Global & komoditas</h4>${list([...(d.global || []), ...(d.commodities || [])], (g) => `<tr><td>${esc(g.label)}</td><td>${fmt(g.close)}</td><td class="${cls(g.pct)}">${sgn(g.pct)}%</td></tr>`)}</div>
-    ${(d.news || []).length ? `<div><h4>Berita hari ini</h4><ul class="l">${d.news.map((x) => `<li><a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.t)}</a> <small class="muted">${esc(x.src)}</small></li>`).join("")}</ul></div>` : ""}
-    ${(d.agenda || []).length ? `<div><h4>Agenda berikutnya</h4><ul class="l">${d.agenda.map((a) => `<li>${esc(a.d.slice(8))}/${esc(a.d.slice(5, 7))} ${esc(a.time)} <b>${esc(a.country)}</b> ${esc(a.t)}</li>`).join("")}</ul></div>` : ""}
-  </div>
-  ${TEAM ? `<div class="acts">
-    ${C.canEdit ? `<button class="btn" data-a="save">Simpan narasi</button>
-    <button class="btn pri" data-a="publish">${r.status === "published" ? "Tarik dari publik" : "Terbitkan"}</button>
-    ${DATE === C.today ? `<button class="btn" data-a="rebuild">Susun ulang</button>` : ""}` : ""}
-    <button class="btn" data-a="ig">Gambar IG</button></div>
-    <div class="note">Diperbarui ${esc(r.updated_by)} · ${time(r.updated_at)}${r.model && !failed ? " · narasi: " + esc(r.model) : ""}</div>` : ""}
-</section>`;
+function zoomFit() {
+  document.querySelectorAll(".slides").forEach((el) => {
+    const cols = TEAM ? 5 : innerWidth > 900 ? 2 : 1, w = el.clientWidth;
+    el.style.setProperty("--cols", cols);
+    el.style.setProperty("--z", Math.max(0.12, (w - 10 * (cols - 1)) / cols / 1080));
+  });
 }
-
+addEventListener("resize", zoomFit);
+function section(r) {
+  const p = parse(r.narrative), failed = !r.narrative && /^gagal/.test(r.model || "");
+  return `<section class="sess" data-s="${r.session}">
+    <div class="sh"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
+      <button class="btn" data-a="png">Unduh PNG</button><button class="btn" data-a="pdf">Unduh PDF</button></div>
+    <div class="slides">${slides(r).join("")}</div>
+    ${TEAM && C.canEdit ? `<div class="edit"><textarea class="f" aria-label="Teks ${SES[r.session]}">${esc(r.narrative)}</textarea>
+      <small class="muted">Satu baris per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); setelah "NARASI:" teks untuk halaman web. Slide di atas ikut berubah saat diketik.</small></div>`
+      : `<div class="nar" style="margin-top:14px">${p.paras.map((x) => `<p>${esc(x)}</p>`).join("")}</div>`}
+    ${failed ? `<p class="warn">Teks AI gagal dibuat (${esc(r.model.replace(/^gagal: /, ""))}); slide memakai judul otomatis. Tulis manual atau klik Susun ulang.</p>` : ""}
+    ${TEAM ? `<div class="acts">${C.canEdit ? `<button class="btn" data-a="save">Simpan</button>
+      <button class="btn pri" data-a="publish">${r.status === "published" ? "Tarik dari publik" : "Terbitkan"}</button>
+      ${DATE === C.today ? `<button class="btn" data-a="rebuild">Susun ulang</button>` : ""}` : ""}</div>
+      <div class="note">Diperbarui ${esc(r.updated_by)} · ${time(r.updated_at)}${r.model && !failed ? " · teks: " + esc(r.model) : ""}</div>` : ""}
+  </section>`;
+}
 function render() {
-  $("#sub").textContent = DATE ? dateID(DATE) : "";
+  $("#sub").textContent = DATE ? dlong(DATE) : "";
   const missing = TEAM && C.canEdit && DATE === C.today ? Object.keys(SES).filter((s) => !DAY.some((r) => r.session === s)) : [];
-  $("#main").innerHTML = (DAY.length ? DAY.map(card).join("") : `<div class="card empty muted">${TEAM ? "Belum ada rangkuman untuk tanggal ini. Sesi 1 tersusun otomatis sekitar 12:20 WIB, penutupan sekitar 17:20 WIB."
+  $("#main").innerHTML = (DAY.length ? DAY.map(section).join("") : `<div class="sess empty muted">${TEAM ? "Belum ada rangkuman untuk tanggal ini. Sesi 1 tersusun otomatis sekitar 12:20 WIB, penutupan sekitar 17:20 WIB."
       : "Belum ada rangkuman yang diterbitkan."}</div>`) +
-    (missing.length ? `<div class="card noprint">${missing.map((s) => `<button class="btn" data-a="rebuild" data-s="${s}">Susun ${SES[s].toLowerCase()} sekarang</button> `).join("")}</div>` : "") +
-    `<div class="card printonly note">${esc(B.company || "")} ${esc(B.license || "")}</div>` +
-    (B.disclaimer ? `<div class="note">${esc(B.disclaimer)}</div>` : "");
+    (missing.length ? `<div class="sess">${missing.map((s) => `<button class="btn" data-a="rebuild" data-s="${s}">Susun ${SES[s].toLowerCase()} sekarang</button> `).join("")}</div>` : "");
+  zoomFit();
 }
-
 async function side() {
   if (!TEAM) {
-    $("#side").innerHTML = `<h3>Arsip</h3>` + (C.days || []).map((d) => `<a class="day${d === DATE ? " on" : ""}" href="/p/${d}">${dateID(d)}</a>`).join("");
+    $("#side").innerHTML = `<h3>Arsip</h3>` + (C.days || []).map((d) => `<a class="day${d === DATE ? " on" : ""}" href="/p/${d}">${dlong(d)}</a>`).join("");
     return;
   }
   const rows = await api("/api/days"), by = {};
@@ -173,60 +353,65 @@ async function side() {
   $("#side").innerHTML = `<h3>Arsip</h3>` + Object.keys(by).sort().reverse().map((d) => {
     const close = by[d].find((r) => r.session === "close") || by[d][0];
     return `<button class="day${d === DATE ? " on" : ""}" data-d="${d}">${by[d].map((r) => `<span class="dot ${r.status}" title="${SES[r.session]}: ${r.status === "published" ? "terbit" : "draf"}"></span>`).join("")}
-      ${esc(new Date(d + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "2-digit" }))}
-      ${close && close.pct != null ? `<small class="${cls(close.pct)}">${sgn(close.pct)}%</small>` : ""}</button>`;
+      ${esc(dshort(d))} ${d.slice(2, 4)}${close && close.pct != null ? `<small class="${close.pct > 0 ? "up" : close.pct < 0 ? "dn" : ""}">${sgn(close.pct)}%</small>` : ""}</button>`;
   }).join("");
 }
-
 async function load(date) {
   DATE = date;
-  if (TEAM) DAY = await api("/api/day?date=" + date); else DAY = C.day || [];
+  DAY = TEAM ? await api("/api/day?date=" + date) : C.day || [];
   render();
   document.querySelectorAll(".day").forEach((b) => b.classList.toggle("on", b.dataset.d === date));
 }
-
-function ig(r) {
-  const d = r.data, i = d.ihsg, m = d.movers || {}, s = d.sectors || [], n = split(r.narrative), up = i.chg >= 0;
-  const mv = (x) => `<div>${esc(x.code)} <span class="${x.pts > 0 ? "gu" : "gd"}">${sgn(x.pts)}</span></div>`;
-  $("#ig").innerHTML = `<div class="k">${esc(B.short ? B.short + " " : "")}Market Recap · ${SES[r.session]}</div>
-    <div class="k" style="opacity:.65">${esc(dateID(r.date))}</div>
-    <div class="h">${esc(n.title)}</div>
-    <div><div class="k">IHSG</div><div class="n">${fmt(i.close)}</div><div class="c ${up ? "gu" : "gd"}">${sgn(i.chg)} (${sgn(i.pct)}%)</div></div>
-    <div class="row">${i.high != null ? `<span>H ${fmt(i.high)}</span><span>L ${fmt(i.low)}</span>` : ""}<span>▲ ${d.breadth.up}</span><span>▼ ${d.breadth.down}</span>${d.foreign ? `<span>Asing ${d.foreign.net > 0 ? "net beli" : "net jual"} ${rp(Math.abs(d.foreign.net))}</span>` : ""}</div>
-    <div class="cols"><div><b>Pendorong (poin)</b>${(m.up || []).slice(0, 3).map(mv).join("")}</div><div><b>Penekan (poin)</b>${(m.down || []).slice(0, 3).map(mv).join("")}</div>
-      <div><b>Sektor terkuat</b>${s.slice(0, 2).map((x) => `<div>${esc(x.name)} <span class="${x.pct >= 0 ? "gu" : "gd"}">${sgn(x.pct)}%</span></div>`).join("")}</div>
-      <div><b>Sektor terlemah</b>${s.slice(-2).reverse().map((x) => `<div>${esc(x.name)} <span class="${x.pct >= 0 ? "gu" : "gd"}">${sgn(x.pct)}%</span></div>`).join("")}</div></div>
-    <div class="ft">${esc(B.company || "")}${B.license ? " · " + esc(B.license) : ""}<br>Informasi ini bukan rekomendasi jual/beli. Kontribusi poin adalah perkiraan.</div>`;
-  return html2canvas($("#ig"), { scale: 1, useCORS: true, backgroundColor: null }).then((cv) => new Promise((ok) => cv.toBlob((b) => {
-    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `market-recap-${r.date}-${r.session}.png`; a.click(); ok();
-  })));
+async function png(r) {
+  const st = $("#stage");
+  const list = slides(r);
+  for (let k = 0; k < list.length; k++) {
+    st.innerHTML = list[k];
+    const cv = await html2canvas(st.firstElementChild, { scale: 1, useCORS: true, backgroundColor: "#f4f4f2" });
+    const b = await new Promise((ok) => cv.toBlob(ok));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `market-recap-${r.date}-${r.session}-${k + 1}.png`; a.click();
+    await new Promise((ok) => setTimeout(ok, 400));
+  }
+  st.innerHTML = "";
 }
 
+let timer;
+document.addEventListener("input", (e) => {
+  const ta = e.target.closest("textarea"); if (!ta) return;
+  const sec = ta.closest(".sess"), r = DAY.find((x) => x.session === sec.dataset.s);
+  clearTimeout(timer);
+  timer = setTimeout(() => { sec.querySelector(".slides").innerHTML = slides({ ...r, narrative: ta.value }).join(""); zoomFit(); }, 300);
+});
 document.addEventListener("click", async (e) => {
   const day = e.target.closest("button.day");
   if (day) return load(day.dataset.d).catch((err) => alert(err.message));
   const b = e.target.closest("[data-a]");
   if (!b) return;
-  const sec = b.closest(".card"), s = b.dataset.s || (sec && sec.dataset.s), r = DAY.find((x) => x.session === s), a = b.dataset.a;
-  const ta = sec && sec.querySelector("textarea");
+  const sec = b.closest(".sess"), s = b.dataset.s || (sec && sec.dataset.s), r = DAY.find((x) => x.session === s), a = b.dataset.a;
+  const ta = sec && sec.querySelector("textarea"), label = b.textContent;
+  if (ta && r) r.narrative = ta.value; // gambar & PDF memakai teks yang sedang disunting
   b.disabled = true;
   try {
-    if (a === "save") { await api("/api/save", { date: DATE, session: s, narrative: ta.value }); r.narrative = ta.value; b.textContent = "Tersimpan ✓"; setTimeout(() => (b.textContent = "Simpan narasi"), 1500); }
+    if (a === "save") { await api("/api/save", { date: DATE, session: s, narrative: ta.value }); b.textContent = "Tersimpan ✓"; setTimeout(() => (b.textContent = label), 1500); }
     if (a === "publish") {
-      if (ta && ta.value !== r.narrative) await api("/api/save", { date: DATE, session: s, narrative: ta.value });
+      await api("/api/save", { date: DATE, session: s, narrative: ta.value });
       await api("/api/publish", { date: DATE, session: s, on: r.status !== "published" }); await load(DATE); await side();
     }
     if (a === "rebuild") {
-      if (r && !confirm(r.status === "published" ? "Rangkuman ini sudah terbit. Susun ulang akan mengganti data & narasi dan mengembalikannya ke draf. Lanjut?" : "Susun ulang mengganti data & narasi (suntingan hilang). Lanjut?")) return;
+      if (r && !confirm(r.status === "published" ? "Rangkuman ini sudah terbit. Susun ulang mengganti data & teks dan mengembalikannya ke draf. Lanjut?" : "Susun ulang mengganti data & teks (suntingan hilang). Lanjut?")) return;
       b.textContent = "Menyusun… (±30 detik)"; await api("/api/rebuild", { date: DATE, session: s }); await load(DATE); await side();
     }
-    if (a === "ig") { if (ta) r.narrative = ta.value; await ig(r); }
-    if (a === "pdf") window.print();
-  } catch (err) { alert(err.message); } finally { b.disabled = false; }
+    if (a === "png") { b.textContent = "Membuat gambar…"; await png(r); b.textContent = label; }
+    if (a === "pdf") {
+      sec.classList.add("printing"); document.title = `Market Recap ${r.date} ${SES[s]}`;
+      addEventListener("afterprint", () => sec.classList.remove("printing"), { once: true });
+      print();
+    }
+  } catch (err) { alert(err.message); b.textContent = label; } finally { b.disabled = false; }
 });
 
-$("#topActs").innerHTML = (TEAM ? `<a class="btn" href="${esc(C.publicUrl)}" target="_blank" rel="noopener">Halaman publik ↗</a> ` : "") + `<button class="btn" data-a="pdf">PDF</button>`;
-side().then(() => load(DATE || C.today)).catch((err) => { $("#main").innerHTML = `<div class="card empty warn">${esc(err.message)}</div>`; });
+$("#topActs").innerHTML = TEAM ? `<a class="btn" href="${esc(C.publicUrl)}" target="_blank" rel="noopener">Halaman publik ↗</a>` : "";
+side().then(() => load(DATE || C.today)).catch((err) => { $("#main").innerHTML = `<div class="sess empty warn">${esc(err.message)}</div>`; });
 </script>
 </body>
 </html>
