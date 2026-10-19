@@ -11,9 +11,12 @@ calendar : agenda emiten dari kalender IDX (corporate action, RUPS, public expos
            + jadwal rilis CPI & NFP dari kalender resmi BLS (AS).
 
 IDX dilindungi Cloudflare, jadi data diambil lewat browser sungguhan (Playwright).
-Kalau IDX memblok, script berhenti dengan error dan file lama TIDAK ditimpa.
+Kalau IDX/LME memblok server GitHub (halaman "Just a moment", HTTP 403), file lama TIDAK ditimpa
+dan script selesai dengan PERINGATAN (bukan gagal), supaya tidak ada email "All jobs have failed"
+setiap hari. Error lain (format berubah, bug) tetap membuat workflow gagal.
 """
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -47,6 +50,14 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 
 
 # ---------------------------------------------------------------- helpers
+class Blocked(RuntimeError):
+    """Situs sumber memblok server GitHub (pemeriksaan Cloudflare). Bukan kesalahan script."""
+
+
+def blocked(status, text):
+    return status in (403, 429, 503) or "just a moment" in (text or "")[:2000].lower()
+
+
 def num(v):
     if v is None or v == "":
         return None
@@ -95,6 +106,7 @@ def fetch_in_page(page, url):
               headers:{'Accept':'application/json, text/plain, */*','X-Requested-With':'XMLHttpRequest'}});
             return {status:r.status, text: await r.text()};
         }""", url)
+        is_blocked = blocked(res["status"], res["text"])
         if res["status"] == 200:
             try:
                 return json.loads(res["text"])
@@ -103,7 +115,7 @@ def fetch_in_page(page, url):
         else:
             last = f"HTTP {res['status']}: {res['text'][:200]}"
         page.wait_for_timeout(4000 * attempt)
-    raise RuntimeError(f"Gagal ambil {url} — {last}")
+    raise (Blocked if is_blocked else RuntimeError)(f"Gagal ambil {url} — {last}")
 
 
 def open_idx(page, tries=3):
@@ -118,8 +130,8 @@ def open_idx(page, tries=3):
                 return
         print(f"⚠ IDX masih menampilkan pemeriksaan Cloudflare (percobaan {attempt}/{tries})")
         page.wait_for_timeout(15000 * attempt)
-    raise RuntimeError("IDX memblok server GitHub (pemeriksaan Cloudflare). "
-                       "Pakai cadangan bookmark '📋 Wrap IDX' di tab Wrap.")
+    raise Blocked("IDX memblok server GitHub (pemeriksaan Cloudflare). "
+                  "Pakai cadangan bookmark '📋 Wrap IDX' di tab Wrap.")
 
 
 # ---------------------------------------------------------------- wrap
@@ -365,7 +377,8 @@ def lme_fetch(page, url):
         return {status:r.status, text: await r.text()};
     }""", url)
     if res["status"] != 200:
-        raise RuntimeError(f"LME HTTP {res['status']}: {res['text'][:200]}")
+        raise (Blocked if blocked(res["status"], res["text"]) else RuntimeError)(
+            f"LME HTTP {res['status']}: {res['text'][:200]}")
     return json.loads(res["text"])
 
 
@@ -439,19 +452,31 @@ def lme():
                                 "changePct": (close - prev) / prev * 100}
                     print(f"{key}: {date} {close} (prev {prev_date} {prev}) {out[key]['changePct']:+.2f}%")
                 except Exception as e:
-                    errors[key] = str(e)
+                    errors[key] = e
                     print(f"⚠ LME {key} gagal: {e}")
         finally:
             browser.close()
     # simpan riwayat 40 hari terakhir per logam
     out["history"] = {k: dict(sorted(v.items())[-40:]) for k, v in history.items()}
     if errors:
-        out["errors"] = errors
+        out["errors"] = {k: str(e) for k, e in errors.items()}
     if not any(k in out for k in LME_CLOSING):
-        raise RuntimeError(f"LME gagal semua: {errors}")
+        all_blocked = all(isinstance(e, Blocked) for e in errors.values())
+        raise (Blocked if all_blocked else RuntimeError)(f"LME gagal semua: {out['errors']}")
     write("lme.json", out)
 
 
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "wrap"
-    {"wrap": wrap, "calendar": calendar, "lme": lme}[mode]()
+    try:
+        {"wrap": wrap, "calendar": calendar, "lme": lme}[mode]()
+    except Blocked as e:
+        # Tampil sebagai peringatan kuning di GitHub Actions; workflow tetap hijau, data lama dipakai.
+        msg = f"Data {mode} tidak diperbarui: situs sumber memblok server GitHub. {e}".replace("\n", " ")
+        print(f"::warning title=Diblok Cloudflare::{msg[:900]}")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as f:
+                f.write(f"### ⚠ Data {mode} tidak diperbarui\n\nSitus sumber memblok server GitHub "
+                        "(pemeriksaan Cloudflare). File lama tetap dipakai. Untuk Wrap, pakai bookmark "
+                        "**📋 Wrap IDX** di tab Wrap Story Generator.\n")

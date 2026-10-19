@@ -99,14 +99,14 @@ export default {
     // SATU cron saja (batas akun gratis 5 cron): "*/5 * * * 1-5" = tiap 5 menit, Senin–Jumat (UTC).
     // Worker memilih tugas berdasarkan jam:
     //   09:50 & 10:25 UTC (16:50 & 17:25 WIB) → ambil data Wrap (GitHub Actions mode wrap)
-    //   19:30 & 23:00 UTC (02:30 & 06:00 WIB) → ambil harga LME (GitHub Actions mode lme)
+    //   19:30 & 23:00 UTC (02:30 & 06:00 WIB) → catat harga LME langsung dari worker ini ke LME_KV.
+    //     (GitHub Actions mode lme tidak dinyalakan otomatis lagi: lme.com memblok server GitHub,
+    //      sedangkan dari worker berhasil. Mode lme masih bisa dijalankan manual dari tab Actions.)
     const d = new Date(event.scheduledTime), m = d.getUTCHours() * 60 + d.getUTCMinutes();
     const log = tag => e => console.log(`dispatch ${tag} gagal`, e.message);
     if (WRAP_TIMES_UTC.includes(m)) ctx.waitUntil(dispatchIdx(env, 'wrap').catch(log('wrap')));
-    if (LME_TIMES_UTC.includes(m)) {
-      ctx.waitUntil(dispatchIdx(env, 'lme').catch(log('lme')));
+    if (LME_TIMES_UTC.includes(m))
       ctx.waitUntil(Promise.all(Object.keys(LME_CLOSING).map(k => lmeClosing(k, env).catch(() => null))));
-    }
   },
 };
 
