@@ -1,10 +1,11 @@
 // Content Planner — Cloudflare Worker
-// - "/"            -> Kalender konten tim (rencana posting per hari: kanal, penanggung jawab, status)
+// - "/"            -> Kalender kegiatan tim: konten sosmed, artikel, edukasi/narasumber, dan tugas desain; laporan PPT/PDF (di browser)
 // - "/paket"       -> Paket konten mingguan: rangkuman reksa dana, obligasi, dan agenda minggu depan + draf caption/email
-// - "/api/items"   -> rencana konten (GET ?from=&to=, POST simpan, POST /api/items/delete hapus)
+// - "/api/items"   -> kegiatan (GET ?from=&to=, GET ?design=1 tugas desain, POST simpan, POST /api/items/delete hapus)
+// - "/api/users"   -> anggota tim yang pernah membuka tool ini + perannya (POST /api/me/role: pilih peran sendiri)
 // - "/api/weekly"  -> data paket mingguan (disusun saat diminta, cache 10 menit)
 // Semua halaman & data hanya untuk yang login lewat Tool Hub. Semua yang punya akses boleh menambah & mengubah;
-// menghapus hanya admin Tool Hub atau pembuat rencana itu sendiri.
+// menghapus hanya admin Tool Hub atau pembuat kegiatan itu sendiri.
 //
 // Sumber paket mingguan (semua sudah ada, tidak menarik data baru):
 //   Fund Insight (service binding FUND): daftar RD + return (/api/funds), gerak harian tidak biasa (/api/stab)
@@ -39,12 +40,13 @@ const HUBSSO = (() => {
   return {
     ready: (env) => String(env.SSO_SECRET || "").length >= 32,
     notReady: () => new Response("Tool ini belum dikonfigurasi: pasang secret SSO_SECRET (sama dengan di Tool Hub).", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } }),
-    /** Kembali dari hub membawa ?hub_t=... -> tukar dengan cookie sesi. null kalau alamat tidak membawa tiket. */
-    async ticket(request, env) {
+    /** Kembali dari hub membawa ?hub_t=... -> tukar dengan cookie sesi. null kalau alamat tidak membawa tiket. onLogin(p) dipanggil sekali per login. */
+    async ticket(request, env, onLogin) {
       const url = new URL(request.url), t = url.searchParams.get("hub_t");
       if (!t) return null;
       const p = await open(env, t); url.searchParams.delete("hub_t");
       if (!p) return go(url.pathname + url.search);
+      if (onLogin) await onLogin(p).catch((e) => console.error("onLogin:", e.message));
       const body = b64(te.encode(JSON.stringify({ ...p, x: Date.now() + HOURS * 3600e3 })));
       return go(url.pathname + url.search, { "set-cookie": `${COOKIE}=${body}.${await sign(env.SSO_SECRET, body)}; ${CK}; Max-Age=${HOURS * 3600}` });
     },
@@ -63,60 +65,126 @@ const HUBSSO = (() => {
 })();
 
 /* =========================================================
-   RENCANA KONTEN (D1: planner-db)
+   KEGIATAN (D1: planner-db)
    ========================================================= */
-export const CHANNELS = ["IG Story", "IG Feed", "IG Reels", "TikTok", "YouTube", "Email", "WA Broadcast", "WA Channel", "Website", "Lainnya"];
-export const STATUSES = ["ide", "draf", "review", "terbit"];
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
+// Tiga jenis kegiatan, masing-masing dengan kanal/format dan alur statusnya sendiri.
+export const KINDS = {
+  konten: { label: "Konten sosmed", channels: ["IG Story", "IG Feed", "IG Reels", "TikTok", "YouTube", "WA Broadcast", "WA Channel", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
+  artikel: { label: "Artikel", channels: ["Website", "Blog", "Email / Newsletter", "Media partner", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
+  edukasi: { label: "Edukasi / narasumber", channels: ["Webinar", "Seminar", "Talkshow", "Kelas / kunjungan", "Live IG / TikTok", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
+};
+export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
+export const DESIGN_STATUSES = ["belum", "proses", "revisi", "selesai"];
+// peran anggota tim (dipilih sendiri; menentukan tampilan bawaan & pengelompokan di laporan)
+export const ROLES = { is: "Investment Specialist", copy: "Copywriter", sosmed: "Social Media Specialist", design: "Desainer", lain: "Lainnya" };
+const ISO = /^\d{4}-\d{2}-\d{2}$/, EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Kolom selain id/date/title. Tabel versi pertama dibuat tanpa sebagian kolom ini; ensure() menambahkannya tanpa menyentuh isi.
+const COLS = {
+  kind: "TEXT", channel: "TEXT", status: "TEXT", owner: "TEXT", owner_email: "TEXT", note: "TEXT", link: "TEXT",
+  time: "TEXT", place: "TEXT", role: "TEXT", audience: "TEXT", result_num: "INTEGER", result_note: "TEXT",
+  d_need: "INTEGER", d_who: "TEXT", d_name: "TEXT", d_due: "TEXT", d_status: "TEXT", d_link: "TEXT", d_brief: "TEXT",
+  created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
+};
+const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k))];
 let ready = false;
 async function ensure(env) {
   if (ready) return;
   await env.DB.batch([
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, date TEXT NOT NULL, title TEXT NOT NULL, channel TEXT, status TEXT, owner TEXT,
-      note TEXT, link TEXT, created_by TEXT, created_at TEXT, updated_by TEXT, updated_at TEXT)`),
-    env.DB.prepare("CREATE INDEX IF NOT EXISTS items_date ON items (date)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, date TEXT NOT NULL, title TEXT NOT NULL)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, name TEXT, role TEXT, seen_at TEXT)"),
   ]);
+  const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
+  const add = Object.entries(COLS).filter(([k]) => !have.has(k)).map(([k, t]) => env.DB.prepare(`ALTER TABLE items ADD COLUMN ${k} ${t}`));
+  add.push(env.DB.prepare("CREATE INDEX IF NOT EXISTS items_date ON items (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS items_design ON items (d_need, d_status)"));
+  await env.DB.batch(add);
   ready = true;
 }
 const who = (me) => me.n || me.u || me.e;
 /** Isian dari browser -> baris yang sah, atau { error }. */
 export function cleanItem(b) {
   const s = (v, n) => String(v ?? "").trim().slice(0, n);
-  const it = { date: s(b.date, 10), title: s(b.title, 160), channel: s(b.channel, 40), status: s(b.status, 10), owner: s(b.owner, 60), note: s(b.note, 2000), link: s(b.link, 500) };
+  const url = (v) => { const x = s(v, 500); return x && !/^https?:\/\//i.test(x) ? "https://" + x : x; };
+  const kind = KINDS[b.kind] ? b.kind : "konten", K = KINDS[kind];
+  const it = {
+    kind, date: s(b.date, 10), title: s(b.title, 160), channel: s(b.channel, 40), status: s(b.status, 12),
+    owner: s(b.owner, 60), owner_email: EMAIL.test(s(b.owner_email, 120)) ? s(b.owner_email, 120).toLowerCase() : "",
+    note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
+    d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
+  };
   if (!ISO.test(it.date) || isNaN(Date.parse(it.date))) return { error: "Tanggal belum diisi." };
   if (!it.title) return { error: "Judul belum diisi." };
-  if (!CHANNELS.includes(it.channel)) it.channel = "Lainnya";
-  if (!STATUSES.includes(it.status)) it.status = "ide";
-  if (it.link && !/^https?:\/\//i.test(it.link)) it.link = "https://" + it.link;
+  if (!K.channels.includes(it.channel)) it.channel = "Lainnya";
+  if (!K.statuses.includes(it.status)) it.status = K.statuses[0];
+  const n = Math.round(Number(String(b.result_num ?? "").replace(/[.\s]/g, "").replace(",", ".")));
+  it.result_num = String(b.result_num ?? "").trim() !== "" && n >= 0 && n < 1e12 ? n : null;
+  if (kind === "edukasi") {
+    it.time = /^\d{2}:\d{2}$/.test(s(b.time, 5)) ? s(b.time, 5) : "";
+    it.place = s(b.place, 160); it.audience = s(b.audience, 160);
+    it.role = EDU_ROLES.includes(b.role) ? b.role : EDU_ROLES[0];
+  }
+  if (it.d_need) {
+    it.d_who = EMAIL.test(s(b.d_who, 120)) ? s(b.d_who, 120).toLowerCase() : "";
+    it.d_name = s(b.d_name, 60); it.d_brief = s(b.d_brief, 2000); it.d_link = url(b.d_link);
+    it.d_due = ISO.test(s(b.d_due, 10)) ? s(b.d_due, 10) : it.date;
+    it.d_status = DESIGN_STATUSES.includes(b.d_status) ? b.d_status : "belum";
+  }
   return it;
 }
 async function listItems(env, from, to) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
-  return (await env.DB.prepare("SELECT * FROM items WHERE date >= ? AND date <= ? ORDER BY date, created_at").bind(from, to).all()).results;
+  return (await env.DB.prepare("SELECT * FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at").bind(from, to).all()).results;
+}
+/** Tugas desain: semua yang belum selesai (tanggal berapa pun) + yang selesai dengan tenggat di rentang itu. */
+async function designItems(env, from, to) {
+  await ensure(env);
+  return (await env.DB.prepare("SELECT * FROM items WHERE d_need = 1 AND (COALESCE(d_status, 'belum') <> 'selesai' OR COALESCE(d_due, date) BETWEEN ? AND ?) ORDER BY COALESCE(d_due, date), created_at LIMIT 500")
+    .bind(ISO.test(from) ? from : "0000-00-00", ISO.test(to) ? to : "9999-12-31").all()).results;
 }
 async function saveItem(env, me, b) {
   await ensure(env);
   const it = cleanItem(b);
   if (it.error) return it;
-  const now = new Date().toISOString(), by = who(me);
+  const now = new Date().toISOString(), by = who(me), vals = EDIT.map((k) => it[k] ?? null);
   if (b.id) {
-    const r = await env.DB.prepare("UPDATE items SET date=?, title=?, channel=?, status=?, owner=?, note=?, link=?, updated_by=?, updated_at=? WHERE id=?")
-      .bind(it.date, it.title, it.channel, it.status, it.owner, it.note, it.link, by, now, String(b.id)).run();
-    if (!r.meta.changes) return { error: "Rencana ini sudah dihapus orang lain. Muat ulang kalender." };
+    const r = await env.DB.prepare(`UPDATE items SET ${EDIT.map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, by, now, String(b.id)).run();
+    if (!r.meta.changes) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
     return { id: String(b.id) };
   }
-  const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO items (id, date, title, channel, status, owner, note, link, created_by, created_at, updated_by, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(id, it.date, it.title, it.channel, it.status, it.owner, it.note, it.link, by, now, by, now).run();
+  const id = crypto.randomUUID(), cols = ["id", ...EDIT, "created_by", "created_email", "created_at", "updated_by", "updated_at"];
+  await env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(id, ...vals, by, String(me.e || "").toLowerCase(), now, by, now).run();
   return { id };
 }
 async function deleteItem(env, me, id) {
   await ensure(env);
-  const r = await env.DB.prepare("SELECT created_by FROM items WHERE id=?").bind(String(id || "")).first();
+  const r = await env.DB.prepare("SELECT created_by, created_email FROM items WHERE id=?").bind(String(id || "")).first();
   if (!r) return { ok: true };
-  if (!me.adm && r.created_by !== who(me)) return { error: "Hanya admin atau pembuat rencana ini yang bisa menghapusnya." };
+  const mine = r.created_email ? r.created_email === String(me.e || "").toLowerCase() : r.created_by === who(me);
+  if (!me.adm && !mine) return { error: "Hanya admin atau pembuat kegiatan ini yang bisa menghapusnya." };
   await env.DB.prepare("DELETE FROM items WHERE id=?").bind(String(id)).run();
+  return { ok: true };
+}
+/** Dicatat saat login: daftar anggota tim untuk pilihan penanggung jawab & desainer. Peran tidak ditimpa. */
+async function seen(env, p) {
+  const email = String(p.e || "").toLowerCase();
+  if (!EMAIL.test(email)) return;
+  await ensure(env);
+  await env.DB.prepare("INSERT INTO users (email, name, seen_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, seen_at = excluded.seen_at")
+    .bind(email, String(p.n || p.u || email).slice(0, 60), new Date().toISOString()).run();
+}
+async function users(env) {
+  await ensure(env);
+  return (await env.DB.prepare("SELECT email, name, role FROM users ORDER BY name").all()).results;
+}
+async function myRole(env, me) {
+  await ensure(env);
+  const r = await env.DB.prepare("SELECT role FROM users WHERE email=?").bind(String(me.e || "").toLowerCase()).first();
+  return r && ROLES[r.role] ? r.role : "";
+}
+async function setRole(env, me, role) {
+  if (!ROLES[role]) return { error: "Peran tidak dikenal." };
+  await seen(env, me);
+  await env.DB.prepare("UPDATE users SET role=? WHERE email=?").bind(role, String(me.e || "").toLowerCase()).run();
   return { ok: true };
 }
 
@@ -222,8 +290,9 @@ async function weeklyCached(env, ctx, fresh) {
    HALAMAN
    ========================================================= */
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function page(env, me, mode) {
-  const cfg = { mode, me: { name: who(me), adm: !!me.adm }, channels: CHANNELS, statuses: STATUSES, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story") };
+async function page(env, me, mode) {
+  const cfg = { mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: await myRole(env, me).catch(() => "") },
+    kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, roles: ROLES, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story") };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
@@ -234,17 +303,21 @@ export default {
     const url = new URL(request.url), path = url.pathname;
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
-    const tk = await HUBSSO.ticket(request, env); if (tk) return tk;
+    const tk = await HUBSSO.ticket(request, env, (p) => seen(env, p)); if (tk) return tk;
     const me = await HUBSSO.user(request, env);
     const isPage = path === "/" || path === "/index.html" || path === "/paket";
     if (!me) return isPage ? HUBSSO.login(request, env) : json({ error: "Belum login atau sesi habis. Muat ulang halaman dari Tool Hub." }, 401);
     if (isPage) {
-      return new Response(page(env, me, path === "/paket" ? "paket" : "kalender"), {
+      return new Response(await page(env, me, path === "/paket" ? "paket" : "kalender"), {
         headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" },
       });
     }
     try {
-      if (path === "/api/items" && request.method === "GET") return json(await listItems(env, url.searchParams.get("from") || "", url.searchParams.get("to") || ""));
+      if (request.method === "GET") {
+        const from = url.searchParams.get("from") || "", to = url.searchParams.get("to") || "";
+        if (path === "/api/items") return json(await (url.searchParams.has("design") ? designItems(env, from, to) : listItems(env, from, to)));
+        if (path === "/api/users") return json(await users(env));
+      }
       if (path === "/api/weekly" && request.method === "GET") {
         return new Response(await weeklyCached(env, ctx, url.searchParams.has("refresh")), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
       }
@@ -252,6 +325,7 @@ export default {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
         const b = await request.json().catch(() => ({}));
         if (path === "/api/items") { const r = await saveItem(env, me, b); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/me/role") { const r = await setRole(env, me, b.role); return json(r, r.error ? 400 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {
