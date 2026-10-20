@@ -1,4 +1,5 @@
 // Cron: satu-satunya Cron Trigger di akun; jadwal semua tool ada di worker.js. Secret: SSO_SECRET
+// DB = catatan jalan terakhir tiap tugas, tabel cron_runs di insight-db yang sudah ada (dibaca beranda Tool Hub lewat service binding CRON).
 // Di-deploy paling akhir: tool lain harus sudah melepas cron masing-masing (batas 5 cron per akun).
 {
   "name": "tool-cron",
@@ -6,6 +7,7 @@
   "compatibility_date": "2026-09-22",
   "workers_dev": false,
   "triggers": { "crons": ["*/5 * * * *"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }],
   "services": [
     { "binding": "FUND", "service": "fund-insight" },
     { "binding": "COMPETITOR", "service": "competitor-intel" },

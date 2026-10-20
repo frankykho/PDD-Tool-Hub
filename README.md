@@ -8,7 +8,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 
 | Tool | Folder | Fungsi |
 |---|---|---|
-| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, ringkasan "Hari ini" (Market Recap, Content Planner, status GitHub Actions), halaman detail tool |
+| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, ringkasan "Hari ini" (Market Recap, Content Planner, gerak harian tidak biasa & agenda Fund Insight, promo kompetitor baru, draf Edukasi), status otomatis (cron & GitHub Actions, termasuk langkah yang gagal), halaman detail tool |
 | Email Studio | `apps/email-studio` | Generator email marketing (Market Insight, Weekly Picks, promo, webinar) |
 | Story Generator | `apps/story-generator` | Generator Instagram Story (Morning, Halftime, Wrap, Weekly, RD Highlights, Bond Picks) |
 | Story Data | `apps/story-data` | Data pasar untuk Story Generator + pemicu workflow data |
@@ -23,7 +23,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
 | Market Recap | `apps/market-recap` | Rangkuman IHSG sesi 1 & penutupan setiap hari bursa sebagai carousel 5 slide 1080×1080 (PNG & PDF): sampul + outlook, penggerak indeks (poin) & sektor, grafik intraday, global/rupiah/komoditas, agenda & berita. Judul tiap slide ditulis AI, disunting & diterbitkan tim; publik di `/p`; arsip |
-| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap (tanpa halaman) |
+| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap (tanpa halaman); mencatat jalan terakhir tiap tugas di tabel `cron_runs` (insight-db) |
 | PDF Generator | `jobs/pdf-generator` | PDF produk harian (GitHub Actions) |
 
 Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`. Nama worker ada di `wrangler.jsonc` masing-masing.
@@ -52,8 +52,8 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 
 - Daftar tool, kategori, ikon, dan isi halaman detail ada di satu tempat: `APPS` dan `CATEGORIES` di `apps/tool-hub/worker.js`. Tool baru cukup ditambahkan di sana.
 - Tampilan ada di `apps/tool-hub/shell.html`; worker hanya menyuntikkan data pengguna (tool yang boleh dibuka, favorit).
-- Ringkasan "Hari ini" dibaca lewat service binding `GET /__hub/today` dengan header `x-hub-key` = `SSO_SECRET` (`shared/hubfeed.js`). Karena itu hub di-deploy setelah Market Recap & Content Planner.
-- Status otomatis dibaca dari GitHub Actions repo di profil (`github.repo`); `GITHUB_TOKEN` hub dipakai bila ada.
+- Ringkasan "Hari ini" dibaca lewat service binding `GET /__hub/today` dengan header `x-hub-key` = `SSO_SECRET` (`shared/hubfeed.js`) dari Market Recap, Content Planner, Fund Insight, Competitor Intelligence, dan Edukasi Studio. Hanya tool yang boleh diakses pengguna yang ditanya; kartu baru cukup ditambahkan di `FEEDS` (`apps/tool-hub/worker.js`) dan `PANELS` (`shell.html`). Karena memakai service binding, hub di-deploy paling akhir.
+- Status otomatis: jadwal cron (dibaca dari worker Cron lewat service binding; merah bila ada tugas gagal atau cron tidak jalan lebih dari 15 menit) dan GitHub Actions repo di profil (`github.repo`), termasuk nama langkah yang gagal. `GITHUB_TOKEN` hub dipakai bila ada.
 - Favorit disimpan di KV hub (`pref:<email>`); riwayat "Terakhir dibuka" disimpan di browser per akun.
 - Cek: `node apps/tool-hub/test.mjs`
 

@@ -1,5 +1,5 @@
-// Cek Tool Hub: dashboard, hak akses, favorit, dan ringkasan "Hari ini" dari Market Recap & Content Planner
-// (lewat service binding, shared/hubfeed.js). Jalankan: node apps/tool-hub/test.mjs   (Node 22.15+)
+// Cek Tool Hub: dashboard, hak akses, favorit, ringkasan "Hari ini" dari Market Recap, Content Planner, Fund Insight,
+// Competitor Intelligence, Edukasi Studio, dan status cron (lewat service binding, shared/hubfeed.js). Jalankan: node apps/tool-hub/test.mjs   (Node 22.15+)
 // KV & GitHub ditiru di memori; D1 ditiru dengan node:sqlite, jadi query ringkasan benar-benar dijalankan.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -17,6 +17,10 @@ registerHooks({
 const { default: hub, hashPw } = await import("./worker.js");
 const { default: recap } = await import("../market-recap/worker.js");
 const { default: planner } = await import("../content-planner/worker.js");
+const { default: fund } = await import("../fund-insight/worker.js");
+const { default: competitor } = await import("../competitor-intel/worker.js");
+const { default: edukasi } = await import("../edukasi-studio/worker.js");
+const { default: cron } = await import("../cron/worker.js");
 
 /* ---------- tiruan ---------- */
 function kv() {
@@ -37,30 +41,40 @@ function d1() {
     first: async () => db.prepare(sql).get(...args) ?? null,
     run: async () => { db.prepare(sql).run(...args); return { success: true }; },
   });
-  return { db, prepare: (sql) => st(sql), batch: async (list) => { for (const x of list) await x.run(); } };
+  return { db, prepare: (sql) => st(sql), batch: async (list) => { const out = []; for (const x of list) out.push(await x.all()); return out; } };
 }
 const SECRET = "s".repeat(40), ADMIN = "admin@acme.test", HUB = "https://hub.acme.test";
 const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "planner", "sats", "tutorial"];
 const PROFILE = JSON.stringify({ urls: Object.fromEntries([["hub", HUB], ...IDS.map((id) => [id, `https://${id}.acme.test`])]), github: { repo: "acme/tools" }, brand: { short: "Acme" } });
 const recapEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const plannerEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
+const fundEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
+const compEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
+const eduEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
+const cronEnv = { SSO_SECRET: SECRET, DB: d1() };
 const bind = (w, e) => ({ fetch: (u, init) => w.fetch(new Request(u, init), e, { waitUntil() { } }) });
-const env = { ADMIN_EMAILS: ADMIN, SSO_SECRET: SECRET, HUB_KV: kv(), PROFILE, HUB_URL: HUB, GITHUB_REPO: "acme/tools", RECAP: bind(recap, recapEnv), PLANNER: bind(planner, plannerEnv) };
+const env = { ADMIN_EMAILS: ADMIN, SSO_SECRET: SECRET, HUB_KV: kv(), PROFILE, HUB_URL: HUB, GITHUB_REPO: "acme/tools", RECAP: bind(recap, recapEnv), PLANNER: bind(planner, plannerEnv),
+  FUND: bind(fund, fundEnv), COMPETITOR: bind(competitor, compEnv), EDUKASI: bind(edukasi, eduEnv), CRON: bind(cron, cronEnv) };
 
-let ghCalls = 0;
+let ghCalls = 0, stepCalls = 0;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (u, init) => {
   const url = String((u && u.url) || u);
+  if (url.startsWith("https://api.github.com/repos/acme/tools/actions/runs/101/jobs")) {
+    stepCalls++;
+    return Response.json({ jobs: [{ name: "pdf", conclusion: "failure", steps: [{ name: "Checkout", conclusion: "success" }, { name: "Ambil alamat", conclusion: "failure" }, { name: "Buat PDF", conclusion: "skipped" }] }] });
+  }
   if (url.startsWith("https://api.github.com/repos/acme/tools/actions/runs")) {
     ghCalls++;
-    const run = (id, name, status, conclusion, at) => ({ workflow_id: id, name, status, conclusion, updated_at: at, html_url: `https://github.com/acme/tools/actions/runs/${id}${at}`, event: "schedule" });
+    const run = (wid, id, name, status, conclusion, at) => ({ workflow_id: wid, id, name, status, conclusion, updated_at: at, html_url: `https://github.com/acme/tools/actions/runs/${id}`, event: "schedule" });
     return Response.json({ workflow_runs: [
-      run(2, "Deploy", "in_progress", null, "2026-10-20T01:05:00Z"),
-      run(1, "Buat PDF produk", "completed", "failure", "2026-10-20T00:31:40Z"),
-      run(3, "Data Story", "completed", "success", "2026-10-20T00:20:00Z"),
-      run(1, "Buat PDF produk", "completed", "success", "2026-10-16T09:03:00Z"),   // lebih lama: diabaikan
+      run(2, 201, "Deploy", "in_progress", null, "2026-10-20T01:05:00Z"),
+      run(1, 101, "Buat PDF produk", "completed", "failure", "2026-10-20T00:31:40Z"),
+      run(3, 301, "Data Story", "completed", "success", "2026-10-20T00:20:00Z"),
+      run(1, 100, "Buat PDF produk", "completed", "success", "2026-10-16T09:03:00Z"),   // lebih lama: diabaikan
     ] });
   }
+  if (url.startsWith("https://raw.githubusercontent.com/")) return new Response("tidak ada", { status: 404 });   // agenda otomatis Fund Insight
   return realFetch(u, init);
 };
 
@@ -100,7 +114,7 @@ for (const a of boot.apps) {
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
 assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["edukasi", "recap"], "AI Workbench hanya tool yang memang memakai AI");
-assert.deepEqual(boot.today, { recap: true, planner: true, jobs: true });
+assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, jobs: true, cron: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
 assert.equal(boot.apps.find((a) => a.id === "recap").lvl, "Admin");
@@ -124,6 +138,32 @@ item.run("e", plus(3), "Banner webinar", "ide", "lain@acme.test", "", 1, ADMIN, 
 item.run("f", plus(3), "Banner selesai", "ide", "lain@acme.test", "", 1, ADMIN, "selesai");
 item.run("g", plus(3), "Banner orang lain", "ide", "lain@acme.test", "", 1, "lain@acme.test", "belum");
 
+// Fund Insight: NAB terakhir kemarin; 2576 (saham) turun 7x gerak biasanya, 2567 normal, 4110 datanya tertinggal (dilewati)
+const yday = plus(-1), stabRow = (rec) => ({ n: 238, sd: 1, avg: 1, down: 1, worst: -1, sdd: 1.2, rec });
+fundEnv.DB.db.exec("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)");
+const fmeta = fundEnv.DB.db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)");
+fmeta.run("latest", JSON.stringify({ at: "2026-10-20T02:35:00Z", funds: { 2576: { navDate: yday }, 2567: { navDate: yday }, 4110: { navDate: plus(-9) } } }));
+fmeta.run("stab", JSON.stringify({ 2576: stabRow([[plus(-2), 0.4, 0.3], [yday, -8.5, -7.1]]), 2567: stabRow([[yday, 0.02, 0.4]]), 4110: stabRow([[plus(-9), -3, -9]]) }));
+fmeta.run("agenda", JSON.stringify([{ id: "x1", d: wib, t: "Webinar reksa dana", k: "internal", by: "Dewi" }, { id: "x2", d: plus(10), t: "Terlalu jauh", k: "internal" }]));
+// Competitor: 2 promo baru sejak kemarin (satu tidak relevan, tidak dihitung), 1 promo lama
+const ciRow = (id, title, seen, status) => compEnv.DB.db.prepare("INSERT INTO ci_programs (id, title, platform, category, source_url, discovered_at, first_seen, status) VALUES (?, ?, 'Bibit', 'Reksa dana', 'https://x.test', ?, ?, ?)").run(id, title, seen, seen, status);
+const iso = (d) => new Date(Date.now() - d * 3600e3).toISOString();
+ciRow("p1", "Cashback 50 ribu", iso(1), "Perlu verifikasi");
+ciRow("p2", "Bunga spesial", iso(2), "Aktif");
+ciRow("p3", "Bukan promo", iso(1), "Tidak relevan");
+ciRow("p4", "Promo lama", iso(24 * 10), "Aktif");
+// Edukasi: draf 7 hari terakhir (satu milik admin) + satu draf lama; satu artikel sumber hari ini
+const dr = eduEnv.DB.db.prepare("INSERT INTO drafts (format, title, body, author, created_at) VALUES (?, ?, 'isi', ?, ?)");
+dr.run("web", "Apa itu reksa dana pasar uang", ADMIN, Date.now() - 3600e3);
+dr.run("feed", "5 mitos investasi", "lain@acme.test", Date.now() - 2 * 864e5);
+dr.run("story", "Draf lama", ADMIN, Date.now() - 9 * 864e5);
+eduEnv.DB.db.prepare("INSERT INTO articles (url, title, scraped_at) VALUES ('https://a.test/1', 'Sumber', ?)").run(Date.now());
+// Cron: jalan Senin 09:05 WIB (02:05 UTC): Fund berhasil, Story Data gagal
+const okB = { fetch: async () => new Response("ok") }, failB = { fetch: async () => new Response("x", { status: 500 }) };
+Object.assign(cronEnv, { FUND: okB, COMPETITOR: okB, EDUKASI: okB, STORYDATA: failB, SATS: okB, RECAP: okB });
+const cronAt = Date.UTC(2026, 9, 19, 2, 5);   // waktu tetap: Senin 09:05 WIB = slot Fund + Story Data
+await assert.rejects(cron.scheduled({ scheduledTime: cronAt }, cronEnv), /^Error: STORYDATA: HTTP 500$/);
+
 r = await call("/api/today", { cookie: admin });
 const t = await r.json();
 assert.equal(t.recap.ok, true, JSON.stringify(t.recap));
@@ -135,10 +175,40 @@ assert.deepEqual(t.planner.data.today.map((x) => x.id), ["a"]);
 assert.deepEqual(t.planner.data.mine.map((x) => x.id), ["b"], "milik pengguna: 7 hari ke depan, belum selesai");
 assert.deepEqual(t.planner.data.design.map((x) => x.id), ["e"], "tugas desain: hanya untuk pengguna ini dan belum selesai");
 assert.equal(t.jobs.ok, true);
-assert.deepEqual(t.jobs.data.runs.map((x) => [x.name, x.state]), [["Buat PDF produk", "err"], ["Deploy", "run"], ["Data Story", "ok"]]);
+assert.deepEqual(t.jobs.data.runs.map((x) => [x.name, x.state, x.step]), [["Buat PDF produk", "err", "Ambil alamat"], ["Deploy", "run", ""], ["Data Story", "ok", ""]], "langkah yang gagal ikut tampil");
+assert.ok(t.jobs.data.runs.every((x) => !("id" in x)));
 const calls = ghCalls;
 await call("/api/today", { cookie: admin });
 assert.equal(ghCalls, calls, "status GitHub disimpan sebentar, tidak diminta ulang tiap muat");
+assert.equal(stepCalls, 1, "langkah gagal dibaca sekali per run");
+
+assert.equal(t.fund.ok, true, JSON.stringify(t.fund));
+assert.equal(t.fund.data.moves.nav, yday);
+assert.equal(t.fund.data.moves.n, 1, "hanya produk dengan NAB terbaru yang dihitung");
+assert.deepEqual(t.fund.data.moves.dev.map((x) => [x.pid, x.chg, x.z]), [["2576", -8.5, -7.1]]);
+assert.equal(t.fund.data.moves.prev, null);
+assert.deepEqual(t.fund.data.agenda.map((x) => x.t), ["Webinar reksa dana"], "agenda hari ini sampai lusa saja");
+assert.equal(t.competitor.ok, true, JSON.stringify(t.competitor));
+assert.deepEqual([t.competitor.data.n, t.competitor.data.review, t.competitor.data.active], [2, 1, 2]);
+assert.deepEqual(t.competitor.data.items.map((x) => x.id), ["p1", "p2"], "promo baru, terbaru dulu, tanpa yang tidak relevan");
+assert.equal(t.edukasi.ok, true, JSON.stringify(t.edukasi));
+assert.deepEqual([t.edukasi.data.n, t.edukasi.data.mine, t.edukasi.data.articles], [2, 1, 1]);
+assert.deepEqual(t.edukasi.data.drafts.map((x) => x.title), ["Apa itu reksa dana pasar uang", "5 mitos investasi"]);
+assert.ok(t.edukasi.data.drafts.every((x) => !("body" in x)), "isi draf tidak ikut dikirim");
+assert.equal(t.cron.ok, true, JSON.stringify(t.cron));
+const runsBy = Object.fromEntries(t.cron.data.runs.map((x) => [x.job, x]));
+assert.equal(runsBy._cron.at, cronAt);
+assert.match(runsBy.STORYDATA.err, /HTTP 500/);
+assert.equal(runsBy.STORYDATA.ok_at, null);
+// jalan berikutnya berhasil: pesan gagal hilang, waktu gagal terakhir tetap tercatat
+cronEnv.STORYDATA = okB;
+await cron.scheduled({ scheduledTime: cronAt + 5 * 60e3 }, cronEnv);
+const runs2 = Object.fromEntries((await (await call("/api/today", { cookie: admin })).json()).cron.data.runs.map((x) => [x.job, x]));
+assert.equal(runs2.STORYDATA.err, null);
+assert.equal(runs2.STORYDATA.ok_at, cronAt + 5 * 60e3);
+assert.equal(runs2.FUND.ok_at, cronAt, "tugas yang tidak jalan di slot ini tetap menyimpan catatan lamanya");
+assert.equal(runs2._cron.at, cronAt + 5 * 60e3);
+assert.equal(runs2.STORYDATA.err_at, cronAt);
 
 /* ---------- favorit ---------- */
 r = await call("/api/prefs", { method: "POST", cookie: admin, json: { fav: ["fund"] } });
@@ -158,10 +228,10 @@ assert.match(user, /^hub_sess=/);
 boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
-assert.deepEqual(boot.today, { recap: false, planner: false, jobs: true });
+assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, jobs: true, cron: true });
 assert.equal(boot.me.admin, false);
 const ut = await (await call("/api/today", { cookie: user })).json();
-assert.deepEqual(Object.keys(ut), ["jobs"], "ringkasan tool tanpa akses tidak diminta");
+assert.deepEqual(Object.keys(ut).sort(), ["cron", "fund", "jobs"], "ringkasan tool tanpa akses tidak diminta");
 r = await call("/api/prefs", { method: "POST", cookie: user, origin: HUB, json: { fav: ["fund", "recap"] } });
 assert.deepEqual((await r.json()).fav, ["fund"], "tidak bisa memfavoritkan tool tanpa akses");
 assert.equal((await call("/sso?app=recap&back=" + encodeURIComponent("https://recap.acme.test/"), { cookie: user })).status, 403, "SSO tetap menolak tool tanpa akses");
@@ -172,7 +242,7 @@ assert.equal((await call("/")).status, 303);
 
 /* ---------- endpoint internal di tool ---------- */
 const feed = (w, e, headers = {}, method = "GET") => w.fetch(new Request("https://x.test/__hub/today", { method, headers }), e, { waitUntil() { } });
-for (const [w, e] of [[recap, recapEnv], [planner, plannerEnv]]) {
+for (const [w, e] of [[recap, recapEnv], [planner, plannerEnv], [fund, fundEnv], [competitor, compEnv], [edukasi, eduEnv], [cron, cronEnv]]) {
   assert.equal((await feed(w, e)).status, 403, "tanpa kunci ditolak");
   assert.equal((await feed(w, e, { "x-hub-key": "s".repeat(39) + "t" })).status, 403, "kunci salah ditolak");
   assert.equal((await feed(w, e, { "x-hub-key": SECRET }, "POST")).status, 403, "hanya GET");

@@ -4,6 +4,7 @@ import { profile, appUrl, title, profileScript } from "../../shared/profile.js";
 import { newsFor } from "../../shared/news.js";
 import { STORY_DIR, macroItems } from "../../shared/macro.js";
 import { withCron } from "../../shared/cron.js";
+import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 
 // [pid Bareksa, nama, jenis, risiko, min_subs] — dari daftar produk (Excel). pid null = belum ada di Bareksa.
 // Daftar bawaan; admin bisa menggantinya lewat menu "Daftar RD" (disimpan di meta.funds).
@@ -586,6 +587,51 @@ async function backfill(env, n = 3) {
 }
 
 
+// ---------- Ringkasan "Hari ini" untuk beranda Tool Hub (shared/hubfeed.js) ----------
+const wibDate = (ms = Date.now()) => new Date(ms + 7 * 3600e3).toISOString().slice(0, 10);
+const dayMs = (s) => Date.parse(s + "T00:00:00Z");
+/** Gerak harian tidak biasa dengan aturan yang sama seperti kartu di Home (homeMv): kelipatan >= 3 dan perubahan NAB >= 0,1%.
+ *  rows: [{ pid, name, type, navDate }], stab: hasil stabOut. Hasil: tanggal NAB terakhir, jumlah produk yang bergerak tidak biasa,
+ *  yang bergerak beda dari sejenisnya (kelipatan terbesar dulu), jenis yang hanya ikut pasar, dan bila hari terakhir tenang,
+ *  hari terakhir yang ada geraknya (dari 5 pencatatan terakhir). */
+export function moveAlerts(rows, stab) {
+  const L = [], H = {}, PD = {}, big = (c) => Math.abs(c[2]) >= 3 && Math.abs(c[1]) >= 0.1;
+  const med = (a) => { a = a.slice().sort((x, y) => x - y); return (a[(a.length - 1) >> 1] + a[a.length >> 1]) / 2; };
+  const navMax = rows.reduce((m, f) => (f.navDate && f.navDate > m ? f.navDate : m), "");
+  let last = "";
+  for (const f of rows) {
+    const r = stab[f.pid]?.rec, c = r && r[r.length - 1];
+    if (!c || c[0] !== f.navDate || (dayMs(navMax) - dayMs(c[0])) / 864e5 > 4) continue;
+    if (c[0] > last) last = c[0];
+    for (const x of r) { (PD[f.type + x[0]] ||= []).push(x[1]); if (big(x)) (x === c ? L : (H[x[0]] ||= [])).push({ f, x }); }
+  }
+  // ikut pasar = median produk sejenis hari itu searah dan gerakannya tidak lebih dari 1,5x median itu
+  const dev = [], mk = {};
+  for (const { f, x } of L.sort((a, b) => Math.abs(b.x[2]) - Math.abs(a.x[2]))) {
+    const p = PD[f.type + x[0]], m = p.length >= 3 ? med(p) : null;
+    if (m != null && m * x[1] > 0 && Math.abs(x[1]) <= 1.5 * Math.abs(m)) (mk[f.type] ||= { type: f.type, n: 0, avg: +m.toFixed(3) }).n++;
+    else dev.push({ pid: f.pid, name: f.name, type: f.type, chg: x[1], z: x[2], sdd: stab[f.pid].sdd });
+  }
+  const prev = Object.keys(H).sort().pop();
+  return { nav: last || null, n: L.length, dev, market: Object.values(mk).sort((a, b) => b.n - a.n), prev: !L.length && prev ? { date: prev, n: H[prev].length } : null };
+}
+// Agenda ekonomi otomatis (data Story di GitHub) disimpan 30 menit per isolate; kalau lambat, cukup agenda internal.
+let macroMemo = null;
+async function hubToday(env) {
+  const today = wibDate(), until = wibDate(Date.now() + 2 * 864e5);
+  const meta = (k, d) => env.DB.prepare("SELECT v FROM meta WHERE k=?").bind(k).first().then((r) => (r ? JSON.parse(r.v) : d), () => d);
+  const [latest, stab, own] = await Promise.all([meta("latest", { funds: {} }), derived(env, "stab").catch(() => ({})), meta("agenda", [])]);
+  if (!macroMemo || Date.now() - macroMemo.t > 30 * 60e3) {
+    const m = await Promise.race([storyMacro(env).catch(() => null), sleep(2500).then(() => null)]);
+    if (m && m.ok) macroMemo = { t: Date.now(), items: m.items };
+  }
+  const agenda = [...(macroMemo ? macroMemo.items : []), ...own].filter((x) => x.d >= today && x.d <= until)
+    .sort((a, b) => (a.d + (a.time || "")).localeCompare(b.d + (b.time || ""))).slice(0, 8)
+    .map(({ d, t, k, time, country }) => ({ d, t, k, time: time || "", country: country || "" }));
+  const mv = moveAlerts(FUNDS.map(([pid, name, type]) => ({ pid, name, type, navDate: latest.funds?.[pid]?.navDate || null })), stab);
+  return { date: today, until, at: latest.at || null, agenda, auto: !!macroMemo, moves: { ...mv, dev: mv.dev.slice(0, 5), devN: mv.dev.length } };
+}
+
 export default withCron({
   // Satu tarikan Bareksa per jalan (parsing ~1.500 dana itu berat untuk batas CPU paket gratis).
   async scheduled(e, env) {
@@ -601,6 +647,7 @@ export default withCron({
   },
   async fetch(req, env, ctx) {
     await loadFunds(env);
+    if (new URL(req.url).pathname === HUB_FEED) return hubFeedAllowed(req, env) ? Response.json(await hubToday(env), { headers: { "cache-control": "no-store" } }) : new Response("forbidden", { status: 403 });
     const u = new URL(req.url), html = (inj, base) => new Response(HTML.replace("</head>", () => `${base ? '<base href="/">' : ""}${profileScript(env)}<script>${inj}</script></head>`), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
     if (!HUBSSO.ready(env) && (u.pathname === "/" || u.pathname === "/index.html")) return HUBSSO.notReady();
     if (HUBSSO.ready(env)) { const tk = await HUBSSO.ticket(req, env); if (tk) return tk; }

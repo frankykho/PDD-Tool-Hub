@@ -485,7 +485,7 @@ function shellPage(env, sess, mine, pending, fav) {
       features: a.features || [], ai: a.ai || '', kw: a.kw || '', src: src(a), pages: pages(a), lvl: levelLabel(a, accessOf(sess.u, a)),
     })),
     fav,
-    today: { recap: mine.some(a => a.id === 'recap'), planner: mine.some(a => a.id === 'planner'), jobs: !!repo },
+    today: { ...Object.fromEntries(FEEDS.map(f => [f.id, mine.some(a => a.id === f.id)])), jobs: !!repo, cron: !!env.CRON },
     actions: repo ? 'https://github.com/' + repo + '/actions' : '',
   };
   // JSON di dalam <script>: "<" dan pemisah baris Unicode di-escape supaya isi data tidak bisa menutup tag script
@@ -520,16 +520,19 @@ async function feedFrom(env, binding, name, query = '') {
   return r.json();
 }
 // Status GitHub Actions: satu permintaan, disimpan 2 menit per isolate (Cache API tidak berlaku di workers.dev).
+// Untuk run yang gagal, langkah yang gagal dibaca sekali per run (maks. 3 per muat; run yang sudah selesai tidak berubah lagi).
 let ghCache = null;
+const ghSteps = new Map();
 async function jobRuns(env) {
   const repo = env.GITHUB_REPO || profile(env).github.repo || '';
   if (!repo) throw new Error('Repo GitHub belum diatur di profil (github.repo).');
   if (ghCache && ghCache.repo === repo && Date.now() - ghCache.t < 120e3) return ghCache.v;
-  const get = auth => fetch('https://api.github.com/repos/' + repo + '/actions/runs?per_page=60&exclude_pull_requests=true', {
+  const get = (auth, p) => fetch('https://api.github.com/repos/' + repo + p, {
     headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'tool-hub', ...(auth ? { authorization: 'Bearer ' + env.GITHUB_TOKEN } : {}) },
   });
-  let r = await timeout(get(!!env.GITHUB_TOKEN), 6000, 'GitHub');
-  if ((r.status === 401 || r.status === 403) && env.GITHUB_TOKEN) r = await timeout(get(false), 6000, 'GitHub');   // token tanpa izin Actions: repo publik tetap terbaca
+  const RUNS = '/actions/runs?per_page=60&exclude_pull_requests=true';
+  let auth = !!env.GITHUB_TOKEN, r = await timeout(get(auth, RUNS), 6000, 'GitHub');
+  if ((r.status === 401 || r.status === 403) && auth) { auth = false; r = await timeout(get(false, RUNS), 6000, 'GitHub'); }   // token tanpa izin Actions: repo publik tetap terbaca
   if (r.status === 403 || r.status === 429) throw new Error('Batas permintaan GitHub tercapai. Coba lagi beberapa menit lagi.');
   if (!r.ok) throw new Error('GitHub: HTTP ' + r.status);
   const runs = (await r.json()).workflow_runs || [], latest = new Map();
@@ -537,22 +540,38 @@ async function jobRuns(env) {
   const state = x => x.status !== 'completed' ? 'run' : x.conclusion === 'success' ? 'ok'
     : ['failure', 'timed_out', 'startup_failure'].includes(x.conclusion) ? 'err' : x.conclusion === 'cancelled' ? 'warn' : 'muted';
   const order = { err: 0, run: 1, warn: 2, ok: 3, muted: 4 };
-  const v = {
-    at: new Date().toISOString(),
-    runs: [...latest.values()].map(x => ({ name: x.name, state: state(x), at: x.updated_at || x.created_at, url: x.html_url, event: x.event }))
-      .sort((a, b) => (order[a.state] - order[b.state]) || a.name.localeCompare(b.name)),
-  };
+  const list = [...latest.values()].map(x => ({ id: x.id, name: x.name, state: state(x), at: x.updated_at || x.created_at, url: x.html_url, event: x.event }))
+    .sort((a, b) => (order[a.state] - order[b.state]) || a.name.localeCompare(b.name));
+  if (ghSteps.size > 200) ghSteps.clear();
+  await Promise.all(list.filter(x => x.state === 'err' && !ghSteps.has(x.id)).slice(0, 3).map(async x => {
+    try {
+      const j = await timeout(get(auth, '/actions/runs/' + x.id + '/jobs?filter=latest&per_page=30'), 4000, 'GitHub');
+      if (!j.ok) return;
+      const bad = c => c === 'failure' || c === 'timed_out', jobs = (await j.json()).jobs || [], job = jobs.find(y => bad(y.conclusion));
+      const step = job && (job.steps || []).find(s => bad(s.conclusion));
+      ghSteps.set(x.id, job ? [jobs.length > 1 || !step ? job.name : '', step ? step.name : ''].filter(Boolean).join(' › ') : '');
+    } catch (e) { }   // tanpa nama langkah, baris job tetap tampil
+  }));
+  const v = { at: new Date().toISOString(), runs: list.map(({ id, ...x }) => ({ ...x, step: ghSteps.get(id) || '' })) };
   ghCache = { repo, t: Date.now(), v };
   return v;
 }
+/** Kartu "Hari ini": id tool, service binding, dan apakah tool perlu tahu email pengguna (isi "milikmu"). */
+const FEEDS = [
+  { id: 'recap', binding: 'RECAP', name: 'Market Recap' },
+  { id: 'planner', binding: 'PLANNER', name: 'Content Planner', email: true },
+  { id: 'fund', binding: 'FUND', name: 'Fund Insight' },
+  { id: 'competitor', binding: 'COMPETITOR', name: 'Competitor Intelligence' },
+  { id: 'edukasi', binding: 'EDUKASI', name: 'Edukasi Studio', email: true },
+];
 /** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
 async function todayFeed(env, sess, mine) {
   const has = id => mine.some(a => a.id === id), out = {};
   const wrap = (k, p) => p.then(data => { out[k] = { ok: true, data }; }, e => { out[k] = { ok: false, error: String((e && e.message) || e).slice(0, 240) }; });
   await Promise.all([
-    has('recap') && wrap('recap', feedFrom(env, 'RECAP', 'Market Recap')),
-    has('planner') && wrap('planner', feedFrom(env, 'PLANNER', 'Content Planner', '?email=' + encodeURIComponent(sess.email))),
+    ...FEEDS.filter(f => has(f.id)).map(f => wrap(f.id, feedFrom(env, f.binding, f.name, f.email ? '?email=' + encodeURIComponent(sess.email) : ''))),
     wrap('jobs', jobRuns(env)),
+    env.CRON && wrap('cron', feedFrom(env, 'CRON', 'Jadwal cron')),
   ].filter(Boolean));
   return Response.json(out, { headers: { 'cache-control': 'no-store' } });
 }

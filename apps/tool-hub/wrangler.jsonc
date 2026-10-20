@@ -1,7 +1,7 @@
 // Tool Hub: satu pintu login, admin, dan hak akses semua tool.
 // Secret: SSO_SECRET (wajib), GITHUB_TOKEN & FIREBASE_SA (opsional, tab Tutorial). Lihat .secrets.example.json
-// RECAP / PLANNER = service binding untuk ringkasan "Hari ini" di beranda (shared/hubfeed.js);
-// karena itu hub di-deploy setelah market-recap & content-planner (lihat urutan di scripts/deploy.mjs).
+// RECAP / PLANNER / FUND / COMPETITOR / EDUKASI / CRON = service binding untuk ringkasan "Hari ini" dan status cron
+// di beranda (shared/hubfeed.js); karena itu hub di-deploy paling akhir (lihat urutan di scripts/deploy.mjs).
 {
   "name": "tool-hub",
   "main": "worker.js",
@@ -9,6 +9,10 @@
   "kv_namespaces": [{ "binding": "HUB_KV", "id": "auto" }],
   "services": [
     { "binding": "RECAP", "service": "market-recap" },
-    { "binding": "PLANNER", "service": "content-planner" }
+    { "binding": "PLANNER", "service": "content-planner" },
+    { "binding": "FUND", "service": "fund-insight" },
+    { "binding": "COMPETITOR", "service": "competitor-intel" },
+    { "binding": "EDUKASI", "service": "edukasi-studio" },
+    { "binding": "CRON", "service": "tool-cron" }
   ]
 }

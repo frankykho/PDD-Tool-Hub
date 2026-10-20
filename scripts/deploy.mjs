@@ -36,12 +36,12 @@ export const APPS = [
   { id: "planner", dir: "apps/content-planner" },
   // setelah storydata: memakainya lewat service binding
   { id: "recap", dir: "apps/market-recap" },
-  // setelah planner & recap: beranda hub membaca ringkasan "Hari ini" keduanya lewat service binding
-  { id: "hub", dir: "apps/tool-hub" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
   // paling akhir: memanggil tool lain lewat service binding, dan tool lain harus sudah melepas cron lamanya
   { id: "cron", dir: "apps/cron" },
+  // setelah semuanya: beranda hub membaca ringkasan "Hari ini" (Recap, Planner, Fund, Competitor, Edukasi) dan status cron lewat service binding
+  { id: "hub", dir: "apps/tool-hub" },
 ];
 const SHARED = ["shared/", "scripts/deploy.mjs", "package.json"];
 

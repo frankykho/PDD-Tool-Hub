@@ -21,6 +21,7 @@
 import { profile, appUrl } from '../../shared/profile.js';
 import { ai, AiError } from '../../shared/ai.js';
 import { withCron } from '../../shared/cron.js';
+import { HUB_FEED, hubFeedAllowed } from '../../shared/hubfeed.js';
 
 const APP_ID = 'edukasi';
 // User-Agent bot menyertakan alamat tool ini (dari profil) supaya pemilik situs tahu asalnya
@@ -808,11 +809,23 @@ renderPicked();loadStats().then(function(){loadList(true)});
 })();`;
 
 export { robotsAllows, parseXml, topicOf, looksEdu };
+// Ringkasan "Hari ini" untuk beranda Tool Hub (shared/hubfeed.js): draf 7 hari terakhir dan artikel sumber yang baru terkumpul hari ini (WIB).
+async function hubToday(env, email) {
+  const t = now(), today = new Date(t + 7 * 3600e3).toISOString().slice(0, 10), start = Date.parse(today + 'T00:00:00+07:00'), week = t - 7 * 864e5;
+  const [d, c] = await env.DB.batch([
+    env.DB.prepare('SELECT id, format, title, author, created_at FROM drafts WHERE created_at >= ? ORDER BY created_at DESC LIMIT 5').bind(week),
+    env.DB.prepare('SELECT (SELECT COUNT(*) FROM drafts WHERE created_at >= ?1) AS n, (SELECT COUNT(*) FROM drafts WHERE created_at >= ?1 AND author = ?2) AS mine, (SELECT COUNT(*) FROM articles WHERE scraped_at >= ?3) AS art').bind(week, email, start),
+  ]);
+  const k = (c.results && c.results[0]) || {};
+  return { date: today, n: k.n || 0, mine: k.mine || 0, articles: k.art || 0, drafts: d.results || [] };
+}
+
 export default withCron({
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!configured(env)) return new Response(setupPage(env), { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
     await init(env);
+    if (url.pathname === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get('email') || '')) : new Response('forbidden', { status: 403 });
     const sec = { 'content-security-policy': `frame-ancestors 'self' ${hubOrigin(env)}`, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' };
     if (url.pathname.startsWith('/api/')) {
       const me = await readToken(env, request);

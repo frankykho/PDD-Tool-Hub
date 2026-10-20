@@ -226,8 +226,9 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .subh{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin:14px 0 4px}
 .subh:first-child{margin-top:0}
 .today .panel{display:flex;flex-direction:column}
-#recapBody,#planBody{flex:1;display:flex;flex-direction:column}
-#recapBody .panel-f,#planBody .panel-f{margin-top:auto}
+.pbody{flex:1;display:flex;flex-direction:column}
+.pbody .panel-f{margin-top:auto}
+.more{margin:6px 0 0;font-size:12px;color:var(--text-2)}
 .panel-f{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .panel-f .muted{flex:1;font-size:12px}
 .ai{margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:center;background:var(--ai-bg);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px}
@@ -666,12 +667,15 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   var STR = { none: ["Belum disusun", "st-muted"], draft: ["Draf", "st-warn"], published: ["Terbit", "st-ok"] };
   var PST = { ide: "st-muted", draf: "st-warn", review: "st-info", terbit: "st-ok", rencana: "st-muted", konfirmasi: "st-info", selesai: "st-ok", batal: "st-err", belum: "st-muted", proses: "st-info", revisi: "st-warn" };
   function pctHtml(p) { if (p == null || p === "" || isNaN(+p)) return ""; p = +p; return '<span class="pct ' + (p > 0 ? "up" : p < 0 ? "down" : "") + '">' + (p > 0 ? "+" : "") + p.toFixed(2).replace(".", ",") + "%</span>"; }
+  // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
+  var PANELS = [["recap", "recapBody", "trend", "research", "Market Recap hari ini"], ["planner", "planBody", "calendar", "campaign", "Jadwal & tugas"],
+    ["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"]];
   function renderToday() {
-    var box = $("#today"), html = "";
-    if (H.today.recap) html += '<section class="panel" aria-labelledby="recapH"><div class="panel-h"><span class="ticon sm cat-research">' + icon("trend") + '</span><h2 id="recapH">Market Recap hari ini</h2></div><div id="recapBody">' + skel(3) + "</div></section>";
-    if (H.today.planner) html += '<section class="panel" aria-labelledby="planH"><div class="panel-h"><span class="ticon sm cat-campaign">' + icon("calendar") + '</span><h2 id="planH">Jadwal & tugas</h2></div><div id="planBody">' + skel(3) + "</div></section>";
+    var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
+      return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
+    }).join("");
     box.innerHTML = html; box.hidden = !html;
-    $("#jobsPanel").hidden = !H.today.jobs;
+    $("#jobsPanel").hidden = !H.today.jobs && !H.today.cron;
     $("#jobsPanel").innerHTML = '<div class="panel-h"><h2 id="jobsH">Status otomatis</h2>' + (H.actions ? '<a class="link" href="' + esc(H.actions) + '" target="_blank" rel="noopener">GitHub ' + icon("ext") + "</a>" : "") + '</div><div id="jobsBody">' + skel(4) + "</div>";
   }
   function fillRecap(r) {
@@ -698,27 +702,99 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     if (des.length) html += '<div class="subh">Tugas desain untukmu · ' + d.design.length + '</div><div class="rows">' + des.map(design).join("") + "</div>";
     el.innerHTML = html + '<div class="panel-f"><span class="muted">' + esc(hari(d.date)) + '</span><button class="btn btn-sm" type="button" data-open="planner">Buka Content Planner ' + icon("arrowR") + "</button></div>";
   }
-  function fillJobs(r) {
-    var el = $("#jobsBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Status GitHub Actions tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
-    var list = r.data.runs || [], bad = list.filter(function (x) { return x.state === "err"; }).length;
-    var lbl = { ok: "Berhasil", err: "Gagal", run: "Sedang jalan", warn: "Dibatalkan", muted: "-" };
-    el.innerHTML = (bad ? '<div class="errbox" style="margin-bottom:10px">' + icon("alert") + "<div>" + bad + " job terakhir gagal. Buka detailnya untuk melihat langkah yang gagal.</div></div>" : "") +
-      (list.length ? '<div class="rows">' + list.map(function (x) {
-        return '<div class="row"><span class="dot ' + x.state + '" aria-hidden="true"></span><a class="m" href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.name) + "</b><small>" + esc(lbl[x.state] + " · " + ago(Date.parse(x.at))) + "</small></a></div>";
-      }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada riwayat job.</p>') +
-      '<div class="panel-f"><span class="muted">Dari GitHub Actions, diperbarui ' + esc(ago(Date.parse(r.data.at))) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang status" title="Muat ulang">' + icon("refresh") + "</button></div>";
+  function dec(v, dp) { return (+v).toFixed(dp).replace(".", ","); }
+  function rowHtml(dot, title, sub, right) {
+    return '<div class="row">' + (dot ? '<span class="dot ' + dot + '" aria-hidden="true"></span>' : "") + '<div class="m"><b>' + esc(title) + '</b><small title="' + esc(sub) + '">' + esc(sub) + "</small></div>" + (right || "") + "</div>";
   }
+  function foot(text, id, label) { return '<div class="panel-f"><span class="muted">' + esc(text) + '</span><button class="btn btn-sm" type="button" data-open="' + id + '">' + esc(label) + " " + icon("arrowR") + "</button></div>"; }
+  function fillFund(r) {
+    var el = $("#fundBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Fund Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, m = d.moves || {}, dev = m.dev || [], rows = [];
+    // aturan sama dengan kartu "Gerak harian tidak biasa" di Home Fund Insight
+    var html = '<div class="subh">Gerak harian tidak biasa' + (m.nav ? " · NAB " + esc(hari(m.nav)) : "") + (m.n ? " · " + m.n + " produk" : "") + "</div>";
+    if (!m.nav) html += '<p class="muted small" style="margin:0">Data NAB belum tersedia.</p>';
+    else if (!m.n) html += '<div class="rows">' + rowHtml("ok", "Semua produk dalam gerak harian biasanya", m.prev ? "Terakhir terjadi " + hari(m.prev.date) + " · " + m.prev.n + " produk" : "Tidak ada gerak tidak biasa dalam 5 pencatatan terakhir") + "</div>";
+    else {
+      dev.forEach(function (x) { rows.push(rowHtml(x.chg > 0 ? "ok" : "warn", x.name, "Biasanya ±" + dec(x.sdd, x.sdd < 0.1 ? 3 : 2) + "% per hari, ini " + Math.round(Math.abs(x.z)) + "× lipat · " + x.type, pctHtml(x.chg))); });
+      (m.market || []).forEach(function (g) { rows.push(rowHtml("", g.type + " · " + g.n + " produk", "Ikut pasar: produk sejenis bergerak serupa, rata-rata", pctHtml(g.avg))); });
+      html += (m.devN ? "" : '<p class="muted small" style="margin:0 0 4px">Tidak ada yang bergerak beda dari produk sejenisnya.</p>') + '<div class="rows">' + rows.join("") + "</div>" +
+        (m.devN > dev.length ? '<p class="more">dan ' + (m.devN - dev.length) + " produk lain yang bergerak beda dari sejenisnya</p>" : "");
+    }
+    var ag = (d.agenda || []).slice(0, 4);
+    html += '<div class="subh">Agenda pasar</div>' + (ag.length ? '<div class="rows">' + ag.map(function (x) {
+      return rowHtml("", x.t, [x.d === d.date ? "Hari ini" : hari(x.d), x.time ? x.time + " WIB" : "", x.k === "internal" ? "Internal" : x.country === "US" ? "Ekonomi AS" : "Ekonomi"].filter(Boolean).join(" · "));
+    }).join("") + "</div>" : '<p class="muted small" style="margin:0">Tidak ada agenda hari ini sampai lusa.</p>');
+    el.innerHTML = html + foot(d.at ? "Data diperbarui " + ago(Date.parse(d.at)) : hari(d.date), "fund", "Buka Fund Insight");
+  }
+  var CST = { "Perlu verifikasi": "st-warn", Aktif: "st-ok", Berakhir: "st-muted", "Tidak relevan": "st-muted" };
+  function fillComp(r) {
+    var el = $("#compBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Competitor Intelligence tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, it = d.items || [];
+    var html = '<div class="subh">Baru sejak kemarin · ' + d.n + " promo</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
+      return rowHtml("", x.title, [x.platform || x.manager, x.category, x.promo_type].filter(Boolean).join(" · ") || "Promo baru", '<span class="badge ' + (CST[x.status] || "st-muted") + '">' + esc(x.status || "-") + "</span>");
+    }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada promo baru sejak kemarin.</p>') +
+      (d.n > it.length ? '<p class="more">dan ' + (d.n - it.length) + " promo baru lainnya</p>" : "");
+    html += '<div class="subh">Semua promo</div><div class="rows">' + rowHtml(d.review ? "warn" : "ok", d.review ? d.review + " promo perlu verifikasi" : "Tidak ada yang menunggu verifikasi", d.active + " promo aktif") + "</div>";
+    el.innerHTML = html + foot(hari(d.date), "competitor", "Buka Competitor");
+  }
+  var FN = { web: "Artikel", feed: "Feed", story: "Story" };
+  function fillEdu(r) {
+    var el = $("#eduBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Edukasi Studio tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, it = d.drafts || [];
+    var html = '<div class="subh">Draf 7 hari terakhir · ' + d.n + (d.mine ? " · " + d.mine + " milikmu" : "") + "</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
+      return rowHtml("", x.title || "Tanpa judul", [FN[x.format] || x.format, x.author === H.me.email ? "Kamu" : String(x.author || "").split("@")[0], ago(x.created_at)].filter(Boolean).join(" · "));
+    }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada draf dalam 7 hari terakhir.</p>') +
+      (d.n > it.length ? '<p class="more">dan ' + (d.n - it.length) + " draf lainnya</p>" : "");
+    html += '<div class="subh">Bahan riset</div><p class="muted small" style="margin:0">' + (d.articles ? d.articles + " artikel sumber baru terkumpul hari ini." : "Belum ada artikel sumber baru hari ini.") + "</p>";
+    el.innerHTML = html + foot(hari(d.date), "edukasi", "Buka Edukasi Studio");
+  }
+  var CRONJOB = { FUND: "Fund Insight", COMPETITOR: "Competitor Intelligence", EDUKASI: "Edukasi Studio", STORYDATA: "Story Data", SATS: "SATS Radar", RECAP: "Market Recap" };
+  // cron jalan tiap 5 menit; lebih dari 15 menit tanpa catatan = cron berhenti
+  function cronPart(c) {
+    if (!c.ok) return { html: errBox("Status cron tidak bisa dimuat: " + (c.error || "tidak ada jawaban")), bad: 0 };
+    var d = c.data, by = {}, rows = [];
+    (d.runs || []).forEach(function (x) { by[x.job] = x; });
+    var main = by._cron, late = !!main && d.now - main.at > 15 * 60e3;
+    var fail = Object.keys(by).filter(function (k) { return k !== "_cron" && by[k].err; }).sort();
+    if (!main) rows.push(rowHtml("", "Belum ada catatan cron", "Mulai terisi setelah cron jalan berikutnya (tiap 5 menit)."));
+    else if (late) rows.push(rowHtml("err", "Cron tidak jalan", "Terakhir jalan " + ago(main.at) + ", seharusnya tiap 5 menit."));
+    fail.forEach(function (k) { rows.push(rowHtml("err", (CRONJOB[k] || k) + " gagal", ago(by[k].at) + " · " + by[k].err)); });
+    if (main && !late && !fail.length) rows.push(rowHtml("ok", "Semua tugas terjadwal berhasil", (Object.keys(by).length - 1) + " tugas · terakhir jalan " + ago(main.at)));
+    return { html: '<div class="rows">' + rows.join("") + "</div>", bad: (late ? 1 : 0) + fail.length };
+  }
+  function fillJobs(r, c) {
+    var el = $("#jobsBody"); if (!el) return;
+    var html = "", bad = 0, lbl = { ok: "Berhasil", err: "Gagal", run: "Sedang jalan", warn: "Dibatalkan", muted: "-" };
+    if (H.today.cron && c) { var cp = cronPart(c); bad += cp.bad; html += '<div class="subh">Jadwal cron</div>' + cp.html; }
+    if (H.today.jobs) {
+      if (H.today.cron) html += '<div class="subh">GitHub Actions</div>';
+      if (!r || !r.ok) html += errBox("Status GitHub Actions tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban"));
+      else {
+        var list = r.data.runs || [];
+        bad += list.filter(function (x) { return x.state === "err"; }).length;
+        html += list.length ? '<div class="rows">' + list.map(function (x) {
+          var sub = lbl[x.state] + (x.step ? " di " + x.step : "") + " · " + ago(Date.parse(x.at));
+          return '<div class="row"><span class="dot ' + x.state + '" aria-hidden="true"></span><a class="m" href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.name) + '</b><small title="' + esc(sub) + '">' + esc(sub) + "</small></a></div>";
+        }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada riwayat job.</p>';
+      }
+    }
+    el.innerHTML = (bad ? '<div class="errbox" style="margin-bottom:10px">' + icon("alert") + "<div>" + bad + " tugas otomatis bermasalah. Penyebabnya tertulis di bawah namanya.</div></div>" : "") + html +
+      '<div class="panel-f"><span class="muted">Diperbarui ' + esc(ago(Date.now())) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang status" title="Muat ulang">' + icon("refresh") + "</button></div>";
+  }
+  function fillAll(d) { fillRecap(d.recap); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   function loadFeed() {
     if (loadingFeed) return; loadingFeed = true;
-    ["#recapBody", "#planBody", "#jobsBody"].forEach(function (s) { var e = $(s); if (e) e.innerHTML = skel(3); });
+    PANELS.map(function (p) { return "#" + p[1]; }).concat("#jobsBody").forEach(function (s) { var e = $(s); if (e) e.innerHTML = skel(3); });
     var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
     fetch("/api/today", { headers: { accept: "application/json" }, signal: ctl && ctl.signal }).then(function (r) {
       if (r.status === 401) throw new Error("Sesi habis. Muat ulang halaman lalu login lagi.");
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
-    }).then(function (d) { feed = d; fillRecap(d.recap); fillPlanner(d.planner); fillJobs(d.jobs); })
-      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; fillRecap(m); fillPlanner(m); fillJobs(m); })
+    }).then(function (d) { feed = d; fillAll(d); })
+      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; fillAll({ recap: m, planner: m, fund: m, competitor: m, edukasi: m, jobs: m, cron: m }); })
       .then(function () { clearTimeout(t); loadingFeed = false; });
   }
 
@@ -953,7 +1029,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   setRail(railPref); applyTheme(); renderNav(); renderQuick(); renderToday(); renderFav(); renderHomeGrid(); renderRecent();
   if (!apps.length) $("#vHome").innerHTML = '<div class="empty"><b>Belum ada tool yang bisa kamu buka</b>Admin perlu memberikan akses ke akunmu. Hubungi admin tim.</div>';
   route();
-  if (H.today.recap || H.today.planner || H.today.jobs) loadFeed();
+  if (Object.keys(H.today).some(function (k) { return H.today[k]; })) loadFeed();
 })();
 </script>
 </body>
