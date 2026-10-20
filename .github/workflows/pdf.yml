@@ -23,18 +23,8 @@ jobs:
           node-version: 20
       - run: npm install playwright@1 && npx playwright install --with-deps chromium
       - name: Alamat Fund Insight & Bond Insight dari profil
-        # urls.fund / urls.bond kalau diisi; selain itu https://<nama-worker>.<subdomain>.workers.dev
-        run: |
-          node -e '
-            const raw = (process.env.PROFILE_JSON || "").trim() || "{}";
-            let p;  // profile.json boleh berkomentar (// ...), seperti yang dibaca scripts/deploy.mjs
-            try { p = JSON.parse(raw); } catch { p = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1")); }
-            const u = p.urls || {};
-            const at = (name) => (p.subdomain ? `https://${name}.${p.subdomain}.workers.dev` : "");
-            const fund = u.fund || at("fund-insight"), bond = u.bond || at("bond-insight");
-            if (!fund || !bond) { console.error("Secret PROFILE_JSON belum berisi urls.fund/urls.bond atau subdomain."); process.exit(1); }
-            console.log(`FUND_URL=${fund}\nBOND_URL=${bond}`);
-          ' >> "$GITHUB_ENV"
+        # urls.fund / urls.bond kalau diisi; selain itu https://<nama-worker>.<subdomain>.workers.dev (lihat urls.mjs)
+        run: node urls.mjs >> "$GITHUB_ENV"
       - name: Buat PDF
         run: node make-pdf.mjs
       - name: Unggah (file bernama sama ditimpa, jadi tidak menumpuk)

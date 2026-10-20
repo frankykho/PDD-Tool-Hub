@@ -14,6 +14,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseJsonc } from "../shared/jsonc.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -50,19 +51,7 @@ const opt = (f) => { const i = args.indexOf(f); if (i < 0) return null; const v 
 const die = (msg) => { console.error("\n✗ " + msg); process.exit(1); };
 const log = (msg) => console.log(msg);
 
-/** JSON dengan komentar (// dan /* *\/) -> objek. Komentar di dalam string dibiarkan. */
-export function parseJsonc(text) {
-  let out = "", i = 0, str = false;
-  while (i < text.length) {
-    const c = text[i], n = text[i + 1];
-    if (str) { out += c; if (c === "\\") { out += n; i += 2; continue; } if (c === '"') str = false; i++; continue; }
-    if (c === '"') { str = true; out += c; i++; continue; }
-    if (c === "/" && n === "/") { while (i < text.length && text[i] !== "\n") i++; continue; }
-    if (c === "/" && n === "*") { i = text.indexOf("*/", i + 2) + 2; continue; }
-    out += c; i++;
-  }
-  return JSON.parse(out.replace(/,(\s*[}\]])/g, "$1"));
-}
+export { parseJsonc };
 
 const configPath = (app) => {
   for (const f of ["wrangler.jsonc", "wrangler.json"]) { const p = path.join(ROOT, app.dir, f); if (fs.existsSync(p)) return p; }
