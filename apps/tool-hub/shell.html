@@ -777,9 +777,12 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     var el = $("#rhythmBody"); if (!el) return;
     if (!r || !r.ok) { el.innerHTML = errBox("Ritme hari ini tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
     var d = r.data, now = mins(d.now.replace(".", ":")), steps = d.steps || [];
-    var next = steps.filter(function (s) { return s.state === "wait"; })[0], bad = steps.filter(function (s) { return s.state === "err"; }).length;
+    var next = steps.filter(function (s) { return s.state === "wait"; })[0], badList = steps.filter(function (s) { return s.state === "err"; }), bad = badList.length;
+    var badNames = badList.map(function (s) { return "<b>" + esc(s.title) + "</b>"; }).join(", ");
     var head = '<p class="rhy-next">' + (bad ? '<span class="badge st-err">' + bad + " perlu dicek</span>" : "") +
-      "<span>" + (next ? "Berikutnya: <b>" + esc(next.title) + "</b> pukul " + next.at.replace(":", ".") : steps.length ? "Semua langkah hari ini sudah masuk jadwalnya." : "Belum ada langkah terjadwal hari ini.") + "</span>" +
+      "<span>" + (next ? "Berikutnya: <b>" + esc(next.title) + "</b> pukul " + next.at.replace(":", ".") + (bad ? " · Perlu dicek: " + badNames : "")
+        : bad ? "Perlu dicek: " + badNames + ". Tidak ada langkah lain yang menunggu jadwal."
+        : steps.length ? "Tidak ada langkah lain yang menunggu jadwal hari ini." : "Belum ada langkah terjadwal hari ini.") + "</span>" +
       (d.bourse ? "" : '<span class="badge st-muted">Bukan hari bursa</span>') + "</p>";
     var cols = RCOLS.map(function (c) {
       var list = steps.filter(function (s) { var m = mins(s.at); return m >= c[1] && m < c[2]; }), on = now >= c[1] && now < c[2];

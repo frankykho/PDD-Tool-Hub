@@ -329,13 +329,27 @@ const CI_AUTO = ['title', 'category', 'comp_kind', 'platform', 'manager', 'promo
 const CI_WATCH = [['start_date', 'Mulai'], ['end_date', 'Berakhir'], ['benefit', 'Benefit'], ['min_transaction', 'Min. transaksi'], ['holding_period', 'Holding period']];
 const ciNow = () => new Date().toISOString();
 const ciHist = (old, t) => { let h = []; try { h = JSON.parse(old || '[]'); } catch {} h.push({ d: ciNow(), t: String(t).slice(0, 400) }); return JSON.stringify(h.slice(-30)); };
+// Halaman yang lolos filter kata kunci tetapi bukan promo yang bisa diikuti: pengumuman pemenang, update/rekap mingguan.
+// Dicek dari judul saja supaya promo berhadiah yang sekadar menyebut "pemenang" di S&K tidak ikut tersaring.
+const CI_NOT_PROMO = [
+  [/\b(?:ini|daftar|pengumuman|para)\s+pemenang\b|\bpemenang\s+(?:promo|program|undian|kompetisi|lomba|giveaway)\b/i, 'pengumuman pemenang'],
+  [/\b(?:weekly|monthly|market)\s+(?:update|recap|outlook)\b|\b(?:update|rekap|ulasan)\s+(?:mingguan|bulanan|pasar)\b/i, 'artikel update/rekap'],
+];
+export function ciNotPromo(title) {
+  const t = String(title || '');
+  const hit = CI_NOT_PROMO.find(([re]) => re.test(t));
+  return hit ? hit[1] : '';
+}
 // Simpan satu promo hasil scan. Promo yang sudah ada (URL sama) diperbarui; yang sudah diverifikasi tidak ditimpa,
 // perubahan di halaman sumber dicatat di riwayat dan statusnya kembali "Perlu verifikasi".
 async function ciSaveScan(env, rec, hash) {
   const old = await env.DB.prepare('SELECT id,status,verified_by,cat_manual,history,start_date,end_date,benefit,min_transaction,holding_period FROM ci_programs WHERE content_hash=? OR source_url=? LIMIT 1').bind(hash, rec.source_url).first();
   const now = ciNow();
   if (!old) {
-    const row = { ...rec, id: crypto.randomUUID(), content_hash: hash, discovered_at: now, first_seen: now, last_checked: now, status: 'Perlu verifikasi', history: ciHist(null, 'Ditemukan oleh scan otomatis.') };
+    // Bukan promo: tetap disimpan (bisa dikembalikan tim), tapi langsung "Tidak relevan" supaya tidak menambah antrean verifikasi
+    const np = ciNotPromo(rec.title);
+    const row = { ...rec, id: crypto.randomUUID(), content_hash: hash, discovered_at: now, first_seen: now, last_checked: now, status: np ? 'Tidak relevan' : 'Perlu verifikasi',
+      history: ciHist(null, np ? `Ditemukan oleh scan otomatis; ditandai tidak relevan otomatis (${np}).` : 'Ditemukan oleh scan otomatis.') };
     const k = Object.keys(row);
     await env.DB.prepare(`INSERT INTO ci_programs (${k.join(',')}) VALUES (${k.map(() => '?').join(',')})`).bind(...k.map((x) => row[x] ?? null)).run();
     return 'new';

@@ -261,6 +261,23 @@ assert.ok(t.rhythm.data.steps.some((s) => s.id === "plan:a"), "kegiatan Planner 
   assert.equal(rhythm(W("2026-10-19T14:00:00"), pr, all).steps.find((x) => x.id === "s1").note, "Draf, belum terbit · IHSG -0,18%");
   // tanpa run Wrap setelah 16.00: run kalender pagi tidak dihitung sebagai Wrap
   assert.deepEqual(by(rhythm(W("2026-10-19T18:10:00"), parts("2026-10-19"), all)).wrap, ["err", "Belum ada hasil sampai 18.00"]);
+  // catatan coba ulang hanya tampil selama langkah belum selesai
+  {
+    const sub = (R, id) => R.steps.find((x) => x.id === id).sub;
+    assert.equal(sub(rhythm(W("2026-10-19T17:00:00"), parts("2026-10-19"), all), "wrap"), "Penutupan IDX, dicoba lagi 17.25");
+    assert.equal(sub(rhythm(W("2026-10-19T17:00:00"), parts("2026-10-19"), all), "sats"), "Dicoba lagi 19.20 bila belum");
+    const done = parts("2026-10-19");
+    done.jobs.data.today.push({ wf: "story-data.yml", state: "ok", at: W("2026-10-19T17:25:00"), url: "u-wrap" }, { wf: "sats-eod.yml", state: "ok", at: W("2026-10-19T20:23:00"), url: "u-sats" });
+    const Rd = rhythm(W("2026-10-19T21:00:00"), done, all);
+    assert.equal(sub(Rd, "wrap"), "Penutupan IDX"); assert.equal(sub(Rd, "sats"), "");
+  }
+  // NAB pagi: kalau tarikan terakhir sudah tarikan sore, jam sore tidak ditampilkan sebagai jam selesai pagi
+  {
+    const ev = parts("2026-10-19"); ev.fund.data.at = new Date(W("2026-10-19T18:35:00")).toISOString();
+    const s = by(rhythm(W("2026-10-19T21:00:00"), ev, all));
+    assert.deepEqual(s.nav1, ["ok", "Selesai · data terbaru 18.35"]);
+    assert.deepEqual(s.nav2, ["ok", "Selesai 18.35"]);
+  }
   // Jumat: jeda siang 11.30–14.00
   R = rhythm(W("2026-10-23T11:40:00"), parts("2026-10-23"), all);
   assert.equal(R.steps.find((x) => x.id === "s1").at, "11:30"); assert.equal(by(R).s1[0], "due");

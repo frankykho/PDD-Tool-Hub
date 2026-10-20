@@ -644,9 +644,9 @@ const RHYTHM = [
   { id: 'pdf', at: '07:00', late: '08:30', title: 'PDF produk', sub: 'Fund & Bond', tools: ['fund', 'bond'], wf: 'pdf.yml', from: '00:00', to: '24:00' },
   { id: 'nav1', at: '09:05', late: '10:30', title: 'NAB reksa dana pagi', sub: 'Tarikan data Fund Insight', tools: ['fund'], fundAt: '09:00' },
   { id: 's1', at: '12:00', late: '13:45', title: 'Market Recap sesi 1', sub: 'Disusun saat jeda siang', tools: ['recap'], bourse: true, recap: 's1' },
-  { id: 'wrap', at: '16:50', late: '18:00', title: 'Data Story Wrap', sub: 'Penutupan IDX, dicoba lagi 17.25', tools: ['story'], bourse: true, wf: 'story-data.yml', from: '16:00', to: '24:00' },
+  { id: 'wrap', at: '16:50', late: '18:00', title: 'Data Story Wrap', sub: 'Penutupan IDX', retry: 'dicoba lagi 17.25', tools: ['story'], bourse: true, wf: 'story-data.yml', from: '16:00', to: '24:00' },
   { id: 'close', at: '17:20', late: '18:30', title: 'Market Recap penutupan', sub: 'Setelah data penutupan ada', tools: ['recap'], bourse: true, recap: 'close' },
-  { id: 'sats', at: '17:20', late: '20:30', title: 'Sinyal SATS', sub: 'Dicoba lagi 19.20 bila belum', tools: ['sats'], bourse: true, wf: 'sats-eod.yml', from: '17:00', to: '24:00' },
+  { id: 'sats', at: '17:20', late: '20:30', title: 'Sinyal SATS', sub: '', retry: 'Dicoba lagi 19.20 bila belum', tools: ['sats'], bourse: true, wf: 'sats-eod.yml', from: '17:00', to: '24:00' },
   { id: 'nav2', at: '18:05', late: '19:30', title: 'NAB reksa dana sore', sub: 'Tarikan data Fund Insight', tools: ['fund'], fundAt: '18:00' },
 ];
 const hm = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
@@ -677,8 +677,11 @@ export function rhythm(now, parts, has) {
         else st = none(s);
       }
     } else if (s.fundAt) {
-      const t = fund && Date.parse(fund.at);
-      st = !fund ? ['muted', 'Data Fund Insight tidak terbaca'] : t >= at(s.fundAt) ? ['ok', 'Selesai ' + hhmm(t)] : none(s);
+      // Fund Insight hanya melaporkan tarikan terakhir. Kalau tarikan itu sudah milik langkah berikutnya (mis. NAB sore),
+      // jam selesai langkah ini tidak diketahui; jangan tampilkan jam tarikan sore sebagai jam selesai pagi.
+      const t = fund && Date.parse(fund.at), later = RHYTHM.find(x => x.fundAt && hm(x.fundAt) > hm(s.fundAt));
+      st = !fund ? ['muted', 'Data Fund Insight tidak terbaca'] : t >= at(s.fundAt)
+        ? ['ok', later && t >= at(later.fundAt) ? 'Selesai · data terbaru ' + hhmm(t) : 'Selesai ' + hhmm(t)] : none(s);
     } else if (s.recap) {
       const x = recap && recap.date === date ? (recap.sessions || []).find(y => y.session === s.recap) : null;
       st = !recap ? ['muted', 'Market Recap tidak terbaca'] : x && x.status === 'published' ? ['ok', 'Terbit'] : x && x.status === 'draft' ? ['warn', 'Draf, belum terbit'] : none(s, 'Sedang disusun otomatis');
@@ -688,6 +691,7 @@ export function rhythm(now, parts, has) {
         if (x.title) sub = x.title;
       }
     }
+    if (s.retry && st[0] !== 'ok') sub = [sub, s.retry].filter(Boolean).join(', ');   // catatan coba ulang hanya selama belum selesai
     steps.push({ id: s.id, at: s.at, title: s.title, sub, state: st[0], note: st[1], tool: s.tools.find(has), url });
   }
   // kegiatan Content Planner hari ini yang berjam (konten, artikel, edukasi): tandanya mengikuti statusnya
