@@ -7,6 +7,7 @@
 //                     hanya Partnership & admin yang memberi tugas; penerima boleh mengubah status & link hasilnya
 // - "/api/programs", "/api/program-report" -> daftar program & data laporan program (PDF/PPT disusun di browser)
 // - "/__hub/users" (POST) -> daftar anggota dari Tool Hub; "/__hub/notif" (POST) -> tandai notifikasi sudah dibaca
+// - "/__hub/item" (POST) -> kegiatan dari tool lain (Content Insight: konsep konten); "/__hub/members" (GET) -> daftar anggota
 // - "/api/weekly"  -> data paket mingguan (disusun saat diminta, cache 10 menit)
 // - "/__hub/today" -> ringkasan hari ini + tugas & notifikasi untuk beranda Tool Hub (service binding, lihat shared/hubfeed.js)
 // Notifikasi (tabel notifs) dibuat saat seseorang ditugaskan, saat status tugasnya berubah, dan saat tenggat dekat
@@ -513,6 +514,15 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
     if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get("email") || "")) : new Response("forbidden", { status: 403 });
+    if (path === "/__hub/members") return hubFeedAllowed(request, env) ? json(await users(env)) : new Response("forbidden", { status: 403 });
+    if (path === "/__hub/item") {
+      // atas nama orang yang menekan tombol di tool asal: dia jadi pembuat kegiatan, dan notifikasi (mis. ke desainer) tetap jalan
+      if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      const b = await request.json().catch(() => ({})), by = b.by || {}, e = lower(by.email);
+      if (!EMAIL.test(e)) return json({ error: "Pembuat kegiatan tidak dikenal." }, 400);
+      const r = await saveItem(env, { e, n: String(by.name || e).slice(0, 60), j: JOBS[by.job] ? by.job : "" }, { ...(b.item || {}), id: undefined });
+      return json(r, r.error ? 400 : 200);
+    }
     if (path === "/__hub/users" || path === "/__hub/notif") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       const b = await request.json().catch(() => ({})), r = path === "/__hub/users" ? await syncUsers(env, b.users) : await readNotifs(env, b);

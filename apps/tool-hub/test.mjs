@@ -121,6 +121,11 @@ assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competito
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
 assert.equal(boot.me.job, "Partnership");
+// admin hub tidak wajib memilih role pekerjaan
+{ const rec = JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v), job = rec.job; delete rec.job; env.HUB_KV.m.get("u:" + ADMIN).v = JSON.stringify(rec);
+  assert.equal((await call("/", { cookie: admin })).status, 200, "admin tanpa role tetap langsung ke beranda");
+  assert.equal((await call("/api/today", { cookie: admin })).status, 200);
+  rec.job = job; env.HUB_KV.m.get("u:" + ADMIN).v = JSON.stringify(rec); }
 assert.equal(boot.apps.find((a) => a.id === "recap").lvl, "Admin");
 assert.equal(boot.apps.find((a) => a.id === "story").lvl, "Semua tab");
 assert.equal(boot.apps.find((a) => a.id === "fund").src, "/sso?app=fund&back=" + encodeURIComponent("https://fund.acme.test/"), "tool tetap dibuka lewat SSO");

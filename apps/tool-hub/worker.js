@@ -720,8 +720,9 @@ export default {
     if (!sess) return post || path.startsWith('/api/') ? page(401, 'Sesi habis. Muat ulang halaman lalu login lagi.') : redirect('/login' + (path === '/' ? '' : '?next=' + encodeURIComponent(path + url.search)));
     if (sess.status !== 'approved') return page(403, gatePage(sess));
     if (path === '/role') return chooseJob(request, env, url, sess);
-    // role pekerjaan wajib: akun lama yang belum punya diminta memilih dulu (admin tetap bisa membuka halaman admin)
-    if (!JOBS[sess.u.job] && !path.startsWith('/admin') && path !== '/akun') return path.startsWith('/api/') ? Response.json({ error: 'Pilih role pekerjaan dulu.' }, { status: 409 }) : redirect('/role');
+    // role pekerjaan wajib untuk pengguna biasa: akun lama yang belum punya diminta memilih dulu. Admin hub tidak wajib
+    // (admin sudah punya semua hak: membuat program, memberi tugas, membuat konsep).
+    if (sess.role !== 'admin' && !JOBS[sess.u.job] && path !== '/akun') return path.startsWith('/api/') ? Response.json({ error: 'Pilih role pekerjaan dulu.' }, { status: 409 }) : redirect('/role');
     if (path === '/sso') return sso(env, url, sess);
     if (path === '/admin' || path.startsWith('/admin/')) return admin(request, env, url, sess);
     if (path === '/akun') return account(request, env, url, sess);

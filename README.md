@@ -18,7 +18,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | ETF Insight | `apps/etf-insight` | ETF KISI (XKMS, XKID): harga vs NAB, kinerja vs indeks, risiko & kinerja per tahun, simulasi investasi, arus dana, pembanding semua ETF di BEI, halaman nasabah `/p/<KODE>`; fakta produk dari `tools.etf.facts` di profil |
 | Content Planner | `apps/content-planner` | Kalender kegiatan tim: konten sosmed, artikel, edukasi/narasumber, permintaan visual ke desainer (papan Tugas desain), laporan PPT/PDF per periode & orang; Program partnership (partner, periode, tujuan, target, hasil bisnis & biaya, kegiatan terkait) dengan tugas yang dibagi Partnership ke anggota tim + tampilan Tugas, notifikasi tugas, dan laporan program PPT/PDF; Paket Mingguan: rangkuman reksa dana, obligasi, agenda pekan depan + draf caption/email; tanpa cron |
 | Competitor Intel | `apps/competitor-intel` | Pantau promo investasi kompetitor |
-| Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor |
+| Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor; ide tim (semua anggota, banyak ide per konten); konsep konten orisinal dibuat AI untuk Social Media Specialist (hook, sudut beda, alur slide/naskah, caption, brief visual, catatan kepatuhan) dan satu tombol ke Content Planner (+ permintaan visual ke desainer) |
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
@@ -61,11 +61,18 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 
 ### Role pekerjaan, tugas, dan notifikasi
 
-- Daftar role ada di `shared/jobs.js`. Role dipilih saat daftar; akun lama tanpa role diminta memilih sekali saat masuk (`/role`). Setelah itu hanya admin yang bisa mengubahnya (halaman Atur akses).
+- Daftar role ada di `shared/jobs.js`. Role dipilih saat daftar; akun lama tanpa role diminta memilih sekali saat masuk (`/role`). Admin hub tidak wajib punya role (admin sudah punya semua hak). Setelah itu hanya admin yang bisa mengubahnya (halaman Atur akses).
 - Role ikut di tiket SSO (`j`). Hub juga mengirim daftar anggota Content Planner (akun disetujui dengan akses Planner + role-nya) ke `POST /__hub/users` setiap kali akun berubah, dan sesekali saat beranda dibuka.
 - Hanya **Partnership** (dan admin hub) yang bisa membuat Program dan memberi tugas. Penerima dipilih dari daftar anggota, bukan diketik, supaya notifikasinya pasti sampai. Penerima tugas hanya bisa mengubah status & link hasil.
 - Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
 - Cek: `node apps/content-planner/test.mjs`
+
+### Content Insight: ide & konsep otomatis
+
+- Semua yang bisa membuka Content Insight (termasuk akses lihat saja) boleh menambah ide pada konten kompetitor (tabel `ci_ideas`). Kolom ide lama dipindah otomatis jadi ide pertama.
+- Social Media Specialist (role `sosmed`) & admin memilih ide yang dipakai, lalu AI menulis konsep baru (tabel `ci_concepts`). AI: Claude bila secret `ANTHROPIC_API_KEY` dipasang di Content Insight, selain itu Workers AI (binding `AI`). Konsep yang terlalu mirip caption kompetitor (rangkaian 4 kata yang sama > 20%) ditulis ulang sekali.
+- "Masukkan ke Content Planner" membuat kegiatan konten berstatus Ide lewat service binding `PLANNER` (`POST /__hub/item`), opsional dengan permintaan visual ke desainer (desainer dapat notifikasi). Konten kompetitornya ditandai sudah dipakai. Karena itu Content Insight di-deploy setelah Content Planner.
+- Cek: `node apps/content-insight/test.mjs`
 
 ## Profil
 

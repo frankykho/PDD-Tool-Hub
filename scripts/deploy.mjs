@@ -26,7 +26,6 @@ export const APPS = [
   { id: "bond", dir: "apps/bond-insight" },
   { id: "etf", dir: "apps/etf-insight" },
   { id: "competitor", dir: "apps/competitor-intel" },
-  { id: "content", dir: "apps/content-insight" },
   { id: "edukasi", dir: "apps/edukasi-studio" },
   { id: "marketproxy", dir: "apps/market-proxy" },
   { id: "storydata", dir: "apps/story-data" },
@@ -34,6 +33,8 @@ export const APPS = [
   { id: "tutorial", dir: "apps/tutorial" },
   // setelah fund & bond: memakai keduanya lewat service binding
   { id: "planner", dir: "apps/content-planner" },
+  // setelah planner: konsep konten dikirim ke Content Planner lewat service binding
+  { id: "content", dir: "apps/content-insight" },
   // setelah storydata: memakainya lewat service binding
   { id: "recap", dir: "apps/market-recap" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
