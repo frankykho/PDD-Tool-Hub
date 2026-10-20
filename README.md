@@ -8,7 +8,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 
 | Tool | Folder | Fungsi |
 |---|---|---|
-| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, garis waktu "Ritme hari ini" (pagi/siang/sore, tanda selesai per langkah), ringkasan "Hari ini" (Market Recap, Content Planner, gerak harian tidak biasa & agenda Fund Insight, promo kompetitor baru, draf Edukasi), status otomatis (cron & GitHub Actions, termasuk langkah yang gagal), halaman detail tool |
+| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, role pekerjaan wajib (Partnership, Investment Specialist, Copywriter, Social Media Specialist, Desainer, Lainnya), lonceng notifikasi tugas, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, garis waktu "Ritme hari ini" (pagi/siang/sore, tanda selesai per langkah), ringkasan "Hari ini" (Market Recap, Content Planner, gerak harian tidak biasa & agenda Fund Insight, promo kompetitor baru, draf Edukasi), status otomatis (cron & GitHub Actions, termasuk langkah yang gagal), halaman detail tool |
 | Email Studio | `apps/email-studio` | Generator email marketing (Market Insight, Weekly Picks, promo, webinar) |
 | Story Generator | `apps/story-generator` | Generator Instagram Story (Morning, Halftime, Wrap, Weekly, RD Highlights, Bond Picks) |
 | Story Data | `apps/story-data` | Data pasar untuk Story Generator + pemicu workflow data |
@@ -16,7 +16,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Fund Insight | `apps/fund-insight` | Data & analisis reksa dana |
 | Bond Insight | `apps/bond-insight` | Data & analisis obligasi |
 | ETF Insight | `apps/etf-insight` | ETF KISI (XKMS, XKID): harga vs NAB, kinerja vs indeks, risiko & kinerja per tahun, simulasi investasi, arus dana, pembanding semua ETF di BEI, halaman nasabah `/p/<KODE>`; fakta produk dari `tools.etf.facts` di profil |
-| Content Planner | `apps/content-planner` | Kalender kegiatan tim: konten sosmed, artikel, edukasi/narasumber, permintaan visual ke desainer (papan Tugas desain), peran tiap anggota, laporan PPT/PDF per periode & orang; Paket Mingguan: rangkuman reksa dana, obligasi, agenda pekan depan + draf caption/email; tanpa cron |
+| Content Planner | `apps/content-planner` | Kalender kegiatan tim: konten sosmed, artikel, edukasi/narasumber, permintaan visual ke desainer (papan Tugas desain), laporan PPT/PDF per periode & orang; Program partnership (partner, periode, tujuan, target, hasil bisnis & biaya, kegiatan terkait) dengan tugas yang dibagi Partnership ke anggota tim + tampilan Tugas, notifikasi tugas, dan laporan program PPT/PDF; Paket Mingguan: rangkuman reksa dana, obligasi, agenda pekan depan + draf caption/email; tanpa cron |
 | Competitor Intel | `apps/competitor-intel` | Pantau promo investasi kompetitor |
 | Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor |
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
@@ -58,6 +58,14 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Status otomatis: jadwal cron (dibaca dari worker Cron lewat service binding; merah bila ada tugas gagal atau cron tidak jalan lebih dari 15 menit) dan GitHub Actions repo di profil (`github.repo`), termasuk nama langkah yang gagal. `GITHUB_TOKEN` hub dipakai bila ada.
 - Favorit disimpan di KV hub (`pref:<email>`); riwayat "Terakhir dibuka" disimpan di browser per akun.
 - Cek: `node apps/tool-hub/test.mjs`
+
+### Role pekerjaan, tugas, dan notifikasi
+
+- Daftar role ada di `shared/jobs.js`. Role dipilih saat daftar; akun lama tanpa role diminta memilih sekali saat masuk (`/role`). Setelah itu hanya admin yang bisa mengubahnya (halaman Atur akses).
+- Role ikut di tiket SSO (`j`). Hub juga mengirim daftar anggota Content Planner (akun disetujui dengan akses Planner + role-nya) ke `POST /__hub/users` setiap kali akun berubah, dan sesekali saat beranda dibuka.
+- Hanya **Partnership** (dan admin hub) yang bisa membuat Program dan memberi tugas. Penerima dipilih dari daftar anggota, bukan diketik, supaya notifikasinya pasti sampai. Penerima tugas hanya bisa mengubah status & link hasil.
+- Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
+- Cek: `node apps/content-planner/test.mjs`
 
 ## Profil
 

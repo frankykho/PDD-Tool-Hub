@@ -98,8 +98,11 @@ const wib = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const plus = (n) => { const d = new Date(wib + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 /* ---------- admin: dashboard lengkap ---------- */
-const reg = await call("/daftar", { method: "POST", form: { name: "Dewi </script><b>x", email: ADMIN, password: "rahasia-123" } });
+assert.equal((await call("/daftar", { method: "POST", form: { name: "Dewi", email: ADMIN, password: "rahasia-123" } })).status, 400, "daftar tanpa role pekerjaan ditolak");
+assert.match(await (await call("/daftar")).text(), /name="job" required/, "pilihan role pekerjaan ada di formulir daftar");
+const reg = await call("/daftar", { method: "POST", form: { name: "Dewi </script><b>x", email: ADMIN, password: "rahasia-123", job: "partnership" } });
 assert.equal(reg.status, 303);
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).job, "partnership");
 const admin = cookieOf(reg);
 assert.match(admin, /^hub_sess=/);
 
@@ -117,6 +120,7 @@ assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["edukas
 assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
+assert.equal(boot.me.job, "Partnership");
 assert.equal(boot.apps.find((a) => a.id === "recap").lvl, "Admin");
 assert.equal(boot.apps.find((a) => a.id === "story").lvl, "Semua tab");
 assert.equal(boot.apps.find((a) => a.id === "fund").src, "/sso?app=fund&back=" + encodeURIComponent("https://fund.acme.test/"), "tool tetap dibuka lewat SSO");
@@ -267,6 +271,23 @@ assert.ok(t.rhythm.data.steps.some((s) => s.id === "plan:a"), "kegiatan Planner 
   assert.deepEqual(by(rhythm(W("2026-10-19T12:30:00"), p2, all)).pdf, ["muted", "Status GitHub tidak terbaca"]);
 }
 
+/* ---------- notifikasi tugas (disimpan di Content Planner, dibaca lewat hub) ---------- */
+assert.ok(t.planner.data.notif && t.planner.data.notif.unread === 0, JSON.stringify(t.planner.data.notif));
+plannerEnv.DB.db.prepare("INSERT INTO notifs (email, at, kind, title, body, item_id) VALUES (?, ?, 'task', 'Tugas baru: Visual banner', 'Program X', 'a')").run(ADMIN, new Date().toISOString());
+plannerEnv.DB.db.prepare("INSERT INTO notifs (email, at, kind, title) VALUES ('lain@acme.test', ?, 'task', 'Bukan untuk admin')").run(new Date().toISOString());
+let pn = (await (await call("/api/today", { cookie: admin })).json()).planner.data.notif;
+assert.equal(pn.unread, 1); assert.equal(pn.items[0].title, "Tugas baru: Visual banner");
+assert.equal((await call("/api/notif/read", { method: "POST", cookie: admin, json: { all: true } })).status, 403, "tanpa Origin ditolak");
+assert.equal((await call("/api/notif/read", { method: "POST", cookie: admin, origin: HUB, json: { ids: [pn.items[0].id] } })).status, 200);
+assert.equal((await (await call("/api/today", { cookie: admin })).json()).planner.data.notif.unread, 0);
+assert.equal(plannerEnv.DB.db.prepare("SELECT COUNT(*) n FROM notifs WHERE read_at IS NULL").get().n, 1, "notifikasi orang lain tidak ikut terbaca");
+
+/* ---------- tiket SSO membawa role pekerjaan ---------- */
+r = await call("/sso?app=planner&back=" + encodeURIComponent("https://planner.acme.test/"), { cookie: admin });
+assert.equal(r.status, 303);
+const tk = new URL(r.headers.get("location")).searchParams.get("hub_t").split(".")[0];
+assert.equal(JSON.parse(Buffer.from(tk, "base64url").toString()).j, "partnership");
+
 /* ---------- favorit ---------- */
 r = await call("/api/prefs", { method: "POST", cookie: admin, json: { fav: ["fund"] } });
 assert.equal(r.status, 403, "tanpa Origin ditolak");
@@ -279,12 +300,25 @@ assert.deepEqual(bootOf(await (await call("/", { cookie: admin })).text()).fav, 
 assert.ok(env.HUB_KV.m.has("pref:" + ADMIN) && JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).hash, "favorit di kunci sendiri, akun utuh");
 
 /* ---------- pengguna terbatas ---------- */
+// akun lama tanpa role pekerjaan: diminta memilih dulu, sekali
 await env.HUB_KV.put("u:user@acme.test", JSON.stringify({ role: "user", status: "approved", name: "Rina", access: { fund: "viewer" }, hash: await hashPw("rahasia-456") }));
 const user = cookieOf(await call("/login", { method: "POST", form: { email: "user@acme.test", password: "rahasia-456" } }));
 assert.match(user, /^hub_sess=/);
+r = await call("/", { cookie: user });
+assert.equal(r.status, 303); assert.equal(r.headers.get("location"), "/role", "belum punya role -> halaman pilih role");
+assert.equal((await call("/api/today", { cookie: user })).status, 409);
+assert.equal((await call("/sso?app=fund&back=" + encodeURIComponent("https://fund.acme.test/"), { cookie: user })).headers.get("location"), "/role", "tool belum bisa dibuka sebelum memilih role");
+assert.match(await (await call("/role", { cookie: user })).text(), /type="radio" name="job" value="partnership"/);
+assert.equal((await call("/role", { method: "POST", cookie: user, form: { job: "copy" } })).status, 403, "tanpa Origin ditolak");
+assert.equal((await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "ngawur" } })).status, 400);
+assert.equal((await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "copy" } })).status, 303);
+await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "partnership" } });
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "copy", "setelah dipilih, role tidak bisa diganti sendiri");
+assert.equal((await call("/role", { cookie: user })).headers.get("location"), "/");
 boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
+assert.equal(boot.me.job, "Copywriter");
 assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, jobs: true, cron: true, rhythm: true });
 assert.equal(boot.me.admin, false);
 const ut = await (await call("/api/today", { cookie: user })).json();
@@ -293,6 +327,15 @@ assert.ok(ut.rhythm.data.steps.every((s) => ["pdf", "nav1", "nav2"].includes(s.i
 r = await call("/api/prefs", { method: "POST", cookie: user, origin: HUB, json: { fav: ["fund", "recap"] } });
 assert.deepEqual((await r.json()).fav, ["fund"], "tidak bisa memfavoritkan tool tanpa akses");
 assert.equal((await call("/sso?app=recap&back=" + encodeURIComponent("https://recap.acme.test/"), { cookie: user })).status, 403, "SSO tetap menolak tool tanpa akses");
+
+/* ---------- admin mengubah role & akses: daftar anggota Planner ikut diperbarui ---------- */
+assert.match(await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text(), /<option value="copy" selected>Copywriter/);
+r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "design", a_fund: "viewer", a_planner: "1" } });
+assert.equal(r.status, 200);
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "design");
+const members = plannerEnv.DB.db.prepare("SELECT email, name, role, active FROM users ORDER BY email").all().map((x) => ({ ...x }));
+assert.deepEqual(members.filter((x) => x.active === 1).map((x) => [x.email, x.role]), [[ADMIN, "partnership"], ["user@acme.test", "design"]], "anggota Planner = admin + akun dengan akses Planner, beserta role-nya");
+assert.match(await (await call("/admin", { cookie: admin })).text(), /Desainer/, "role tampil di daftar pengguna admin");
 
 /* ---------- tanpa sesi ---------- */
 assert.equal((await call("/api/today")).status, 401);

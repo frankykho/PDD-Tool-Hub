@@ -125,6 +125,22 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .avatar{width:38px;height:38px;border-radius:50%;border:0;background:var(--brand-soft);color:var(--brand-text);font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
 .side .avatar{width:34px;height:34px;background:var(--side-2);color:var(--brand)}
 .menu-wrap{position:relative}
+.bellbtn{position:relative}
+.nbadge{position:absolute;top:1px;right:1px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--err);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;box-shadow:0 0 0 2px var(--bg)}
+.nbadge[hidden]{display:none}
+.menu.notif{width:min(380px,calc(100vw - 32px));max-height:min(72vh,540px);overflow:auto;padding:0}
+.notif .nh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
+.notif .nh b{font-size:13.5px}
+.notif .ni{display:flex;gap:10px;width:100%;text-align:left;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:none;cursor:pointer;color:var(--text);font:inherit}
+.notif .ni:hover,.notif .ni:focus-visible{background:var(--hover)}
+.notif .ni .dot{margin-top:6px}
+.notif .ni b{display:block;font-size:13px;font-weight:600;line-height:1.35}
+.notif .ni.read b{font-weight:500;color:var(--text-2)}
+.notif .ni small{display:block;font-size:12px;color:var(--text-2);margin-top:2px}
+.notif .nempty{padding:18px 14px;font-size:13px;color:var(--text-2)}
+.notif .nf{padding:9px 14px}
+.row button.m{background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.row button.m:hover b{text-decoration:underline}
 .menu{position:absolute;right:0;top:calc(100% + 8px);min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:6px;z-index:60;display:none}
 .menu.open{display:block}
 .menu .mh{padding:10px 12px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
@@ -392,7 +408,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
       <button class="iconbtn menu-btn" id="menuBtn" type="button" aria-label="Buka menu"></button>
       <div class="greet"><h1 id="greet">Halo</h1><p id="greetSub">Apa yang ingin kamu kerjakan hari ini?</p></div>
       <button class="searchbtn" id="searchBtn" type="button" aria-haspopup="dialog" aria-label="Cari tool, halaman, atau aksi"></button>
-      <div class="top-actions"><div class="menu-wrap" id="acct"><button class="avatar" id="acctBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="acctMenu"></button><div class="menu" id="acctMenu" role="menu"></div></div></div>
+      <div class="top-actions"><div class="menu-wrap" id="bell" hidden><button class="iconbtn bellbtn" id="bellBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="bellMenu" aria-label="Notifikasi"></button><div class="menu notif" id="bellMenu" role="menu" aria-label="Notifikasi"></div></div><div class="menu-wrap" id="acct"><button class="avatar" id="acctBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="acctMenu"></button><div class="menu" id="acctMenu" role="menu"></div></div></div>
     </header>
     <div id="content" tabindex="-1">
       <section class="view" data-view="home" id="vHome">
@@ -448,6 +464,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
     monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
@@ -604,7 +621,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     $("#searchBtn").innerHTML = icon("search") + "<span>Cari tool, halaman, atau aksi…</span><kbd>" + (mac ? "⌘ K" : "Ctrl K") + "</kbd>";
     $("#palIn").insertAdjacentHTML("afterbegin", icon("search")); $("#palClear").innerHTML = icon("x");
     $("#acctBtn").textContent = initials; $("#acctBtn").setAttribute("aria-label", "Menu akun " + (H.me.name || H.me.email));
-    $("#acctMenu").innerHTML = '<div class="mh"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email) + "</small></div>" +
+    $("#acctMenu").innerHTML = '<div class="mh"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email + (H.me.job ? " · " + H.me.job : "")) + "</small></div>" +
       '<a role="menuitem" href="/akun">' + icon("key") + "Ganti password</a>" +
       (H.me.admin ? '<a role="menuitem" href="/admin">' + icon("shield") + "Admin" + (H.pending ? '<span class="badge st-warn">' + H.pending + " menunggu</span>" : "") + "</a>" : "") +
       '<a role="menuitem" href="/logout">' + icon("logout") + "Keluar</a>";
@@ -662,6 +679,13 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     var design = function (it) { return '<div class="row"><div class="m"><b>' + esc(it.title) + "</b><small>Desain · tenggat " + esc(hari(it.d_due || it.date)) + '</small></div><span class="badge cap ' + (PST[it.d_status] || "st-muted") + '">' + esc(it.d_status || "belum") + "</span></div>"; };
     // kegiatan hari ini yang berjam sudah ada di Ritme hari ini; di sini yang tanpa jam, milikmu ke depan, dan tugas desain
     var loose = d.today.filter(function (x) { return !/^\d{2}:\d{2}/.test(x.time || ""); }), mine = d.mine.filter(function (x) { return x.date !== d.date; }).slice(0, 4), des = d.design.slice(0, 4), html = "";
+    // tugas dari Partnership (program), paling atas karena ada yang menunggu hasilnya
+    var tasks = d.tasks || [], td = todayIso();
+    if (tasks.length) html += '<div class="subh">Tugas program untukmu · ' + tasks.length + '</div><div class="rows">' + tasks.slice(0, 4).map(function (x) {
+      var late = x.due < td;
+      return '<div class="row"><button type="button" class="m" data-pitem="' + esc(x.item_id) + '"><b>' + esc(x.title) + "</b><small>" + esc([x.item_title, (late ? "lewat tenggat " : "tenggat ") + hari(x.due), x.by_name ? "dari " + x.by_name : ""].filter(Boolean).join(" · ")) +
+        '</small></button><span class="badge cap ' + (late ? "st-err" : PST[x.status] || "st-muted") + '">' + esc(TSL[x.status] || x.status || "belum") + "</span></div>";
+    }).join("") + "</div>";
     if (loose.length) html += '<div class="subh">Hari ini, tanpa jam · ' + loose.length + '</div><div class="rows">' + loose.slice(0, 4).map(function (it) { return item(it, ""); }).join("") + "</div>";
     if (mine.length) html += '<div class="subh">Milikmu, 7 hari ke depan</div><div class="rows">' + mine.map(function (it) { return item(it, hari(it.date)); }).join("") + "</div>";
     if (des.length) html += '<div class="subh">Tugas desain untukmu · ' + d.design.length + '</div><div class="rows">' + des.map(design).join("") + "</div>";
@@ -766,7 +790,27 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     el.innerHTML = head + '<div class="rhy-cols">' + cols + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date) + " · " + d.now + " WIB" + (note ? " · " + note : "")) +
       '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang ritme" title="Muat ulang">' + icon("refresh") + "</button></div>";
   }
-  function fillAll(d) { fillRhythm(d.rhythm); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
+  /* ---------- notifikasi tugas (disimpan Content Planner, ikut /api/today) ---------- */
+  var TSL = { belum: "Belum mulai", proses: "Dikerjakan", revisi: "Revisi", selesai: "Selesai" };
+  function todayIso() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); }
+  var NOTIF = { unread: 0, items: [] };
+  function plannerUrl(q) { var a = byId.planner, base = a && a.pages && a.pages[0] ? a.pages[0][1] : ""; if (!base) return ""; var u = new URL(base); u.search = q; return u.href; }
+  function openPlanner(q) { var u = plannerUrl(q); if (u) openPage("planner", u); else go("#planner"); }
+  function renderBell() {
+    var n = NOTIF.unread, b = $("#bellN");
+    if (!b) return;
+    b.hidden = !n; b.textContent = n > 9 ? "9+" : String(n);
+    $("#bellBtn").setAttribute("aria-label", "Notifikasi" + (n ? ", " + n + " belum dibaca" : ""));
+    $("#bellMenu").innerHTML = '<div class="nh"><b>Notifikasi</b>' + (n ? '<button class="link" type="button" data-nall>Tandai semua dibaca</button>' : "") + "</div>" +
+      (NOTIF.items.length ? NOTIF.items.map(function (x) {
+        return '<button type="button" role="menuitem" class="ni' + (x.read_at ? " read" : "") + '" data-nid="' + esc(String(x.id)) + '" data-item="' + esc(x.item_id || "") + '"><span class="dot ' + (x.read_at ? "" : x.kind === "due" ? "warn" : "info") + '" aria-hidden="true"></span><span><b>' + esc(x.title) + "</b><small>" + esc((x.body ? x.body + " · " : "") + ago(Date.parse(x.at))) + "</small></span></button>";
+      }).join("") : '<div class="nempty">Belum ada notifikasi. Tugas yang diberikan kepadamu akan muncul di sini.</div>') +
+      '<div class="nf"><button class="link" type="button" data-ntasks>Lihat semua tugas ' + icon("arrowR") + "</button></div>";
+  }
+  function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NOTIF = r.data.notif; renderBell(); } }
+  function bell(open) { var m = $("#bellMenu"); if (!m) return; m.classList.toggle("open", open); $("#bellBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = m.querySelector("button"); if (f) f.focus(); } }
+  function markRead(body) { return fetch("/api/notif/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(function () { }); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {
@@ -967,6 +1011,8 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-open],[data-fav],[data-chip],[data-palette],[data-retry],[data-clearq],[data-page],[data-theme]");
     if (!e.target.closest("#acct")) acct(false);
+    if (!e.target.closest("#bell")) bell(false);
+    var pi = e.target.closest("[data-pitem]"); if (pi) { openPlanner("?item=" + encodeURIComponent(pi.dataset.pitem)); return; }
     if (!t || t.tagName === "HTML") return;
     if (t.dataset.open) { go("#" + t.dataset.open); }
     else if (t.dataset.fav) { toggleFav(t.dataset.fav); }
@@ -985,9 +1031,29 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     var k = (e.key || "").toLowerCase(), typing = /^(input|textarea|select)$/i.test((e.target && e.target.tagName) || "") || (e.target && e.target.isContentEditable);
     if ((e.ctrlKey || e.metaKey) && k === "k") { e.preventDefault(); if (pal.hidden) palOpen(); else palClose(); return; }
     if (k === "/" && !typing && pal.hidden) { e.preventDefault(); palOpen(); return; }
-    if (k === "escape") { if (!pal.hidden) return palClose(); if ($("#acctMenu").classList.contains("open")) { acct(false); $("#acctBtn").focus(); return; } if (app.classList.contains("drawer")) { closeDrawer(); $(curId ? "#menuBtn2" : "#menuBtn").focus(); } }
+    if (k === "escape") { if (!pal.hidden) return palClose(); if ($("#acctMenu").classList.contains("open")) { acct(false); $("#acctBtn").focus(); return; } if ($("#bellMenu").classList.contains("open")) { bell(false); $("#bellBtn").focus(); return; } if (app.classList.contains("drawer")) { closeDrawer(); $(curId ? "#menuBtn2" : "#menuBtn").focus(); } }
   });
-  $("#acctBtn").addEventListener("click", function (e) { e.stopPropagation(); acct(!$("#acctMenu").classList.contains("open")); });
+  $("#acctBtn").addEventListener("click", function (e) { e.stopPropagation(); bell(false); acct(!$("#acctMenu").classList.contains("open")); });
+  // lonceng: hanya untuk yang boleh membuka Content Planner (notifikasi tugas disimpan di sana)
+  $("#bell").hidden = !byId.planner;
+  $("#bellBtn").innerHTML = icon("bell") + '<span class="nbadge" id="bellN" hidden></span>'; renderBell();
+  $("#bellBtn").addEventListener("click", function (e) { e.stopPropagation(); acct(false); bell(!$("#bellMenu").classList.contains("open")); });
+  $("#bellMenu").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var all = e.target.closest("[data-nall]"), it = e.target.closest("[data-nid]"), tk = e.target.closest("[data-ntasks]");
+    if (all) { NOTIF.items.forEach(function (x) { if (!x.read_at) x.read_at = new Date().toISOString(); }); NOTIF.unread = 0; renderBell(); markRead({ all: true }); return; }
+    if (tk) { bell(false); openPlanner("?view=tasks"); return; }
+    if (!it) return;
+    var x = NOTIF.items.filter(function (y) { return String(y.id) === it.dataset.nid; })[0];
+    if (x && !x.read_at) { x.read_at = new Date().toISOString(); NOTIF.unread = Math.max(0, NOTIF.unread - 1); markRead({ ids: [x.id] }); }
+    renderBell(); bell(false);
+    openPlanner(it.dataset.item ? "?item=" + encodeURIComponent(it.dataset.item) : "?view=tasks");
+  });
+  $("#bellMenu").addEventListener("keydown", function (e) {
+    var items = [].slice.call(this.querySelectorAll("button")), i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
   $("#acctMenu").addEventListener("keydown", function (e) {
     var items = [].slice.call(this.querySelectorAll("a")), i = items.indexOf(document.activeElement);
     if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }

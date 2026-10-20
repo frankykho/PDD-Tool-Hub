@@ -42,8 +42,19 @@ textarea.f{width:100%;resize:vertical}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
 .msg{padding:10px 12px;border-radius:10px;background:var(--s2);color:var(--s2-t);margin:10px 0}
 .msg.err{background:var(--s5);color:var(--s5-t)}
-.role{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:var(--r);background:var(--g2)}
-.role b{margin-right:4px}
+/* ---------- Tugas (program partnership) ---------- */
+.tasks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.tasks .col h3{align-items:center}
+.trow{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--line)}
+.trow:last-child{border-bottom:0}
+.trow .ti{flex:1;min-width:0}
+.trow .ti b{display:block;font-size:13px}
+.trow .ti small{display:block;color:var(--t2);font-size:12px}
+.trow .ti button.lnk{border:0;background:none;padding:0;font:inherit;color:var(--g);cursor:pointer;text-align:left;font-weight:600}
+.trow select{width:auto;padding:4px 6px;font-size:12px}
+.trow .x{border:0;background:none;color:var(--t2);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
+.late{color:var(--bad);font-weight:600}
+@media (max-width:900px){.tasks{grid-template-columns:minmax(0,1fr)}}
 
 /* status: 1 abu (ide/rencana/belum) · 2 kuning (draf/konfirmasi/proses) · 3 biru (review/revisi) · 4 hijau (terbit/selesai) · 5 merah (batal) */
 .c1{background:var(--s1);color:var(--s1-t)} .c2{background:var(--s2);color:var(--s2-t)} .c3{background:var(--s3);color:var(--s3-t)} .c4{background:var(--s4);color:var(--s4-t)} .c5{background:var(--s5);color:var(--s5-t)}
@@ -154,11 +165,11 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <button class="btn sm" id="next" aria-label="Berikutnya">›</button>
     <button class="btn sm" id="today">Hari ini</button></span>
     <span class="sp"></span>
-    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button></div>
+    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button></div>
     <button class="btn" id="repBtn">⬇ Laporan</button>
     <button class="btn pri" id="addBtn">+ Kegiatan</button>
   </div>
-  <div class="role" id="roleBox" hidden></div>
+
   <div class="bar" id="filters" style="margin-top:-4px">
     <select class="f" id="fKind" aria-label="Filter jenis"><option value="">Semua jenis</option></select>
     <select class="f" id="fSt" aria-label="Filter status"><option value="">Semua status</option></select>
@@ -222,11 +233,21 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
       </div>
       <div class="fld"><label for="iAud">Penyelenggara / audiens</label><input class="f" id="iAud" maxlength="160" placeholder="mis. Komunitas investor kampus X"></div>
     </div>
+    <div class="grp" id="gProg">
+      <span class="lbl">Detail program</span>
+      <div class="grid2">
+        <div class="fld"><label for="iPartner">Partner</label><input class="f" id="iPartner" maxlength="120" placeholder="mis. BEM Kampus X"></div>
+        <div class="fld"><label for="iEnd">Selesai</label><input class="f" type="date" id="iEnd"></div>
+      </div>
+      <div class="fld"><label for="iGoal">Tujuan</label><textarea class="f" id="iGoal" rows="2" maxlength="1000" placeholder="mis. Mengenalkan reksa dana ke mahasiswa tingkat akhir"></textarea></div>
+      <div class="fld"><label for="iTarget">Target</label><input class="f" id="iTarget" maxlength="300" placeholder="mis. 300 peserta, 50 akun baru"></div>
+    </div>
     <div class="grid2">
       <div class="fld"><label for="iOw" id="lOw">Penanggung jawab</label><input class="f" id="iOw" maxlength="60" list="people" autocomplete="off"></div>
       <div class="fld"><label for="iLink" id="lLink">Link</label><input class="f" id="iLink" maxlength="500" placeholder="https://…"></div>
     </div>
     <div class="fld"><label for="iNote" id="lNote">Catatan / ide</label><textarea class="f" id="iNote" rows="3" maxlength="4000"></textarea></div>
+    <div class="fld" id="gLink"><label for="iProg">Bagian dari program</label><select class="f" id="iProg"></select></div>
     <div class="grp">
       <span class="lbl">Hasil (untuk laporan)</span>
       <div class="grid2">
@@ -234,7 +255,35 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
         <div class="fld"><label for="iResN">Catatan hasil</label><input class="f" id="iResN" maxlength="300" placeholder="mis. banyak tanya soal obligasi"></div>
       </div>
     </div>
-    <label class="chk"><input type="checkbox" id="iNeed"> 🎨 Butuh visual dari desainer</label>
+    <div class="grp" id="gBiz">
+      <span class="lbl">Hasil bisnis &amp; biaya (untuk laporan program)</span>
+      <div class="grid3">
+        <div class="fld"><label for="iReach">Jangkauan</label><input class="f" id="iReach" inputmode="numeric" maxlength="18"></div>
+        <div class="fld"><label for="iLeads">Leads</label><input class="f" id="iLeads" inputmode="numeric" maxlength="18"></div>
+        <div class="fld"><label for="iAcc">Akun baru</label><input class="f" id="iAcc" inputmode="numeric" maxlength="18"></div>
+        <div class="fld"><label for="iAum">Nilai transaksi / AUM (Rp)</label><input class="f" id="iAum" inputmode="numeric" maxlength="20"></div>
+        <div class="fld"><label for="iBudget">Anggaran (Rp)</label><input class="f" id="iBudget" inputmode="numeric" maxlength="20"></div>
+        <div class="fld"><label for="iCost">Biaya realisasi (Rp)</label><input class="f" id="iCost" inputmode="numeric" maxlength="20"></div>
+      </div>
+    </div>
+    <div class="grp" id="gTask">
+      <span class="lbl">Tugas tim</span>
+      <div id="tList"></div>
+      <div id="tAdd">
+        <div class="grid3">
+          <div class="fld"><label for="tTitle">Tugas</label><input class="f" id="tTitle" maxlength="160" placeholder="mis. Visual banner acara"></div>
+          <div class="fld"><label for="tJob">Role</label><select class="f" id="tJob"></select></div>
+          <div class="fld"><label for="tWho">Orang</label><select class="f" id="tWho"></select></div>
+        </div>
+        <div class="grid2">
+          <div class="fld"><label for="tDue">Tenggat</label><input class="f" type="date" id="tDue"></div>
+          <div class="fld"><label for="tBrief">Brief</label><input class="f" id="tBrief" maxlength="2000" placeholder="Yang perlu dikerjakan, ukuran, referensi…"></div>
+        </div>
+        <div class="acts" style="margin:0 0 10px"><button type="button" class="btn sm pri" id="tSave">+ Beri tugas</button><span class="muted small" id="tMsg"></span></div>
+      </div>
+      <p class="muted small" id="tNote" style="margin:0 0 10px"></p>
+    </div>
+    <label class="chk" id="lNeed"><input type="checkbox" id="iNeed"> 🎨 Butuh visual dari desainer</label>
     <div class="grp" id="gDes">
       <div class="grid3">
         <div class="fld"><label for="iDes">Desainer</label><input class="f" id="iDes" maxlength="60" list="designers" autocomplete="off"></div>
@@ -254,15 +303,17 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 <!-- ============ LAPORAN ============ -->
 <dialog id="rep">
   <div class="dlg">
-    <h2>Laporan kegiatan</h2>
+    <h2>Laporan</h2>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
-    <div class="fld"><label for="rWho">Orang</label><select class="f" id="rWho"></select></div>
-    <div class="fld"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
+    <div class="fld" id="rProgF"><label for="rProg">Program</label><select class="f" id="rProg"></select></div>
+    <div class="fld" id="rWhoF"><label for="rWho">Orang</label><select class="f" id="rWho"></select></div>
+    <div class="fld" id="rKindsF"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
     <div id="repErr"></div>
     <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
-    <p class="muted small" style="margin:10px 0 0">PDF: di jendela cetak, pilih <b>Simpan sebagai PDF</b>. Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan.</p>
+    <p class="muted small" id="rHelp" style="margin:10px 0 0"></p>
   </div>
 </dialog>
 <div id="printArea"></div>
@@ -272,17 +323,18 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 const PL=window.PL||{},P=window.PROFILE||{},B=P.brand||{},K=PL.kinds||{};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit",rencana:"Rencana",konfirmasi:"Konfirmasi",selesai:"Selesai",batal:"Batal"};
-const SCL={ide:1,rencana:1,draf:2,konfirmasi:2,review:3,terbit:4,selesai:4,batal:5};
+const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit",rencana:"Rencana",konfirmasi:"Konfirmasi",berjalan:"Berjalan",selesai:"Selesai",batal:"Batal"};
+const SCL={ide:1,rencana:1,draf:2,konfirmasi:2,review:3,berjalan:3,terbit:4,selesai:4,batal:5};
 const DSL={belum:"Belum mulai",proses:"Dikerjakan",revisi:"Revisi",selesai:"Selesai"},DCL={belum:1,proses:2,revisi:3,selesai:4};
-const ICON={konten:"📱",artikel:"📝",edukasi:"🎤"};
+const ICON={konten:"📱",artikel:"📝",edukasi:"🎤",program:"🤝"};
 // label isian per jenis kegiatan
 const LAB={
   konten:{title:"Ide / judul konten",date:"Tanggal tayang",ch:"Kanal",link:"Link postingan",note:"Ide / caption / catatan",res:"Jangkauan / views",ph:"mis. Edukasi: apa itu NAB?"},
   artikel:{title:"Judul artikel",date:"Tanggal tayang",ch:"Kanal",link:"Link artikel",note:"Outline / catatan",res:"Pembaca / views",ph:"mis. 5 hal sebelum membeli obligasi"},
   edukasi:{title:"Judul acara / materi",date:"Tanggal acara",ch:"Format",link:"Link materi / dokumentasi",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Webinar mengenal reksa dana"},
+  program:{title:"Nama program",date:"Mulai",ch:"Jenis program",link:"Link proposal / dokumentasi",note:"Catatan",res:"Jumlah peserta",ph:"mis. Kelas investasi Kampus X"},
 };
-const KIND_OF_ROLE={is:"edukasi",copy:"artikel",sosmed:"konten",design:"konten",lain:"konten"};
+const KIND_OF_ROLE={partnership:"program",is:"edukasi",copy:"artikel",sosmed:"konten",design:"konten",lain:"konten"};
 const MON=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const DAY=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 const iso=d=>d.toISOString().slice(0,10);
@@ -317,16 +369,10 @@ async function loadUsers(){
   $("people").innerHTML=USERS.map(u=>`<option value="${esc(u.name)}">${esc(PL.roles[u.role]||"")}</option>`).join("");
   $("designers").innerHTML=USERS.filter(u=>u.role==="design").concat(USERS.filter(u=>u.role!=="design")).map(u=>`<option value="${esc(u.name)}">${esc(PL.roles[u.role]||"")}</option>`).join("");
 }
-function roleBox(){
-  const box=$("roleBox");if(PL.me.role){box.hidden=true;return}
-  box.hidden=false;
-  box.innerHTML=`<b>Peran Anda di tim?</b>${Object.entries(PL.roles).map(([k,v])=>`<button type="button" class="btn sm" data-role="${k}">${esc(v)}</button>`).join("")}<span class="muted small">Dipakai untuk tampilan awal & laporan. Bisa diganti nanti di sini.</span>`;
-}
-$("roleBox").addEventListener("click",async e=>{
-  const b=e.target.closest("[data-role]");if(!b)return;
-  try{await api("/api/me/role",{role:b.dataset.role});PL.me.role=b.dataset.role;roleBox();await loadUsers();if(PL.me.role==="design"&&!recall("pl_view"))setView("design")}
-  catch(err){showErr("calErr",err)}
-});
+// role pekerjaan diatur di Tool Hub (dipilih saat daftar, bisa diubah admin), jadi tidak ditanyakan lagi di sini
+let PROGS=[];
+async function loadProgs(){try{PROGS=await api("/api/programs")}catch(e){PROGS=[]}}
+const progName=id=>{const p=PROGS.find(x=>x.id===id);return p?p.title:""};
 
 /* =================== KALENDER =================== */
 let cur=todayIso().slice(0,8)+"01",view="month",items=[],range={from:"",to:""};
@@ -334,10 +380,12 @@ function fillSelects(){
   $("fKind").insertAdjacentHTML("beforeend",Object.keys(K).map(k=>`<option value="${k}">${ICON[k]} ${esc(K[k].label)}</option>`).join("")+'<option value="desain">🎨 Butuh visual</option>');
   const st=[...new Set(Object.values(K).flatMap(k=>k.statuses))];
   $("fSt").insertAdjacentHTML("beforeend",opts(st,STL));
-  $("iKind").innerHTML=Object.keys(K).map(k=>`<button type="button" data-k="${k}">${ICON[k]} ${esc(K[k].label)}</button>`).join("");
+  // program hanya bisa dibuat Partnership & admin
+  $("iKind").innerHTML=Object.keys(K).filter(k=>k!=="program"||PL.me.assign).map(k=>`<button type="button" data-k="${k}">${ICON[k]} ${esc(K[k].label)}</button>`).join("");
   $("iRole").innerHTML=opts(PL.eduRoles);$("iDst").innerHTML=opts(PL.designStatuses,DSL);
+  $("tJob").innerHTML=Object.keys(PL.roles).filter(k=>k!=="partnership").map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
   const v=recall("pl_view");
-  view=v==="list"||v==="month"||v==="design"?v:PL.me.role==="design"?"design":"month";
+  view=v==="list"||v==="month"||v==="design"||v==="tasks"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
   if(view==="month"&&matchMedia("(max-width:640px)").matches)view="list";
 }
 function fillPeople(){
@@ -358,6 +406,7 @@ function shown(){
 }
 async function loadCal(){
   const d=D(cur);$("period").textContent=`${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  if(view==="tasks")return loadTasksView();
   if(view==="design"){range={from:cur,to:monthEnd(cur)};}
   else{const dow=(D(cur).getUTCDay()+6)%7,last=monthEnd(cur),ldow=(D(last).getUTCDay()+6)%7;range={from:addD(cur,-dow),to:addD(last,6-ldow)};}
   try{items=await api(`/api/items?from=${range.from}&to=${range.to}${view==="design"?"&design=1":""}`);showErr("calErr");}
@@ -370,8 +419,10 @@ function chip(i){
   return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
-  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");
+  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");
   $("fSt").hidden=view==="design";$("calHelp").hidden=view==="design";
+  ["fKind","fSt","fOw"].forEach(id=>$(id).hidden=view==="tasks"||(id==="fSt"&&view==="design"));$("calHelp").hidden=view!=="month"&&view!=="list";
+  if(view==="tasks")return renderTasksView();
   const list=shown(),mStart=cur,mEnd=monthEnd(cur),t=todayIso();
   if(view==="design")return renderBoard(list,t);
   const inMonth=list.filter(i=>i.date>=mStart&&i.date<=mEnd);
@@ -398,6 +449,31 @@ function renderBoard(list,t){
     return `<div class="col"><h3><span>${DSL[s]}</span><span class="muted">${C.length}</span></h3>${C.map(i=>{const due=i.d_due||i.date,late=s!=="selesai"&&due<t;
       return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b>${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small>${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain">${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
 }
+/* ---------- Tugas: untukku & dariku (Partnership: bisa melihat semua tugas tim) ---------- */
+const TV={all:false,list:[]};
+async function loadTasksView(){
+  try{TV.list=await api("/api/tasks?"+(TV.all?"all=1":"mine=1"));showErr("calErr")}catch(e){TV.list=[];showErr("calErr",e)}
+  renderCal();
+}
+const canEditTask=t=>PL.me.adm||t.who===PL.me.email||t.by_email===PL.me.email;
+// inForm: di dalam form program itu sendiri, tautan ke programnya tidak perlu
+function taskRow(t,mineCol,extra="",inForm=false){
+  const today=todayIso(),late=t.status!=="selesai"&&t.due<today;
+  const who=mineCol?`dari ${esc(t.by_name||"?")}`:`untuk ${esc(t.who_name||t.who)}${t.job?" · "+esc(PL.roles[t.job]||t.job):""}`;
+  return `<div class="trow"><div class="ti"><b>${esc(t.title)}</b>${inForm?"":`<small><button type="button" class="lnk" data-prog="${esc(t.item_id)}">🤝 ${esc(t.item_title||"Program")}</button></small>`}<small class="${late?"late":""}">Tenggat ${fmtDate(t.due)}${late?" · lewat":""} · ${who}</small>${t.brief?`<small>${esc(t.brief.slice(0,140))}${t.brief.length>140?"…":""}</small>`:""}${t.link?`<small><a href="${esc(t.link)}" target="_blank" rel="noopener">Hasil ↗</a></small>`:""}</div>`+
+    (canEditTask(t)?`<select class="f" data-tstat="${esc(t.id)}" aria-label="Status tugas ${esc(t.title)}">${opts(PL.taskStatuses,DSL).replace(`value="${t.status||"belum"}"`,`value="${t.status||"belum"}" selected`)}</select>`:`<span class="stat c${DCL[t.status]||1}">${DSL[t.status]||"–"}</span>`)+extra+"</div>";
+}
+function renderTasksView(){
+  const me=PL.me.email,L=TV.list,open=L.filter(t=>t.status!=="selesai"),t=todayIso();
+  const forMe=L.filter(x=>x.who===me),other=L.filter(x=>x.who!==me&&(TV.all||x.by_email===me));
+  $("stats").innerHTML=`<span class="stat">${open.filter(x=>x.who===me).length} tugas untukmu belum selesai</span><span class="stat c5">${open.filter(x=>x.due<t).length} lewat tenggat</span>`;
+  const col=(title,list,mineCol,empty)=>`<div class="col"><h3><span>${title}</span><span class="muted">${list.length}</span></h3>${list.length?list.map(x=>taskRow(x,mineCol)).join(""):`<p class="muted small" style="margin:4px">${empty}</p>`}</div>`;
+  $("calBox").innerHTML=`<div class="tasks">${col("Untukmu",forMe,true,"Belum ada tugas untukmu.")}`+
+    (PL.me.assign||other.length?col(TV.all?"Tugas tim lainnya":"Kamu berikan",other,false,PL.me.assign?"Buka sebuah program, lalu beri tugas di bagian Tugas tim.":"Tidak ada."):"")+"</div>"+
+    (PL.me.assign?`<label class="chk small" style="margin-top:10px"><input type="checkbox" id="tAll"${TV.all?" checked":""}> Tampilkan semua tugas tim</label>`:"")+
+    `<p class="muted small" style="margin-top:8px">Tugas yang sudah selesai tetap tampil 30 hari. Klik nama program untuk membuka rinciannya.</p>`;
+}
+const openItem=async id=>{try{openForm(await api("/api/items?id="+encodeURIComponent(id)))}catch(e){showErr("calErr",e)}};
 // form tambah / ubah
 let editing=null,fKind="konten";
 function setKind(k){
@@ -407,7 +483,8 @@ function setKind(k){
   const ch=$("iCh").value,st=$("iSt").value;
   $("iCh").innerHTML=opts(cfg.channels);$("iCh").value=cfg.channels.includes(ch)?ch:cfg.channels[0];
   $("iSt").innerHTML=opts(cfg.statuses,STL);$("iSt").value=cfg.statuses.includes(st)?st:cfg.statuses[0];
-  $("gEdu").hidden=k!=="edukasi";$("lOw").textContent=k==="edukasi"?"Narasumber / penanggung jawab":"Penanggung jawab";
+  $("gEdu").hidden=k!=="edukasi";$("lOw").textContent=k==="edukasi"?"Narasumber / penanggung jawab":k==="program"?"PIC program":"Penanggung jawab";
+  const pr=k==="program";$("gProg").hidden=!pr;$("gBiz").hidden=!pr;$("gTask").hidden=!pr;$("gLink").hidden=pr;$("lNeed").hidden=pr;$("gDes").hidden=pr||!$("iNeed").checked;
 }
 $("iKind").addEventListener("click",e=>{const b=e.target.closest("[data-k]");if(b)setKind(b.dataset.k)});
 $("iNeed").onchange=()=>{$("gDes").hidden=!$("iNeed").checked;if($("iNeed").checked&&!$("iDue").value)$("iDue").value=addD($("iDate").value||todayIso(),-2)};
@@ -422,20 +499,73 @@ function openForm(it,date){
   $("iRes").value=it&&it.result_num!=null?it.result_num:"";$("iResN").value=v("result_note");
   $("iNeed").checked=!!(it&&it.d_need);$("gDes").hidden=!$("iNeed").checked;
   $("iDes").value=it?(v("d_name")||nameOf(it.d_who)):"";$("iDue").value=v("d_due");$("iDst").value=v("d_status","belum");$("iBrief").value=v("d_brief");$("iDlink").value=v("d_link");
+  if(kindOf(it||{kind:fKind})==="program"&&!it)$("gDes").hidden=true;
+  // program: detail, hasil bisnis, tugas tim; kegiatan lain: pilihan program induknya
+  $("iPartner").value=v("partner");$("iEnd").value=v("end_date");$("iGoal").value=v("goal");$("iTarget").value=v("target");
+  [["iReach","reach"],["iLeads","leads"],["iAcc","accounts"],["iAum","aum"],["iBudget","budget"],["iCost","cost"]].forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
+  const pid=v("program_id"),act=PROGS.filter(p=>p.status!=="batal"||p.id===pid);
+  $("iProg").innerHTML='<option value="">Bukan bagian program</option>'+act.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");$("iProg").value=pid;
+  const ro=kindOf(it||{kind:fKind})==="program"&&it&&!PL.me.assign;
+  $("iSave").hidden=!!ro;
+  renderTaskBox();
   const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
-  $("iMeta").textContent=it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"";
+  $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
 }
+/* ---------- tugas di dalam program (di form) ---------- */
+let FT=[];
+async function renderTaskBox(){
+  const it=editing,pr=fKind==="program";
+  $("tAdd").hidden=!(pr&&it&&PL.me.assign);
+  $("tNote").textContent=!pr?"":!it?(PL.me.assign?"Simpan program dulu, lalu bagi tugas di sini.":""):!PL.me.assign?"Tugas di program ini dibagi oleh Partnership.":"";
+  $("tList").innerHTML="";FT=[];
+  if(!pr||!it)return;
+  if(!$("tDue").value)$("tDue").value=addD(it.date,-2)<todayIso()?todayIso():addD(it.date,-2);
+  fillWho();
+  try{FT=await api("/api/tasks?item="+encodeURIComponent(it.id))}catch(e){$("tList").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  if(editing!==it)return;
+  $("tList").innerHTML=FT.length?FT.map(t=>taskRow(t,false,t.by_email===PL.me.email||PL.me.adm?`<button type="button" class="x" data-tdel="${esc(t.id)}" aria-label="Hapus tugas ${esc(t.title)}" title="Hapus tugas">✕</button>`:"",true)).join(""):'<p class="muted small" style="margin:0 0 8px">Belum ada tugas.</p>';
+}
+// pilihan orang: anggota dengan role itu dulu, sisanya di bawah
+function fillWho(){
+  const j=$("tJob").value,same=USERS.filter(u=>u.role===j),rest=USERS.filter(u=>u.role!==j);
+  $("tWho").innerHTML=(same.length?"":'<option value="">Belum ada anggota dengan role ini</option>')+same.concat(rest).map(u=>`<option value="${esc(u.email)}">${esc(u.name)}${u.role?" · "+esc(PL.roles[u.role]||u.role):""}</option>`).join("");
+}
+$("tJob").onchange=fillWho;
+$("tSave").onclick=async()=>{
+  if(!editing)return;$("tSave").disabled=true;$("tMsg").textContent="";
+  try{await api("/api/tasks",{item_id:editing.id,title:$("tTitle").value,job:$("tJob").value,who:$("tWho").value,due:$("tDue").value,brief:$("tBrief").value});
+    $("tTitle").value="";$("tBrief").value="";$("tMsg").textContent="✓ Tugas diberikan, penerima mendapat notifikasi di Tool Hub.";await renderTaskBox();}
+  catch(e){$("tMsg").textContent="✗ "+(e.message||e)}
+  finally{$("tSave").disabled=false}
+};
+async function setTaskStatus(id,status,list){
+  const t=list.find(x=>x.id===id);if(!t)return;
+  try{await api("/api/tasks",{...t,status});if(view==="tasks"&&!$("dlg").open)await loadTasksView();else await renderTaskBox();}
+  catch(e){showErr($("dlg").open?"dlgErr":"calErr",e)}
+}
+$("tList").addEventListener("change",e=>{const s=e.target.closest("[data-tstat]");if(s)setTaskStatus(s.dataset.tstat,s.value,FT)});
+$("tList").addEventListener("click",async e=>{
+  const d=e.target.closest("[data-tdel]");if(!d)return;const t=FT.find(x=>x.id===d.dataset.tdel);
+  if(!t||!confirm(`Hapus tugas “${t.title}”?`))return;
+  try{await api("/api/tasks/delete",{id:t.id});await renderTaskBox()}catch(err){showErr("dlgErr",err)}
+});
 const formData=()=>({id:editing&&editing.id,kind:fKind,title:$("iTitle").value,date:$("iDate").value,channel:$("iCh").value,status:$("iSt").value,
   time:$("iTime").value,role:$("iRole").value,place:$("iPlace").value,audience:$("iAud").value,
   owner:$("iOw").value,owner_email:emailOf($("iOw").value),link:$("iLink").value,note:$("iNote").value,result_num:$("iRes").value,result_note:$("iResN").value,
-  d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value});
+  d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
+  program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
+  reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value});
 $("form").addEventListener("submit",async e=>{
   e.preventDefault();$("iSave").disabled=true;
   try{
-    await api("/api/items",formData());$("dlg").close();
-    const d=$("iDate").value;if(view!=="design"&&!(d>=range.from&&d<=range.to))cur=d.slice(0,8)+"01";
+    const wasNew=!editing,r=await api("/api/items",formData());
+    if(fKind==="program")await loadProgs();
+    // program baru: form tetap terbuka supaya tugas bisa langsung dibagi
+    if(wasNew&&fKind==="program"&&PL.me.assign){editing=await api("/api/items?id="+encodeURIComponent(r.id));$("dlgTitle").textContent="Ubah kegiatan";$("iDel").hidden=false;await renderTaskBox();$("tTitle").focus();}
+    else $("dlg").close();
+    const d=$("iDate").value;if(view!=="design"&&view!=="tasks"&&!(d>=range.from&&d<=range.to))cur=d.slice(0,8)+"01";
     await loadCal();
   }catch(err){showErr("dlgErr",err)}
   finally{$("iSave").disabled=false}
@@ -443,16 +573,21 @@ $("form").addEventListener("submit",async e=>{
 $("iCancel").onclick=()=>$("dlg").close();
 $("iDel").onclick=async()=>{
   if(!editing||!confirm(`Hapus kegiatan “${editing.title}”?`))return;
-  try{await api("/api/items/delete",{id:editing.id});$("dlg").close();await loadCal();}catch(err){showErr("dlgErr",err)}
+  try{await api("/api/items/delete",{id:editing.id});$("dlg").close();if(editing&&editing.kind==="program")await loadProgs();await loadCal();}catch(err){showErr("dlgErr",err)}
 };
 // simpan perubahan kecil (geser tanggal, status desain) tanpa membuka form
 const quick=async(it,patch)=>{try{await api("/api/items",{...it,...patch,d_need:!!it.d_need});await loadCal();}catch(err){showErr("calErr",err)}};
 $("calBox").addEventListener("click",e=>{
   if(e.target.closest("select"))return;
+  const pg=e.target.closest("[data-prog]");if(pg){openItem(pg.dataset.prog);return}
+  if(e.target.closest("#tAll")){TV.all=e.target.closest("#tAll").checked;loadTasksView();return}
+  if(view==="tasks")return;
   const c=e.target.closest(".chip,.task");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
   const d=e.target.closest(".day");if(d)openForm(null,d.dataset.date);
 });
-$("calBox").addEventListener("change",e=>{const s=e.target.closest("[data-move]");if(s){const it=items.find(i=>i.id===s.dataset.move);if(it)quick(it,{d_status:s.value})}});
+$("calBox").addEventListener("change",e=>{
+  const ts=e.target.closest("[data-tstat]");if(ts){setTaskStatus(ts.dataset.tstat,ts.value,TV.list);return}
+  const s=e.target.closest("[data-move]");if(s){const it=items.find(i=>i.id===s.dataset.move);if(it)quick(it,{d_status:s.value})}});
 $("calBox").addEventListener("keydown",e=>{
   if(e.key!=="Enter"&&e.key!==" ")return;
   const tk=e.target.closest(".task");if(tk&&e.target===tk){e.preventDefault();openForm(items.find(i=>i.id===tk.dataset.id));return}
@@ -472,15 +607,25 @@ const shift=n=>{const d=D(cur);d.setUTCMonth(d.getUTCMonth()+n);cur=iso(d).slice
 $("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
 $("today").onclick=()=>{cur=todayIso().slice(0,8)+"01";loadCal()};
 $("addBtn").onclick=()=>openForm(null);
-function setView(v){const reload=(v==="design")!==(view==="design");view=v;store("pl_view",v);reload?loadCal():renderCal()}
-$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");
+function setView(v){const reload=(v==="design")!==(view==="design")||v==="tasks"||view==="tasks";view=v;store("pl_view",v);reload?loadCal():renderCal()}
+$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");$("vTasks").onclick=()=>setView("tasks");
 ["fKind","fSt"].forEach(id=>$(id).onchange=renderCal);
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 
 /* =================== LAPORAN (PPT / PDF) =================== */
 const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["desain","🎨 Tugas desain"]];
+// jenis laporan: kegiatan tim (per orang) atau program partnership (per program)
+let RT="keg";
+function setRT(t){
+  RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t==="prog";$("rKindsF").hidden=t==="prog";
+  $("rHelp").innerHTML=t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu.":"PDF: di jendela cetak, pilih <b>Simpan sebagai PDF</b>. Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan.";
+}
+$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(b)setRT(b.dataset.t)});
 function openRep(){
   $("rFrom").value=cur;$("rTo").value=monthEnd(cur);
+  $("rProg").innerHTML='<option value="">Semua program di periode ini</option>'+PROGS.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");
+  setRT(PL.me.role==="partnership"?"prog":"keg");
   $("rWho").innerHTML=`<option value="">Semua orang</option>`+USERS.map(u=>`<option value="${esc(u.email)}">${esc(u.name)}${u.role?" · "+esc(PL.roles[u.role]):""}</option>`).join("");
   $("rWho").value=PL.me.role&&PL.me.role!=="lain"&&!PL.me.adm?PL.me.email:"";
   $("rKinds").innerHTML=RK.map(([k,l])=>`<label class="chk" style="margin:0 10px 0 0;font-weight:500"><input type="checkbox" value="${k}" checked> ${l}</label>`).join("");
@@ -524,7 +669,86 @@ const COLS={
 };
 const SEC={edukasi:"Edukasi & narasumber",artikel:"Artikel",konten:"Konten media sosial",desain:"Tugas desain"};
 const repTitle=()=>"Laporan Kegiatan"+(B.team?" "+B.team:"");
+/* ---------- laporan program ---------- */
+const rp=x=>x==null||x===""||!isFinite(x)?"–":"Rp "+Number(x).toLocaleString("id-ID",{maximumFractionDigits:0});
+const progTitle=()=>"Laporan Program Partnership"+(B.team?" "+B.team:"");
+const perOf=p=>`${fmtShort(p.date)} – ${fmtShort(p.end_date||p.date)}`;
+async function progData(){
+  const from=$("rFrom").value,to=$("rTo").value,id=$("rProg").value;
+  if(!id&&(!from||!to||from>to))throw new Error("Periode belum benar.");
+  const r=await api(`/api/program-report?from=${from}&to=${to}${id?"&id="+encodeURIComponent(id):""}`);
+  if(!r.programs.length)throw new Error(id?"Program tidak ditemukan.":"Tidak ada program yang berjalan pada periode ini.");
+  const t=todayIso(),P=r.programs.map(p=>{
+    const done=p.tasks.filter(x=>x.status==="selesai").length,late=p.tasks.filter(x=>x.status!=="selesai"&&x.due<t).length;
+    const per=(c,n)=>c!=null&&n?c/n:null;
+    return {...p,done,late,cpl:per(p.cost,p.leads),cpa:per(p.cost,p.accounts),used:p.budget&&p.cost!=null?p.cost/p.budget*100:null};
+  });
+  const per=id?perOf(P[0]):from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
+  return {from:id?P[0].date:from,to:id?(P[0].end_date||P[0].date):to,per,P};
+}
+// angka utama satu program: [judul, nilai, keterangan]
+const pk=p=>[["Peserta",int(p.result_num),"jangkauan "+int(p.reach)],["Leads",int(p.leads),"akun baru "+int(p.accounts)],["Nilai transaksi / AUM",rp(p.aum),"dari program ini"],
+  ["Biaya realisasi",rp(p.cost),p.budget?`anggaran ${rp(p.budget)}${p.used!=null?` (${num(p.used,0)}% terpakai)`:""}`:"anggaran belum diisi"],
+  ["Biaya per akun baru",p.cpa!=null?rp(Math.round(p.cpa)):"–",p.cpl!=null?"per lead "+rp(Math.round(p.cpl)):"isi biaya & hasil untuk menghitung"],
+  ["Tugas selesai",`${p.done} dari ${p.tasks.length}`,p.late?`${p.late} lewat tenggat`:"tidak ada yang terlambat"]];
+// kolom tabel: [judul, isi, angka?, lebar relatif di PPT]
+const PCOLS={
+  items:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:""),0,1.3],["Jenis",i=>(K[kindOf(i)]||{}).label||"",0,1.5],["Kegiatan",i=>i.title,0,2.6],["Kanal",i=>i.channel||"–",0,1.2],["PIC",i=>i.owner||"–",0,1.3],["Status",i=>STL[i.status]||i.status||"–",0,1],["Hasil",i=>int(i.result_num),1,1],["Link",i=>i.link||"–",0,.8]],
+  tasks:[["Tugas",x=>x.title,0,2.6],["Role",x=>PL.roles[x.job]||"–",0,1.7],["Orang",x=>x.who_name||x.who,0,1.5],["Tenggat",x=>fmtShort(x.due),0,1.2],["Status",x=>DSL[x.status]||x.status||"–",0,1.1],["Selesai",x=>x.done_at?fmtShort(x.done_at.slice(0,10)):"–",0,1.2],["Hasil",x=>x.link||"–",0,.8]],
+  rekap:[["Program",p=>p.title,0,2.4],["Partner",p=>p.partner||"–",0,1.6],["Periode",perOf,0,2],["Status",p=>STL[p.status]||p.status,0,1],["Peserta",p=>int(p.result_num),1,1],["Leads",p=>int(p.leads),1,.9],["Akun baru",p=>int(p.accounts),1,1],["Nilai transaksi",p=>rp(p.aum),1,1.7],["Biaya",p=>rp(p.cost),1,1.5],["Biaya/akun",p=>p.cpa!=null?rp(Math.round(p.cpa)):"–",1,1.4]],
+};
+const progInfo=p=>[["Partner",p.partner||"–"],["Jenis",p.channel||"–"],["Periode",perOf(p)],["Status",STL[p.status]||p.status],["PIC",p.owner||"–"],["Tujuan",p.goal||"–"],["Target",p.target||"–"],["Catatan hasil",p.result_note||"–"]];
+function printNow(){
+  document.body.classList.add("printing");
+  const done=()=>{document.body.classList.remove("printing");removeEventListener("afterprint",done)};
+  addEventListener("afterprint",done);window.print();setTimeout(done,1500);
+}
+async function progPdf(){
+  try{
+    const R=await progData();showErr("repErr");
+    const tbl=(title,C,L,empty)=>`<h2>${title}</h2>`+(L.length?`<table><thead><tr>${C.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${C.map(c=>`<td class="${c[2]?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p>${empty}</p>`);
+    $("printArea").innerHTML=`<h1>${esc(progTitle())}</h1><div>${esc(R.per)}${B.company?" · "+esc(B.company):""}</div>`+
+      (R.P.length>1?tbl(`Rekap ${R.P.length} program`,PCOLS.rekap,R.P,""):"")+
+      R.P.map(p=>`<h2 style="font-size:16px;margin-top:24px">🤝 ${esc(p.title)}</h2><table><tbody>${progInfo(p).map(r=>`<tr><th style="width:16%">${r[0]}</th><td>${esc(r[1])}</td></tr>`).join("")}</tbody></table>`+
+        `<div class="kpis">${pk(p).map(k=>`<div class="kpi">${esc(k[0])}<b>${esc(k[1])}</b>${esc(k[2])}</div>`).join("")}</div>`+
+        tbl(`Kegiatan terkait (${p.items.length})`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.")+tbl(`Tugas tim (${p.tasks.length})`,PCOLS.tasks,p.tasks,"Belum ada tugas.")).join("")+
+      `<div class="foot">Dibuat dari Content Planner, ${new Date().toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"})}.</div>`;
+    printNow();
+  }catch(e){showErr("repErr",e)}
+}
+async function progPpt(){
+  $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
+  try{
+    const R=await progData();await loadPpt();showErr("repErr");
+    const G="1F7A4D",pp=new window.PptxGenJS();pp.layout="LAYOUT_WIDE";pp.title=progTitle()+" "+R.per;
+    const head=(s,t,sub)=>{s.background={color:"FFFFFF"};s.addShape(pp.ShapeType.rect,{x:0,y:0,w:13.33,h:.12,fill:{color:G}});s.addText(t,{x:.5,y:.3,w:12.3,h:.6,fontSize:24,bold:true,color:"17251D",fontFace:"Calibri"});if(sub)s.addText(sub,{x:.5,y:.85,w:12.3,h:.35,fontSize:12,color:"5B6D62"});s.addText(`${progTitle()} · ${R.per}`,{x:.5,y:7.05,w:12.3,h:.3,fontSize:9,color:"8A9A90"})};
+    const cell=t=>/^https?:\/\//.test(t)?{text:"buka",options:{hyperlink:{url:t},color:G}}:t;
+    const pages=(title,sub,C,L,empty)=>{const n=Math.max(1,Math.ceil(L.length/10));for(let p=0;p<n;p++){const s=pp.addSlide();head(s,title+(n>1?` (${p+1}/${n})`:""),sub);
+      if(!L.length){s.addText(empty,{x:.5,y:1.5,w:12,h:.5,fontSize:14,color:"5B6D62"});continue}
+      const tw=C.reduce((a,c)=>a+c[3],0),rows=[C.map(c=>({text:c[0],options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}})),...L.slice(p*10,p*10+10).map(i=>C.map(c=>cell(String(c[1](i)))))];
+      s.addTable(rows,{x:.5,y:1.35,w:12.3,colW:C.map(c=>+(c[3]/tw*12.3).toFixed(2)),fontSize:10,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"top",autoPage:false})}};
+    let s=pp.addSlide();s.background={color:G};
+    s.addText(progTitle(),{x:.7,y:2.3,w:12,h:1,fontSize:38,bold:true,color:"FFFFFF",fontFace:"Calibri"});
+    s.addText(R.per,{x:.7,y:3.35,w:12,h:.6,fontSize:22,color:"E3F2E9"});
+    s.addText(R.P.length>1?`${R.P.length} program`:[R.P[0].title,R.P[0].partner].filter(Boolean).join("  ·  "),{x:.7,y:4.05,w:12,h:.5,fontSize:16,color:"E3F2E9"});
+    if(R.P.length>1)pages("Rekap program",`${R.P.length} program`,PCOLS.rekap,R.P,"");
+    for(const p of R.P){
+      s=pp.addSlide();head(s,p.title,[p.partner,p.channel,perOf(p),STL[p.status]].filter(Boolean).join("  ·  "));
+      s.addText([{text:"Tujuan: ",options:{bold:true}},{text:(p.goal||"–")+"\n"},{text:"Target: ",options:{bold:true}},{text:p.target||"–"}],{x:.5,y:1.3,w:12.3,h:.9,fontSize:12,color:"17251D",valign:"top"});
+      const w=(12.3-.6)/3;
+      pk(p).forEach((k,i)=>{const x=.5+(i%3)*(w+.3),y=2.35+Math.floor(i/3)*1.9;
+        s.addShape(pp.ShapeType.roundRect,{x,y,w,h:1.7,fill:{color:"E3F2E9"},line:{color:"E3F2E9"},rectRadius:.1});
+        s.addText(k[0],{x:x+.2,y:y+.1,w:w-.4,h:.4,fontSize:13,color:"5B6D62"});s.addText(k[1],{x:x+.2,y:y+.5,w:w-.4,h:.7,fontSize:24,bold:true,color:G});s.addText(k[2],{x:x+.2,y:y+1.2,w:w-.4,h:.4,fontSize:11,color:"17251D"})});
+      pages("Kegiatan terkait · "+p.title,`${p.items.length} kegiatan`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.");
+      pages("Tugas tim · "+p.title,`${p.done} dari ${p.tasks.length} selesai`,PCOLS.tasks,p.tasks,"Belum ada tugas.");
+    }
+    await pp.writeFile({fileName:`Laporan-Program-${R.from}_${R.to}.pptx`});
+    $("repMsg").textContent="✓ PPT diunduh.";
+  }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
+  finally{$("rPpt").disabled=false}
+}
 $("rPdf").onclick=async()=>{
+  if(RT==="prog")return progPdf();
   try{
     const R=await repData();showErr("repErr");
     const tbl=(k,L)=>`<h2>${SEC[k]} (${L.length})</h2>`+(L.length?`<table><thead><tr>${COLS[k].map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${COLS[k].map(c=>`<td class="${/Peserta|Pembaca|Jangkauan/.test(c[0])?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:"<p>Tidak ada kegiatan.</p>");
@@ -541,6 +765,7 @@ $("rPdf").onclick=async()=>{
 let pptLib=null;
 const loadPpt=()=>pptLib||(pptLib=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";s.onload=()=>window.PptxGenJS?ok():no(new Error("Library PPT gagal dimuat."));s.onerror=()=>{pptLib=null;no(new Error("Library PPT gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
 $("rPpt").onclick=async()=>{
+  if(RT==="prog")return progPpt();
   $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
   try{
     const R=await repData();await loadPpt();showErr("repErr");
@@ -675,7 +900,14 @@ $("pkRefresh").onclick=()=>loadPk(true);
 
 /* =================== MULAI =================== */
 if(PL.mode==="paket"){$("vPk").hidden=false;loadPk(false)}
-else{$("vCal").hidden=false;fillSelects();roleBox();loadUsers().then(loadCal)}
+else{
+  $("vCal").hidden=false;fillSelects();
+  // dari notifikasi Tool Hub: ?item=<id> membuka kegiatan itu, ?view=tasks membuka daftar tugas
+  const qs=new URLSearchParams(location.search),want=qs.get("item");
+  if(qs.get("view")==="tasks")view="tasks";
+  if(want||qs.has("view"))history.replaceState(null,"",location.pathname);
+  Promise.all([loadUsers(),loadProgs()]).then(loadCal).then(()=>{if(want)openItem(want)});
+}
 })();
 </script>
 </body>
