@@ -137,7 +137,7 @@ async function sessKey(env) {
 }
 
 /** Akun: { hash?, role, status, name, why, at, username?, job, access:{appId: true | level | [tab]} }. Kunci KV: u:<email>; n:<username> -> email.
- *  role = admin/user (hak di hub); job = role pekerjaan (shared/jobs.js), wajib dipilih sebelum memakai tool. */
+ *  role = admin/user (hak di hub); job = role pekerjaan (shared/jobs.js), ditentukan admin; tanpa job = user biasa (hanya memakai tool, bukan anggota Content Planner). */
 async function getUser(env, email) {
   const u = await env.HUB_KV.get('u:' + email, 'json');
   if (!u) return null;
@@ -197,8 +197,7 @@ const authPage = (env, reg, note = '', v = {}, next = '/') => { const co = profi
 <h1>${esc(title(env, 'Tool Hub'))}</h1><p class="sub" style="margin:0">Alat internal tim${co ? ' ' + esc(co) : ''}</p><div class="tabs"><a href="/login${q}"${reg ? '' : ' class="on"'}>Masuk</a><a href="/daftar${q}"${reg ? ' class="on"' : ''}>Daftar</a></div>
 ${reg ? `<label for="n">Nama</label><input id="n" name="name" required maxlength="60" autocomplete="name" value="${esc(v.name)}" autofocus>` : ''}
 <label for="e">${reg ? 'Email' : 'Email atau username'}</label><input id="e" name="email" type="${reg ? 'email' : 'text'}" autocomplete="username" required maxlength="120" value="${esc(v.email)}"${reg ? '' : ' autofocus'}>
-${reg ? `<label for="un">Username (opsional, untuk login lebih singkat)</label><input id="un" name="username" maxlength="32" pattern="[a-z0-9._-]{3,32}" placeholder="huruf kecil, angka, titik" value="${esc(v.username)}">
-<label for="j">Role pekerjaan</label><select id="j" name="job" required><option value="">Pilih role…</option>${jobOpts(v.job)}</select>` : ''}
+${reg ? `<label for="un">Username (opsional, untuk login lebih singkat)</label><input id="un" name="username" maxlength="32" pattern="[a-z0-9._-]{3,32}" placeholder="huruf kecil, angka, titik" value="${esc(v.username)}">` : ''}
 <label for="p">Password${reg ? ' (minimal 8 karakter)' : ''}</label>${pwField('p', 'password', reg ? 'new-password' : 'current-password', reg ? ' minlength="8"' : '')}
 ${reg ? `<label id="wl">Tool yang ingin dipakai</label><div role="group" aria-labelledby="wl">${APPS.map(a => `<label class="opt"><input type="checkbox" name="want" value="${a.id}"${(v.want || []).includes(a.id) ? ' checked' : ''}><span>${esc(a.name)}<br><small>${esc(a.desc)}</small></span></label>`).join('')}</div>
 <label for="w">Keperluan (opsional)</label><input id="w" name="why" maxlength="200" value="${esc(v.why)}">` : ''}
@@ -239,13 +238,12 @@ async function login(request, env, next) {
 }
 
 async function register(request, env, next) {
-  const f = await form(request), v = { email: fv(f, 'email').toLowerCase(), username: fv(f, 'username').toLowerCase(), name: fv(f, 'name').slice(0, 60), why: fv(f, 'why').slice(0, 200), want: f.getAll('want').map(String).filter(appById), job: fv(f, 'job') }, password = fv(f, 'password');
+  const f = await form(request), v = { email: fv(f, 'email').toLowerCase(), username: fv(f, 'username').toLowerCase(), name: fv(f, 'name').slice(0, 60), why: fv(f, 'why').slice(0, 200), want: f.getAll('want').map(String).filter(appById) }, password = fv(f, 'password');
   const bad = (status, note) => page(status, authPage(env, true, note, v, next));
   if (!EMAIL_RE.test(v.email) || v.email.length > 120) return bad(400, 'Email belum benar.');
   if (v.username && !USER_RE.test(v.username)) return bad(400, 'Username 3-32 karakter: huruf kecil, angka, titik, minus, atau garis bawah.');
   if (password.length < 8 || password.length > 200) return bad(400, 'Password minimal 8 karakter.');
   if (!v.name) return bad(400, 'Nama wajib diisi.');
-  if (!JOBS[v.job]) return bad(400, 'Pilih role pekerjaan Anda.');
   // ponytail: batas pendaftaran per IP per jam, cukup untuk mencegah banjir pendaftaran iseng. Pasang Turnstile kalau masih kebobolan.
   const rk = 'r:' + ipOf(request), n = Number(await env.HUB_KV.get(rk)) || 0;
   if (n >= MAX_REG) return bad(429, 'Terlalu banyak pendaftaran dari jaringan ini. Coba lagi satu jam lagi.');
@@ -255,8 +253,9 @@ async function register(request, env, next) {
   if (owner && owner !== v.email) return bad(409, 'Username sudah dipakai. Pilih yang lain atau kosongkan.');
   await env.HUB_KV.put(rk, String(n + 1), { expirationTtl: 3600 });
   const main = isMain(env, v.email);
-  // akun lama tanpa password (ditambahkan admin / di-reset) mempertahankan status, peran, dan hak aksesnya
-  const u = { role: main ? 'admin' : 'user', status: main ? 'approved' : 'pending', at: stamp(), access: {}, ...(old || {}), name: v.name, why: v.why || (old && old.why) || '', want: v.want, job: v.job, hash: await hashPw(password) };
+  // akun lama tanpa password (ditambahkan admin / di-reset) mempertahankan status, peran, role pekerjaan, dan hak aksesnya.
+  // Role pekerjaan tidak dipilih saat daftar: admin yang menentukan (tanpa role = user biasa).
+  const u = { role: main ? 'admin' : 'user', status: main ? 'approved' : 'pending', at: stamp(), access: {}, ...(old || {}), name: v.name, why: v.why || (old && old.why) || '', want: v.want, hash: await hashPw(password) };
   if (v.username && !u.username) { u.username = v.username; await env.HUB_KV.put('n:' + v.username, v.email); }
   await saveUser(env, v.email, u);
   if (u.status === 'approved') await syncPlanner(env, { email: v.email, u });
@@ -360,29 +359,14 @@ async function syncPlanner(env, changed = null) {
   try {
     let users = await listUsers(env);
     if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
-    const list = users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || String(x.apps || '').split(',').includes('planner'))))
+    // anggota Planner = admin hub, atau akun yang punya role pekerjaan. User biasa (tanpa role) hanya memakai tool:
+    // tidak tampil sebagai pilihan penanggung jawab/penerima tugas.
+    const list = users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (JOBS[x.job] && String(x.apps || '').split(',').includes('planner')))))
       .map(x => ({ email: x.email, name: x.name || '', job: x.job || '' }));
     if (!list.length) return;
     const r = await timeout(env.PLANNER.fetch('https://planner/__hub/users', { method: 'POST', headers: { 'x-hub-key': env.SSO_SECRET, 'content-type': 'application/json' }, body: JSON.stringify({ users: list }) }), 6000, 'Content Planner');
     if (!r.ok) console.log('sinkron anggota Planner: HTTP ' + r.status);
   } catch (e) { console.log('sinkron anggota Planner gagal:', e.message); }
-}
-
-/** Halaman pilih role pekerjaan: wajib sekali untuk akun yang belum punya (akun lama). Setelah itu hanya admin yang bisa mengubahnya. */
-const jobPage = (env, sess, note = '') => doc('Pilih role', `<form class="card" method="post" action="/role"><h1>Role pekerjaan Anda</h1>
-<p class="sub">Dipakai untuk membagi tugas dan menampilkan pekerjaan yang sesuai. Setelah dipilih, perubahan role lewat admin.</p>
-<div role="radiogroup" aria-label="Role pekerjaan">${Object.keys(JOBS).map(k => `<label class="opt"><input type="radio" name="job" value="${k}" required><span>${esc(JOBS[k])}</span></label>`).join('')}</div>
-<div style="margin-top:20px"><button type="submit" style="width:100%">Simpan</button></div>${note ? `<div class="msg err">${note}</div>` : ''}
-<p class="sub" style="margin:16px 0 0">Masuk sebagai <b>${esc(sess.email)}</b> &middot; <a href="/logout">Keluar</a></p></form>`);
-async function chooseJob(request, env, url, sess) {
-  if (JOBS[sess.u.job]) return redirect('/');   // sudah punya role: diubah lewat admin
-  if (request.method !== 'POST') return page(200, jobPage(env, sess));
-  if (request.headers.get('origin') !== url.origin) return page(403, 'Permintaan ditolak.');
-  const j = fv(await form(request), 'job');
-  if (!JOBS[j]) return page(400, jobPage(env, sess, 'Pilih salah satu role.'));
-  sess.u.job = j; await saveUser(env, sess.email, sess.u);
-  await syncPlanner(env, { email: sess.email, u: sess.u });
-  return redirect('/');
 }
 
 const ACTS = {
@@ -408,7 +392,7 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
     : x.status === 'pending' ? `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Tinjau &amp; setujui</a>` + btn(x, 'reject', 'del')
     : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'delete', 'del'))
     : btn(x, 'approve', '') + btn(x, 'delete', 'del');
-  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(JOBS[x.job] || x.job) : 'role belum dipilih'}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
+  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(JOBS[x.job] || x.job) : 'user biasa'}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
   const by = s => users.filter(x => s.includes(x.status));
   return doc('Admin', `<div class="card wide">${topBar(sess, 'Admin &middot; Tool Hub', '/admin')}
 <p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka.</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
@@ -432,7 +416,7 @@ function userPage(sess, email, u, note = '') {
   return doc('Atur akses', `<form class="card wide" method="post" action="/admin/access">${topBar(sess, 'Atur akses', '/admin/user')}
 <p class="sub"><b>${esc(email)}</b>${u.name ? ' &middot; ' + esc(u.name) : ''}${u.username ? ' &middot; @' + esc(u.username) : ''} &middot; status: ${esc(u.status)}${u.role === 'admin' ? ' &middot; <b>admin hub (otomatis punya semua akses)</b>' : ''}</p>
 ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}<input type="hidden" name="email" value="${esc(email)}">
-<fieldset><legend>Role pekerjaan</legend><select name="job" aria-label="Role pekerjaan"><option value="">${u.job ? 'Tetap' : 'Belum dipilih (diminta saat login)'}</option>${jobOpts(u.job)}</select></fieldset>${APPS.map(blk).join('')}
+<fieldset><legend>Role pekerjaan</legend><select name="job" aria-label="Role pekerjaan"><option value="none"${JOBS[u.job] ? '' : ' selected'}>Tanpa role (user biasa: hanya memakai tool)</option>${jobOpts(u.job)}</select><small style="display:block;margin-top:6px;color:#6b7280">Akun dengan role masuk daftar anggota Content Planner dan bisa diberi tugas.</small></fieldset>${APPS.map(blk).join('')}
 <div style="margin-top:18px" class="row"><button type="submit"${pend ? ' name="approve" value="1"' : ''}>${pend ? 'Setujui dengan akses ini' : 'Simpan akses'}</button><a href="/admin" style="flex:none;align-self:center">Kembali ke daftar</a></div>
 <p class="sub" style="margin:14px 0 0">Perubahan berlaku paling lambat 2 jam kemudian di tool yang sedang dibuka orangnya, atau langsung setelah ia keluar lalu masuk lagi.</p></form>`);
 }
@@ -473,7 +457,8 @@ async function admin(request, env, url, sess) {
   if (path === '/admin/access') {
     if (!u) return bad('Akun tidak ditemukan.');
     u.access = readAccess(f); const ok = fv(f, 'approve') && u.status === 'pending'; if (ok) u.status = 'approved';
-    if (JOBS[fv(f, 'job')]) u.job = fv(f, 'job');
+    // role pekerjaan ditentukan admin: "none" = user biasa (tanpa role)
+    const job = fv(f, 'job'); if (JOBS[job]) u.job = job; else if (job === 'none') delete u.job;
     await saveUser(env, email, u); await syncPlanner(env, { email, u });
     return page(200, userPage(sess, email, u, ok ? 'Disetujui. Akses disimpan.' : 'Akses disimpan.'));
   }
@@ -723,10 +708,7 @@ export default {
     }
     if (!sess) return post || path.startsWith('/api/') ? page(401, 'Sesi habis. Muat ulang halaman lalu login lagi.') : redirect('/login' + (path === '/' ? '' : '?next=' + encodeURIComponent(path + url.search)));
     if (sess.status !== 'approved') return page(403, gatePage(sess));
-    if (path === '/role') return chooseJob(request, env, url, sess);
-    // role pekerjaan wajib untuk pengguna biasa: akun lama yang belum punya diminta memilih dulu. Admin hub tidak wajib
-    // (admin sudah punya semua hak: membuat program, memberi tugas, membuat konsep).
-    if (sess.role !== 'admin' && !JOBS[sess.u.job] && path !== '/akun') return path.startsWith('/api/') ? Response.json({ error: 'Pilih role pekerjaan dulu.' }, { status: 409 }) : redirect('/role');
+    if (path === '/role') return redirect('/');   // dulu halaman pilih role; sekarang role ditentukan admin
     if (path === '/sso') return sso(env, url, sess);
     if (path === '/admin' || path.startsWith('/admin/')) return admin(request, env, url, sess);
     if (path === '/akun') return account(request, env, url, sess);

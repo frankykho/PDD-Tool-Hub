@@ -8,7 +8,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 
 | Tool | Folder | Fungsi |
 |---|---|---|
-| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, role pekerjaan wajib (Partnership, Investment Specialist, Copywriter, Social Media Specialist, Desainer, Lainnya), lonceng notifikasi tugas, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, garis waktu "Ritme hari ini" (pagi/siang/sore, tanda selesai per langkah), ringkasan "Hari ini" (Market Recap, Content Planner, gerak harian tidak biasa & agenda Fund Insight, promo kompetitor baru, draf Edukasi), status otomatis (cron & GitHub Actions, termasuk langkah yang gagal), halaman detail tool |
+| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, role pekerjaan opsional yang ditentukan admin (Partnership, Investment Specialist, Copywriter, Social Media Specialist, Desainer, Lainnya), lonceng notifikasi tugas, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, garis waktu "Ritme hari ini" (pagi/siang/sore, tanda selesai per langkah), ringkasan "Hari ini" (Market Recap, Content Planner, gerak harian tidak biasa & agenda Fund Insight, promo kompetitor baru, draf Edukasi), status otomatis (cron & GitHub Actions, termasuk langkah yang gagal), halaman detail tool |
 | Email Studio | `apps/email-studio` | Generator email marketing (Market Insight, Weekly Picks, promo, webinar) |
 | Story Generator | `apps/story-generator` | Generator Instagram Story (Morning, Halftime, Wrap, Weekly, RD Highlights, Bond Picks) |
 | Story Data | `apps/story-data` | Data pasar untuk Story Generator + pemicu workflow data |
@@ -61,8 +61,8 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 
 ### Role pekerjaan, tugas, dan notifikasi
 
-- Daftar role ada di `shared/jobs.js`. Role dipilih saat daftar; akun lama tanpa role diminta memilih sekali saat masuk (`/role`). Admin hub tidak wajib punya role (admin sudah punya semua hak). Setelah itu hanya admin yang bisa mengubahnya (halaman Atur akses).
-- Role ikut di tiket SSO (`j`). Hub juga mengirim daftar anggota Content Planner (akun disetujui dengan akses Planner + role-nya) ke `POST /__hub/users` setiap kali akun berubah, dan sesekali saat beranda dibuka.
+- Daftar role ada di `shared/jobs.js`. Role **tidak** dipilih saat daftar; admin yang menentukannya di halaman Atur akses. Akun tanpa role adalah **user biasa**: bisa memakai tool sesuai haknya, tetapi tidak masuk daftar anggota Content Planner sehingga tidak bisa dipilih sebagai penanggung jawab atau penerima tugas. Admin hub tidak wajib punya role (admin sudah punya semua hak). `/role` sekarang hanya mengarahkan ke beranda.
+- Role ikut di tiket SSO (`j`). Hub juga mengirim daftar anggota Content Planner (admin hub, ditambah akun disetujui yang punya role dan akses Planner) ke `POST /__hub/users` setiap kali akun berubah, dan sesekali saat beranda dibuka. Saat user biasa membuka Planner lewat tiket, ia tidak dicatat sebagai anggota.
 - Hanya **Partnership** (dan admin hub) yang bisa membuat Program dan memberi tugas. Penerima dipilih dari daftar anggota, bukan diketik, supaya notifikasinya pasti sampai. Penerima tugas hanya bisa mengubah status & link hasil.
 - Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
 - Cek: `node apps/content-planner/test.mjs`

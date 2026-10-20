@@ -226,13 +226,16 @@ async function deleteItem(env, me, id) {
   ]);
   return { ok: true };
 }
-/** Dicatat saat login: anggota tim untuk pilihan penanggung jawab, desainer, dan penerima tugas. Role ikut dari tiket Tool Hub (j). */
-async function seen(env, p) {
+/** Dicatat saat login: anggota tim untuk pilihan penanggung jawab, desainer, dan penerima tugas. Role ikut dari tiket Tool Hub (j).
+ *  User biasa (tanpa role, bukan admin hub) tetap boleh membuka Planner, tapi tidak menjadi anggota yang bisa diberi tugas. */
+export async function seen(env, p) {
   const email = String(p.e || "").toLowerCase();
   if (!EMAIL.test(email)) return;
   await ensure(env);
-  await env.DB.prepare("INSERT INTO users (email, name, role, seen_at) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, seen_at = excluded.seen_at, role = COALESCE(excluded.role, role)")
-    .bind(email, String(p.n || p.u || email).slice(0, 60), JOBS[p.j] ? p.j : null, new Date().toISOString()).run();
+  const job = JOBS[p.j] ? p.j : null, member = job || p.adm ? 1 : 0;
+  await env.DB.prepare("INSERT INTO users (email, name, role, seen_at, active) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, seen_at = excluded.seen_at, "
+    + "role = CASE WHEN excluded.active = 1 THEN COALESCE(excluded.role, role) ELSE NULL END, active = CASE WHEN excluded.active = 1 THEN active ELSE 0 END")
+    .bind(email, String(p.n || p.u || email).slice(0, 60), job, new Date().toISOString(), member).run();
 }
 async function users(env) {
   await ensure(env);

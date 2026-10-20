@@ -98,11 +98,11 @@ const wib = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const plus = (n) => { const d = new Date(wib + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 /* ---------- admin: dashboard lengkap ---------- */
-assert.equal((await call("/daftar", { method: "POST", form: { name: "Dewi", email: ADMIN, password: "rahasia-123" } })).status, 400, "daftar tanpa role pekerjaan ditolak");
-assert.match(await (await call("/daftar")).text(), /name="job" required/, "pilihan role pekerjaan ada di formulir daftar");
+assert.doesNotMatch(await (await call("/daftar")).text(), /name="job"/, "role pekerjaan tidak dipilih saat daftar (ditentukan admin)");
 const reg = await call("/daftar", { method: "POST", form: { name: "Dewi </script><b>x", email: ADMIN, password: "rahasia-123", job: "partnership" } });
 assert.equal(reg.status, 303);
-assert.equal(JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).job, "partnership");
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).job, undefined, "isian job dari formulir daftar diabaikan");
+{ const x = env.HUB_KV.m.get("u:" + ADMIN), rec = JSON.parse(x.v); rec.job = "partnership"; x.v = JSON.stringify(rec); x.meta = { ...(x.meta || {}), job: "partnership" }; }   // seperti diatur admin (isi + metadata daftar)
 const admin = cookieOf(reg);
 assert.match(admin, /^hub_sess=/);
 
@@ -322,21 +322,20 @@ assert.deepEqual(bootOf(await (await call("/", { cookie: admin })).text()).fav, 
 assert.ok(env.HUB_KV.m.has("pref:" + ADMIN) && JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).hash, "favorit di kunci sendiri, akun utuh");
 
 /* ---------- pengguna terbatas ---------- */
-// akun lama tanpa role pekerjaan: diminta memilih dulu, sekali
-await env.HUB_KV.put("u:user@acme.test", JSON.stringify({ role: "user", status: "approved", name: "Rina", access: { fund: "viewer" }, hash: await hashPw("rahasia-456") }));
+// user biasa (tanpa role pekerjaan): langsung bisa memakai tool, tidak diminta memilih role
+await env.HUB_KV.put("u:user@acme.test", JSON.stringify({ role: "user", status: "approved", name: "Rina", access: { fund: "viewer" }, hash: await hashPw("rahasia-456") }), { metadata: { role: "user", status: "approved", name: "Rina", reg: true, apps: "fund", job: "" } });
 const user = cookieOf(await call("/login", { method: "POST", form: { email: "user@acme.test", password: "rahasia-456" } }));
 assert.match(user, /^hub_sess=/);
-r = await call("/", { cookie: user });
-assert.equal(r.status, 303); assert.equal(r.headers.get("location"), "/role", "belum punya role -> halaman pilih role");
-assert.equal((await call("/api/today", { cookie: user })).status, 409);
-assert.equal((await call("/sso?app=fund&back=" + encodeURIComponent("https://fund.acme.test/"), { cookie: user })).headers.get("location"), "/role", "tool belum bisa dibuka sebelum memilih role");
-assert.match(await (await call("/role", { cookie: user })).text(), /type="radio" name="job" value="partnership"/);
-assert.equal((await call("/role", { method: "POST", cookie: user, form: { job: "copy" } })).status, 403, "tanpa Origin ditolak");
-assert.equal((await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "ngawur" } })).status, 400);
-assert.equal((await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "copy" } })).status, 303);
-await call("/role", { method: "POST", cookie: user, origin: HUB, form: { job: "partnership" } });
-assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "copy", "setelah dipilih, role tidak bisa diganti sendiri");
-assert.equal((await call("/role", { cookie: user })).headers.get("location"), "/");
+assert.equal((await call("/", { cookie: user })).status, 200, "user biasa langsung ke beranda");
+assert.equal((await call("/api/today", { cookie: user })).status, 200);
+assert.equal((await call("/sso?app=fund&back=" + encodeURIComponent("https://fund.acme.test/"), { cookie: user })).status, 303, "user biasa bisa membuka tool");
+assert.equal((await call("/role", { cookie: user })).headers.get("location"), "/", "halaman pilih role sudah tidak ada");
+assert.equal(bootOf(await (await call("/", { cookie: user })).text()).me.job, "");
+assert.match(await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text(), /<option value="none" selected>Tanpa role/);
+assert.match(await (await call("/admin", { cookie: admin })).text(), /user biasa/, "daftar admin menandai user biasa");
+// admin memberi role
+assert.equal((await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "copy", a_fund: "viewer" } })).status, 200);
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "copy");
 boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
@@ -358,6 +357,11 @@ assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "design");
 const members = plannerEnv.DB.db.prepare("SELECT email, name, role, active FROM users ORDER BY email").all().map((x) => ({ ...x }));
 assert.deepEqual(members.filter((x) => x.active === 1).map((x) => [x.email, x.role]), [[ADMIN, "partnership"], ["user@acme.test", "design"]], "anggota Planner = admin + akun dengan akses Planner, beserta role-nya");
 assert.match(await (await call("/admin", { cookie: admin })).text(), /Desainer/, "role tampil di daftar pengguna admin");
+// role dicabut (user biasa) walau tetap boleh membuka Planner: keluar dari daftar anggota, tidak bisa diberi tugas
+r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "none", a_fund: "viewer", a_planner: "1" } });
+assert.equal(r.status, 200);
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, undefined);
+assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active = 1 ORDER BY email").all().map((x) => x.email), [ADMIN], "user biasa bukan anggota Planner");
 
 /* ---------- tanpa sesi ---------- */
 assert.equal((await call("/api/today")).status, 401);

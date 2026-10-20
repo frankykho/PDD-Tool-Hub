@@ -12,7 +12,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: planner, dueNotifs, itemNotifs, taskNotifs } = await import("./worker.js");
+const { default: planner, dueNotifs, itemNotifs, taskNotifs, seen } = await import("./worker.js");
 
 function d1() {
   const db = new DatabaseSync(":memory:");
@@ -60,6 +60,19 @@ assert.deepEqual(U.map((u) => [u.email, u.role]), [["budi@acme.test", null], ["c
 await hub("/__hub/users", { users: [{ email: "pia@acme.test", name: "Pia", job: "partnership" }, { email: "dodi@acme.test", name: "Dodi", job: "design" }, { email: "cici@acme.test", name: "Cici", job: "copy" }] });
 U = (await call("/api/users", { ck: PART })).j;
 assert.ok(!U.some((u) => u.email === "budi@acme.test"), "akun yang tidak lagi boleh membuka Planner hilang dari pilihan");
+// login lewat tiket Tool Hub: user biasa (tanpa role, bukan admin) tidak menjadi anggota; yang punya role / admin menjadi anggota
+await seen(env, { e: "eka@acme.test", n: "Eka", j: "" });
+await seen(env, { e: "adm2@acme.test", n: "Adm", j: "", adm: true });
+await seen(env, { e: "fajar@acme.test", n: "Fajar", j: "sosmed" });
+U = (await call("/api/users", { ck: PART })).j.map((u) => u.email);
+assert.ok(!U.includes("eka@acme.test"), "user biasa tidak bisa dipilih sebagai penerima tugas");
+assert.ok(U.includes("adm2@acme.test") && U.includes("fajar@acme.test"));
+// role dicabut admin: login berikutnya (tiket tanpa role) mengeluarkannya dari daftar anggota
+await seen(env, { e: "cici@acme.test", n: "Cici", j: "" });
+assert.ok(!(await call("/api/users", { ck: PART })).j.some((u) => u.email === "cici@acme.test"), "role dicabut -> bukan anggota lagi");
+await seen(env, { e: "cici@acme.test", n: "Cici", j: "copy" });
+await hub("/__hub/users", { users: [{ email: "pia@acme.test", name: "Pia", job: "partnership" }, { email: "dodi@acme.test", name: "Dodi", job: "design" }, { email: "cici@acme.test", name: "Cici", job: "copy" }] });
+assert.deepEqual((await call("/api/users", { ck: PART })).j.map((u) => [u.email, u.role]), [["cici@acme.test", "copy"], ["dodi@acme.test", "design"], ["pia@acme.test", "partnership"]], "sinkron hub tetap jadi acuan");
 
 /* ---------- program: hanya Partnership / admin ---------- */
 const prog = { kind: "program", title: "Kelas investasi Kampus X", date: plus(1), end_date: plus(20), channel: "Kampus / sekolah", status: "rencana", partner: "BEM Kampus X",
