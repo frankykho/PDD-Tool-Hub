@@ -229,6 +229,28 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .pbody{flex:1;display:flex;flex-direction:column}
 .pbody .panel-f{margin-top:auto}
 .more{margin:6px 0 0;font-size:12px;color:var(--text-2)}
+.rhythm{margin-top:16px}
+.rhy-next{margin:0 0 12px;font-size:13px;color:var(--text-2);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.rhy-next b{color:var(--text)}
+.rhy-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.rhy-col{border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;min-width:0}
+.rhy-col.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.rhy-col h3{margin:0 0 4px;font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rhy-col h3 small{font-weight:500;letter-spacing:0;text-transform:none}
+.rhy-col.now h3{color:var(--brand-text)}
+.rhy-list{list-style:none;margin:0;padding:0}
+.rhy-i{border-top:1px solid var(--border)}
+.rhy-i:first-child{border-top:0}
+.rhy-a{display:flex;gap:10px;align-items:flex-start;width:100%;padding:8px 0;background:none;border:0;text-align:left;font:inherit;color:inherit;text-decoration:none;cursor:pointer}
+span.rhy-a{cursor:default}
+.rhy-a .tm{flex:none;width:36px;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;padding-top:1px}
+.rhy-a .dot{margin-top:5px}
+.rhy-a .m{flex:1;min-width:0}
+.rhy-a .m b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rhy-a .m small{display:block;font-size:12px;color:var(--text-2)}
+a.rhy-a:hover b,button.rhy-a:hover b{text-decoration:underline}
+.rhy-i.err small{color:var(--err)}.rhy-i.warn small{color:var(--warn)}
+.rhy-i.wait{opacity:.62}
 .panel-f{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .panel-f .muted{flex:1;font-size:12px}
 .ai{margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:center;background:var(--ai-bg);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px}
@@ -325,6 +347,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .col-side{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 }
 @media (max-width:1100px){.qa{grid-template-columns:repeat(2,minmax(0,1fr))}.ai{grid-template-columns:1fr}}
+@media (max-width:900px){.rhy-cols{grid-template-columns:1fr}}
 @media (max-width:900px){
   .app,.app.rail{grid-template-columns:minmax(0,1fr)}
   .side{position:fixed;left:0;top:0;bottom:0;width:280px;transform:translateX(-100%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s;z-index:70}
@@ -391,6 +414,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
         <div class="home">
           <div class="col-main">
             <div class="qa" id="qa" aria-label="Aksi cepat"></div>
+            <div id="rhythm"></div>
             <div class="today" id="today"></div>
             <div id="aiBox"></div>
             <section class="sec" aria-labelledby="favH">
@@ -675,6 +699,9 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
     }).join("");
     box.innerHTML = html; box.hidden = !html;
+    var rb = $("#rhythm");
+    rb.innerHTML = H.today.rhythm ? '<section class="panel rhythm" aria-labelledby="rhyH"><div class="panel-h"><span class="ticon sm cat-campaign">' + icon("clock") + '</span><h2 id="rhyH">Ritme hari ini</h2></div><div id="rhythmBody">' + skel(4) + "</div></section>" : "";
+    rb.hidden = !H.today.rhythm;
     $("#jobsPanel").hidden = !H.today.jobs && !H.today.cron;
     $("#jobsPanel").innerHTML = '<div class="panel-h"><h2 id="jobsH">Status otomatis</h2>' + (H.actions ? '<a class="link" href="' + esc(H.actions) + '" target="_blank" rel="noopener">GitHub ' + icon("ext") + "</a>" : "") + '</div><div id="jobsBody">' + skel(4) + "</div>";
   }
@@ -784,17 +811,45 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     el.innerHTML = (bad ? '<div class="errbox" style="margin-bottom:10px">' + icon("alert") + "<div>" + bad + " tugas otomatis bermasalah. Penyebabnya tertulis di bawah namanya.</div></div>" : "") + html +
       '<div class="panel-f"><span class="muted">Diperbarui ' + esc(ago(Date.now())) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang status" title="Muat ulang">' + icon("refresh") + "</button></div>";
   }
-  function fillAll(d) { fillRecap(d.recap); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
+  /* ---------- ritme hari ini (langkah dihitung di server: rhythm() di worker.js) ---------- */
+  var RCOLS = [["Pagi", 0, 660, "00.00–11.00"], ["Siang", 660, 900, "11.00–15.00"], ["Sore", 900, 1440, "15.00–24.00"]];
+  var RDOT = { ok: "ok", err: "err", warn: "warn", run: "run", due: "info", wait: "", muted: "" };
+  function mins(t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); }
+  function rhyItem(s) {
+    var inner = '<span class="tm">' + s.at.replace(":", ".") + '</span><span class="dot ' + (RDOT[s.state] || "") + '" aria-hidden="true"></span><span class="m"><b>' + esc(s.title) + "</b><small>" + esc([s.note, s.sub].filter(Boolean).join(" · ")) + "</small></span>";
+    var body = s.url ? '<a class="rhy-a" href="' + esc(s.url) + '" target="_blank" rel="noopener">' + inner + "</a>"
+      : s.tool && byId[s.tool] ? '<button class="rhy-a" type="button" data-open="' + s.tool + '">' + inner + "</button>" : '<span class="rhy-a">' + inner + "</span>";
+    return '<li class="rhy-i ' + s.state + '">' + body + "</li>";
+  }
+  function fillRhythm(r) {
+    var el = $("#rhythmBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ritme hari ini tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, now = mins(d.now.replace(".", ":")), steps = d.steps || [];
+    var next = steps.filter(function (s) { return s.state === "wait"; })[0], bad = steps.filter(function (s) { return s.state === "err"; }).length;
+    var head = '<p class="rhy-next">' + (bad ? '<span class="badge st-err">' + bad + " perlu dicek</span>" : "") +
+      "<span>" + (next ? "Berikutnya: <b>" + esc(next.title) + "</b> pukul " + next.at.replace(":", ".") : steps.length ? "Semua langkah hari ini sudah masuk jadwalnya." : "Belum ada langkah terjadwal hari ini.") + "</span>" +
+      (d.bourse ? "" : '<span class="badge st-muted">Bukan hari bursa</span>') + "</p>";
+    var cols = RCOLS.map(function (c) {
+      var list = steps.filter(function (s) { var m = mins(s.at); return m >= c[1] && m < c[2]; }), on = now >= c[1] && now < c[2];
+      return '<div class="rhy-col' + (on ? " now" : "") + '"><h3>' + c[0] + " <small>" + c[3] + "</small>" + (on ? '<span class="badge st-ok">Sekarang</span>' : "") + "</h3>" +
+        (list.length ? '<ol class="rhy-list">' + list.map(rhyItem).join("") + "</ol>" : '<p class="muted small" style="margin:6px 0">Tidak ada langkah.</p>') + "</div>";
+    }).join("");
+    var note = d.planner ? (d.untimed ? d.untimed + " kegiatan Content Planner hari ini belum punya jam" : "Kegiatan Content Planner yang berjam ikut tampil di sini") : "";
+    el.innerHTML = head + '<div class="rhy-cols">' + cols + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date) + " · " + d.now + " WIB" + (note ? " · " + note : "")) +
+      '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang ritme" title="Muat ulang">' + icon("refresh") + "</button></div>";
+  }
+  function fillAll(d) { fillRhythm(d.rhythm); fillRecap(d.recap); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
-  function loadFeed() {
+  // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
+  function loadFeed(quiet) {
     if (loadingFeed) return; loadingFeed = true;
-    PANELS.map(function (p) { return "#" + p[1]; }).concat("#jobsBody").forEach(function (s) { var e = $(s); if (e) e.innerHTML = skel(3); });
+    if (quiet !== true) PANELS.map(function (p) { return "#" + p[1]; }).concat("#jobsBody", "#rhythmBody").forEach(function (s) { var e = $(s); if (e) e.innerHTML = skel(3); });
     var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
     fetch("/api/today", { headers: { accept: "application/json" }, signal: ctl && ctl.signal }).then(function (r) {
       if (r.status === 401) throw new Error("Sesi habis. Muat ulang halaman lalu login lagi.");
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
     }).then(function (d) { feed = d; fillAll(d); })
-      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; fillAll({ recap: m, planner: m, fund: m, competitor: m, edukasi: m, jobs: m, cron: m }); })
+      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, jobs: m, cron: m }); })
       .then(function () { clearTimeout(t); loadingFeed = false; });
   }
 
@@ -1029,7 +1084,11 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   setRail(railPref); applyTheme(); renderNav(); renderQuick(); renderToday(); renderFav(); renderHomeGrid(); renderRecent();
   if (!apps.length) $("#vHome").innerHTML = '<div class="empty"><b>Belum ada tool yang bisa kamu buka</b>Admin perlu memberikan akses ke akunmu. Hubungi admin tim.</div>';
   route();
-  if (Object.keys(H.today).some(function (k) { return H.today[k]; })) loadFeed();
+  if (Object.keys(H.today).some(function (k) { return H.today[k]; })) {
+    loadFeed();
+    // tiap 5 menit selama beranda terlihat, supaya tanda selesai & "Sekarang" mengikuti jam
+    setInterval(function () { if (document.visibilityState === "visible" && curView === "home" && !curId) loadFeed(true); }, 5 * 60e3);
+  }
 })();
 </script>
 </body>

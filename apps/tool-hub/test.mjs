@@ -14,7 +14,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: hub, hashPw } = await import("./worker.js");
+const { default: hub, hashPw, rhythm } = await import("./worker.js");
 const { default: recap } = await import("../market-recap/worker.js");
 const { default: planner } = await import("../content-planner/worker.js");
 const { default: fund } = await import("../fund-insight/worker.js");
@@ -114,7 +114,7 @@ for (const a of boot.apps) {
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
 assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["edukasi", "recap"], "AI Workbench hanya tool yang memang memakai AI");
-assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, jobs: true, cron: true });
+assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
 assert.equal(boot.apps.find((a) => a.id === "recap").lvl, "Admin");
@@ -209,6 +209,58 @@ assert.equal(runs2.STORYDATA.ok_at, cronAt + 5 * 60e3);
 assert.equal(runs2.FUND.ok_at, cronAt, "tugas yang tidak jalan di slot ini tetap menyimpan catatan lamanya");
 assert.equal(runs2._cron.at, cronAt + 5 * 60e3);
 assert.equal(runs2.STORYDATA.err_at, cronAt);
+assert.equal(t.rhythm.ok, true, JSON.stringify(t.rhythm));
+assert.ok(t.rhythm.data.steps.some((s) => s.id === "plan:a"), "kegiatan Planner berjam ikut di garis waktu");
+
+/* ---------- Ritme hari ini (fungsi murni, jam tetap) ---------- */
+{
+  const W = (s) => Date.parse(s + "+07:00"), all = () => true;
+  const P = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { ok: true, data: v }]));
+  const parts = (date, recapSt = "none") => P({
+    jobs: { today: [
+      { wf: "story-data.yml", state: "ok", at: W(date + "T00:03:00"), url: "u-cal" },
+      { wf: "pdf.yml", state: "err", at: W(date + "T07:02:00"), url: "u-pdf", step: "Ambil alamat" },
+    ] },
+    fund: { at: new Date(W(date + "T09:06:00")).toISOString() },
+    recap: { date, sessions: [{ session: "s1", status: recapSt }, { session: "close", status: "none" }] },
+    planner: { kinds: { konten: "Konten sosmed" }, today: [
+      { id: "a", time: "08:00", title: "Story pagi", kind: "konten", channel: "IG Story", status: "terbit" },
+      { id: "b", time: "10:30", title: "Artikel ETF", kind: "artikel", status: "draf" },
+      { id: "c", time: "", title: "Tanpa jam", status: "ide" },
+    ] },
+  });
+  const by = (R) => Object.fromEntries(R.steps.map((s) => [s.id, [s.state, s.note]]));
+  let R = rhythm(W("2026-10-19T12:30:00"), parts("2026-10-19"), all), s = by(R);   // Senin
+  assert.equal(R.now, "12.30"); assert.equal(R.bourse, true); assert.equal(R.untimed, 1);
+  assert.deepEqual(s.cal, ["ok", "Selesai 00.03"]);
+  assert.deepEqual(s.pdf, ["err", "Gagal di Ambil alamat · 07.02"]);
+  assert.deepEqual(s.nav1, ["ok", "Selesai 09.06"]);
+  assert.deepEqual(s.s1, ["due", "Sedang disusun otomatis"]);
+  assert.deepEqual(s.wrap, ["wait", "Dijadwalkan 16.50"]);
+  assert.equal(s.nav2[0], "wait");
+  assert.deepEqual(s["plan:a"], ["ok", "Terbit"]);
+  assert.deepEqual(s["plan:b"], ["warn", "Masih draf"], "lewat 1 jam dari jadwal dan belum terbit");
+  assert.deepEqual(R.steps.map((x) => x.at), ["00:00", "07:00", "08:00", "09:05", "10:30", "12:00", "16:50", "17:20", "17:20", "18:05"]);
+  assert.equal(R.steps.find((x) => x.id === "pdf").url, "u-pdf");
+  assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19"), all)).s1, ["err", "Belum ada hasil sampai 13.45"]);
+  assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19", "draft"), all)).s1, ["warn", "Draf, belum terbit"]);
+  assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19", "published"), all)).s1, ["ok", "Terbit"]);
+  // tanpa run Wrap setelah 16.00: run kalender pagi tidak dihitung sebagai Wrap
+  assert.deepEqual(by(rhythm(W("2026-10-19T18:10:00"), parts("2026-10-19"), all)).wrap, ["err", "Belum ada hasil sampai 18.00"]);
+  // Jumat: jeda siang 11.30–14.00
+  R = rhythm(W("2026-10-23T11:40:00"), parts("2026-10-23"), all);
+  assert.equal(R.steps.find((x) => x.id === "s1").at, "11:30"); assert.equal(by(R).s1[0], "due");
+  // Sabtu: tanpa langkah bursa
+  R = rhythm(W("2026-10-24T10:00:00"), parts("2026-10-24"), all);
+  assert.equal(R.bourse, false);
+  assert.deepEqual(R.steps.filter((x) => !x.planner).map((x) => x.id), ["pdf", "nav1", "nav2"]);
+  // akses terbatas: hanya Fund Insight
+  R = rhythm(W("2026-10-19T12:30:00"), parts("2026-10-19"), (id) => id === "fund");
+  assert.deepEqual(R.steps.map((x) => x.id), ["pdf", "nav1", "nav2"]); assert.equal(R.planner, false);
+  // status GitHub gagal dimuat: langkah GitHub abu-abu, bukan merah
+  const p2 = parts("2026-10-19"); p2.jobs = { ok: false, error: "x" };
+  assert.deepEqual(by(rhythm(W("2026-10-19T12:30:00"), p2, all)).pdf, ["muted", "Status GitHub tidak terbaca"]);
+}
 
 /* ---------- favorit ---------- */
 r = await call("/api/prefs", { method: "POST", cookie: admin, json: { fav: ["fund"] } });
@@ -228,10 +280,11 @@ assert.match(user, /^hub_sess=/);
 boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
-assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, jobs: true, cron: true });
+assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, jobs: true, cron: true, rhythm: true });
 assert.equal(boot.me.admin, false);
 const ut = await (await call("/api/today", { cookie: user })).json();
-assert.deepEqual(Object.keys(ut).sort(), ["cron", "fund", "jobs"], "ringkasan tool tanpa akses tidak diminta");
+assert.deepEqual(Object.keys(ut).sort(), ["cron", "fund", "jobs", "rhythm"], "ringkasan tool tanpa akses tidak diminta");
+assert.ok(ut.rhythm.data.steps.every((s) => ["pdf", "nav1", "nav2"].includes(s.id)), "ritme: hanya langkah tool yang boleh dibuka");
 r = await call("/api/prefs", { method: "POST", cookie: user, origin: HUB, json: { fav: ["fund", "recap"] } });
 assert.deepEqual((await r.json()).fav, ["fund"], "tidak bisa memfavoritkan tool tanpa akses");
 assert.equal((await call("/sso?app=recap&back=" + encodeURIComponent("https://recap.acme.test/"), { cookie: user })).status, 403, "SSO tetap menolak tool tanpa akses");

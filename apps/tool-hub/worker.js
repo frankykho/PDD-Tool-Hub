@@ -485,7 +485,8 @@ function shellPage(env, sess, mine, pending, fav) {
       features: a.features || [], ai: a.ai || '', kw: a.kw || '', src: src(a), pages: pages(a), lvl: levelLabel(a, accessOf(sess.u, a)),
     })),
     fav,
-    today: { ...Object.fromEntries(FEEDS.map(f => [f.id, mine.some(a => a.id === f.id)])), jobs: !!repo, cron: !!env.CRON },
+    today: { ...Object.fromEntries(FEEDS.map(f => [f.id, mine.some(a => a.id === f.id)])), jobs: !!repo, cron: !!env.CRON,
+      rhythm: RHYTHM.some(s => s.tools.some(id => mine.some(a => a.id === id))) || mine.some(a => a.id === 'planner') },
     actions: repo ? 'https://github.com/' + repo + '/actions' : '',
   };
   // JSON di dalam <script>: "<" dan pemisah baris Unicode di-escape supaya isi data tidak bisa menutup tag script
@@ -552,7 +553,10 @@ async function jobRuns(env) {
       ghSteps.set(x.id, job ? [jobs.length > 1 || !step ? job.name : '', step ? step.name : ''].filter(Boolean).join(' › ') : '');
     } catch (e) { }   // tanpa nama langkah, baris job tetap tampil
   }));
-  const v = { at: new Date().toISOString(), runs: list.map(({ id, ...x }) => ({ ...x, step: ghSteps.get(id) || '' })) };
+  // semua run hari ini (WIB), untuk garis waktu Ritme hari ini
+  const start = Date.parse(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) + 'T00:00:00+07:00');
+  const today = runs.filter(x => Date.parse(x.created_at) >= start).map(x => ({ wf: String(x.path || '').split('/').pop(), state: state(x), at: Date.parse(x.created_at), url: x.html_url, step: ghSteps.get(x.id) || '' }));
+  const v = { at: new Date().toISOString(), runs: list.map(({ id, ...x }) => ({ ...x, step: ghSteps.get(id) || '' })), today };
   ghCache = { repo, t: Date.now(), v };
   return v;
 }
@@ -573,10 +577,74 @@ async function todayFeed(env, sess, mine) {
     wrap('jobs', jobRuns(env)),
     env.CRON && wrap('cron', feedFrom(env, 'CRON', 'Jadwal cron')),
   ].filter(Boolean));
+  try { out.rhythm = { ok: true, data: rhythm(Date.now(), out, has) }; } catch (e) { out.rhythm = { ok: false, error: String((e && e.message) || e).slice(0, 240) }; }
   return Response.json(out, { headers: { 'cache-control': 'no-store' } });
 }
 
-export { APPS, checkPw, hashPw };
+/* ---------- Ritme hari ini: langkah harian menurut jam bursa (WIB) ---------- */
+// at = jadwal, late = batas wajar (lewat ini tanpa hasil = merah), bourse = hanya Senin–Jumat, tools = tampil bila salah satunya boleh dibuka.
+// Bukti selesai: wf = run workflow GitHub (nama berkas) yang dimulai dalam jendela [from, to) hari ini; fundAt = tarikan data Fund Insight
+// setelah jam itu; recap = status sesi Market Recap. Jadwalnya mengikuti apps/cron, apps/story-data, dan .github/workflows.
+const RHYTHM = [
+  { id: 'cal', at: '00:00', late: '03:00', title: 'Data Story Morning', sub: 'Kalender & penutupan terakhir', tools: ['story'], bourse: true, wf: 'story-data.yml', from: '00:00', to: '12:00' },
+  { id: 'pdf', at: '07:00', late: '08:30', title: 'PDF produk', sub: 'Fund & Bond', tools: ['fund', 'bond'], wf: 'pdf.yml', from: '00:00', to: '24:00' },
+  { id: 'nav1', at: '09:05', late: '10:30', title: 'NAB reksa dana pagi', sub: 'Tarikan data Fund Insight', tools: ['fund'], fundAt: '09:00' },
+  { id: 's1', at: '12:00', late: '13:45', title: 'Market Recap sesi 1', sub: 'Disusun saat jeda siang', tools: ['recap'], bourse: true, recap: 's1' },
+  { id: 'wrap', at: '16:50', late: '18:00', title: 'Data Story Wrap', sub: 'Penutupan IDX, dicoba lagi 17.25', tools: ['story'], bourse: true, wf: 'story-data.yml', from: '16:00', to: '24:00' },
+  { id: 'close', at: '17:20', late: '18:30', title: 'Market Recap penutupan', sub: 'Setelah data penutupan ada', tools: ['recap'], bourse: true, recap: 'close' },
+  { id: 'sats', at: '17:20', late: '20:30', title: 'Sinyal SATS', sub: 'Dicoba lagi 19.20 bila belum', tools: ['sats'], bourse: true, wf: 'sats-eod.yml', from: '17:00', to: '24:00' },
+  { id: 'nav2', at: '18:05', late: '19:30', title: 'NAB reksa dana sore', sub: 'Tarikan data Fund Insight', tools: ['fund'], fundAt: '18:00' },
+];
+const hm = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
+const hhmm = ms => new Date(ms + 7 * 3600e3).toISOString().slice(11, 16).replace(':', '.');
+/** Garis waktu hari ini. Fungsi murni: now = ms, parts = isi /api/today (recap, planner, fund, jobs), has(id) = pengguna boleh membuka tool itu.
+ *  state: ok (selesai), warn (ada hasil tapi belum tuntas, mis. draf), err (gagal / lewat batas tanpa hasil), run (sedang jalan),
+ *  due (sudah waktunya, menunggu hasil), wait (belum waktunya), muted (status tidak terbaca / batal). */
+export function rhythm(now, parts, has) {
+  const w = new Date(now + 7 * 3600e3), date = w.toISOString().slice(0, 10), min = w.getUTCHours() * 60 + w.getUTCMinutes(), dow = w.getUTCDay();
+  const bourse = dow >= 1 && dow <= 5, start = Date.parse(date + 'T00:00:00+07:00'), at = t => start + hm(t) * 60e3;
+  const data = k => (parts[k] && parts[k].ok ? parts[k].data : null);
+  const jobs = data('jobs'), recap = data('recap'), fund = data('fund'), plan = data('planner');
+  const steps = [];
+  // tanpa bukti: belum waktunya, menunggu, atau lewat batas
+  const none = (s, what) => min < hm(s.at) ? ['wait', 'Dijadwalkan ' + s.at.replace(':', '.')] : min < hm(s.late) ? ['due', what || 'Menunggu hasil'] : ['err', 'Belum ada hasil sampai ' + s.late.replace(':', '.')];
+  for (const s0 of RHYTHM) {
+    if (!s0.tools.some(has) || (s0.bourse && !bourse)) continue;
+    const s = dow === 5 && s0.id === 's1' ? { ...s0, at: '11:30', late: '14:15', sub: 'Disusun saat jeda siang (Jumat)' } : s0;
+    let st, url = '';
+    if (s.wf) {
+      if (!jobs) st = ['muted', 'Status GitHub tidak terbaca'];
+      else {
+        const rs = (jobs.today || []).filter(x => x.wf === s.wf && x.at >= at(s.from) && x.at < at(s.to)).sort((a, b) => b.at - a.at);
+        const good = rs.find(x => x.state === 'ok'), last = rs[0];
+        if (good) { st = ['ok', 'Selesai ' + hhmm(good.at)]; url = good.url; }
+        else if (last && last.state === 'run') { st = ['run', 'Sedang jalan sejak ' + hhmm(last.at)]; url = last.url; }
+        else if (last && last.state === 'err') { st = ['err', 'Gagal' + (last.step ? ' di ' + last.step : '') + ' · ' + hhmm(last.at)]; url = last.url; }
+        else st = none(s);
+      }
+    } else if (s.fundAt) {
+      const t = fund && Date.parse(fund.at);
+      st = !fund ? ['muted', 'Data Fund Insight tidak terbaca'] : t >= at(s.fundAt) ? ['ok', 'Selesai ' + hhmm(t)] : none(s);
+    } else if (s.recap) {
+      const x = recap && recap.date === date ? (recap.sessions || []).find(y => y.session === s.recap) : null;
+      st = !recap ? ['muted', 'Market Recap tidak terbaca'] : x && x.status === 'published' ? ['ok', 'Terbit'] : x && x.status === 'draft' ? ['warn', 'Draf, belum terbit'] : none(s, 'Sedang disusun otomatis');
+    }
+    steps.push({ id: s.id, at: s.at, title: s.title, sub: s.sub, state: st[0], note: st[1], tool: s.tools.find(has), url });
+  }
+  // kegiatan Content Planner hari ini yang berjam (konten, artikel, edukasi): tandanya mengikuti statusnya
+  let untimed = 0;
+  if (plan && has('planner')) for (const it of plan.today || []) {
+    if (!/^\d{2}:\d{2}/.test(it.time || '')) { untimed++; continue; }
+    const t = it.time.slice(0, 5), stt = it.status || '';
+    const st = ['terbit', 'selesai'].includes(stt) ? ['ok', stt === 'terbit' ? 'Terbit' : 'Selesai'] : stt === 'batal' ? ['muted', 'Batal']
+      : min >= hm(t) + 60 ? ['warn', 'Masih ' + (stt || 'belum ada status')] : min >= hm(t) ? ['due', 'Sekarang · ' + (stt || 'belum ada status')] : ['wait', 'Status: ' + (stt || '-')];
+    steps.push({ id: 'plan:' + it.id, at: t, title: it.title, sub: [(plan.kinds || {})[it.kind] || it.kind, it.channel].filter(Boolean).join(' · '), state: st[0], note: st[1], tool: 'planner', url: '', planner: true });
+  }
+  steps.sort((a, b) => hm(a.at) - hm(b.at));
+  return { date, now: hhmm(now), bourse, steps, untimed, planner: !!(plan && has('planner')) };
+}
+
+export { APPS, checkPw, hashPw, RHYTHM };
 export default {
   async fetch(request, env = {}) {
     const url = new URL(request.url), path = url.pathname, post = request.method === 'POST';
