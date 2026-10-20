@@ -334,11 +334,24 @@ const ciHist = (old, t) => { let h = []; try { h = JSON.parse(old || '[]'); } ca
 const CI_NOT_PROMO = [
   [/\b(?:ini|daftar|pengumuman|para)\s+pemenang\b|\bpemenang\s+(?:promo|program|undian|kompetisi|lomba|giveaway)\b/i, 'pengumuman pemenang'],
   [/\b(?:weekly|monthly|market)\s+(?:update|recap|outlook)\b|\b(?:update|rekap|ulasan)\s+(?:mingguan|bulanan|pasar)\b/i, 'artikel update/rekap'],
+  [/^bareksa insight\b|stockbit snips|(?:&mdash;|—)\s*stockbit\b|\bberita saham\b|\btips investasi\b|\bkelas investasi\b|\bbelajar investasi\b|\beduvest\b|\bpodcast\b|\barti istilah\b|^navigasi$/i, 'berita/edukasi'],
+  [/^(?:promo spesial untuk kamu!?|promo spesial:?\s*\|.*|penawaran spesial|promo of the month|promo\s*(?:&amp;|&|dan)\s*campaign(?:\s*-\s*\S+)?|kategori:.*)$/i, 'halaman daftar promo'],
 ];
 export function ciNotPromo(title) {
-  const t = String(title || '');
+  const t = String(title || '').trim();
   const hit = CI_NOT_PROMO.find(([re]) => re.test(t));
   return hit ? hit[1] : '';
+}
+// Tanda promo di judul. "raih/dapatkan" hanya dihitung bila diikuti benefit (bukan "Raih Penghargaan").
+const CI_PROMO_TITLE = /cashback|\bbonus\b|hadiah|reward|\bpromo\b|diskon|potongan|voucher|gratis|kompetisi|giveaway|undian|payday|\bRp\s?\d|\b(?:raih|dapatkan)\b[^|]{0,40}\b(?:saldo|koin|poin|\d+\s?(?:rb|ribu|juta))/i;
+/** Alasan halaman hasil scan dianggap bukan promo ('' = masuk antrean verifikasi).
+ *  Masuk antrean bila judulnya jelas promo, atau halamannya punya periode DAN benefit yang terbaca. */
+export function ciPromoVerdict(rec) {
+  const np = ciNotPromo(rec && rec.title);
+  if (np) return np;
+  if (CI_PROMO_TITLE.test(String(rec.title || ''))) return '';
+  const hasDate = !!(rec.start_date || rec.end_date), hasBenefit = !!(rec.benefit || rec.tiers);
+  return hasDate && hasBenefit ? '' : 'tidak ada periode & benefit promo yang jelas';
 }
 // Simpan satu promo hasil scan. Promo yang sudah ada (URL sama) diperbarui; yang sudah diverifikasi tidak ditimpa,
 // perubahan di halaman sumber dicatat di riwayat dan statusnya kembali "Perlu verifikasi".
@@ -347,7 +360,7 @@ async function ciSaveScan(env, rec, hash) {
   const now = ciNow();
   if (!old) {
     // Bukan promo: tetap disimpan (bisa dikembalikan tim), tapi langsung "Tidak relevan" supaya tidak menambah antrean verifikasi
-    const np = ciNotPromo(rec.title);
+    const np = ciPromoVerdict(rec);
     const row = { ...rec, id: crypto.randomUUID(), content_hash: hash, discovered_at: now, first_seen: now, last_checked: now, status: np ? 'Tidak relevan' : 'Perlu verifikasi',
       history: ciHist(null, np ? `Ditemukan oleh scan otomatis; ditandai tidak relevan otomatis (${np}).` : 'Ditemukan oleh scan otomatis.') };
     const k = Object.keys(row);
