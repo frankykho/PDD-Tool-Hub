@@ -5,6 +5,7 @@
 // - GET  /api/days         -> arsip (tanggal, sesi, status, judul, % IHSG)
 // - GET  /api/day?date=    -> rangkuman satu hari (sesi 1 & penutupan)
 // - POST /api/save | /api/publish | /api/rebuild -> sunting narasi, terbitkan/tarik, susun ulang hari ini (editor & admin)
+// - GET  /__hub/today      -> ringkasan hari ini untuk beranda Tool Hub (service binding, lihat shared/hubfeed.js)
 //
 // Jadwal: apps/cron memanggil scheduled() tiap :20/:50 UTC hari kerja; worker memilih sendiri apa yang dikerjakan:
 //   s1    : saat jeda sesi 1 (12:00–13:30 WIB; Jumat 11:30–14:00)
@@ -18,6 +19,7 @@ import { newsFor } from "../../shared/news.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
+import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { r2, contributions, foreignFlow, intraday, daily, lastChange, quote } from "./calc.js";
 import PAGE from "./page.html";
 
@@ -89,6 +91,16 @@ async function days(env, publishedOnly, limit = 120) {
   await ensure(env);
   return (await env.DB.prepare(`SELECT date, session, status, substr(narrative, 1, instr(narrative || char(10), char(10)) - 1) AS title,
     json_extract(data, '$.ihsg.pct') AS pct FROM recaps ${publishedOnly ? "WHERE status='published'" : ""} ORDER BY date DESC, session DESC LIMIT ?`).bind(limit).all()).results;
+}
+
+/** Ringkasan untuk beranda Tool Hub: status sesi 1 & penutupan hari ini, plus rangkuman terakhir kalau hari ini belum ada. */
+async function hubToday(env) {
+  await ensure(env);
+  const date = ymd(wibNow());
+  const cols = "date, session, status, substr(narrative, 1, instr(narrative || char(10), char(10)) - 1) AS title, json_extract(data, '$.ihsg.pct') AS pct, updated_at";
+  const today = (await env.DB.prepare(`SELECT ${cols} FROM recaps WHERE date=?`).bind(date).all()).results;
+  const last = today.length ? null : await env.DB.prepare(`SELECT ${cols} FROM recaps ORDER BY date DESC, session ASC LIMIT 1`).first();
+  return { date, sessions: Object.keys(SESSIONS).map((k) => ({ session: k, label: SESSIONS[k], ...(today.find((r) => r.session === k) || { status: "none" }) })), last };
 }
 
 /* =========================================================
@@ -252,6 +264,7 @@ export default withCron({
         const r = await fetch(src, { cf: { cacheTtl: 86400, cacheEverything: true } });
         return new Response(r.body, { status: r.status, headers: { "content-type": r.headers.get("content-type") || "image/png", "cache-control": "public, max-age=86400" } });
       }
+      if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env)) : new Response("forbidden", { status: 403 });
       // publik: hanya yang sudah diterbitkan, tanpa login
       const pm = /^\/p(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/.exec(path);
       if (pm) {

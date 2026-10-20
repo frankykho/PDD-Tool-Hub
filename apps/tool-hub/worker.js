@@ -10,26 +10,49 @@
 //   FIREBASE_SA   (Secret, opsional) seluruh isi berkas kunci service account Firebase proyek tutorial; hanya untuk tab Tutorial.
 // Disuntikkan scripts/deploy.mjs: PROFILE (nama brand, alamat semua tool), HUB_URL, GITHUB_REPO ("pemilik/repo").
 import { profile, appUrl, title } from "../../shared/profile.js";
+import SHELL from "./shell.html";
 
+// cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
+// ai = baris singkat kalau tool memakai AI (muncul di AI Workbench); kw = kata kunci tambahan untuk pencarian.
+// Tool baru cukup ditambahkan di sini: sidebar, beranda, pencarian, dan halaman detail membaca daftar ini.
 // frame: false = belum bisa tampil di dalam dashboard, dibuka di tab browser baru (hapus setelah tool itu disambungkan ke hub).
 // Daftar tool. Alamat tool = profile.urls[id] (appUrl); tiket hanya dikirim ke alamat ini. levels / tabs = pilihan hak akses di halaman admin.
 const APPS = [
-  { id: 'email', name: 'Email Studio', desc: 'Generator email marketing' },
-  { id: 'story', name: 'Story Generator', desc: 'Generator Instagram Story', tabs: { morning: 'Morning', halftime: 'Halftime', wrap: 'Wrap', weekly: 'Weekly Update', rdh: 'RD Highlights', bondpicks: 'Bond Picks' } },
-  { id: 'fund', name: 'Fund Insight', desc: 'Data & analisis reksa dana', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
-  { id: 'competitor', name: 'Competitor Intelligence', desc: 'Promo kompetitor: sekuritas & APERD', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
-  { id: 'content', name: 'Content Insight', desc: 'Konten media sosial kompetitor', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
-  { id: 'edukasi', name: 'Edukasi Studio', desc: 'Riset artikel edukasi & tulis konten orisinal', levels: { user: 'Pengguna', admin: 'Admin' } },
-  { id: 'bond', name: 'Bond Insight', desc: 'Data & analisis obligasi' },
-  { id: 'etf', name: 'ETF Insight', desc: 'ETF KISI (XKMS, XKID) & pembanding ETF di BEI' },
-  { id: 'recap', name: 'Market Recap', desc: 'Rangkuman IHSG sesi 1 & penutupan + arsip; halaman publik', levels: { viewer: 'Lihat saja', editor: 'Editor (sunting & terbitkan)', admin: 'Admin' } },
-  { id: 'planner', name: 'Content Planner', desc: 'Kalender konten tim & paket konten mingguan', pages: [{ label: 'Kalender', path: '/' }, { label: 'Paket Mingguan', path: '/paket' }] },
-  { id: 'sats', name: 'SATS Radar', desc: 'Sinyal & screener saham', entry: '/api/auth/hub?to=%2F', levels: { user: 'Pengguna', admin: 'Admin' } },
+  { id: 'email', name: 'Email Studio', desc: 'Generator email marketing',
+    cat: 'campaign', icon: 'mail', blurb: 'Susun email marketing siap kirim dari template tim: Market Insight, Weekly Picks, promo, dan webinar.', features: ['Template Market Insight & Weekly Picks', 'Email promo dan undangan webinar', 'Ikon & tautan footer dari profil brand'] },
+  { id: 'story', name: 'Story Generator', desc: 'Generator Instagram Story',
+    cat: 'creative', icon: 'story', blurb: 'Buat Instagram Story harian dan mingguan dari data pasar terbaru, siap diunduh sebagai gambar.', features: ['Morning, Halftime, dan Wrap harian', 'Weekly Update, RD Highlights, dan Bond Picks', 'Data pasar otomatis dari Story Data'], kw: 'instagram ig konten desain', tabs: { morning: 'Morning', halftime: 'Halftime', wrap: 'Wrap', weekly: 'Weekly Update', rdh: 'RD Highlights', bondpicks: 'Bond Picks' } },
+  { id: 'fund', name: 'Fund Insight', desc: 'Data & analisis reksa dana',
+    cat: 'research', icon: 'fund', blurb: 'Data dan analisis reksa dana: kinerja, NAB, pembanding, dan halaman produk untuk nasabah.', features: ['Daftar reksa dana dengan return & NAB', 'Halaman produk untuk dibagikan ke nasabah', 'PDF produk diperbarui otomatis setiap hari', 'Agenda pasar yang dicatat tim'], kw: 'reksadana rd nab produk', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
+  { id: 'competitor', name: 'Competitor Intelligence', desc: 'Promo kompetitor: sekuritas & APERD',
+    cat: 'research', icon: 'target', blurb: 'Pantau promo investasi kompetitor dari sekuritas dan APERD, dipindai otomatis secara berkala.', features: ['Pemindaian promo kompetitor terjadwal', 'Daftar program per sumber', 'Arsip gambar promo'], kw: 'kompetitor promo sekuritas aperd', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
+  { id: 'content', name: 'Content Insight', desc: 'Konten media sosial kompetitor',
+    cat: 'creative', icon: 'gallery', blurb: 'Galeri konten media sosial kompetitor sebagai bahan referensi dan inspirasi konten tim.', features: ['Galeri konten media sosial kompetitor'], kw: 'sosmed instagram referensi kompetitor', levels: { viewer: 'Lihat saja', editor: 'Editor', admin: 'Admin' } },
+  { id: 'edukasi', name: 'Edukasi Studio', desc: 'Riset artikel edukasi & tulis konten orisinal',
+    cat: 'creative', icon: 'book', blurb: 'Riset artikel edukasi investasi dari berbagai sumber, lalu tulis konten orisinal dengan bantuan AI.', features: ['Kumpulan artikel sumber yang dipantau', 'Draf konten orisinal ditulis AI', 'Catatan dan draf tersimpan untuk disunting'], ai: 'Riset artikel & tulis draf konten edukasi', kw: 'artikel edukasi tulis ai', levels: { user: 'Pengguna', admin: 'Admin' } },
+  { id: 'bond', name: 'Bond Insight', desc: 'Data & analisis obligasi',
+    cat: 'research', icon: 'bond', blurb: 'Data dan analisis obligasi beserta pergerakan yield, dengan halaman yang bisa dibagikan.', features: ['Daftar obligasi dan riwayat yield', 'Halaman bagikan untuk nasabah', 'PDF produk diperbarui otomatis setiap hari'], kw: 'obligasi sbn fr yield' },
+  { id: 'etf', name: 'ETF Insight', desc: 'ETF KISI (XKMS, XKID) & pembanding ETF di BEI',
+    cat: 'research', icon: 'etf', blurb: 'Analisis ETF: harga vs NAB, kinerja vs indeks, risiko per tahun, simulasi investasi, dan pembanding semua ETF di BEI.', features: ['Harga vs NAB dan kinerja vs indeks', 'Risiko & kinerja per tahun kalender', 'Simulasi investasi rutin atau sekali beli', 'Pembanding semua ETF di BEI', 'Halaman produk untuk nasabah'], kw: 'etf reksadana indeks' },
+  { id: 'recap', name: 'Market Recap', desc: 'Rangkuman IHSG sesi 1 & penutupan + arsip; halaman publik',
+    cat: 'research', icon: 'trend', blurb: 'Rangkuman IHSG sesi 1 dan penutupan setiap hari bursa, sebagai carousel 5 slide yang disunting dan diterbitkan tim.', features: ['Disusun otomatis setiap hari bursa', 'Penggerak indeks, sektor, global, dan agenda', 'Carousel 5 slide PNG & PDF', 'Halaman publik dan arsip'], ai: 'Judul & narasi rangkuman IHSG sebagai draf', kw: 'ihsg pasar harian carousel', levels: { viewer: 'Lihat saja', editor: 'Editor (sunting & terbitkan)', admin: 'Admin' } },
+  { id: 'planner', name: 'Content Planner', desc: 'Kalender konten tim & paket konten mingguan',
+    cat: 'campaign', icon: 'calendar', blurb: 'Kalender kegiatan tim: konten sosmed, artikel, edukasi, dan tugas desain, plus paket konten mingguan.', features: ['Kalender konten, artikel, dan edukasi', 'Papan tugas desain', 'Laporan PPT & PDF per periode', 'Paket mingguan: ringkasan RD, obligasi, agenda'], kw: 'kalender jadwal tugas desain campaign', pages: [{ label: 'Kalender', path: '/' }, { label: 'Paket Mingguan', path: '/paket' }] },
+  { id: 'sats', name: 'SATS Radar', desc: 'Sinyal & screener saham',
+    cat: 'research', icon: 'sats', blurb: 'Sinyal teknikal dan screener saham, dihitung otomatis setiap hari bursa.', features: ['Screener saham', 'Sinyal harian dan level penting', 'Market breadth dan indeks'], kw: 'saham screener sinyal teknikal', entry: '/api/auth/hub?to=%2F', levels: { user: 'Pengguna', admin: 'Admin' } },
   // gh = gambar tutorial disimpan ke repo env.GITHUB_REPO (cabang profile.github.branch), hanya di dalam folder ghDir
-  { id: 'tutorial', name: 'Tutorial Aplikasi', desc: 'Usulan & kelola tutorial', firebase: true, gh: true, ghDir: 'apps/tutorial/site/images', paths: { submit: '/submit', admin: '/admin' }, levels: { submit: 'Kirim usulan', admin: 'Admin' },
+  { id: 'tutorial', name: 'Tutorial Aplikasi', desc: 'Usulan & kelola tutorial',
+    cat: 'education', icon: 'play', blurb: 'Pusat tutorial aplikasi: lihat panduan, kirim usulan tutorial baru, dan kelola isinya.', features: ['Tutorial yang bisa dibagikan ke nasabah', 'Kirim usulan tutorial', 'Kelola tutorial (admin)'], kw: 'panduan cara bantuan referensi', firebase: true, gh: true, ghDir: 'apps/tutorial/site/images', paths: { submit: '/submit', admin: '/admin' }, levels: { submit: 'Kirim usulan', admin: 'Admin' },
     // halaman di dalam tab ini; only = hanya untuk tingkat itu; share = halaman publik, dapat tombol "Bagikan link"
     pages: [{ label: 'Lihat tutorial', path: '/', share: true }, { label: 'Kirim usulan', path: '/submit' }, { label: 'Admin', path: '/admin', only: 'admin' }] },
 ];
+/** Kategori dashboard, urut seperti di sidebar. icon = nama ikon di shell.html. */
+const CATEGORIES = {
+  research: { label: 'Research & Intelligence', short: 'Riset', icon: 'flask', desc: 'Data produk, pasar, dan kompetitor untuk riset investasi.' },
+  creative: { label: 'Content & Creative', short: 'Konten', icon: 'pen', desc: 'Membuat konten dan mencari referensinya.' },
+  campaign: { label: 'Campaign & Distribution', short: 'Campaign', icon: 'megaphone', desc: 'Merencanakan dan mengirim kampanye.' },
+  education: { label: 'Product Education', short: 'Edukasi', icon: 'cap', desc: 'Panduan dan tutorial aplikasi.' },
+};
 const appById = id => APPS.find(a => a.id === id);
 const topLevel = a => a.tabs ? ['*'] : a.levels ? Object.keys(a.levels).pop() : true;
 
@@ -438,43 +461,100 @@ async function account(request, env, url, sess) {
   return page(200, view('Password diganti.'), { 'set-cookie': cookieStr(await makeSession(env, sess.email, sess.u), SESSION_DAYS * 86400) });
 }
 
-/** Dashboard satu halaman: baris tab di atas, tool tampil di bawahnya (dimuat saat tabnya pertama kali dibuka, lalu tetap hidup). */
-function shellPage(env, sess, mine, pending) {
-  const pages = {}; mine.forEach(a => { if (a.pages) pages[a.id] = a.pages.filter(p => !p.only || p.only === accessOf(sess.u, a)).map(p => [p.label, appUrl(env, a.id) + p.path, p.share ? 1 : 0]); });
-  const src = a => a.firebase || a.frame === false ? appUrl(env, a.id) + ((a.paths && a.paths[accessOf(sess.u, a)]) || a.path || '/') : '/sso?app=' + a.id + '&back=' + encodeURIComponent(appUrl(env, a.id) + (a.entry || a.path || '/'));
-  const icon = {email:'✉',story:'▧',fund:'▥',competitor:'◈',content:'❖',bond:'♙',etf:'◫',planner:'▦',recap:'◔',sats:'⌕',tutorial:'▤',edukasi:'✎'};
-  const css = `*{box-sizing:border-box} :root{color-scheme:light} html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}body{background:#edf3ef;color:#17251d;padding:24px 18px}.workspace{max-width:1240px;margin:0 auto;background:#fff;border:1px solid #dce7df;border-radius:24px;padding:clamp(20px,3vw,36px);min-height:calc(100vh - 48px);box-shadow:0 18px 60px rgba(18,55,34,.08)}.top{display:flex;align-items:center;gap:15px;margin-bottom:30px}.brandicon{width:52px;height:52px;border-radius:17px;background:linear-gradient(145deg,#e1f8e9,#c9f0d8);color:#176044;display:grid;place-items:center;font-size:27px;flex:none;box-shadow:inset 0 0 0 1px #c6e8d2}.heading{flex:1;min-width:0}h1{font-size:clamp(23px,3vw,31px);line-height:1.15;margin:0 0 6px;font-weight:780;letter-spacing:-.8px;color:#173c2a}p.sub{margin:0;color:#6d7d72;font-size:13px;line-height:1.5}.actions{display:flex;align-items:center;gap:8px}.iconbtn{border:1px solid #e0e9e2;background:#f7faf8;color:#315b43;padding:9px;border-radius:12px;cursor:pointer;font-size:17px;min-width:40px;min-height:40px}.iconbtn:hover{background:#eaf7ee;border-color:#b9ddc5}.hero{position:relative;overflow:hidden;border-radius:20px;background:radial-gradient(ellipse at 85% 0%,rgba(79,205,125,.2),transparent 38%),linear-gradient(120deg,#10291e,#174a33 72%,#1c5a3d);color:#f5fff7;padding:clamp(24px,4vw,42px);margin-bottom:28px}.hero:after{content:"";position:absolute;width:240px;height:240px;border:1px solid rgba(173,255,201,.15);border-radius:50%;right:-80px;bottom:-150px;box-shadow:0 0 0 26px rgba(173,255,201,.035),0 0 0 54px rgba(173,255,201,.025)}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.8px;font-weight:800;color:#9be8b6;margin-bottom:13px}.hero h2{font-size:clamp(27px,4vw,42px);line-height:1.07;letter-spacing:-1.2px;max-width:650px;margin:0 0 13px}.hero p{color:#c0d8c8;font-size:14px;line-height:1.65;max-width:620px;margin:0}.herofoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:23px;color:#d9f0e0;font-size:12px}.hero-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #47765a;background:#214d35;border-radius:999px;padding:8px 11px}.dot{width:7px;height:7px;border-radius:50%;background:#63e58e;box-shadow:0 0 0 4px #63e58e22}.sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 16px}.sectionhead h2{font-size:18px;letter-spacing:-.3px;margin:0 0 5px;color:#1b3526}.sectionhead p{margin:0;font-size:12px;color:#718077}.searchwrap{position:relative;width:min(100%,300px)}.searchwrap span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#728279}.search{width:100%;padding:12px 14px 12px 38px;border:1px solid #dce7df;border-radius:12px;background:#f9fbf9;color:#20382a;font:inherit;font-size:13px;outline:none}.search:focus{border-color:#55b879;box-shadow:0 0 0 3px #55b87922}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.appcard{position:relative;min-width:0;border:1px solid #dce7df;background:linear-gradient(145deg,#fff,#f9fcfa);border-radius:17px;padding:20px;min-height:174px;display:flex;flex-direction:column;gap:13px;text-align:left;color:inherit;cursor:pointer;font:inherit;transition:transform .18s,border-color .18s,box-shadow .18s,background .18s}.appcard:after{content:"↗";position:absolute;right:18px;top:19px;color:#9aa99f;font-size:16px;transition:transform .18s,color .18s}.appcard:hover{border-color:#83c99a;background:#f5fcf7;transform:translateY(-3px);box-shadow:0 12px 26px rgba(20,73,42,.08)}.appcard:hover:after{color:#1d8a4f;transform:translate(2px,-2px)}.appicon{width:44px;height:44px;border-radius:14px;background:#e9f8ee;color:#16834b;display:grid;place-items:center;font-size:23px;line-height:1}.appname{font-size:15px;font-weight:760;letter-spacing:-.2px;padding-right:18px}.appdesc{font-size:12px;line-height:1.55;color:#748278;margin-top:auto;max-width:260px}.appcard:focus-visible,.iconbtn:focus-visible,.back:focus-visible,.subp button:focus-visible{outline:3px solid #5dd62c;outline-offset:3px}.userbar{font-size:12px;color:#6e7f74;background:#f3f8f4;border:1px solid #e0ebe3;border-radius:999px;padding:9px 12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.accountmenu{position:relative}.accountmenu .menu{display:none;position:absolute;right:0;top:46px;z-index:50;min-width:190px;background:white;border:1px solid #e1e8e3;border-radius:14px;padding:7px;box-shadow:0 12px 34px #183b2520}.accountmenu.open .menu{display:block}.menu a{display:block;padding:11px;color:#24332a;text-decoration:none;font-size:13px;border-radius:9px}.menu a:hover{background:#f0f7f2}.empty{grid-column:1/-1;padding:28px;border:1px dashed #cad8ce;border-radius:15px;color:#66756c;font-size:14px;background:#fbfdfb}.noresults{display:none;grid-column:1/-1;padding:24px;text-align:center;color:#718077;background:#f7faf8;border-radius:14px}.appview{display:none;position:fixed;inset:0;background:#edf3ef;z-index:20}.appview.on{display:flex;flex-direction:column}.appbar{min-height:62px;display:flex;align-items:center;gap:12px;padding:10px 18px;background:#fff;border-bottom:1px solid #dce7df;box-shadow:0 3px 12px #153c2510}.back{border:1px solid #dbe5de;background:#f5f8f5;border-radius:11px;padding:10px 13px;cursor:pointer;font-weight:700;color:#24372b;white-space:nowrap;flex:none}.appbar strong{font-size:14px;white-space:nowrap;color:#20392a}.subp{display:flex;gap:6px;overflow-x:auto;min-width:0;scrollbar-width:none}.subp::-webkit-scrollbar{display:none}.subp button{border:1px solid #cfe0d6;background:#f5f8f5;color:#1f5e4b;border-radius:999px;padding:7px 12px;font:600 12px inherit;cursor:pointer;white-space:nowrap}.subp button.on{background:#1f5e4b;color:#fff;border-color:#1f5e4b}.back{white-space:nowrap;flex:none}.appframe{position:relative;flex:1;min-height:0}.appframe iframe{width:100%;height:100%;border:0;background:#fff}.ld{position:absolute;inset:0;display:none;place-items:center;background:#edf3ef;color:#65736a;font-size:14px;z-index:2}.ld.on{display:grid}.ld:before{content:"";width:22px;height:22px;border:3px solid #d6e7db;border-top-color:#238650;border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}@keyframes spin{to{transform:rotate(360deg)}}html[data-theme="dark"] body{background:#0c1510;color:#e7eee9}html[data-theme="dark"] .workspace{background:#111a15;border-color:#293b30;box-shadow:0 18px 60px #0003}html[data-theme="dark"] .brandicon{background:#20372a;color:#8fe3b5;box-shadow:none}html[data-theme="dark"] h1,html[data-theme="dark"] .sectionhead h2{color:#d7f5df}html[data-theme="dark"] p.sub,html[data-theme="dark"] .appdesc,html[data-theme="dark"] .userbar,html[data-theme="dark"] .sectionhead p{color:#aab9b0}html[data-theme="dark"] .userbar,html[data-theme="dark"] .iconbtn{background:#1a2820;border-color:#35483c;color:#c9efd5}html[data-theme="dark"] .hero{background:radial-gradient(ellipse at 85% 0%,#255638,transparent 40%),linear-gradient(120deg,#0a1a11,#123b27 72%,#17482f)}html[data-theme="dark"] .appcard{background:linear-gradient(145deg,#18251d,#141e18);border-color:#304337;color:#e7eee9}html[data-theme="dark"] .appcard:hover{background:#1d3224;border-color:#3b9b61}html[data-theme="dark"] .appicon{background:#203a29;color:#70e59b}html[data-theme="dark"] .search{background:#18251d;border-color:#304337;color:#e7eee9}html[data-theme="dark"] .empty,html[data-theme="dark"] .noresults{background:#17231b;border-color:#304337;color:#b6c7bc}html[data-theme="dark"] .appbar{background:#111a15;border-color:#293b30;color:#e7eee9}html[data-theme="dark"] .appbar strong{color:#e7eee9}html[data-theme="dark"] .back{background:#1c2922;color:#e7eee9;border-color:#35483c}html[data-theme="dark"] .appview,html[data-theme="dark"] .ld{background:#0d1511;color:#c2d2c8}html[data-theme="dark"] .accountmenu .menu{background:#17231c;border-color:#35483c}html[data-theme="dark"] .menu a{color:#e7eee9}html[data-theme="dark"] .menu a:hover{background:#24392d}html[data-theme="dark"] .subp button{background:#1c2922;color:#c4f3d7;border-color:#35483c}html[data-theme="dark"] .subp button.on{background:#287653;color:#fff}@media(prefers-color-scheme:dark){html[data-theme="system"] body{background:#0c1510;color:#e7eee9}html[data-theme="system"] .workspace{background:#111a15;border-color:#293b30;box-shadow:0 18px 60px #0003}html[data-theme="system"] .brandicon{background:#20372a;color:#8fe3b5}html[data-theme="system"] h1,html[data-theme="system"] .sectionhead h2{color:#d7f5df}html[data-theme="system"] p.sub,html[data-theme="system"] .appdesc,html[data-theme="system"] .userbar,html[data-theme="system"] .sectionhead p{color:#aab9b0}html[data-theme="system"] .userbar,html[data-theme="system"] .iconbtn{background:#1a2820;border-color:#35483c;color:#c9efd5}html[data-theme="system"] .appcard{background:linear-gradient(145deg,#18251d,#141e18);border-color:#304337;color:#e7eee9}html[data-theme="system"] .appicon{background:#203a29;color:#70e59b}html[data-theme="system"] .search{background:#18251d;border-color:#304337;color:#e7eee9}html[data-theme="system"] .empty,html[data-theme="system"] .noresults{background:#17231b;border-color:#304337;color:#b6c7bc}html[data-theme="system"] .appbar{background:#111a15;border-color:#293b30;color:#e7eee9}html[data-theme="system"] .appview,html[data-theme="system"] .ld{background:#0d1511;color:#c2d2c8}}@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace{min-height:calc(100vh - 32px)}}@media(max-width:600px){body{padding:8px}.workspace{padding:16px;border-radius:17px;min-height:calc(100vh - 16px)}.top{gap:9px;margin-bottom:22px}.brandicon{width:42px;height:42px;border-radius:13px}h1{font-size:22px}.userbar{display:none}.hero{padding:24px 20px;border-radius:16px}.hero h2{font-size:29px}.sectionhead{align-items:stretch}.searchwrap{width:100%}.grid{grid-template-columns:1fr;gap:10px}.appcard{padding:16px;min-height:130px}.appbar{gap:8px;padding:8px 10px}.appbar strong{display:none}.back{padding:9px 10px}.subp button{padding:7px 10px}}`;
-  const cards = mine.map(a => `<button class="appcard" type="button" data-app="${esc(a.id)}" aria-label="Buka ${esc(a.name)}"><span class="appicon">${icon[a.id] || '▦'}</span><span class="appname">${esc(a.name)}</span><span class="appdesc">${esc(a.desc)} ↗</span></button>`).join('');
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Workspace · Tool Hub</title><style>${css}</style></head><body>
-<section class="workspace" id="workspace"><div class="top"><div class="brandicon">▱</div><div class="heading"><h1>${esc(title(env, 'Tool Hub'))}</h1><p class="sub">Ruang kerja tim — semua tools dalam satu tempat.</p></div><span class="userbar" title="${esc(sess.u.name || sess.email)}">${esc(sess.u.name || sess.email)}</span><div class="actions"><button id="hub-theme-toggle" class="iconbtn" type="button" title="Ganti tema" aria-label="Ganti tema">☼</button><div class="accountmenu" id="accountmenu"><button class="iconbtn" id="accounttoggle" type="button" aria-label="Menu akun">⋮</button><div class="menu"><a href="/akun">Ganti password</a>${sess.role === 'admin' ? '<a href="/admin">Admin' + (pending ? ' ('+pending+' menunggu)' : '') + '</a>' : ''}<a href="/logout">Keluar</a></div></div></div></div>
-<section class="hero"><div class="eyebrow">${esc(title(env, 'Workspace'))}</div><h2>Semua pekerjaan penting, dalam satu ruang.</h2><p>Akses aplikasi kerja, analisis, dan konten dari satu dashboard yang rapi. Pilih tools yang kamu butuhkan untuk mulai bekerja.</p><div class="herofoot"><span class="hero-pill"><span class="dot"></span>${mine.length} tools tersedia</span><span class="hero-pill">Akses sesuai akun</span>${sess.role === 'admin' && pending ? '<a class="hero-pill" href="/admin" style="color:inherit;text-decoration:none">◷ '+pending+' permintaan akses menunggu</a>' : ''}</div></section>
-<div class="sectionhead"><div><h2>Aplikasi kamu</h2><p>Pilih aplikasi untuk membuka workspace-nya.</p></div><label class="searchwrap"><span>⌕</span><input id="appSearch" class="search" type="search" placeholder="Cari aplikasi..." aria-label="Cari aplikasi"></label></div>
-<div class="grid" id="appGrid">${cards || '<div class="empty">Belum ada aplikasi yang diberikan akses. Hubungi admin.</div>'}<div class="noresults" id="noResults">Tidak ada aplikasi yang cocok dengan pencarian.</div></div></section>
-<section class="appview" id="appview"><div class="appbar"><button class="back" id="back">← Workspace</button><strong id="appTitle">Aplikasi</strong><nav class="subp" id="subp" aria-label="Halaman aplikasi"></nav><span style="flex:1"></span><button class="iconbtn" id="theme2" type="button" title="Ganti tema">☼</button></div><div class="appframe" id="appframe"><div class="ld" id="ld">Memuat aplikasi…</div></div></section>
-<script>(function(){var apps=${JSON.stringify(mine.map(a=>({id:a.id,name:a.name,src:src(a),pages:pages[a.id]||[]}))).replace(/</g,'\\u003c')},frames={},workspace=document.getElementById('workspace'),view=document.getElementById('appview'),framebox=document.getElementById('appframe'),loader=document.getElementById('ld'),title=document.getElementById('appTitle');
-var key='toolhub-theme-v2',theme='system';try{theme=localStorage.getItem(key)||'system'}catch(e){}function applyTheme(){document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem(key,theme)}catch(e){}document.getElementById('hub-theme-toggle').textContent=theme==='dark'?'☀':theme==='light'?'☾':'☼';document.getElementById('theme2').textContent=theme==='dark'?'☀':theme==='light'?'☾':'☼';Object.keys(frames).forEach(function(k){try{frames[k].contentWindow.postMessage({type:'toolhub-theme',theme:theme},'*')}catch(e){}})}function cycle(){theme=theme==='system'?'dark':theme==='dark'?'light':'system';applyTheme()}document.getElementById('hub-theme-toggle').onclick=cycle;document.getElementById('theme2').onclick=cycle;applyTheme();
-var appSearch=document.getElementById('appSearch'),appCards=[].slice.call(document.querySelectorAll('.appcard')),noResults=document.getElementById('noResults');
-if(appSearch)appSearch.addEventListener('input',function(){var q=this.value.toLowerCase().trim(),shown=0;appCards.forEach(function(c){var match=(c.innerText||c.textContent||'').toLowerCase().indexOf(q)!==-1;c.style.display=match?'flex':'none';if(match)shown++});if(noResults)noResults.style.display=shown?'none':'block'});
+/** Label hak akses pengguna untuk satu tool (ditampilkan di halaman detail). */
+function levelLabel(a, acc) {
+  if (a.tabs) return Array.isArray(acc) && acc.includes('*') ? 'Semua tab' : Array.isArray(acc) ? acc.map(t => a.tabs[t] || t).join(', ') : '';
+  if (a.levels) return a.levels[acc] || '';
+  return '';
+}
 
-document.getElementById('accounttoggle').onclick=function(){document.getElementById('accountmenu').classList.toggle('open')};document.addEventListener('click',function(e){var m=document.getElementById('accountmenu');if(!m.contains(e.target))m.classList.remove('open')});
-var curId=null,SH={},subp=document.getElementById('subp'),T0=document.title;
-// sub-halaman (mis. Tutorial: Lihat tutorial / Kirim usulan / Admin) + tombol Bagikan link untuk halaman publik
-function subnav(a){var f=frames[a.id];subp.innerHTML='';(a.pages||[]).forEach(function(p){var b=document.createElement('button');b.type='button';b.textContent=p[0];b.className=f.dataset.cur===p[1]?'on':'';b.onclick=function(){f.dataset.cur=p[1];f.dataset.loaded='';loader.classList.add('on');f.src=p[1];subnav(a)};subp.appendChild(b)});
-  var cur=(a.pages||[]).filter(function(p){return p[1]===f.dataset.cur})[0];if(!cur||!cur[2])return;var s=document.createElement('button');s.type='button';s.textContent='🔗 Bagikan link';
-  s.onclick=function(){var u=SH[a.id]&&SH[a.id].indexOf(new URL(cur[1]).origin+'/')===0?SH[a.id]:cur[1],ok=function(){s.textContent='Link tersalin ✓';setTimeout(function(){s.textContent='🔗 Bagikan link'},2000)};
-    if(navigator.share&&matchMedia('(pointer:coarse)').matches)return navigator.share({url:u}).catch(function(){});
-    if(navigator.clipboard)navigator.clipboard.writeText(u).then(ok,function(){prompt('Salin link ini:',u)});else prompt('Salin link ini:',u)};subp.appendChild(s)}
-function openApp(id){var a=apps.filter(function(x){return x.id===id})[0];if(!a)return;curId=id;workspace.style.display='none';view.classList.add('on');title.textContent=a.name;
-  Object.keys(frames).forEach(function(k){frames[k].style.display=k===id?'block':'none'});var f=frames[id];
-  if(!f){f=document.createElement('iframe');f.title=a.name;f.style.display='block';f.dataset.cur=a.src;
-    f.onload=function(){f.dataset.loaded='1';if(curId===id)loader.classList.remove('on');try{f.contentWindow.postMessage({type:'toolhub-theme',theme:theme},'*')}catch(e){}};
-    framebox.appendChild(f);frames[id]=f;f.src=a.src}
-  loader.classList.toggle('on',!f.dataset.loaded);subnav(a);try{history.replaceState(null,'','#'+id)}catch(e){}}
-// tool di dalam bingkai: judul halaman untuk nama file PDF, dan alamat halaman untuk tombol Bagikan
-addEventListener('message',function(e){var d=e.data||{};for(var k in frames)if(frames[k].contentWindow===e.source){if(typeof d.hubPrintTitle==='string'&&d.hubPrintTitle.length<=120)document.title=d.hubPrintTitle||T0;if(typeof d.hubShareUrl==='string'&&d.hubShareUrl.length<=500&&d.hubShareUrl.indexOf(e.origin+'/')===0)SH[k]=d.hubShareUrl}});
-document.querySelectorAll('[data-app]').forEach(function(b){b.onclick=function(){openApp(b.dataset.app)}});document.getElementById('back').onclick=function(){curId=null;view.classList.remove('on');workspace.style.display='block';document.title=T0;try{history.replaceState(null,'',location.pathname)}catch(e){}};
-// alamat hub/#fund (dipakai tool yang dibuka di luar hub) langsung membuka tool itu
-if(location.hash.length>1)openApp(location.hash.slice(1));addEventListener('hashchange',function(){var h=location.hash.slice(1);if(h&&h!==curId)openApp(h)});})();</script></body></html>`;
+/** Dashboard: sidebar, beranda (aksi cepat, Hari ini, AI Workbench, favorit, semua tool), Semua tools, detail tool, dan tool di dalam bingkai.
+ *  Tampilan ada di shell.html; di sini hanya data pengguna yang disuntikkan. Tool tetap dibuka di bingkai lewat /sso seperti sebelumnya. */
+function shellPage(env, sess, mine, pending, fav) {
+  const p = profile(env), repo = env.GITHUB_REPO || p.github.repo || '';
+  const src = a => a.firebase || a.frame === false ? appUrl(env, a.id) + ((a.paths && a.paths[accessOf(sess.u, a)]) || a.path || '/') : '/sso?app=' + a.id + '&back=' + encodeURIComponent(appUrl(env, a.id) + (a.entry || a.path || '/'));
+  const pages = a => (a.pages || []).filter(x => !x.only || x.only === accessOf(sess.u, a)).map(x => [x.label, appUrl(env, a.id) + x.path, x.share ? 1 : 0]);
+  const boot = {
+    me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin' },
+    pending,
+    brand: { name: title(env, 'Tool Hub'), short: p.brand.short || '', logo: p.brand.logo || '', logoDark: p.brand.logoDark || '' },
+    aiTitle: title(env, 'AI Workbench'),
+    cats: CATEGORIES,
+    apps: mine.map(a => ({
+      id: a.id, name: a.name, desc: a.desc, blurb: a.blurb || '', cat: CATEGORIES[a.cat] ? a.cat : 'research', icon: a.icon || 'grid',
+      features: a.features || [], ai: a.ai || '', kw: a.kw || '', src: src(a), pages: pages(a), lvl: levelLabel(a, accessOf(sess.u, a)),
+    })),
+    fav,
+    today: { recap: mine.some(a => a.id === 'recap'), planner: mine.some(a => a.id === 'planner'), jobs: !!repo },
+    actions: repo ? 'https://github.com/' + repo + '/actions' : '',
+  };
+  // JSON di dalam <script>: "<" dan pemisah baris Unicode di-escape supaya isi data tidak bisa menutup tag script
+  const LSEP = new RegExp('[' + String.fromCharCode(0x2028, 0x2029) + ']', 'g');
+  const json = JSON.stringify(boot).replace(/</g, '\\u003c').replace(LSEP, c => '\\u' + c.charCodeAt(0).toString(16));
+  return SHELL.replace('<title>Tool Hub</title>', () => '<title>' + esc(title(env, 'Tool Hub')) + '</title>').replace('"__BOOT__"', () => json);
+}
+
+/* ---------- Beranda: favorit & ringkasan "Hari ini" ---------- */
+// Favorit disimpan per akun di kunci terpisah (pref:<email>), jadi menyimpan favorit tidak pernah menimpa data akun.
+const MAX_FAV = 12;
+async function getFav(env, email, mine) {
+  const p = await env.HUB_KV.get('pref:' + email, 'json').catch(() => null);
+  return Array.isArray(p && p.fav) ? p.fav.filter(id => mine.some(a => a.id === id)) : [];
+}
+async function savePrefs(request, env, url, sess, mine) {
+  if (request.headers.get('origin') !== url.origin) return Response.json({ error: 'Permintaan ditolak.' }, { status: 403 });
+  const b = await request.json().catch(() => ({}));
+  if (!b || !Array.isArray(b.fav)) return Response.json({ error: 'Isian tidak sah.' }, { status: 400 });
+  const fav = [...new Set(b.fav.map(String))].filter(id => mine.some(a => a.id === id)).slice(0, MAX_FAV);
+  await env.HUB_KV.put('pref:' + sess.email, JSON.stringify({ fav }));
+  return Response.json({ fav }, { headers: { 'cache-control': 'no-store' } });
+}
+
+const timeout = (p, ms, what) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(what + ' tidak menjawab dalam ' + ms / 1000 + ' detik.')), ms))]);
+/** Ringkasan tool lewat service binding (shared/hubfeed.js). Hanya dipanggil untuk tool yang boleh diakses pengguna. */
+async function feedFrom(env, binding, name, query = '') {
+  if (!env[binding]) throw new Error(name + ' belum tersambung ke Tool Hub (service binding ' + binding + ').');
+  const r = await timeout(env[binding].fetch('https://' + binding.toLowerCase() + '/__hub/today' + query, { headers: { 'x-hub-key': env.SSO_SECRET } }), 6000, name);
+  if (r.status === 403 || r.status === 404) throw new Error(name + ' belum diperbarui untuk ringkasan ini. Deploy ulang ' + name + '.');
+  if (!r.ok) throw new Error(name + ': HTTP ' + r.status);
+  return r.json();
+}
+// Status GitHub Actions: satu permintaan, disimpan 2 menit per isolate (Cache API tidak berlaku di workers.dev).
+let ghCache = null;
+async function jobRuns(env) {
+  const repo = env.GITHUB_REPO || profile(env).github.repo || '';
+  if (!repo) throw new Error('Repo GitHub belum diatur di profil (github.repo).');
+  if (ghCache && ghCache.repo === repo && Date.now() - ghCache.t < 120e3) return ghCache.v;
+  const get = auth => fetch('https://api.github.com/repos/' + repo + '/actions/runs?per_page=60&exclude_pull_requests=true', {
+    headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'tool-hub', ...(auth ? { authorization: 'Bearer ' + env.GITHUB_TOKEN } : {}) },
+  });
+  let r = await timeout(get(!!env.GITHUB_TOKEN), 6000, 'GitHub');
+  if ((r.status === 401 || r.status === 403) && env.GITHUB_TOKEN) r = await timeout(get(false), 6000, 'GitHub');   // token tanpa izin Actions: repo publik tetap terbaca
+  if (r.status === 403 || r.status === 429) throw new Error('Batas permintaan GitHub tercapai. Coba lagi beberapa menit lagi.');
+  if (!r.ok) throw new Error('GitHub: HTTP ' + r.status);
+  const runs = (await r.json()).workflow_runs || [], latest = new Map();
+  for (const x of runs) if (!latest.has(x.workflow_id)) latest.set(x.workflow_id, x);   // API mengurutkan dari yang terbaru
+  const state = x => x.status !== 'completed' ? 'run' : x.conclusion === 'success' ? 'ok'
+    : ['failure', 'timed_out', 'startup_failure'].includes(x.conclusion) ? 'err' : x.conclusion === 'cancelled' ? 'warn' : 'muted';
+  const order = { err: 0, run: 1, warn: 2, ok: 3, muted: 4 };
+  const v = {
+    at: new Date().toISOString(),
+    runs: [...latest.values()].map(x => ({ name: x.name, state: state(x), at: x.updated_at || x.created_at, url: x.html_url, event: x.event }))
+      .sort((a, b) => (order[a.state] - order[b.state]) || a.name.localeCompare(b.name)),
+  };
+  ghCache = { repo, t: Date.now(), v };
+  return v;
+}
+/** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
+async function todayFeed(env, sess, mine) {
+  const has = id => mine.some(a => a.id === id), out = {};
+  const wrap = (k, p) => p.then(data => { out[k] = { ok: true, data }; }, e => { out[k] = { ok: false, error: String((e && e.message) || e).slice(0, 240) }; });
+  await Promise.all([
+    has('recap') && wrap('recap', feedFrom(env, 'RECAP', 'Market Recap')),
+    has('planner') && wrap('planner', feedFrom(env, 'PLANNER', 'Content Planner', '?email=' + encodeURIComponent(sess.email))),
+    wrap('jobs', jobRuns(env)),
+  ].filter(Boolean));
+  return Response.json(out, { headers: { 'cache-control': 'no-store' } });
 }
 
 export { APPS, checkPw, hashPw };
@@ -491,13 +571,16 @@ export default {
       if (post) return reg ? register(request, env, next) : login(request, env, next);
       return sess ? redirect(next) : page(200, authPage(env, reg, '', {}, next));
     }
-    if (!sess) return post ? page(401, 'Sesi habis. Muat ulang halaman lalu login lagi.') : redirect('/login' + (path === '/' ? '' : '?next=' + encodeURIComponent(path + url.search)));
+    if (!sess) return post || path.startsWith('/api/') ? page(401, 'Sesi habis. Muat ulang halaman lalu login lagi.') : redirect('/login' + (path === '/' ? '' : '?next=' + encodeURIComponent(path + url.search)));
     if (sess.status !== 'approved') return page(403, gatePage(sess));
     if (path === '/sso') return sso(env, url, sess);
     if (path === '/admin' || path.startsWith('/admin/')) return admin(request, env, url, sess);
     if (path === '/akun') return account(request, env, url, sess);
+    const mine = APPS.filter(a => accessOf(sess.u, a));
+    if (path === '/api/today' && !post) return todayFeed(env, sess, mine);
+    if (path === '/api/prefs' && post) return savePrefs(request, env, url, sess, mine);
     if (path !== '/') return redirect('/');
-    return page(200, shellPage(env, sess, APPS.filter(a => accessOf(sess.u, a)), sess.role === 'admin' ? (await listUsers(env)).filter(x => x.status === 'pending').length : 0),
+    return page(200, shellPage(env, sess, mine, sess.role === 'admin' ? (await listUsers(env)).filter(x => x.status === 'pending').length : 0, await getFav(env, sess.email, mine)),
       { 'set-cookie': cookieStr(await makeSession(env, sess.email, sess.u), SESSION_DAYS * 86400) });   // perbarui cookie (juga memperpanjang sesi 30 hari)
   },
 };

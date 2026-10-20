@@ -4,6 +4,7 @@
 // - "/api/items"   -> kegiatan (GET ?from=&to=, GET ?design=1 tugas desain, POST simpan, POST /api/items/delete hapus)
 // - "/api/users"   -> anggota tim yang pernah membuka tool ini + perannya (POST /api/me/role: pilih peran sendiri)
 // - "/api/weekly"  -> data paket mingguan (disusun saat diminta, cache 10 menit)
+// - "/__hub/today" -> ringkasan hari ini untuk beranda Tool Hub (service binding, lihat shared/hubfeed.js)
 // Semua halaman & data hanya untuk yang login lewat Tool Hub. Semua yang punya akses boleh menambah & mengubah;
 // menghapus hanya admin Tool Hub atau pembuat kegiatan itu sendiri.
 //
@@ -15,6 +16,7 @@
 import { title, profileScript, appUrl } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
+import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -193,6 +195,20 @@ async function setRole(env, me, role) {
    ========================================================= */
 const wib = (d = new Date()) => new Date(d.getTime() + 7 * 3600e3).toISOString().slice(0, 10);
 export const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+/** Ringkasan untuk beranda Tool Hub: kegiatan tim hari ini, kegiatan milik pengguna 7 hari ke depan yang belum selesai,
+ *  dan tugas desain yang ditugaskan kepadanya. Hanya kolom ringkas. */
+async function hubToday(env, email) {
+  await ensure(env);
+  const today = wib(), until = addDays(today, 6), me = EMAIL.test(email) ? email.toLowerCase() : "";
+  const cols = "id, kind, date, time, title, channel, status, owner, d_due, d_status";
+  const done = "('terbit', 'selesai', 'batal')";
+  const [team, mine, design] = await Promise.all([
+    env.DB.prepare(`SELECT ${cols} FROM items WHERE date = ? ORDER BY time, created_at LIMIT 20`).bind(today).all(),
+    me ? env.DB.prepare(`SELECT ${cols} FROM items WHERE owner_email = ? AND date BETWEEN ? AND ? AND COALESCE(status, '') NOT IN ${done} ORDER BY date, time LIMIT 20`).bind(me, today, until).all() : null,
+    me ? env.DB.prepare("SELECT " + cols + " FROM items WHERE d_need = 1 AND d_who = ? AND COALESCE(d_status, 'belum') <> 'selesai' ORDER BY COALESCE(d_due, date) LIMIT 20").bind(me).all() : null,
+  ]);
+  return { date: today, until, today: team.results, mine: mine ? mine.results : [], design: design ? design.results : [], kinds: Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.label])) };
+}
 /** Senin & Minggu pekan depan dari tanggal (WIB) tertentu. */
 export function nextWeek(today) {
   const dow = new Date(today + "T00:00:00Z").getUTCDay(); // 0 = Minggu
@@ -301,6 +317,7 @@ const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-c
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
+    if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get("email") || "")) : new Response("forbidden", { status: 403 });
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
     const tk = await HUBSSO.ticket(request, env, (p) => seen(env, p)); if (tk) return tk;

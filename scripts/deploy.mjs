@@ -21,7 +21,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Urutan penting: worker yang dipanggil lewat service binding harus ada lebih dulu.
 // id = id di Tool Hub & di profile.urls; dir = folder berisi wrangler.jsonc; build = perintah sebelum deploy.
 export const APPS = [
-  { id: "hub", dir: "apps/tool-hub" },
   { id: "email", dir: "apps/email-studio" },
   { id: "fund", dir: "apps/fund-insight" },
   { id: "bond", dir: "apps/bond-insight" },
@@ -37,6 +36,8 @@ export const APPS = [
   { id: "planner", dir: "apps/content-planner" },
   // setelah storydata: memakainya lewat service binding
   { id: "recap", dir: "apps/market-recap" },
+  // setelah planner & recap: beranda hub membaca ringkasan "Hari ini" keduanya lewat service binding
+  { id: "hub", dir: "apps/tool-hub" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
   // paling akhir: memanggil tool lain lewat service binding, dan tool lain harus sudah melepas cron lamanya

@@ -8,7 +8,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 
 | Tool | Folder | Fungsi |
 |---|---|---|
-| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, dashboard |
+| Tool Hub | `apps/tool-hub` | Login, admin, hak akses per tool, dashboard: tool per kategori, pencarian Ctrl+K, favorit per akun, ringkasan "Hari ini" (Market Recap, Content Planner, status GitHub Actions), halaman detail tool |
 | Email Studio | `apps/email-studio` | Generator email marketing (Market Insight, Weekly Picks, promo, webinar) |
 | Story Generator | `apps/story-generator` | Generator Instagram Story (Morning, Halftime, Wrap, Weekly, RD Highlights, Bond Picks) |
 | Story Data | `apps/story-data` | Data pasar untuk Story Generator + pemicu workflow data |
@@ -47,6 +47,15 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
    sats-*.yml         hitung sinyal SATS, fundamental, lab → D1 sats-db
    deploy.yml         setiap push ke main: deploy tool yang berubah
 ```
+
+### Dashboard Tool Hub
+
+- Daftar tool, kategori, ikon, dan isi halaman detail ada di satu tempat: `APPS` dan `CATEGORIES` di `apps/tool-hub/worker.js`. Tool baru cukup ditambahkan di sana.
+- Tampilan ada di `apps/tool-hub/shell.html`; worker hanya menyuntikkan data pengguna (tool yang boleh dibuka, favorit).
+- Ringkasan "Hari ini" dibaca lewat service binding `GET /__hub/today` dengan header `x-hub-key` = `SSO_SECRET` (`shared/hubfeed.js`). Karena itu hub di-deploy setelah Market Recap & Content Planner.
+- Status otomatis dibaca dari GitHub Actions repo di profil (`github.repo`); `GITHUB_TOKEN` hub dipakai bila ada.
+- Favorit disimpan di KV hub (`pref:<email>`); riwayat "Terakhir dibuka" disimpan di browser per akun.
+- Cek: `node apps/tool-hub/test.mjs`
 
 ## Profil
 
