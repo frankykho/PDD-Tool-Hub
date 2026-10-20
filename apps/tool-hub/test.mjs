@@ -245,6 +245,11 @@ assert.ok(t.rhythm.data.steps.some((s) => s.id === "plan:a"), "kegiatan Planner 
   assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19"), all)).s1, ["err", "Belum ada hasil sampai 13.45"]);
   assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19", "draft"), all)).s1, ["warn", "Draf, belum terbit"]);
   assert.deepEqual(by(rhythm(W("2026-10-19T14:00:00"), parts("2026-10-19", "published"), all)).s1, ["ok", "Terbit"]);
+  const pr = parts("2026-10-19", "published"); Object.assign(pr.recap.data.sessions[0], { title: "IHSG naik tipis", pct: 0.42 });
+  const s1 = rhythm(W("2026-10-19T14:00:00"), pr, all).steps.find((x) => x.id === "s1");
+  assert.deepEqual([s1.note, s1.sub], ["Terbit · IHSG +0,42%", "IHSG naik tipis"], "isi kartu Market Recap lama pindah ke Ritme");
+  Object.assign(pr.recap.data.sessions[0], { status: "draft", pct: -0.18 });
+  assert.equal(rhythm(W("2026-10-19T14:00:00"), pr, all).steps.find((x) => x.id === "s1").note, "Draf, belum terbit · IHSG -0,18%");
   // tanpa run Wrap setelah 16.00: run kalender pagi tidak dihitung sebagai Wrap
   assert.deepEqual(by(rhythm(W("2026-10-19T18:10:00"), parts("2026-10-19"), all)).wrap, ["err", "Belum ada hasil sampai 18.00"]);
   // Jumat: jeda siang 11.30–14.00
@@ -315,6 +320,9 @@ Object.assign(env, old);
 /* ---------- skrip halaman ---------- */
 const page = fs.readFileSync(new URL("./shell.html", import.meta.url), "utf8");
 for (const [, code] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
+const fillAll = /function fillAll\(d\) \{([^}]*)\}/.exec(page);
+assert.ok(fillAll, "fillAll ada di shell.html");
+for (const [, fn] of fillAll[1].matchAll(/(\w+)\(/g)) assert.ok(page.includes("function " + fn + "("), `${fn} (dipanggil fillAll) terdefinisi di shell.html`);
 assert.equal(page.split('"__BOOT__"').length, 2, "penanda data ada tepat sekali di shell.html (bukan juga di komentar)");
 
 console.log("semua cek lolos");

@@ -203,15 +203,18 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .compact .tact a{display:none}
 
 /* beranda */
-.home{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
-.col-side{display:flex;flex-direction:column;gap:16px}
-.qa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.qa button{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);text-align:left;box-shadow:var(--shadow);min-width:0}
-.qa button:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
-.qa b{display:block;font-size:13.5px;font-weight:600}
-.qa small{display:block;font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qa span.t{min-width:0}
-.today{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:16px}
+.home{max-width:1320px}
+.mytools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mytools .lbl{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-right:2px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
+.pill:hover{border-color:var(--border-strong);box-shadow:var(--shadow)}
+.pill .ticon{width:26px;height:26px;border-radius:999px}.pill .ticon svg.ic{width:14px;height:14px}
+.pill .pstar{display:inline-flex;color:var(--warn)}.pill .pstar svg.ic{width:13px;height:13px}
+.mytools .link{margin-left:auto;display:inline-flex;align-items:center;gap:4px}
+#jobsPanel{order:-1;border-color:var(--err)}
+#jobsPanel[hidden],.today[hidden],.mytools[hidden]{display:none}
+#jobsPanel h2{color:var(--err)}
+.today{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px;margin-top:16px}
 .rows{display:flex;flex-direction:column}
 .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);min-width:0}
 .row:first-child{border-top:0;padding-top:2px}
@@ -253,19 +256,6 @@ a.rhy-a:hover b,button.rhy-a:hover b{text-decoration:underline}
 .rhy-i.wait{opacity:.62}
 .panel-f{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .panel-f .muted{flex:1;font-size:12px}
-.ai{margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:center;background:var(--ai-bg);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px}
-.eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--brand-text);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
-.ai h2{margin:10px 0 4px;font-size:19px;letter-spacing:-.3px}
-.ai p{margin:0;color:var(--text-2);font-size:13.5px}
-.ai .note{font-size:12px;color:var(--text-3);margin-top:8px}
-.ai .btn{margin-top:14px}
-.ai-acts{display:flex;flex-direction:column;gap:8px}
-.ai-acts button{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);text-align:left}
-.ai-acts button:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
-.ai-acts .t{flex:1;min-width:0}
-.ai-acts b{display:block;font-size:13.5px}
-.ai-acts small{display:block;font-size:12px;color:var(--text-2)}
-.ai-acts .go{color:var(--text-3)}
 
 /* halaman */
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;font-size:12.5px;color:var(--text-2);margin-bottom:10px}
@@ -342,11 +332,6 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 .toast.err{background:var(--err);color:#fff}
 
 /* ---------- responsif ---------- */
-@media (max-width:1279px){
-  .home{grid-template-columns:minmax(0,1fr)}
-  .col-side{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-}
-@media (max-width:1100px){.qa{grid-template-columns:repeat(2,minmax(0,1fr))}.ai{grid-template-columns:1fr}}
 @media (max-width:900px){.rhy-cols{grid-template-columns:1fr}}
 @media (max-width:900px){
   .app,.app.rail{grid-template-columns:minmax(0,1fr)}
@@ -373,10 +358,10 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .subp{margin-left:0;order:5;width:100%;overflow-x:auto;flex-wrap:nowrap}
 }
 @media (max-width:640px){
-  .qa{grid-template-columns:minmax(0,1fr)}
   .grid{grid-template-columns:minmax(0,1fr)}
-  .today,.col-side{grid-template-columns:minmax(0,1fr)}
-  .ai{padding:18px}
+  .today{grid-template-columns:minmax(0,1fr)}
+  .mytools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 2px}
+  .mytools .link{margin-left:4px}
   .sec-h .chips{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:2px;scrollbar-width:none}
   .field{max-width:none;flex-basis:100%}
   .palette{padding:12px}
@@ -412,27 +397,9 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     <div id="content" tabindex="-1">
       <section class="view" data-view="home" id="vHome">
         <div class="home">
-          <div class="col-main">
-            <div class="qa" id="qa" aria-label="Aksi cepat"></div>
-            <div id="rhythm"></div>
-            <div class="today" id="today"></div>
-            <div id="aiBox"></div>
-            <section class="sec" aria-labelledby="favH">
-              <div class="sec-h"><div class="t"><h2 id="favH">Favorit</h2><p>Tool pilihanmu, tersimpan di akun.</p></div><a class="link" href="#/tools/fav">Kelola favorit</a></div>
-              <div class="grid compact" id="favGrid"></div>
-            </section>
-            <section class="sec" aria-labelledby="allH">
-              <div class="sec-h"><div class="t"><h2 id="allH">Semua tools</h2><p>Tool yang bisa kamu buka, menurut kategori.</p></div>
-                <div class="chips" id="homeChips" role="group" aria-label="Filter kategori"></div>
-                <label class="sortlbl">Urutkan <select class="select" id="homeSort"><option value="default">Bawaan</option><option value="az">A–Z</option><option value="recent">Terakhir dipakai</option></select></label>
-              </div>
-              <div class="grid" id="homeGrid"></div>
-            </section>
-          </div>
-          <aside class="col-side" aria-label="Informasi">
-            <section class="panel" id="jobsPanel" aria-labelledby="jobsH"></section>
-            <section class="panel" id="recentPanel" aria-labelledby="recentH"></section>
-          </aside>
+          <div class="mytools" id="mytools" role="group" aria-label="Tool kamu"></div>
+          <div id="rhythm"></div>
+          <div class="today" id="today"></div>
         </div>
       </section>
       <section class="view" data-view="tools" id="vTools" hidden></section>
@@ -543,7 +510,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   var RKEY = "toolhub-recent:" + H.me.email;   // per akun: komputer bersama tidak saling melihat riwayat
   var fav = (H.fav || []).filter(function (id) { return byId[id]; });
   var recent = (function () { try { var r = JSON.parse(LS(RKEY) || "[]"); return Array.isArray(r) ? r.filter(function (x) { return x && byId[x.id] && typeof x.t === "number"; }).slice(0, 20) : []; } catch (e) { return []; } })();
-  function touch(id) { recent = [{ id: id, t: Date.now() }].concat(recent.filter(function (x) { return x.id !== id; })).slice(0, 20); LS(RKEY, JSON.stringify(recent)); renderRecent(); }
+  function touch(id) { recent = [{ id: id, t: Date.now() }].concat(recent.filter(function (x) { return x.id !== id; })).slice(0, 20); LS(RKEY, JSON.stringify(recent)); renderMine(); if (curView === "tools" && toolsState.cat === "recent") renderToolsGrid(); }
   var lastUse = function (id) { for (var i = 0; i < recent.length; i++) if (recent[i].id === id) return recent[i].t; return 0; };
   var favBusy = Promise.resolve();
   function toggleFav(id) {
@@ -588,31 +555,25 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     if (cat === "recent") return '<div class="empty"><b>Belum ada riwayat</b>Tool yang kamu buka di browser ini akan muncul di sini.</div>';
     return '<div class="empty"><b>Belum ada tool di kategori ini</b>Minta admin menambahkan akses bila perlu.</div>';
   }
-  var homeState = { cat: "all", sort: LS("toolhub-sort") || "default" };
   var toolsState = { cat: "all", sort: LS("toolhub-sort") || "default", q: "" };
   function chipsHtml(cur, extra) {
     var list = [["all", "Semua"]].concat(catOrder.filter(function (c) { return apps.some(function (a) { return a.cat === c; }); }).map(function (c) { return [c, cats[c].short]; }));
     if (extra) list = list.concat([["fav", "Favorit"], ["recent", "Terakhir dibuka"]]);
     return list.map(function (c) { return '<button class="chip" type="button" data-chip="' + c[0] + '" aria-pressed="' + (c[0] === cur) + '">' + esc(c[1]) + "</button>"; }).join("");
   }
-  function renderHomeGrid() {
-    $("#homeChips").innerHTML = chipsHtml(homeState.cat, false);
-    $("#homeSort").value = homeState.sort;
-    var list = pick(homeState.cat, homeState.sort, "");
-    $("#homeGrid").innerHTML = list.length ? list.map(function (a) { return card(a); }).join("") : emptyFor(homeState.cat, "");
+  // Tool kamu: favorit dulu, lalu yang terakhir dibuka; diisi tool lain bila masih sedikit. Daftar lengkap ada di Semua tools.
+  function renderMine() {
+    var el = $("#mytools"); if (!el) return;
+    var ids = fav.concat(recent.map(function (x) { return x.id; }).filter(function (id) { return fav.indexOf(id) < 0; }));
+    if (ids.length < 4) ids = ids.concat(apps.map(function (a) { return a.id; }).filter(function (id) { return ids.indexOf(id) < 0; }).slice(0, 6 - ids.length));
+    el.innerHTML = '<span class="lbl">Tool kamu</span>' + ids.slice(0, 8).map(function (id) {
+      var a = byId[id], on = fav.indexOf(id) >= 0;
+      return '<button class="pill" type="button" data-open="' + id + '" title="' + esc(a.desc) + '"><span class="ticon cat-' + a.cat + '">' + icon(a.icon) + "</span>" + esc(a.name) +
+        (on ? '<span class="pstar" title="Favorit">' + icon("star", "fill") + "</span>" : "") + "</button>";
+    }).join("") + '<a class="link" href="#/tools">Semua tools ' + icon("arrowR") + "</a>";
+    el.hidden = !apps.length;
   }
-  function renderFav() {
-    var list = fav.map(function (id) { return byId[id]; });
-    $("#favGrid").innerHTML = list.length ? list.map(function (a) { return card(a, true); }).join("") : emptyFor("fav", "");
-  }
-  function renderRecent() {
-    var p = $("#recentPanel"), list = recent.slice(0, 5);
-    p.innerHTML = '<div class="panel-h"><h2 id="recentH">Terakhir dibuka</h2>' + (recent.length ? '<a class="link" href="#/tools/recent">Lihat semua</a>' : "") + "</div>" +
-      (list.length ? '<div class="rows">' + list.map(function (x) { var a = byId[x.id]; return '<div class="row"><span class="ticon sm cat-' + a.cat + '">' + icon(a.icon) + '</span><a class="m" href="#' + a.id + '"><b>' + esc(a.name) + '</b><small>' + esc(ago(x.t)) + "</small></a>" + icon("chevR") + "</div>"; }).join("") + "</div>"
-        : '<p class="muted small" style="margin:0">Tool yang kamu buka di browser ini akan muncul di sini.</p>');
-    if (curView === "tools" && toolsState.cat === "recent") renderToolsGrid();
-  }
-  function renderLists() { renderFav(); renderHomeGrid(); if (curView === "tools") renderToolsGrid(); if (curView === "detail") renderDetail(curDetail); renderNav(); }
+  function renderLists() { renderMine(); if (curView === "tools") renderToolsGrid(); if (curView === "detail") renderDetail(curDetail); renderNav(); }
 
   /* ---------- navigasi samping ---------- */
   var curKey = "home";
@@ -671,63 +632,41 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   function setTheme(t) { theme = t; applyTheme(); }
   function cycleTheme() { setTheme(theme === "system" ? "dark" : theme === "dark" ? "light" : "system"); }
 
-  /* ---------- aksi cepat & AI ---------- */
-  function firstOf(ids) { for (var i = 0; i < ids.length; i++) if (byId[ids[i]]) return byId[ids[i]]; return null; }
-  function renderQuick() {
-    var QA = [["Riset produk", "flask", ["fund", "bond", "etf"]], ["Buat konten", "pen", ["story", "edukasi"]], ["Rencanakan campaign", "megaphone", ["planner", "email"]], ["Cari referensi", "book", ["tutorial"]]];
-    var html = QA.map(function (q) { var a = firstOf(q[2]); return a ? '<button type="button" data-open="' + a.id + '"><span class="ticon cat-' + a.cat + '">' + icon(q[1]) + '</span><span class="t"><b>' + esc(q[0]) + "</b><small>" + esc(a.name) + "</small></span></button>" : ""; }).join("");
-    $("#qa").innerHTML = html; $("#qa").hidden = !html;
-    var ai = apps.filter(function (a) { return a.ai; });
-    $("#aiBox").innerHTML = ai.length ? '<section class="ai" aria-labelledby="aiH"><div><span class="eyebrow">' + icon("sparkles") + "AI Workbench</span><h2 id=\"aiH\">" + esc(H.aiTitle) + "</h2>" +
-      "<p>Mulai dari ide, riset, atau pekerjaan yang ingin kamu selesaikan.</p><p class=\"note\">Ini peluncur ke tool yang sudah memakai AI. Asisten AI langsung di halaman ini belum tersedia.</p>" +
-      '<button class="btn btn-primary" type="button" data-palette>' + icon("search") + "Cari tool atau aksi</button></div>" +
-      '<div class="ai-acts">' + ai.map(function (a) { return '<button type="button" data-open="' + a.id + '"><span class="ticon sm cat-' + a.cat + '">' + icon(a.icon) + '</span><span class="t"><b>' + esc(a.name) + "</b><small>" + esc(a.ai) + '</small></span><span class="go">' + icon("arrowR") + "</span></button>"; }).join("") + "</div></section>" : "";
-  }
-
   /* ---------- ringkasan hari ini ---------- */
   var feed = null;
   function skel(n) { var s = ""; for (var i = 0; i < n; i++) s += '<span class="sk" style="width:' + (90 - i * 15) + '%"></span>'; return s; }
   function errBox(msg) { return '<div class="errbox">' + icon("alert") + "<div>" + esc(msg) + '</div><button class="btn btn-sm" type="button" data-retry>Coba lagi</button></div>'; }
-  var STR = { none: ["Belum disusun", "st-muted"], draft: ["Draf", "st-warn"], published: ["Terbit", "st-ok"] };
   var PST = { ide: "st-muted", draf: "st-warn", review: "st-info", terbit: "st-ok", rencana: "st-muted", konfirmasi: "st-info", selesai: "st-ok", batal: "st-err", belum: "st-muted", proses: "st-info", revisi: "st-warn" };
   function pctHtml(p) { if (p == null || p === "" || isNaN(+p)) return ""; p = +p; return '<span class="pct ' + (p > 0 ? "up" : p < 0 ? "down" : "") + '">' + (p > 0 ? "+" : "") + p.toFixed(2).replace(".", ",") + "%</span>"; }
   // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
-  var PANELS = [["recap", "recapBody", "trend", "research", "Market Recap hari ini"], ["planner", "planBody", "calendar", "campaign", "Jadwal & tugas"],
-    ["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"]];
+  // Market Recap & jadwal berjam Content Planner tampil di Ritme hari ini, jadi tidak punya kartu sendiri
+  var PANELS = [["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"],
+    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"]];
   function renderToday() {
     var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
     }).join("");
+    // tugas otomatis yang gagal: kartu ini hanya muncul bila ada masalah (diisi fillJobs)
+    if (H.today.jobs || H.today.cron) html += '<section class="panel" id="jobsPanel" aria-labelledby="jobsH" hidden><div class="panel-h"><span class="ticon sm st-err">' + icon("alert") + '</span><h2 id="jobsH">Tugas otomatis bermasalah</h2>' +
+      (H.actions ? '<a class="link" href="' + esc(H.actions) + '" target="_blank" rel="noopener">GitHub ' + icon("ext") + "</a>" : "") + '</div><div class="pbody" id="jobsBody">' + skel(4) + "</div></section>";
     box.innerHTML = html; box.hidden = !html;
     var rb = $("#rhythm");
     rb.innerHTML = H.today.rhythm ? '<section class="panel rhythm" aria-labelledby="rhyH"><div class="panel-h"><span class="ticon sm cat-campaign">' + icon("clock") + '</span><h2 id="rhyH">Ritme hari ini</h2></div><div id="rhythmBody">' + skel(4) + "</div></section>" : "";
     rb.hidden = !H.today.rhythm;
-    $("#jobsPanel").hidden = !H.today.jobs && !H.today.cron;
-    $("#jobsPanel").innerHTML = '<div class="panel-h"><h2 id="jobsH">Status otomatis</h2>' + (H.actions ? '<a class="link" href="' + esc(H.actions) + '" target="_blank" rel="noopener">GitHub ' + icon("ext") + "</a>" : "") + '</div><div id="jobsBody">' + skel(4) + "</div>";
-  }
-  function fillRecap(r) {
-    var el = $("#recapBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Market Recap tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
-    var d = r.data, wd = new Date(d.date + "T00:00:00Z").getUTCDay(), libur = wd === 0 || wd === 6;
-    var hint = { s1: "Disusun otomatis saat jeda siang, 12.00–13.30 WIB", close: "Disusun otomatis mulai 17.20 WIB" };
-    var rows = libur ? '<p class="muted small" style="margin:0 0 4px">Hari ini bukan hari bursa.</p>' : d.sessions.map(function (s) {
-      var st = STR[s.status] || STR.none;
-      return '<div class="row"><div class="m"><b>' + esc(s.label) + "</b><small>" + esc(s.status === "none" ? hint[s.session] || "" : s.title || "Tanpa judul") + "</small></div>" + pctHtml(s.pct) + '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
-    }).join("");
-    var last = d.last ? '<div class="row"><div class="m"><b>Terakhir: ' + esc(hari(d.last.date)) + " · " + esc(d.last.session === "s1" ? "Sesi 1" : "Penutupan") + "</b><small>" + esc(d.last.title || "") + "</small></div>" + pctHtml(d.last.pct) + '<span class="badge ' + (STR[d.last.status] || STR.none)[1] + '">' + (STR[d.last.status] || STR.none)[0] + "</span></div>" : "";
-    el.innerHTML = '<div class="rows">' + rows + last + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date)) + '</span><button class="btn btn-sm" type="button" data-open="recap">Buka Market Recap ' + icon("arrowR") + "</button></div>";
   }
   function fillPlanner(r) {
     var el = $("#planBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Jadwal Content Planner tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Tugas dari Content Planner tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
     var d = r.data, kinds = d.kinds || {};
     var item = function (it, when) { return '<div class="row"><div class="m"><b>' + esc(it.title) + "</b><small>" + esc([when, kinds[it.kind] || it.kind, it.channel].filter(Boolean).join(" · ")) + '</small></div><span class="badge cap ' + (PST[it.status] || "st-muted") + '">' + esc(it.status || "-") + "</span></div>"; };
     var design = function (it) { return '<div class="row"><div class="m"><b>' + esc(it.title) + "</b><small>Desain · tenggat " + esc(hari(it.d_due || it.date)) + '</small></div><span class="badge cap ' + (PST[it.d_status] || "st-muted") + '">' + esc(it.d_status || "belum") + "</span></div>"; };
-    var today = d.today.slice(0, 5), mine = d.mine.filter(function (x) { return x.date !== d.date; }).slice(0, 4), des = d.design.slice(0, 4);
-    var html = '<div class="subh">Hari ini · ' + d.today.length + " kegiatan</div>" + (today.length ? '<div class="rows">' + today.map(function (it) { return item(it, it.time || ""); }).join("") + "</div>" : '<p class="muted small" style="margin:0">Tidak ada kegiatan terjadwal hari ini.</p>');
+    // kegiatan hari ini yang berjam sudah ada di Ritme hari ini; di sini yang tanpa jam, milikmu ke depan, dan tugas desain
+    var loose = d.today.filter(function (x) { return !/^\d{2}:\d{2}/.test(x.time || ""); }), mine = d.mine.filter(function (x) { return x.date !== d.date; }).slice(0, 4), des = d.design.slice(0, 4), html = "";
+    if (loose.length) html += '<div class="subh">Hari ini, tanpa jam · ' + loose.length + '</div><div class="rows">' + loose.slice(0, 4).map(function (it) { return item(it, ""); }).join("") + "</div>";
     if (mine.length) html += '<div class="subh">Milikmu, 7 hari ke depan</div><div class="rows">' + mine.map(function (it) { return item(it, hari(it.date)); }).join("") + "</div>";
     if (des.length) html += '<div class="subh">Tugas desain untukmu · ' + d.design.length + '</div><div class="rows">' + des.map(design).join("") + "</div>";
-    el.innerHTML = html + '<div class="panel-f"><span class="muted">' + esc(hari(d.date)) + '</span><button class="btn btn-sm" type="button" data-open="planner">Buka Content Planner ' + icon("arrowR") + "</button></div>";
+    if (!html) html = '<div class="rows">' + rowHtml("ok", "Tidak ada tugas untukmu", "7 hari ke depan, termasuk tugas desain") + "</div>";
+    el.innerHTML = html + foot(hari(d.date), "planner", "Buka Content Planner");
   }
   function dec(v, dp) { return (+v).toFixed(dp).replace(".", ","); }
   function rowHtml(dot, title, sub, right) {
@@ -780,36 +719,25 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   }
   var CRONJOB = { FUND: "Fund Insight", COMPETITOR: "Competitor Intelligence", EDUKASI: "Edukasi Studio", STORYDATA: "Story Data", SATS: "SATS Radar", RECAP: "Market Recap" };
   // cron jalan tiap 5 menit; lebih dari 15 menit tanpa catatan = cron berhenti
-  function cronPart(c) {
-    if (!c.ok) return { html: errBox("Status cron tidak bisa dimuat: " + (c.error || "tidak ada jawaban")), bad: 0 };
-    var d = c.data, by = {}, rows = [];
+  // cron jalan tiap 5 menit; lebih dari 15 menit tanpa catatan = cron berhenti
+  function cronProblems(c) {
+    if (!c || !c.ok) return [];
+    var d = c.data, by = {}, out = [];
     (d.runs || []).forEach(function (x) { by[x.job] = x; });
-    var main = by._cron, late = !!main && d.now - main.at > 15 * 60e3;
-    var fail = Object.keys(by).filter(function (k) { return k !== "_cron" && by[k].err; }).sort();
-    if (!main) rows.push(rowHtml("", "Belum ada catatan cron", "Mulai terisi setelah cron jalan berikutnya (tiap 5 menit)."));
-    else if (late) rows.push(rowHtml("err", "Cron tidak jalan", "Terakhir jalan " + ago(main.at) + ", seharusnya tiap 5 menit."));
-    fail.forEach(function (k) { rows.push(rowHtml("err", (CRONJOB[k] || k) + " gagal", ago(by[k].at) + " · " + by[k].err)); });
-    if (main && !late && !fail.length) rows.push(rowHtml("ok", "Semua tugas terjadwal berhasil", (Object.keys(by).length - 1) + " tugas · terakhir jalan " + ago(main.at)));
-    return { html: '<div class="rows">' + rows.join("") + "</div>", bad: (late ? 1 : 0) + fail.length };
+    if (by._cron && d.now - by._cron.at > 15 * 60e3) out.push(rowHtml("err", "Cron tidak jalan", "Terakhir jalan " + ago(by._cron.at) + ", seharusnya tiap 5 menit."));
+    Object.keys(by).filter(function (k) { return k !== "_cron" && by[k].err; }).sort().forEach(function (k) { out.push(rowHtml("err", (CRONJOB[k] || k) + " gagal", ago(by[k].at) + " · " + by[k].err)); });
+    return out;
   }
+  // Hanya yang gagal yang tampil. Semua normal, atau status tidak terbaca (mis. batas GitHub): kartu tetap tersembunyi.
   function fillJobs(r, c) {
-    var el = $("#jobsBody"); if (!el) return;
-    var html = "", bad = 0, lbl = { ok: "Berhasil", err: "Gagal", run: "Sedang jalan", warn: "Dibatalkan", muted: "-" };
-    if (H.today.cron && c) { var cp = cronPart(c); bad += cp.bad; html += '<div class="subh">Jadwal cron</div>' + cp.html; }
-    if (H.today.jobs) {
-      if (H.today.cron) html += '<div class="subh">GitHub Actions</div>';
-      if (!r || !r.ok) html += errBox("Status GitHub Actions tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban"));
-      else {
-        var list = r.data.runs || [];
-        bad += list.filter(function (x) { return x.state === "err"; }).length;
-        html += list.length ? '<div class="rows">' + list.map(function (x) {
-          var sub = lbl[x.state] + (x.step ? " di " + x.step : "") + " · " + ago(Date.parse(x.at));
-          return '<div class="row"><span class="dot ' + x.state + '" aria-hidden="true"></span><a class="m" href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.name) + '</b><small title="' + esc(sub) + '">' + esc(sub) + "</small></a></div>";
-        }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada riwayat job.</p>';
-      }
-    }
-    el.innerHTML = (bad ? '<div class="errbox" style="margin-bottom:10px">' + icon("alert") + "<div>" + bad + " tugas otomatis bermasalah. Penyebabnya tertulis di bawah namanya.</div></div>" : "") + html +
-      '<div class="panel-f"><span class="muted">Diperbarui ' + esc(ago(Date.now())) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang status" title="Muat ulang">' + icon("refresh") + "</button></div>";
+    var el = $("#jobsBody"), panel = $("#jobsPanel"); if (!el || !panel) return;
+    var rows = H.today.cron ? cronProblems(c) : [];
+    if (H.today.jobs && r && r.ok) (r.data.runs || []).filter(function (x) { return x.state === "err"; }).forEach(function (x) {
+      var sub = "Gagal" + (x.step ? " di " + x.step : "") + " · " + ago(Date.parse(x.at));
+      rows.push('<div class="row"><span class="dot err" aria-hidden="true"></span><a class="m" href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.name) + '</b><small title="' + esc(sub) + '">' + esc(sub) + "</small></a></div>");
+    });
+    panel.hidden = !rows.length;
+    el.innerHTML = rows.length ? '<div class="rows">' + rows.join("") + '</div><div class="panel-f"><span class="muted">Diperbarui ' + esc(ago(Date.now())) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang" title="Muat ulang">' + icon("refresh") + "</button></div>" : "";
   }
   /* ---------- ritme hari ini (langkah dihitung di server: rhythm() di worker.js) ---------- */
   var RCOLS = [["Pagi", 0, 660, "00.00–11.00"], ["Siang", 660, 900, "11.00–15.00"], ["Sore", 900, 1440, "15.00–24.00"]];
@@ -838,7 +766,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     el.innerHTML = head + '<div class="rhy-cols">' + cols + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date) + " · " + d.now + " WIB" + (note ? " · " + note : "")) +
       '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang ritme" title="Muat ulang">' + icon("refresh") + "</button></div>";
   }
-  function fillAll(d) { fillRhythm(d.rhythm); fillRecap(d.recap); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {
@@ -1042,10 +970,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     if (!t || t.tagName === "HTML") return;
     if (t.dataset.open) { go("#" + t.dataset.open); }
     else if (t.dataset.fav) { toggleFav(t.dataset.fav); }
-    else if (t.dataset.chip) {
-      if (t.closest("#homeChips")) { homeState.cat = t.dataset.chip; renderHomeGrid(); }
-      else { go(t.dataset.chip === "all" ? "#/tools" : "#/tools/" + t.dataset.chip); }
-    }
+    else if (t.dataset.chip) go(t.dataset.chip === "all" ? "#/tools" : "#/tools/" + t.dataset.chip);
     else if (t.hasAttribute("data-palette")) palOpen();
     else if (t.hasAttribute("data-retry")) loadFeed();
     else if (t.hasAttribute("data-clearq")) { toolsState.q = ""; var i = $("#tq"); if (i) { i.value = ""; i.focus(); } renderToolsGrid(); }
@@ -1054,7 +979,6 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   });
   document.addEventListener("input", function (e) { if (e.target.id === "tq") { toolsState.q = e.target.value; renderToolsGrid(); } });
   document.addEventListener("change", function (e) {
-    if (e.target.id === "homeSort") { homeState.sort = e.target.value; LS("toolhub-sort", e.target.value); renderHomeGrid(); }
     if (e.target.id === "toolSort") { toolsState.sort = e.target.value; LS("toolhub-sort", e.target.value); renderToolsGrid(); }
   });
   document.addEventListener("keydown", function (e) {
@@ -1081,7 +1005,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 
   /* ---------- mulai ---------- */
   renderChrome(); document.addEventListener("click", function (e) { if (e.target.closest("#theme3")) cycleTheme(); });
-  setRail(railPref); applyTheme(); renderNav(); renderQuick(); renderToday(); renderFav(); renderHomeGrid(); renderRecent();
+  setRail(railPref); applyTheme(); renderNav(); renderToday(); renderMine();
   if (!apps.length) $("#vHome").innerHTML = '<div class="empty"><b>Belum ada tool yang bisa kamu buka</b>Admin perlu memberikan akses ke akunmu. Hubungi admin tim.</div>';
   route();
   if (Object.keys(H.today).some(function (k) { return H.today[k]; })) {

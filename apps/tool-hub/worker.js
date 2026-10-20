@@ -611,7 +611,7 @@ export function rhythm(now, parts, has) {
   for (const s0 of RHYTHM) {
     if (!s0.tools.some(has) || (s0.bourse && !bourse)) continue;
     const s = dow === 5 && s0.id === 's1' ? { ...s0, at: '11:30', late: '14:15', sub: 'Disusun saat jeda siang (Jumat)' } : s0;
-    let st, url = '';
+    let st, url = '', sub = s.sub;
     if (s.wf) {
       if (!jobs) st = ['muted', 'Status GitHub tidak terbaca'];
       else {
@@ -628,8 +628,13 @@ export function rhythm(now, parts, has) {
     } else if (s.recap) {
       const x = recap && recap.date === date ? (recap.sessions || []).find(y => y.session === s.recap) : null;
       st = !recap ? ['muted', 'Market Recap tidak terbaca'] : x && x.status === 'published' ? ['ok', 'Terbit'] : x && x.status === 'draft' ? ['warn', 'Draf, belum terbit'] : none(s, 'Sedang disusun otomatis');
+      // isi kartu Market Recap lama ikut di sini: judul rangkuman & perubahan IHSG
+      if (x && x.status !== 'none') {
+        if (x.pct != null && x.pct !== '' && !isNaN(+x.pct)) st = [st[0], st[1] + ' · IHSG ' + (+x.pct > 0 ? '+' : '') + (+x.pct).toFixed(2).replace('.', ',') + '%'];
+        if (x.title) sub = x.title;
+      }
     }
-    steps.push({ id: s.id, at: s.at, title: s.title, sub: s.sub, state: st[0], note: st[1], tool: s.tools.find(has), url });
+    steps.push({ id: s.id, at: s.at, title: s.title, sub, state: st[0], note: st[1], tool: s.tools.find(has), url });
   }
   // kegiatan Content Planner hari ini yang berjam (konten, artikel, edukasi): tandanya mengikuti statusnya
   let untimed = 0;
