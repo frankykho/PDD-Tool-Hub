@@ -741,7 +741,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     html += '<div class="subh">Bahan riset</div><p class="muted small" style="margin:0">' + (d.articles ? d.articles + " artikel sumber baru terkumpul hari ini." : "Belum ada artikel sumber baru hari ini.") + "</p>";
     el.innerHTML = html + foot(hari(d.date), "edukasi", "Buka Edukasi Studio");
   }
-  var CRONJOB = { FUND: "Fund Insight", COMPETITOR: "Competitor Intelligence", EDUKASI: "Edukasi Studio", STORYDATA: "Story Data", SATS: "SATS Radar", RECAP: "Market Recap" };
+  var CRONJOB = { FUND: "Fund Insight", COMPETITOR: "Competitor Intelligence", EDUKASI: "Edukasi Studio", STORYDATA: "Story Data", SATS: "SATS Radar", RECAP: "Market Recap", CONTENT: "Content Insight (scan Instagram)" };
   // cron jalan tiap 5 menit; lebih dari 15 menit tanpa catatan = cron berhenti
   // cron jalan tiap 5 menit; lebih dari 15 menit tanpa catatan = cron berhenti
   function cronProblems(c) {

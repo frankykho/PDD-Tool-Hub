@@ -67,6 +67,15 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
 - Cek: `node apps/content-planner/test.mjs`
 
+### Content Insight: pantau Instagram otomatis (Apify)
+
+- Secret `APIFY_TOKEN` di worker `content-insight` (akun Apify paket Free: kredit US$5/bulan, tanpa kartu). Tanpa secret, fitur ini mati dan tidak ada yang berubah.
+- Akun yang dipantau = `ci_accounts` dengan `watch=1` (diatur Editor/admin di kotak "Pantau Instagram otomatis"). Actor `apify/instagram-post-scraper`, `basicData`, `skipPinnedPosts`.
+- Hanya postingan baru: akun baru → 12 postingan terakhir; akun lama → `onlyPostsNewerThan` = postingan terbaru yang pernah diambil + 1 detik (`ci_accounts.ig_seen`). URL yang sudah ada dilewati. Biaya Apify per postingan (±US$0,0017), jadi scan tanpa postingan baru ≈ gratis.
+- Jadwal: apps/cron memanggil tiap 5 menit; 07.00 WIB memulai scan harian (sekali sehari), selain itu hanya melanjutkan scan yang berjalan. Hasil disimpan bertahap 6 postingan per langkah (batas CPU paket gratis). Tombol "Ambil postingan baru" jeda 30 menit sejak scan terakhir.
+- Pengaman kuota: scan tidak dimulai bila pemakaian Apify bulan ini ≥ US$4,50 (`/users/me/limits`); tiap scan dibatasi `maxTotalChargeUsd=0.5`. Riwayat scan di tabel `ci_ig_runs`.
+- Catatan: scraping melanggar ketentuan Instagram (dijalankan Apify, bukan akun KISI). Like/komentar tidak diperbarui setelah tersimpan.
+
 ### Content Insight: ide & konsep otomatis
 
 - Semua yang bisa membuka Content Insight (termasuk akses lihat saja) boleh menambah ide pada konten kompetitor (tabel `ci_ideas`). Kolom ide lama dipindah otomatis jadi ide pertama.

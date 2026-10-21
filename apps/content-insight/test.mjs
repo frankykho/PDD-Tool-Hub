@@ -12,7 +12,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: ci, overlap, parseConcept, conceptText } = await import("./worker.js");
+const { default: ci, overlap, parseConcept, conceptText, igUser, igPlan, igRow } = await import("./worker.js");
 const { default: planner } = await import("../content-planner/worker.js");
 
 function d1() {
@@ -141,5 +141,85 @@ assert.ok(overlap(CAP, CAP) > 0.9); assert.equal(overlap(CAP, good.caption), 0);
 assert.equal(parseConcept('{"judul":"x"}'), null, "konsep tanpa caption & alur ditolak");
 assert.equal(parseConcept(JSON.stringify({ ...good, format: "Podcast" })).format, "Carousel");
 assert.match(conceptText(parseConcept(JSON.stringify(good)), null), /^Deposito vs RDPU.*\(Carousel\)\n\nHook:/);
+
+/* ---------- pantau Instagram otomatis (Apify ditiru) ---------- */
+assert.equal(igUser("@Bibit.ID"), "bibit.id");
+assert.equal(igUser("https://www.instagram.com/kiwoom.sekuritas/?hl=id"), "kiwoom.sekuritas");
+assert.equal(igUser("https://www.instagram.com/p/ABC/"), "");
+assert.equal(igUser("nama dengan spasi"), "");
+{ const p = igPlan([{ account: "baru" }, { account: "a", ig_seen: "2026-10-20T01:00:01.000Z" }, { account: "b", ig_seen: "2026-10-19T05:00:00.000Z" }]);
+  assert.equal(p.length, 2);
+  assert.deepEqual(p[0].input, { skipPinnedPosts: true, dataDetailLevel: "basicData", username: ["baru"], resultsLimit: 12 }, "akun baru: 12 postingan terakhir");
+  assert.equal(p[1].input.onlyPostsNewerThan, "2026-10-19T05:00:00.000Z", "akun lama: hanya yang lebih baru dari pengambilan terakhir");
+  assert.equal(p[1].input.skipPinnedPosts, true);
+  assert.deepEqual(igPlan([]), []); }
+assert.equal(igRow({ error: "no_items", errorDescription: "Empty or private data" }), null);
+assert.deepEqual(igRow({ url: "https://www.instagram.com/p/XYZ/", type: "Sidecar", ownerUsername: "Bibit.id", caption: "Promo reksa dana", timestamp: "2026-10-20T03:04:05.000Z", likesCount: 12, commentsCount: -1, displayUrl: "https://cdn.test/x.jpg" }),
+  { url: "https://www.instagram.com/p/XYZ/", platform: "Instagram", account: "bibit.id", format: "Carousel", caption: "Promo reksa dana", posted_at: "2026-10-20", likes: 12, comments: null,
+    pillar: igRow({ url: "https://www.instagram.com/p/XYZ/", caption: "Promo reksa dana" }).pillar, topic: "Reksa dana", image_url: "https://cdn.test/x.jpg", ts: "2026-10-20T03:04:05.000Z" });
+
+const realFetch = globalThis.fetch, APIFY = { runs: [], status: {}, data: {}, used: 0.12, auth: [] };
+const post = (code, user, ts) => ({ url: `https://www.instagram.com/p/${code}/`, shortCode: code, type: "Image", ownerUsername: user, caption: "Reksa dana pasar uang " + code, timestamp: ts, likesCount: 5, commentsCount: 1, displayUrl: "https://cdn.test/" + code + ".jpg" });
+globalThis.fetch = async (u, init = {}) => {
+  const url = new URL(typeof u === "string" ? u : u.url);
+  if (url.hostname === "cdn.test") return new Response(new Uint8Array(400).fill(7), { headers: { "content-type": "image/jpeg" } });
+  if (url.hostname !== "api.apify.com") return realFetch(u, init);
+  APIFY.auth.push(init.headers.authorization);
+  const path = url.pathname.replace("/v2", "");
+  if (path === "/users/me/limits") return Response.json({ data: { current: { monthlyUsageUsd: APIFY.used }, limits: { maxMonthlyUsageUsd: 5 } } });
+  if (path === "/acts/apify~instagram-post-scraper/runs") { const id = "run" + (APIFY.runs.length + 1); APIFY.runs.push({ id, input: JSON.parse(init.body), max: url.searchParams.get("maxTotalChargeUsd") });
+    APIFY.status[id] = "RUNNING"; return Response.json({ data: { id, defaultDatasetId: "ds-" + id, status: "READY" } }, { status: 201 }); }
+  let m = path.match(/^\/actor-runs\/(\w+)$/);
+  if (m) return Response.json({ data: { id: m[1], status: APIFY.status[m[1]], chargedEventCounts: { post: (APIFY.data["ds-" + m[1]] || []).length } } });
+  m = path.match(/^\/datasets\/([\w-]+)\/items$/);
+  if (m) { const all = APIFY.data[m[1]] || [], o = +url.searchParams.get("offset"), l = +url.searchParams.get("limit"); return Response.json(all.slice(o, o + l)); }
+  return Response.json({ error: { message: "tidak dikenal " + path } }, { status: 404 });
+};
+const igEnv = env; igEnv.APIFY_TOKEN = "tok-test";
+const ig = (ck, body) => call("/api/ig", body ? { ck, method: "POST", body } : { ck });
+assert.equal((await ig(VIEW, { action: "watch", account: "bibit.id" })).status, 403, "viewer tidak bisa mengubah");
+assert.equal((await ig(EDIT, { action: "scan" })).status, 409, "belum ada akun dipantau");
+assert.equal((await ig(EDIT, { action: "watch", account: "salah nama" })).status, 400);
+assert.equal((await ig(EDIT, { action: "watch", account: "https://www.instagram.com/Bibit.id/" })).j.account, "bibit.id");
+// konten lama yang sudah tersimpan manual tidak disimpan dobel
+await call("/api/content", { ck: EDIT, method: "POST", body: { url: "https://www.instagram.com/p/OLD1/", caption: "lama", account: "bibit.id" } });
+r = await ig(EDIT, { action: "scan" });
+assert.equal(r.status, 200, JSON.stringify(r.j));
+assert.equal(APIFY.runs.length, 1); assert.equal(APIFY.runs[0].input.resultsLimit, 12); assert.equal(APIFY.runs[0].max, "0.5");
+assert.equal((await ig(EDIT, { action: "scan" })).status, 409, "tidak bisa scan dobel saat masih berjalan");
+r = await ig(VIEW); assert.equal(r.j.running, true); assert.equal(r.j.usage.used, 0.12);
+// Apify selesai: 8 postingan (1 sudah ada) -> disimpan bertahap per 6
+APIFY.status.run1 = "SUCCEEDED";
+APIFY.data["ds-run1"] = [post("OLD1", "bibit.id", "2026-10-18T01:00:00.000Z"), ...[1, 2, 3, 4, 5, 6, 7].map((i) => post("N" + i, "bibit.id", `2026-10-2${i % 2}T0${i}:00:00.000Z`)), { error: "no_items" }];
+await ci.fetch(new Request(BASE + "/__cron?t=" + Date.UTC(2026, 9, 21, 5, 0), { method: "POST", headers: { "x-cron-key": SECRET } }), env);   // 12.00 WIB: lanjutkan saja
+let st = env.DB.db.prepare("SELECT status, done, saved FROM ci_ig_runs").get();
+assert.equal(st.status, "SAVING"); assert.equal(st.done, 6);
+r = await ig(VIEW);   // membuka halaman juga melanjutkan penyimpanan
+st = env.DB.db.prepare("SELECT status, done, saved, items, cost FROM ci_ig_runs").get();
+assert.equal(st.status, "SUCCEEDED"); assert.equal(st.saved, 7, "7 postingan baru, OLD1 dilewati"); assert.equal(st.items, 8);
+assert.ok(Math.abs(st.cost - 9 * 0.0017) < 1e-9);
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM ci_content WHERE url LIKE '%/p/N%' AND saved_by='Otomatis (Apify)' AND image_data LIKE 'data:image/jpeg;base64,%'").get().n, 7);
+assert.equal(env.DB.db.prepare("SELECT ig_seen FROM ci_accounts WHERE account='bibit.id'").get().ig_seen, "2026-10-21T07:00:01.000Z", "batas berikutnya = postingan terbaru + 1 detik");
+assert.equal(r.j.running, false); assert.equal(r.j.runs[0].saved, 7);
+// tombol manual: jeda 30 menit
+r = await ig(EDIT, { action: "scan" }); assert.equal(r.status, 409); assert.match(r.j.error, /Coba lagi dalam \d+ menit/);
+// cron pagi 07.00 WIB: hanya postingan baru (onlyPostsNewerThan), sekali sehari
+env.DB.db.prepare("UPDATE ci_ig_runs SET started_at='2026-10-20T00:00:00.000Z'").run();
+const pagi = Date.UTC(2026, 9, 22, 0, 0);
+await ci.fetch(new Request(BASE + "/__cron?t=" + pagi, { method: "POST", headers: { "x-cron-key": SECRET } }), env);
+assert.equal(APIFY.runs.length, 2); assert.equal(APIFY.runs[1].input.onlyPostsNewerThan, "2026-10-21T07:00:01.000Z"); assert.equal(APIFY.runs[1].input.resultsLimit, 30);
+APIFY.status.run2 = "SUCCEEDED"; APIFY.data["ds-run2"] = [];
+await ci.fetch(new Request(BASE + "/__cron?t=" + (pagi + 3e5), { method: "POST", headers: { "x-cron-key": SECRET } }), env);
+await ci.fetch(new Request(BASE + "/__cron?t=" + (pagi + 6e5), { method: "POST", headers: { "x-cron-key": SECRET } }), env);
+assert.equal(APIFY.runs.length, 2, "pagi yang sama tidak scan dua kali");
+assert.equal(env.DB.db.prepare("SELECT saved, status FROM ci_ig_runs WHERE id='run2'").get().saved, 0);
+// kuota hampir habis: berhenti
+env.DB.db.prepare("UPDATE ci_ig_runs SET started_at='2026-10-20T00:00:00.000Z'").run();
+APIFY.used = 4.6; r = await ig(EDIT, { action: "scan" }); assert.equal(r.status, 409); assert.match(r.j.error, /Kuota Apify bulan ini hampir habis/);
+// berhenti memantau
+assert.equal((await ig(EDIT, { action: "watch", account: "bibit.id", on: false })).status, 200);
+r = await ig(VIEW); assert.equal(r.j.watch.length, 0); assert.ok(r.j.others.includes("bibit.id"));
+assert.ok(APIFY.auth.every((a) => a === "Bearer tok-test"));
+globalThis.fetch = realFetch;
 
 console.log("semua cek lolos");

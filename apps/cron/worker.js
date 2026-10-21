@@ -10,6 +10,7 @@
 //   :20/:50          Market Recap, Senin–Jumat; memilih sendiri sesi 1 / penutupan menurut jam
 //   10:20 & 12:20    SATS, Senin–Jumat (dulu 10:17 & 12:17)
 //   tiap 5 menit     Story Data, Senin–Jumat; memilih tugas sendiri menurut jam (dulu */5 * * * 1-5)
+//   tiap 5 menit     Content Insight: scan Instagram 07.00 WIB + lanjutkan scan yang berjalan (ringan bila tidak ada; tanpa APIFY_TOKEN langsung selesai)
 //
 // Hasil tiap jalan dicatat di D1 (tabel cron_runs) dan dibaca beranda Tool Hub lewat GET /__hub/today (shared/hubfeed.js).
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
@@ -20,7 +21,7 @@ export default {
   async scheduled(event, env) {
     const d = new Date(event.scheduledTime), h = d.getUTCHours(), m = d.getUTCMinutes() % 30;
     const weekday = d.getUTCDay() >= 1 && d.getUTCDay() <= 5;
-    const jobs = [SLOTS[m]];
+    const jobs = [SLOTS[m], "CONTENT"];
     if (weekday) jobs.push("STORYDATA");
     if (weekday && m === 20) jobs.push("RECAP");
     if (weekday && d.getUTCMinutes() === 20 && (h === 10 || h === 12)) jobs.push("SATS");

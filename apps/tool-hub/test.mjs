@@ -169,7 +169,7 @@ dr.run("story", "Draf lama", ADMIN, Date.now() - 9 * 864e5);
 eduEnv.DB.db.prepare("INSERT INTO articles (url, title, scraped_at) VALUES ('https://a.test/1', 'Sumber', ?)").run(Date.now());
 // Cron: jalan Senin 09:05 WIB (02:05 UTC): Fund berhasil, Story Data gagal
 const okB = { fetch: async () => new Response("ok") }, failB = { fetch: async () => new Response("x", { status: 500 }) };
-Object.assign(cronEnv, { FUND: okB, COMPETITOR: okB, EDUKASI: okB, STORYDATA: failB, SATS: okB, RECAP: okB });
+Object.assign(cronEnv, { FUND: okB, COMPETITOR: okB, EDUKASI: okB, STORYDATA: failB, SATS: okB, RECAP: okB, CONTENT: okB });
 const cronAt = Date.UTC(2026, 9, 19, 2, 5);   // waktu tetap: Senin 09:05 WIB = slot Fund + Story Data
 await assert.rejects(cron.scheduled({ scheduledTime: cronAt }, cronEnv), /^Error: STORYDATA: HTTP 500$/);
 
