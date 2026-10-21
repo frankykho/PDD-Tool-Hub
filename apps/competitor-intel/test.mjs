@@ -2,7 +2,7 @@
 // Jalankan: node apps/competitor-intel/test.mjs   (Node 22.15+)
 import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
-import ci, { ciHold, ciMigrate, ciNotPromo, ciPromoVerdict } from "./worker.js";
+import ci, { ciFoldTerms, ciHold, ciMigrate, ciNotPromo, ciPromoVerdict } from "./worker.js";
 
 // bukan promo: pengumuman pemenang & artikel update mingguan (judul nyata dari beranda Tool Hub)
 assert.equal(ciNotPromo("Selamat! Ini Pemenang Promo Saham September 2026 Berhadiah hingga Rp250 Ribu"), "pengumuman pemenang");
@@ -121,6 +121,34 @@ await ciMigrate(env);
 const tp = (id) => ({ ...db.prepare("SELECT start_date AS s, end_date AS e, trx_start AS ts, trx_end AS te FROM ci_programs WHERE id = ?").get(id) });
 assert.deepEqual(tp("t1"), { s: "2026-10-01", e: "2026-10-31", ts: "2026-10-01", te: "2026-10-31" }, "tanggal lama disalin ke periode transaksi");
 assert.deepEqual(tp("t2"), { s: "2026-10-01", e: "2027-01-31", ts: "2026-10-01", te: "2026-10-15" }, "periode transaksi yang sudah diisi tidak ditimpa");
+
+/* ---------- siapa boleh ikut, kuota, mekanisme, cara ikut, pengecualian -> butir S&K ---------- */
+const f = ciFoldTerms({
+  terms: JSON.stringify(["Berlaku untuk nasabah baru"]), eligibility: "Nasabah baru", quota_limits: "1.000 nasabah", mechanism: "Cashback dikreditkan 14 hari kerja",
+  participation: "Masukkan kode PROMO\nBeli minimal Rp1 jt", exclusions: "Tidak berlaku untuk karyawan",
+  tiers: JSON.stringify({ head: ["Tier", "Min. pembelian", "Hadiah"], rows: [["1", "Rp10 jt", "Rp100 rb"], ["2", "", "Rp750 rb"]] }),
+});
+assert.deepEqual(JSON.parse(f.terms), [
+  "Berlaku untuk nasabah baru", "Siapa yang boleh ikut: Nasabah baru", "Kuota: 1.000 nasabah", "Mekanisme: Cashback dikreditkan 14 hari kerja",
+  "Cara ikut: Masukkan kode PROMO", "Cara ikut: Beli minimal Rp1 jt", "Pengecualian: Tidak berlaku untuk karyawan",
+  "Mekanisme: Tier 1 · Min. pembelian Rp10 jt · Hadiah Rp100 rb", "Mekanisme: Tier 2 · Hadiah Rp750 rb",
+], "urutan: S&K lama, lalu isian lama dengan labelnya, lalu baris tabel tier (kolom kosong dilewati)");
+assert.deepEqual([f.eligibility, f.quota_limits, f.mechanism, f.participation, f.exclusions, f.tiers], [null, null, null, null, null, null], "isian lama dikosongkan");
+assert.equal(ciFoldTerms({ mechanism: "Beli lewat aplikasi", participation: "Beli lewat aplikasi" }).terms, JSON.stringify(["Cara ikut: Beli lewat aplikasi"]), "mekanisme hasil scan = cara ikut tidak ditulis dua kali");
+assert.equal(ciFoldTerms({ terms: JSON.stringify(["Kuota: 5"]), quota_limits: "5" }).terms, JSON.stringify(["Kuota: 5"]), "tidak ada butir kembar");
+assert.equal(ciFoldTerms({}).terms, null);
+// data lama di database ikut dipindah saat migrasi
+db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, terms, quota_limits, exclusions) VALUES ('f1', 'x', 'https://x.test/f1', '2026-10-01', ?, '16 voucher', 'Tidak untuk switching')").run(JSON.stringify(["S&K lama"]));
+await ciMigrate(env);
+const f1 = db.prepare("SELECT terms, quota_limits AS q, exclusions AS e FROM ci_programs WHERE id = 'f1'").get();
+assert.deepEqual([JSON.parse(f1.terms), f1.q, f1.e], [["S&K lama", "Kuota: 16 voucher", "Pengecualian: Tidak untuk switching"], null, null]);
+await ciMigrate(env);
+assert.equal(JSON.parse(db.prepare("SELECT terms FROM ci_programs WHERE id = 'f1'").get().terms).length, 3, "migrasi aman diulang");
+// isian lama tidak bisa diisi lagi lewat API dan tidak dikirim ke tampilan
+[s] = await api("PATCH", { id: noUrl, quota_limits: "100 orang", tiers: { head: ["a"], rows: [["b"]] } });
+assert.equal(db.prepare("SELECT quota_limits AS q, tiers AS t FROM ci_programs WHERE id = ?").get(noUrl).q, null);
+const one2 = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k&id=f1"), env, { waitUntil() {} })).json();
+assert.equal(["eligibility", "quota_limits", "mechanism", "participation", "exclusions", "tiers"].some((k) => k in one2), false);
 const one = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k&id=m1"), env, { waitUntil() {} })).json();
 assert.equal("assessment_period" in one, false, "kolom lama tidak dikirim ke tampilan");
 console.log("semua cek lolos");

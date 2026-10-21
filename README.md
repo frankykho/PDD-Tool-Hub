@@ -87,6 +87,7 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Promo tanpa link publik (aplikasi, Instagram, brosur) boleh tanpa URL asalkan ada gambar unggahan sebagai bukti. Keterangan sumbernya disimpan di `source_note` dan tampil di detail serta PDF.
 - KPI dan filter "Belum lengkap" menunjukkan promo yang masih perlu dilengkapi. Sebelum Export PDF, dialog menyebut promo yang belum lengkap.
 - Empat isian wajib tiap promo (`ciRequired`): periode program (`start_date`–`end_date`, sampai akhir holding; kosong = sama dengan periode transaksi), periode transaksi (`trx_start`–`trx_end`, harus di dalam periode program), holding period / masa penilaian, dan minimal satu butir S&K ("Tidak ada" bila memang tidak ada). Server menolak simpan dari form dan "Tandai terverifikasi" bila belum lengkap; hasil scan boleh tersimpan belum lengkap sebagai "Perlu verifikasi". Promo lama: tanggal promo yang tercatat disalin ke periode transaksi.
+- Siapa yang boleh ikut, kuota, mekanisme (teks & tabel tier), cara ikut, dan pengecualian tidak lagi punya isian sendiri: ditulis sebagai butir S&K berlabel (`ciFoldTerms`, mis. "Kuota: 16 voucher"). Data lama dan hasil scan dipindah otomatis; kolomnya tetap ada di tabel tapi selalu kosong.
 - Cek: `node apps/competitor-intel/test.mjs`
 
 ### SATS: Opportunity Radar
