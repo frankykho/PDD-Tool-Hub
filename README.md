@@ -81,6 +81,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
 - Cek: `node apps/fund-insight/test.mjs`
 
+### Competitor Intelligence: input manual
+
+- Promo yang tidak terbaca scan diisi tim. Ada tiga cara: **+ Tambah manual**; **+ Isi promo** di baris sumber yang Gagal atau Manual (kompetitor, jenis, dan URL sudah terisi); dan **Lengkapi** (form yang hanya berisi field yang belum terbaca, dari kartu Kelengkapan detail, kartu daftar, atau dialog Export PDF). Field yang memang tidak ada diisi "Tidak ada" supaya tidak dihitung kurang.
+- Promo tanpa link publik (aplikasi, Instagram, brosur) boleh tanpa URL asalkan ada gambar unggahan sebagai bukti. Keterangan sumbernya disimpan di `source_note` dan tampil di detail serta PDF.
+- KPI dan filter "Belum lengkap" menunjukkan promo yang masih perlu dilengkapi. Sebelum Export PDF, dialog menyebut promo yang belum lengkap.
+- Cek: `node apps/competitor-intel/test.mjs`
+
 ## Profil
 
 - `profile.example.json` berisi semua kolom beserta penjelasannya. Salin menjadi `profile.json` lalu isi.
