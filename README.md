@@ -67,6 +67,12 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
 - Cek: `node apps/content-planner/test.mjs`
 
+### Content Insight: simpan dari profil Instagram (gratis)
+
+- Tombol bookmark yang sama (`ciBookmark`) di halaman **profil** IG (bukan postingan) menyimpan semua postingan yang tampil di grid (maks. 60): membuka `/save?bulk=1`, lalu mengirim postingan satu per satu lewat postMessage; jendela itu memanggil `POST /api/content` per postingan (yang sudah ada = dup, dilewati).
+- Detail dibaca di browser tim memakai login IG yang terbuka (`/p/<kode>/?__a=1&__d=dis`, jeda ±0,6 detik). Bila tidak tersedia, yang tersimpan cukup link, sampul grid, dan teks alt.
+- Kode bookmark tertanam saat diseret ke bookmark bar, jadi perubahan `ciBookmark` butuh pasang ulang. Kunci `ci_bm_hide2` memunculkan lagi kartu cara pasang untuk semua orang.
+
 ### Content Insight: pantau Instagram otomatis (Apify)
 
 - Secret `APIFY_TOKEN` di worker `content-insight` (akun Apify paket Free: kredit US$5/bulan, tanpa kartu). Tanpa secret, fitur ini mati dan tidak ada yang berubah.

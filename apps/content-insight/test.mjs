@@ -135,6 +135,12 @@ assert.equal((await call("/api/concepts", { ck: SMS, method: "DELETE", body: { i
 const page = await (await ci.fetch(new Request(BASE + "/", { headers: { cookie: SMS } }), env, { waitUntil() { } })).text();
 assert.match(page, /window\.ME=\{[^<]*"job":"sosmed"/);
 for (const [, code] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
+// tombol bookmark: di halaman profil Instagram menyimpan semua postingan yang tampil (mode bulk di jendela /save)
+assert.match(page, /function bulkIg\(user\)/);
+assert.match(page, /ci_bm_hide2/, "kartu cara pasang muncul lagi supaya tim memasang ulang tombolnya");
+const savePg = await (await ci.fetch(new Request(BASE + "/save?bulk=1&a=bibit.id&n=3", { headers: { cookie: EDIT } }), env, { waitUntil() { } })).text();
+assert.match(savePg, /if\(Q\.get\("bulk"\)==="1"\)return bulk\(\)/);
+for (const [, code] of savePg.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
 
 /* ---------- fungsi murni ---------- */
 assert.ok(overlap(CAP, CAP) > 0.9); assert.equal(overlap(CAP, good.caption), 0); assert.equal(overlap("", "x"), 0);
