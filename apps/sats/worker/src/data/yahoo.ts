@@ -58,8 +58,15 @@ export async function fetchYahooDailyWithMeta(
     );
   }
 
-  const data =
-    (await response.json()) as YahooChartResponse;
+  return parseYahooChart(await response.json(), symbol);
+}
+
+/** Yahoo chart JSON -> daily bars (tanpa bar hari libur). Dipakai pipeline EOD dan Strategy Lab di browser. */
+export function parseYahooChart(
+  json: unknown,
+  symbol: string,
+): { bars: SatsInputBar[]; marketTime: number | null } {
+  const data = json as YahooChartResponse;
 
   if (data.chart?.error) {
     throw new Error(

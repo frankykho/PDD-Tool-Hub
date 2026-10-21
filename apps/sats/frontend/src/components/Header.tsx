@@ -10,7 +10,7 @@ export default function Header({
   me,
   pendingCount = 0,
 }: {
-  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "radar" | "admin";
+  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "radar" | "backtest" | "admin";
   me?: Me;
   pendingCount?: number;
 }) {
@@ -98,6 +98,10 @@ export default function Header({
         <a href="#/radar" aria-current={active === "radar" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 12l6-6" /></svg>
           <span>Radar</span>
+        </a>
+        <a href="#/backtest" aria-current={active === "backtest" ? "page" : undefined}>
+          <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg>
+          <span>Backtest</span>
         </a>
         <a href="#/pasar" aria-current={active === "market" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>

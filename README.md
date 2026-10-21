@@ -101,6 +101,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Rights issue, RUPS, dan buyback belum tercakup (tidak ada sumber gratis yang bisa dibaca otomatis).
 - Kode: `worker/src/analyst.ts`, `frontend/src/components/AnalystCard.tsx`. Cek: `npx tsx src/test-analyst.ts` (dari `apps/sats/worker`)
 
+### SATS: Strategy Lab (Backtest)
+
+- Menu **Backtest** (`#/backtest`): susun syarat beli (semua harus terpenuhi) dan jual (salah satu), stop loss / target / trailing / maks. hari, pilih saham (indeks, watchlist, satu saham, daftar kode; maks. 80) dan periode 1/3/5 tahun. Ada template, termasuk preset teruji Lab Uji dan sinyal SATS. Strategi bisa disimpan di browser dan dibagikan lewat URL.
+- Data: `GET /api/history/:kode` meneruskan JSON Yahoo ±6 tahun apa adanya (worker tidak mengurai, supaya aman dari batas CPU paket gratis). Browser mengurai dan membersihkannya dengan `parseYahooChart` + `cleanBars`, sama dengan pipeline EOD. Tidak ada data yang disimpan di D1.
+- Eksekusi (`frontend/src/backtest/engine.ts`): sinyal di harga penutupan, transaksi di pembukaan besok + slippage, fraksi harga BEI, per lot 100, biaya beli/jual, auto reject (beli tidak terisi saat ARA, jual tertunda saat ARB; batas 35/25/20% menurut harga), dana dibagi rata ke maks. N posisi. Asumsi yang diabaikan: saham delisting (survivorship bias), penyelesaian T+2, perubahan aturan ARA/ARB dari waktu ke waktu.
+- Halaman ini dimuat terpisah (lazy) karena membawa mesin SATS. Cek: `npx tsx src/test-backtest.ts` (dari `apps/sats/worker`)
+
 ## Profil
 
 - `profile.example.json` berisi semua kolom beserta penjelasannya. Salin menjadi `profile.json` lalu isi.

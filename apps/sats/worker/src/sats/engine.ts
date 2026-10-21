@@ -728,7 +728,8 @@ function calculateVolumeZAtIndex(
    RSI
    ========================================================= */
 
-function calculateRsiAtIndex(
+/** Acuan RSI per bar (dipakai untuk memeriksa versi satu-lintasan di bawah). */
+export function calculateRsiAtIndex(
   bars: SatsInputBar[],
   index: number,
   length: number,

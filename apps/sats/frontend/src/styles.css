@@ -890,3 +890,37 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .ai-data summary { cursor: pointer; color: var(--mu); font-size: 13px; }
 .ai-data pre { margin: 8px 0 0; padding: 12px; max-height: 360px; overflow: auto; background: var(--bg); border: 1px solid var(--bd); border-radius: 10px; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
 .ai-disc { margin: 0; }
+
+/* ---------- Strategy Lab (backtest) */
+.lab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.lab-row select, .lab-code, .lab-list { height: 40px; padding: 0 10px; background: var(--bg); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; }
+.lab-code { width: 110px; text-transform: uppercase; }
+.lab-list { flex: 1 1 260px; min-width: 0; }
+.lab-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lab-h { margin: 6px 0 0; font-size: 15px; }
+.lab-h .small { font-weight: 400; margin-left: 6px; }
+.lab-cond { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; border: 1px solid var(--bd); border-radius: 10px; background: var(--bg); }
+.lab-cond select { height: 38px; padding: 0 8px; background: var(--s1); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; max-width: 100%; }
+.lab-num { display: inline-flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--mu); }
+.lab-num input { width: 120px; height: 38px; padding: 0 8px; background: var(--bg); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; }
+.lab-cond .lab-num { flex-direction: row; align-items: center; gap: 6px; }
+.lab-cond .lab-num input { width: 76px; background: var(--s1); }
+.lab-help { flex: 1 1 200px; }
+.lab-add { align-self: flex-start; }
+.lab-risk { align-items: flex-end; }
+.lab-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 0; }
+.lab-kpis .kpi { padding: 12px 14px; min-height: 0; }
+.lab-kpis .kpi strong { display: block; font-size: 22px; font-family: var(--mono); margin: 2px 0; }
+.lab-kpis .kpi small { color: var(--mu); font-size: 12px; display: block; }
+.lab-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.lab-chart { margin: 0; }
+.lab-chart svg { width: 100%; height: auto; display: block; }
+.lab-chart text { fill: var(--mu); font-size: 11px; font-family: var(--mono); }
+.lab-chart .grid { stroke: var(--bd); stroke-width: 1; }
+.lab-chart .strat { stroke: var(--buy); stroke-width: 2.2; }
+.lab-chart .bench { stroke: var(--c2); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.lab-legend { display: flex; gap: 16px; font-size: 12px; color: var(--mu); margin-top: 4px; }
+.lab-legend i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--buy); }
+.lab-legend i.bench { background: var(--c2); }
+@media (max-width: 900px) { .lab-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px 15px 0; } .lab-body { padding: 14px 15px; } }
+@media (max-width: 520px) { .lab-num input { width: 100%; } .lab-risk .lab-num { flex: 1 1 140px; } }

@@ -16,6 +16,8 @@
  *   GET /api/lab                               backtest of presets & patterns (weekly, run-lab.ts)
  *   GET /api/breadth                           market breadth history (liquid stocks, ≈ 1 year)
  *   GET /api/screener                          technical metrics of every stock + SATS state + index membership
+ *   GET /api/history/:code                     ±6 years of daily Yahoo data, passed through (Strategy Lab parses it in the browser)
+ *   GET/POST /api/analyst/:code                AI analysis of one stock (src/analyst.ts)
  *   GET/POST /api/watchlist                    the logged-in user's watchlist (needs login)
  */
 import { STRATEGIES, isStrategyId, type StrategyId } from "./strategies/types";
@@ -217,6 +219,21 @@ async function handle(url: URL, env: Env): Promise<Response> {
       .all()
       .catch(() => ({ results: [] as unknown[] })); // table appears after the first full EOD run
     return json({ rows: results });
+  }
+
+  // Strategy Lab: riwayat harian ±6 tahun dari Yahoo diteruskan apa adanya. Tidak diurai di sini (batas CPU paket gratis);
+  // browser yang mengurai & membersihkan dengan parseYahooChart + cleanBars, sama dengan pipeline EOD.
+  const histMatch = path.match(/^\/api\/history\/([A-Za-z0-9]{2,6})$/);
+  if (histMatch) {
+    const code = histMatch[1].toUpperCase();
+    if (code !== "IHSG" && !(await db.prepare("SELECT 1 AS x FROM stocks WHERE code = ?").bind(code).first())) return json({ error: "unknown code" }, 404);
+    const sym = code === "IHSG" ? "^JKSE" : `${code}.JK`, p2 = Math.floor(Date.now() / 1000), p1 = p2 - Math.round(6.1 * 365 * 86400);
+    const r = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${p1}&period2=${p2}&interval=1d&events=history&includeAdjustedClose=true`,
+      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" }, signal: AbortSignal.timeout(15000) },
+    );
+    if (!r.ok) return json({ error: `Yahoo HTTP ${r.status}` }, 502, 0);
+    return new Response(r.body, { headers: { "content-type": "application/json", "cache-control": "private, max-age=21600" } });
   }
 
   const asOfRow = await db.prepare("SELECT MAX(as_of_date) AS d FROM sats_latest").first<{ d: string | null }>();

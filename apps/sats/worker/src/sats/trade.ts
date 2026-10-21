@@ -6,7 +6,6 @@ import type {
 import {
   clamp,
   mapClamp,
-  safeDiv,
 } from "./math";
 
 export interface TradeCalculation {
