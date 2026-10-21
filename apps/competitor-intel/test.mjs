@@ -43,15 +43,17 @@ const st = (sql, args = []) => ({ bind: (...a) => st(sql, a), all: async () => (
 const env = { DB: { prepare: (s) => st(s), batch: async (l) => { for (const x of l) await x.all(); return []; } }, ADMIN_KEY: "k", SSO_SECRET: "s".repeat(40), HUB_URL: "https://hub.test" };
 const api = async (method, body) => { const r = await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k", { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), env, { waitUntil() {} }); return [r.status, await r.json()]; };
 const IMG = "data:image/png;base64,iVBORw0KGgo=";
+// isian wajib tiap promo yang disimpan lewat form
+const REQ = { trx_start: "2026-10-06", trx_end: "2026-10-31", start_date: "2026-10-06", end_date: "2027-01-31", holding_period: "Dana ditahan s.d. 31 Jan 2027", terms: ["Berlaku untuk nasabah baru"] };
 
-let [s, j] = await api("POST", { title: "Cashback di aplikasi X" });
+let [s, j] = await api("POST", { title: "Cashback di aplikasi X", ...REQ });
 assert.equal(s, 400, "tanpa URL dan tanpa gambar ditolak");
 assert.match(j.error, /URL sumber, atau unggah gambar/);
-[s, j] = await api("POST", { title: "Cashback di aplikasi X", source_note: "Aplikasi X (screenshot)", image_data: IMG, benefit: "Rp50 rb" });
+[s, j] = await api("POST", { title: "Cashback di aplikasi X", source_note: "Aplikasi X (screenshot)", image_data: IMG, benefit: "Rp50 rb", ...REQ });
 assert.equal(s, 200, JSON.stringify(j));
 const noUrl = j.id, row = db.prepare("SELECT source_url, source_note, status FROM ci_programs WHERE id=?").get(noUrl);
 assert.deepEqual({ ...row }, { source_url: "", source_note: "Aplikasi X (screenshot)", status: "Aktif" }, "tanpa link: URL kosong, keterangan sumber tersimpan");
-[s] = await api("POST", { title: "Promo di web", source_url: "https://contoh.co.id/promo" });
+[s] = await api("POST", { title: "Promo di web", source_url: "https://contoh.co.id/promo", ...REQ });
 assert.equal(s, 200, "dengan URL saja tetap boleh");
 const withUrl = db.prepare("SELECT id FROM ci_programs WHERE source_url=?").get("https://contoh.co.id/promo").id;
 
@@ -62,8 +64,31 @@ assert.equal(s, 400, "promo tanpa gambar tidak boleh kehilangan URL");
 assert.equal(s, 200, "URL boleh dikosongkan sambil mengunggah gambar");
 assert.equal(db.prepare("SELECT source_url FROM ci_programs WHERE id=?").get(withUrl).source_url, "");
 [s] = await api("PATCH", { id: noUrl, holding_period: "Tidak ada" });
-assert.equal(s, 200, "lengkapi satu field saja (mode Lengkapi)");
+assert.equal(s, 200, "ubah satu isian saja (mode Lengkapi), sisanya sudah lengkap");
 assert.equal(db.prepare("SELECT holding_period FROM ci_programs WHERE id=?").get(noUrl).holding_period, "Tidak ada");
+
+/* ---------- 4 isian wajib: periode program, periode transaksi, holding / masa penilaian, S&K ---------- */
+[s, j] = await api("POST", { title: "Tanpa isian wajib", source_url: "https://x.test/a" });
+assert.equal(s, 400);
+assert.equal(j.error, "Wajib diisi: periode program, periode transaksi, holding period / masa penilaian, syarat & ketentuan");
+[s, j] = await api("POST", { title: "Program kosong", source_url: "https://x.test/b", ...REQ, start_date: "", end_date: "" });
+assert.equal(s, 200, "periode program kosong = sama dengan periode transaksi");
+assert.deepEqual({ ...db.prepare("SELECT start_date AS a, end_date AS b FROM ci_programs WHERE id=?").get(j.id) }, { a: "2026-10-06", b: "2026-10-31" });
+[s, j] = await api("POST", { title: "Transaksi di luar program", source_url: "https://x.test/c", ...REQ, trx_end: "2027-02-15" });
+assert.equal(j.error, "Periode transaksi harus berada di dalam periode program");
+[s, j] = await api("POST", { title: "Tanggal terbalik", source_url: "https://x.test/d", ...REQ, trx_start: "2026-11-01", trx_end: "2026-10-01" });
+assert.equal(j.error, "Tanggal mulai harus sebelum tanggal selesai");
+[s, j] = await api("PATCH", { id: noUrl, terms: [] });
+assert.equal(s, 400, "S&K tidak boleh dikosongkan lewat edit");
+// hasil scan (belum lengkap) boleh tersimpan, tapi tidak bisa diverifikasi sebelum lengkap
+db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, status, start_date, end_date) VALUES ('scan1', 'Hasil scan', 'https://x.test/s', '2026-10-01', 'Perlu verifikasi', '2026-10-01', '2026-10-31')").run();
+[s, j] = await api("PATCH", { id: "scan1", status: "Aktif" });
+assert.equal(s, 400, "verifikasi ditolak bila belum lengkap");
+assert.match(j.error, /periode transaksi, holding period \/ masa penilaian, syarat & ketentuan/);
+[s] = await api("PATCH", { id: "scan1", why_matters: "catatan tim" });
+assert.equal(s, 200, "catatan tim tetap bisa disimpan walau isian wajib belum lengkap");
+[s] = await api("PATCH", { id: "scan1", status: "Tidak relevan" });
+assert.equal(s, 200, "tandai tidak relevan tidak perlu isian wajib");
 const list = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k"), env, { waitUntil() {} })).json();
 assert.equal(list.find((p) => p.id === noUrl).source_note, "Aplikasi X (screenshot)", "keterangan sumber ikut di daftar (dipakai tampilan & PDF)");
 
@@ -89,6 +114,13 @@ assert.deepEqual({ ...hp("m1") }, { h: "30 hari; 1–31 Okt", a: null });
 assert.deepEqual({ ...hp("m2") }, { h: "saldo 30 Nov", a: null });
 assert.deepEqual({ ...hp("m3") }, { h: "60 hari", a: null });
 assert.deepEqual({ ...hp("m4") }, { h: "90 hari", a: null }, "tanpa periode penilaian tidak berubah");
+// data lama: tanggal promo yang tercatat = periode transaksi; periode program tetap
+db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, start_date, end_date) VALUES ('t1', 'x', 'https://x.test/t1', '2026-10-01', '2026-10-01', '2026-10-31')").run();
+db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, start_date, end_date, trx_start, trx_end) VALUES ('t2', 'x', 'https://x.test/t2', '2026-10-01', '2026-10-01', '2027-01-31', '2026-10-01', '2026-10-15')").run();
+await ciMigrate(env);
+const tp = (id) => ({ ...db.prepare("SELECT start_date AS s, end_date AS e, trx_start AS ts, trx_end AS te FROM ci_programs WHERE id = ?").get(id) });
+assert.deepEqual(tp("t1"), { s: "2026-10-01", e: "2026-10-31", ts: "2026-10-01", te: "2026-10-31" }, "tanggal lama disalin ke periode transaksi");
+assert.deepEqual(tp("t2"), { s: "2026-10-01", e: "2027-01-31", ts: "2026-10-01", te: "2026-10-15" }, "periode transaksi yang sudah diisi tidak ditimpa");
 const one = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k&id=m1"), env, { waitUntil() {} })).json();
 assert.equal("assessment_period" in one, false, "kolom lama tidak dikirim ke tampilan");
 console.log("semua cek lolos");
