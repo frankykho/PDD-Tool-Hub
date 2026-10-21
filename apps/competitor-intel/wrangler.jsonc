@@ -1,8 +1,10 @@
-// Competitor Intel: promo investasi kompetitor. Secret: SSO_SECRET, ADMIN_KEY (opsional)
+// Competitor Intel: promo investasi kompetitor. Secret: SSO_SECRET, ADMIN_KEY (opsional), ANTHROPIC_API_KEY (opsional:
+// AI perapi promo memakai Claude, bukan Workers AI). Var opsional CI_AI_DAILY = batas panggilan AI per hari (bawaan 20).
 {
   "name": "competitor-intel",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
   "triggers": { "crons": [] },  // dijadwalkan oleh apps/cron (:10/:40 UTC)
-  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }]
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }],
+  "ai": { "binding": "AI" }
 }

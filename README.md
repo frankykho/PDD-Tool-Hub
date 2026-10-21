@@ -90,6 +90,12 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Siapa yang boleh ikut, kuota, mekanisme (teks & tabel tier), cara ikut, dan pengecualian tidak lagi punya isian sendiri: ditulis sebagai butir S&K berlabel (`ciFoldTerms`, mis. "Kuota: 16 voucher"). Data lama dan hasil scan dipindah otomatis; kolomnya tetap ada di tabel tapi selalu kosong.
 - Cek: `node apps/competitor-intel/test.mjs`
 
+### Competitor Intelligence: AI perapi promo
+
+- Otomatis: promo baru hasil scan (dan promo yang teks halamannya berubah) masuk antrean `ai_state='pending'`. Cron (:10/:40) merapikan 2 promo per putaran lewat `shared/ai.js` (Workers AI gratis; Claude bila secret `ANTHROPIC_API_KEY` ada): periode program & transaksi, holding, min. transaksi, benefit per poin, produk, MI (dicocokkan ke daftar MI data pasar), dan S&K per poin. Promo yang dinilai bukan promo ditandai "Tidak relevan" (tercatat di riwayat). Promo yang sudah dicek tim (Aktif / terverifikasi / tidak relevan) tidak disentuh. Scan ulang dengan teks halaman yang sama tidak menimpa hasil AI.
+- Manual (hanya mengisi form, tim mengecek lalu Simpan): **Rapikan dengan AI** di detail / **Isi dengan AI dari teks sumber** di form (arsip teks halaman), dan **Isi dengan Claude**: perintah disalin ke claude.ai (akun Claude Pro tim, bisa dengan screenshot/banner promo), jawaban JSON-nya ditempel balik.
+- Batas panggilan AI per hari: var `CI_AI_DAILY` (bawaan 20) supaya kuota Workers AI gratis tersisa untuk tool lain. Promo lama yang masih "Perlu verifikasi" ikut antre sekali saat migrasi.
+
 ### SATS: Opportunity Radar
 
 - Menu **Radar** (`#/radar`) memakai data `/api/screener` yang sama dengan Screener, tanpa tabel atau API baru. Setiap saham diberi skor 0–100 dari empat pilar: momentum, breakout, volume, dan likuiditas. Skor dikurangi bila ada peringatan (RSI ≥ 80, terlalu jauh dari MA50, ledakan volume, death cross, candle bearish, rugi, tidak likuid).

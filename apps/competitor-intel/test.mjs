@@ -2,7 +2,7 @@
 // Jalankan: node apps/competitor-intel/test.mjs   (Node 22.15+)
 import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
-import ci, { ciFoldTerms, ciHold, ciMigrate, ciNotPromo, ciPromoVerdict } from "./worker.js";
+import ci, { ciAiParse, ciAiPending, ciAiPrompt, ciFoldTerms, ciHold, ciMiMatch, ciMigrate, ciNotPromo, ciPromoVerdict, ciSaveScan } from "./worker.js";
 
 // bukan promo: pengumuman pemenang & artikel update mingguan (judul nyata dari beranda Tool Hub)
 assert.equal(ciNotPromo("Selamat! Ini Pemenang Promo Saham September 2026 Berhadiah hingga Rp250 Ribu"), "pengumuman pemenang");
@@ -151,4 +151,80 @@ const one2 = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?
 assert.equal(["eligibility", "quota_limits", "mechanism", "participation", "exclusions", "tiers"].some((k) => k in one2), false);
 const one = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k&id=m1"), env, { waitUntil() {} })).json();
 assert.equal("assessment_period" in one, false, "kolom lama tidak dikirim ke tampilan");
+
+/* ---------- AI: jawaban AI / Claude -> isian form ---------- */
+const MIS = ["Bahana TCW Investment Management", "Insight Investments Management", "Schroder Investment Management Indonesia"];
+assert.equal(ciMiMatch("Insight IM", MIS), "Insight Investments Management", "singkatan X IM");
+assert.equal(ciMiMatch("PT Schroder Investment Management Indonesia", MIS), "Schroder Investment Management Indonesia");
+assert.equal(ciMiMatch("Bahana", MIS), "Bahana TCW Investment Management", "awalan nama");
+assert.equal(ciMiMatch("MI Tidak Dikenal", MIS), "MI Tidak Dikenal", "tidak cocok -> teks asli");
+assert.equal(ciMiMatch("", MIS), "");
+const ANS = { is_promo: true, title: "Voucher Reksa Dana Syariah Oktober", manager: "Insight IM", category: "Reksa dana", promo_type: "Hadiah/undian",
+  trx_start: "2026-10-06", trx_end: "2026-10-31", start_date: "", end_date: "2027-01-31", holding_period: "Dana ditahan s.d. 31 Jan 2027", min_transaction: "Rp2 jt per transaksi",
+  benefit: ["Pembeli terbesar: voucher Rp1 jt", "Peringkat 2–3: voucher Rp750 rb", ""], products: "Insight Money Syariah", terms: ["Berlaku nasabah baru & lama", "Kuota 16 voucher"] };
+const pf = ciAiParse("Berikut datanya:\n```json\n" + JSON.stringify(ANS) + "\n```", MIS);
+assert.deepEqual(pf, { is_promo: true, not_promo_reason: "", title: "Voucher Reksa Dana Syariah Oktober", manager: "Insight Investments Management", category: "Reksa dana", promo_type: "Hadiah/undian",
+  trx_start: "2026-10-06", trx_end: "2026-10-31", start_date: "2026-10-06", end_date: "2027-01-31", holding_period: "Dana ditahan s.d. 31 Jan 2027", min_transaction: "Rp2 jt per transaksi",
+  benefit: "Pembeli terbesar: voucher Rp1 jt\nPeringkat 2–3: voucher Rp750 rb", products: "Insight Money Syariah", terms: ["Berlaku nasabah baru & lama", "Kuota 16 voucher"] },
+  "teks/blok kode di sekitar JSON diabaikan, benefit jadi satu poin per baris, periode program kosong = mulai transaksi");
+const bad = ciAiParse(JSON.stringify({ category: "Kripto", promo_type: "Gratis", trx_start: "6 Okt 2026", trx_end: "2026-10-31", end_date: "2026-10-15", is_promo: false, not_promo_reason: "artikel berita" }));
+assert.deepEqual([bad.category, bad.promo_type, bad.trx_start, bad.end_date, bad.is_promo, bad.not_promo_reason], ["", "", "", "2026-10-31", false, "artikel berita"], "nilai di luar pilihan & tanggal tak sah dibuang; program mencakup transaksi");
+assert.throws(() => ciAiParse("Maaf, saya tidak bisa membaca gambarnya."), /tidak berisi data JSON/);
+assert.match(ciAiPrompt(null), /Jawab HANYA dengan satu objek JSON/);
+assert.match(ciAiPrompt({ title: "Promo X", platform: "Bareksa", source_url: "https://x.test", page_content: "Isi halaman promo" }), /Kompetitor: Bareksa[\s\S]*Isi halaman promo/);
+
+/* ---------- AI: antrean hasil scan dirapikan cron ---------- */
+db.exec("DELETE FROM mktsnap"); db.prepare("INSERT INTO mktsnap VALUES ('latest', ?)").run(JSON.stringify({ names: { 1: ["RD", "Insight Investments Management"] } }));
+let aiCalls = 0, aiAns = ANS;
+env.AI = { run: async () => { aiCalls++; return { response: JSON.stringify(aiAns) }; } };
+const REC = { title: "Reksa Dana Syariah Ini Catat Return 7%", platform: "Bareksa", source_url: "https://x.test/scan-ai", benefit: "hadiah reksa dana hingga Rp1", start_date: "2026-10-06", end_date: "2026-10-31", page_content: "Teks halaman v1", page_summary: "", evidence_text: "" };
+assert.equal(await ciSaveScan(env, { ...REC }, "h-ai"), "new");
+const sa = () => ({ ...db.prepare("SELECT title, manager, benefit, start_date, end_date, trx_start, terms, status, ai_state, history FROM ci_programs WHERE source_url = 'https://x.test/scan-ai'").get() });
+assert.equal(sa().ai_state, "pending", "promo baru hasil scan masuk antrean AI");
+assert.equal(await ciAiPending(env, 5) >= 1, true);
+let r1 = sa();
+assert.deepEqual([r1.title, r1.manager, r1.benefit, r1.start_date, r1.end_date, JSON.parse(r1.terms).length, r1.ai_state, r1.status],
+  [ANS.title, "Insight Investments Management", pf.benefit, "2026-10-06", "2027-01-31", 2, "done", "Perlu verifikasi"], "isian dirapikan AI, tetap menunggu verifikasi tim");
+assert.match(r1.history, /Detail dirapikan AI/);
+// scan ulang, halaman sama: isian AI tidak ditimpa hasil pola kata dan tidak dicatat "berubah"
+assert.equal(await ciSaveScan(env, { ...REC }, "h-ai"), "same");
+assert.deepEqual([sa().benefit, sa().ai_state], [pf.benefit, "done"]);
+// halaman berubah: hasil pola kata dipakai dulu, lalu masuk antrean AI lagi
+assert.equal(await ciSaveScan(env, { ...REC, page_content: "Teks halaman v2", benefit: "hadiah baru Rp2 jt" }, "h-ai"), "changed");
+assert.deepEqual([sa().benefit, sa().ai_state], ["hadiah baru Rp2 jt", "pending"]);
+// AI menilai bukan promo -> tidak relevan (bisa dikembalikan tim)
+aiAns = { ...ANS, is_promo: false, not_promo_reason: "artikel berita" };
+await ciAiPending(env, 5);
+assert.deepEqual([sa().status, sa().ai_state], ["Tidak relevan", "done"]);
+assert.match(sa().history, /bukan promo: artikel berita/);
+// promo yang sudah dicek tim dilewati, tanpa memanggil AI
+db.prepare("UPDATE ci_programs SET ai_state = 'pending', status = 'Aktif' WHERE source_url = 'https://x.test/scan-ai'").run();
+const before = aiCalls; await ciAiPending(env, 5);
+assert.deepEqual([sa().ai_state, aiCalls], ["lewat", before]);
+// batas harian
+env.CI_AI_DAILY = "0";
+db.prepare("UPDATE ci_programs SET ai_state = 'pending', status = 'Perlu verifikasi', verified_by = NULL WHERE source_url = 'https://x.test/scan-ai'").run();
+assert.equal(await ciAiPending(env, 5), 0);
+assert.equal(sa().ai_state, "pending", "batas harian tercapai: tetap di antrean");
+delete env.CI_AI_DAILY;
+
+/* ---------- AI: endpoint untuk form (hanya mengisi form, tidak menyimpan) ---------- */
+const aiApi = async (path, body) => { const r = await ci.fetch(new Request("https://ci.test/api/ci/ai/" + path + (path.includes("?") ? "&" : "?") + "key=k", body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), env, { waitUntil() {} }); return [r.status, await r.json()]; };
+const sid = db.prepare("SELECT id FROM ci_programs WHERE source_url = 'https://x.test/scan-ai'").get().id;
+aiAns = ANS;
+[s, j] = await aiApi("prompt?id=" + sid);
+assert.match(j.prompt, /Teks halaman v2/, "perintah Claude memuat arsip teks halaman");
+[s, j] = await aiApi("parse", { text: "```json\n" + JSON.stringify(ANS) + "\n```" });
+assert.deepEqual([s, j.fields.manager, j.fields.benefit], [200, "Insight Investments Management", pf.benefit]);
+[s, j] = await aiApi("parse", { text: "tidak ada json" });
+assert.equal(s, 400);
+const benefitBefore = sa().benefit;
+[s, j] = await aiApi("read?id=" + sid, {});
+assert.deepEqual([s, j.fields.title, sa().benefit], [200, ANS.title, benefitBefore], "AI dari tombol hanya mengisi form, database tidak berubah");
+[s, j] = await aiApi("read?id=" + noUrl, {});
+assert.equal(s, 400, "promo tanpa teks halaman sumber -> pakai Claude");
+env.CI_AI_DAILY = "0";
+[s, j] = await aiApi("read?id=" + sid, {});
+assert.equal(s, 429);
+delete env.CI_AI_DAILY;
 console.log("semua cek lolos");
