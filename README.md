@@ -67,6 +67,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Notifikasi disimpan di Content Planner (tabel `notifs`): tugas baru/diubah, status tugas berubah (ke pemberi atau penerima), ditunjuk sebagai penanggung jawab, permintaan visual, dan pengingat tenggat (besok, hari ini, lewat; dibuat saat beranda meminta ringkasan, tanpa cron). Hub menampilkannya di lonceng dan menandai dibaca lewat `POST /__hub/notif`.
 - Cek: `node apps/content-planner/test.mjs`
 
+### AI penulis & cek orisinalitas (Edukasi Studio)
+
+- `shared/ai.js`: Claude bila secret `ANTHROPIC_API_KEY` ada → Gemini bila secret `GEMINI_API_KEY` ada (paket gratis Google AI Studio; model dicoba berurutan `GEMINI_MODELS`, bisa didahului variabel `GEMINI_MODEL`; 404/403/429 lanjut ke model berikutnya) → Workers AI. Gemini gagal semua = otomatis Workers AI. Paket gratis Gemini: input/output boleh dipakai Google untuk melatih model, jadi jangan kirim data nasabah.
+- Gemini dipakai di semua tool yang memakai `shared/ai.js`: Edukasi Studio, Market Recap, Content Insight, Competitor Intelligence. Secret bersifat per worker, jadi pasang key yang sama di keempatnya: `npx wrangler secret put GEMINI_API_KEY --name <edukasi-studio|market-recap|content-insight|competitor-intel>`.
+- Cek kemiripan di browser: frasa 6 kata yang sama persis dengan artikel bahan **dan** artikel lain di bank. Bank dicari di server (`POST /api/similar`: 2 frasa per kalimat, `LIKE` per 30 frasa, maks. 8 artikel), lalu teksnya ikut dicek di browser. Struktur dianggap mirip bila ≥2 subjudul (dan ≥50%) hampir sama (kata ≥60% sama) dengan satu sumber.
+- Draf tidak bisa disimpan selama masih ada kalimat yang sama persis; tombol "Tulis ulang kalimat yang ditandai" memperbaikinya. Cek: `node apps/edukasi-studio/test.mjs`.
+
 ### Content Insight: simpan dari profil Instagram (gratis)
 
 - Tombol bookmark yang sama (`ciBookmark`) di halaman **profil** IG (bukan postingan) menyimpan semua postingan yang tampil di grid (maks. 60): membuka `/save?bulk=1`, lalu mengirim postingan satu per satu lewat postMessage; jendela itu memanggil `POST /api/content` per postingan (yang sudah ada = dup, dilewati).

@@ -261,6 +261,21 @@ async function extract(res) {
   return { title, text, published: meta.pub || '', desc: clean(meta.desc || '') };
 }
 
+/** Frasa 6 kata dari naskah (tanpa tanda baca di dalamnya) untuk dicari persis di bank artikel: 2 per kalimat (awal & tengah),
+ *  huruf kecil, maks. 90. Disclaimer di bawah garis "---" tidak ikut. */
+export function phrases(body, max = 90) {
+  const main = String(body || '').split(/\n-{3,}\n/)[0], out = new Set();
+  for (const s of main.split(/\n+|(?<=[.!?])\s+/)) {
+    const w = s.replace(/^[#>*\-\s]+|\*\*/g, '').trim().split(/\s+/);
+    const ok = (i) => w.slice(i, i + 6).every(t => /^[\p{L}\p{N}%]+$/u.test(t));
+    const starts = []; for (let i = 0; i + 6 <= w.length; i++) if (ok(i)) starts.push(i);
+    if (!starts.length) continue;
+    for (const i of new Set([starts[0], starts[Math.floor(starts.length / 2)]])) out.add(w.slice(i, i + 6).join(' ').toLowerCase());
+    if (out.size >= max) break;
+  }
+  return [...out].slice(0, max);
+}
+
 /* ---------- Penemuan URL ---------- */
 /** from/max: baca sitemap per potongan (posisi karakter) supaya satu langkah tidak melewati batas CPU. next = posisi potongan berikutnya. */
 function parseXml(xml, from = 0, max = Infinity) {
@@ -514,6 +529,17 @@ async function api(request, env, url, me) {
     return json({ texts: Object.fromEntries(rows.map(r => [r.id, r.text])) });
   }
   if (path === '/api/notes' && m === 'POST') return json({ notes: await makeNotes(env, +body.id) });
+  if (path === '/api/similar' && m === 'POST') {   // artikel lain di bank yang memuat frasa 6 kata yang sama persis dengan naskah
+    const ph = phrases(body.body), skip = new Set(ids((body.exclude || []).join(',')));
+    const found = new Map();
+    for (let i = 0; i < ph.length && found.size < 8; i += 30) {
+      const part = ph.slice(i, i + 30);
+      const rows = (await env.DB.prepare(`SELECT id, url, source, title FROM articles WHERE ${part.map(() => "text LIKE ? ESCAPE '\\'").join(' OR ')} LIMIT 20`)
+        .bind(...part.map(p => '%' + p.replace(/[\\%_]/g, c => '\\' + c) + '%')).all()).results || [];
+      for (const r of rows) if (!skip.has(r.id) && !found.has(r.id) && found.size < 8) found.set(r.id, r);
+    }
+    return json({ rows: [...found.values()], checked: ph.length });
+  }
   if (path === '/api/addurl' && m === 'POST') {   // tambah satu artikel dari link
     let u; try { u = new URL(String(body.url || '').trim()); } catch (e) { return json({ error: 'Link belum benar.' }, 400); }
     if (u.protocol !== 'https:') return json({ error: 'Gunakan link https.' }, 400);
@@ -711,7 +737,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;p
 
 // Kode browser. Ditulis tanpa backtick dan tanpa "${" supaya aman di dalam template.
 const CLIENT = String.raw`(function(){
-var B=window.BOOT,TOKEN=B.token,ME=B.me,TOPICS=B.topics,STATE={topic:'',source:'',q:'',offset:0,sel:{},picked:[],fmt:'web',refs:[],model:'',draftId:null,texts:{},flagged:[]};
+var B=window.BOOT,TOKEN=B.token,ME=B.me,TOPICS=B.topics,STATE={topic:'',source:'',q:'',offset:0,sel:{},picked:[],fmt:'web',refs:[],model:'',draftId:null,texts:{},flagged:[],extra:[],bank:0,struct:[]};
 var $=function(id){return document.getElementById(id)};
 function h(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3200)}
@@ -758,30 +784,42 @@ $('goBtn').onclick=function(){if(!STATE.picked.length)return toast('Pilih artike
 function showResult(body){$('empty').hidden=true;$('outWrap').hidden=false;$('out').value=body;$('modelTag').textContent=STATE.model?'AI: '+STATE.model:'';
   $('refList').innerHTML=(STATE.refs||[]).map(function(r){return '<li><a href="'+h(r.url)+'" target="_blank" rel="noopener">'+h(r.title)+'</a> <small>· '+h(SRCNAME[r.source]||r.source)+'</small></li>'}).join('');
   $('toFeed').hidden=$('toStory').hidden=STATE.curFmt!=='web';
-  return loadTexts().then(runCheck)}
+  return loadTexts().then(runCheck).then(bankCheck)}
 function loadTexts(){var need=(STATE.refs||[]).map(function(r){return r.id}).filter(function(id){return !STATE.texts[id]});if(!need.length)return Promise.resolve();return api('/api/texts?ids='+need.join(',')).then(function(j){for(var k in j.texts)STATE.texts[k]=j.texts[k]})}
 // ---- cek kemiripan: frasa 6 kata yang sama persis dengan teks sumber ----
 var N=6;
 function words(s){return String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9%]+/g,' ').trim().split(' ').filter(Boolean)}
 function grams(w){var o=[];for(var i=0;i+N<=w.length;i++)o.push(w.slice(i,i+N).join(' '));return o}
-function runCheck(){var S=new Set();(STATE.refs||[]).forEach(function(r){grams(words(STATE.texts[r.id]||'')).forEach(function(g){S.add(g)})});
+function runCheck(){var src=(STATE.refs||[]).concat(STATE.extra||[]),G=new Map();src.forEach(function(r){grams(words(STATE.texts[r.id]||'')).forEach(function(g){if(!G.has(g))G.set(g,r.id)})});
   var main=$('out').value.split(/\n-{3,}\n/)[0];var sents=main.split(/\n+|(?<=[.!?])\s+/).map(function(x){return x.replace(/^[#>*\-\s]+|\*\*/g,'').trim()}).filter(function(x){return words(x).length>=N});
-  var tot=0,hit=0,fl=[];sents.forEach(function(s){var g=grams(words(s)),k=0;g.forEach(function(x){if(S.has(x))k++});tot+=g.length;hit+=k;if(k)fl.push({s:s,k:k})});
+  var tot=0,hit=0,fl=[];sents.forEach(function(s){var g=grams(words(s)),k=0,by={};g.forEach(function(x){if(G.has(x)){k++;by[G.get(x)]=1}});tot+=g.length;hit+=k;if(k)fl.push({s:s,k:k,by:Object.keys(by)})});
   var score=tot?Math.round(hit/tot*1000)/10:0;STATE.score=score;STATE.flagged=fl.map(function(f){return f.s});
-  var cls=score<5&&fl.length<=2?'ok':score<15?'warn':'bad';var box=$('simBox');box.className='sim '+cls;
-  box.innerHTML='Kemiripan dengan sumber: <b>'+score+'%</b> '+(cls==='ok'?'· aman':cls==='warn'?'· perlu dicek':'· terlalu mirip, tulis ulang')+(fl.length?' · '+fl.length+' kalimat memuat frasa 6 kata yang sama persis dengan sumber:<ol>'+fl.map(function(f){return '<li>'+h(f.s)+'</li>'}).join('')+'</ol>':' · tidak ada frasa 6 kata yang sama dengan sumber.')+'<div style="font-size:11.5px;margin-top:6px;opacity:.85">Ini cek internal terhadap artikel sumber yang dipakai, bukan jaminan lolos alat cek plagiat lain.</div>';
-  $('rewrite').disabled=!fl.length;renderPrev()}
+  // struktur: subjudul naskah yang hampir sama (kata >= 60% sama) dengan subjudul satu sumber
+  var dh=heads(main),st=[];if(dh.length>=2)src.forEach(function(r){var sh=heads(STATE.texts[r.id]||''),k=0;dh.forEach(function(a){if(sh.some(function(b){return jac(a,b)>=0.6}))k++});if(k>=2&&k/dh.length>=0.5)st.push({r:r,k:k})});STATE.struct=st;
+  var name=function(id){var r=src.filter(function(x){return String(x.id)===String(id)})[0];return r?(SRCNAME[r.source]||r.source)+': '+r.title:''};
+  var cls=fl.length?(score<15?'warn':'bad'):st.length?'warn':'ok';var box=$('simBox');box.className='sim '+cls;
+  var nb=(STATE.extra||[]).length,bank=STATE.bank==='load'?' · cek ke seluruh bank artikel sedang berjalan…':STATE.bank==='err'?' · cek ke seluruh bank artikel gagal, klik Cek ulang':STATE.bank?' · dicek juga ke seluruh bank artikel ('+STATE.bank+' frasa)'+(nb?': '+nb+' artikel lain memuat frasa yang sama':': tidak ada artikel lain yang sama'):'';
+  box.innerHTML='<b>'+(fl.length?'✗ '+fl.length+' kalimat sama persis dengan sumber':'✓ 0 kalimat mirip')+'</b> · kemiripan '+score+'%'+(st.length?' · <b>struktur mirip</b> '+st.map(function(x){return h(name(x.r.id))+' ('+x.k+' dari '+dh.length+' subjudul)'}).join(', '):dh.length>=2?' · struktur berbeda dari semua sumber':'')
+    +(fl.length?'<ol>'+fl.map(function(f){return '<li>'+h(f.s)+'<small style="display:block;opacity:.8">sama dengan '+f.by.map(function(id){return h(name(id))}).join('; ')+'</small></li>'}).join('')+'</ol><div>Tulis ulang kalimat yang ditandai dulu. Draf baru bisa disimpan setelah 0 kalimat mirip.</div>':'')
+    +(st.length?'<div>Ubah urutan atau sudut subjudul supaya tidak mengikuti satu artikel sumber.</div>':'')
+    +'<div style="font-size:11.5px;margin-top:6px;opacity:.85">Dicek terhadap '+(STATE.refs||[]).length+' artikel bahan'+bank+'. Ini cek internal, bukan jaminan lolos alat cek plagiat lain; tetap sunting sebelum terbit.</div>';
+  $('rewrite').disabled=!fl.length;$('save').disabled=!!fl.length;$('save').title=fl.length?'Masih ada kalimat yang sama persis dengan sumber':'';renderPrev()}
+function heads(t){return String(t).split('\n').filter(function(l){return /^#{2,3} /.test(l)}).map(function(l){return words(l.replace(/^#+ /,''))}).filter(function(w){return w.length})}
+function jac(a,b){var A=new Set(a),B=new Set(b),i=0;A.forEach(function(x){if(B.has(x))i++});return i/((A.size+B.size-i)||1)}
+// cek ke seluruh bank: server mencari artikel lain yang memuat frasa 6 kata yang sama persis, lalu teksnya ikut dicek di sini
+function bankCheck(){STATE.bank='load';STATE.extra=[];runCheck();return api('/api/similar',{method:'POST',body:{body:$('out').value,exclude:(STATE.refs||[]).map(function(r){return r.id})}}).then(function(j){STATE.extra=j.rows||[];STATE.bank=j.checked||0;
+  var need=STATE.extra.map(function(r){return r.id}).filter(function(id){return !STATE.texts[id]});return need.length?api('/api/texts?ids='+need.join(',')).then(function(t){for(var k in t.texts)STATE.texts[k]=t.texts[k]}):null}).then(runCheck,function(){STATE.bank='err';runCheck()})}
 function renderPrev(){var marks=STATE.flagged.map(h);var out=[],inList=false;$('out').value.split('\n').forEach(function(l){var e=h(l);marks.forEach(function(m){if(m&&e.indexOf(m)>=0)e=e.split(m).join('<mark>'+m+'</mark>')});e=e.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
     if(/^- /.test(l)){if(!inList){out.push('<ul>');inList=true}out.push('<li>'+e.slice(2)+'</li>');return}if(inList){out.push('</ul>');inList=false}
     if(/^# /.test(l))out.push('<h1>'+e.slice(2)+'</h1>');else if(/^## /.test(l))out.push('<h2>'+e.slice(3)+'</h2>');else if(/^### /.test(l))out.push('<h3>'+e.slice(4)+'</h3>');else if(/^Meta: /.test(l))out.push('<p class="metal">'+e+'</p>');else if(/^-{3,}$/.test(l))out.push('<hr>');else if(l.trim())out.push('<p>'+e+'</p>')});if(inList)out.push('</ul>');$('prev').innerHTML=out.join('')}
 $('view').querySelectorAll('button').forEach(function(b){b.onclick=function(){$('view').querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});var p=b.dataset.v==='preview';if(p)renderPrev();$('prev').hidden=!p;$('out').hidden=p}});
-$('recheck').onclick=function(){loadTexts().then(runCheck)};
-$('rewrite').onclick=function(){var b=this;b.disabled=true;b.textContent='Menulis ulang…';api('/api/rewrite',{method:'POST',body:{body:$('out').value,flagged:STATE.flagged}}).then(function(j){$('out').value=j.body;runCheck();toast('Kalimat yang ditandai sudah ditulis ulang. Cek lagi hasilnya.')}).catch(function(e){toast(e.message)}).then(function(){b.textContent='Tulis ulang kalimat yang ditandai';b.disabled=!STATE.flagged.length})};
+$('recheck').onclick=function(){loadTexts().then(runCheck).then(bankCheck)};
+$('rewrite').onclick=function(){var b=this;b.disabled=true;b.textContent='Menulis ulang…';api('/api/rewrite',{method:'POST',body:{body:$('out').value,flagged:STATE.flagged}}).then(function(j){$('out').value=j.body;runCheck();bankCheck();toast('Kalimat yang ditandai sudah ditulis ulang. Cek lagi hasilnya.')}).catch(function(e){toast(e.message)}).then(function(){b.textContent='Tulis ulang kalimat yang ditandai';b.disabled=!STATE.flagged.length})};
 function derive(fmt,b){b.disabled=true;var t=b.textContent;b.textContent='Menyusun…';api('/api/derive',{method:'POST',body:{body:$('out').value,format:fmt}}).then(function(j){STATE.curFmt=fmt;STATE.draftId=null;STATE.model=j.model;return showResult(j.body)}).then(function(){toast('Naskah '+fmt+' dibuat dari artikel. Simpan sebagai draf terpisah.')}).catch(function(e){toast(e.message)}).then(function(){b.disabled=false;b.textContent=t})}
 $('toFeed').onclick=function(){derive('feed',this)};$('toStory').onclick=function(){derive('story',this)};
 $('copy').onclick=function(){var v=$('out').value;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){toast('Tersalin.')},function(){$('out').select();document.execCommand('copy');toast('Tersalin.')})};
 $('dl').onclick=function(){var v=$('out').value,t=(v.match(/^(?:# |JUDUL KONTEN:\s*)(.+)$/m)||[])[1]||'konten-edukasi';var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([v],{type:'text/markdown'}));a.download=t.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60)+'.md';a.click()};
-$('save').onclick=function(){var b=this;b.disabled=true;api('/api/drafts',{method:'POST',body:{id:STATE.draftId,format:STATE.curFmt||STATE.fmt,body:$('out').value,refs:STATE.refs,score:STATE.score,model:STATE.model}}).then(function(j){STATE.draftId=j.id;toast('Draf tersimpan.')}).catch(function(e){toast(e.message)}).then(function(){b.disabled=false})};
+$('save').onclick=function(){var b=this;if(STATE.flagged.length)return toast('Tulis ulang kalimat yang ditandai dulu.');b.disabled=true;api('/api/drafts',{method:'POST',body:{id:STATE.draftId,format:STATE.curFmt||STATE.fmt,body:$('out').value,refs:STATE.refs,score:STATE.score,model:STATE.model}}).then(function(j){STATE.draftId=j.id;toast('Draf tersimpan.')}).catch(function(e){toast(e.message)}).then(function(){b.disabled=false})};
 var FN={web:'Artikel',feed:'Feed',story:'Story'};
 function loadDrafts(){api('/api/drafts').then(function(j){var D=$('drafts');D.innerHTML=j.rows.length?'':'<div class="emptybox">Belum ada draf.</div>';j.rows.forEach(function(r){var d=document.createElement('div');d.className='item';
   d.innerHTML='<div class="b"><a class="t" href="#">'+h(r.title)+'</a><div class="meta"><span class="tag">'+FN[r.format]+'</span> '+h(r.author)+' · '+fmtDate(r.created_at)+' · kemiripan '+(r.score||0)+'%</div></div>'+(r.author===ME.email||ME.admin?'<button class="ghost sm del">Hapus</button>':'');
