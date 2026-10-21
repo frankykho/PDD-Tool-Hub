@@ -1,3 +1,4 @@
+import AnalystCard from "../components/AnalystCard";
 import { api, type LatestRow, type StockResponse, type TrackTrade } from "../api";
 import { ErrorBox, FilterBadge, Loading, RiskFlags, StatusPill } from "../components/Bits";
 import { useState } from "react";
@@ -471,6 +472,8 @@ export default function StockDetail({ code }: { code: string }) {
           <StockTrack code={code} strategy={strategy} />
         </aside>
       </div>
+
+      <AnalystCard code={code} />
 
       <section className="card">
         <div className="card-head">

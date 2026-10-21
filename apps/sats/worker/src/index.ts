@@ -25,8 +25,9 @@ import { profile } from "../../../../shared/profile.js";
 import { withCron } from "../../../../shared/cron.js";
 import { themeHead } from "../../../../shared/theme.js";
 import { SATS_THEME_CSS } from "./theme";
+import { analystRoute, type AnalystEnv } from "./analyst";
 
-interface Env extends AuthEnv {
+interface Env extends AuthEnv, AnalystEnv {
   screener_db: D1Database;
   /** For the cron trigger: fine-grained GitHub token (Actions: read & write on the repo). `wrangler secret put GITHUB_TOKEN` */
   GITHUB_TOKEN?: string;
@@ -620,6 +621,7 @@ export default withCron({
       const authRoute = await handleGoogleAuth(url, request, env);
       if (authRoute) return authRoute;
       if (passwordEnabled(env)) await ensureAuthSchema(env);
+      let actor: string | null = null; // nama pengguna untuk catatan "dibuat oleh" (analisis AI)
       if (authEnabled(env)) {
         const who = await identify(request, env);
         if (!who) {
@@ -629,6 +631,7 @@ export default withCron({
         }
         const email = who.email;
         const me = await loadMe(email, env, who.name, who.admin);
+        actor = me.name || email;
         const authRes = await handleAuthRoutes(url, request, env, me);
         if (authRes) return authRes;
         if (me.status !== "approved") return json({ error: "not_approved", status: me.status }, 403, 0);
@@ -647,6 +650,8 @@ export default withCron({
       } else if (url.pathname.replace(/\/+$/, "") === "/api/me") {
         return json({ email: null, name: null, status: "approved", isAdmin: false, authDisabled: true, logoutUrl: "/" }, 200, 0);
       }
+      const am = url.pathname.replace(/\/+$/, "").match(/^\/api\/analyst\/([A-Za-z0-9]{2,6})$/);
+      if (am) return await analystRoute(request, env, am[1], actor);
       if (request.method !== "GET") return json({ error: "method not allowed" }, 405, 0);
       return await handle(url, env);
     } catch (error) {

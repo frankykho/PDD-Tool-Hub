@@ -874,3 +874,19 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
   .radar-id .ellipsis { max-width: 230px; }
 }
 .radar-hint { margin: 0; padding: 12px 20px; border-bottom: 1px solid var(--bd); color: var(--mu); }
+
+/* ---------- AI Stock Analyst (kartu di halaman saham) */
+.ai-card > .pad { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.ai-beta { margin-left: 6px; padding: 1px 7px; border: 1px solid var(--bd2); border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--mu); vertical-align: middle; }
+.ai-make { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.ai-text { display: grid; gap: 6px; max-width: 880px; font-size: 14.5px; line-height: 1.55; }
+.ai-text h3 { margin: 10px 0 0; font-size: 15px; color: var(--ac); }
+.ai-text h3:first-child { margin-top: 0; }
+.ai-text p { margin: 0; }
+.ai-text ul { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+.ai-note { margin: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--bd2); color: var(--mu); font-size: 13px; }
+.ai-note.warn { border-color: var(--sell); color: var(--sell); }
+.ai-news ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.ai-data summary { cursor: pointer; color: var(--mu); font-size: 13px; }
+.ai-data pre { margin: 8px 0 0; padding: 12px; max-height: 360px; overflow: auto; background: var(--bg); border: 1px solid var(--bd); border-radius: 10px; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
+.ai-disc { margin: 0; }

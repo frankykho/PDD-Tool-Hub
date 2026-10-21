@@ -414,7 +414,26 @@ export type LabRow = {
   updated_at: string;
 } & { [K in `${"n" | "win" | "avg" | "med" | "ex" | "tr"}${LabSlot}`]: number | null };
 
+export interface Analysis {
+  code: string;
+  as_of: string;
+  text: string;
+  model: string | null;
+  data: Record<string, unknown> | null;
+  created_by: string | null;
+  created_at: string;
+  advice: boolean; // teks AI memuat kalimat bernada rekomendasi
+}
+export interface AnalystResponse {
+  asOf: string;
+  analysis: Analysis | null;
+  previous?: Analysis | null;
+  quota: { used: number; limit: number };
+}
+
 export const api = {
+  analyst: (code: string) => get<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`),
+  makeAnalysis: (code: string) => post<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`, {}),
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),
   breadth: () => get<{ rows: BreadthRow[] }>("/api/breadth"),
   indices: () => get<{ rows: IndexRow[] }>("/api/indices"),

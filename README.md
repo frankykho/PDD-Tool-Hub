@@ -94,6 +94,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Setiap poin berasal dari alasan yang ditampilkan. Aturan skornya ada di `frontend/src/radar/score.ts`; fokus (bobot pilar), skor minimal, likuiditas, indeks, dan syarat lain bisa diatur pengguna dan disimpan di browser.
 - Cek: `npx tsx src/screener/test-radar.ts` (dari `apps/sats/worker`)
 
+### SATS: AI Stock Analyst
+
+- Kartu **Analisis AI** di halaman saham. Tombol "Buat analisis AI" mengirim data saham ke AI: teknikal (`tech_latest`), sinyal semua strategi, rekam jejak SATS, skor Radar, fundamental, judul berita 7 hari (RSS `shared/news.js`), dan dividen & stock split 5 tahun (Yahoo). AI hanya menjelaskan data itu, tanpa rekomendasi beli/jual atau target harga; kalimat bernada rekomendasi ditandai di tampilan.
+- AI lewat `shared/ai.js`: Workers AI gratis (binding `AI`), atau Claude bila secret `ANTHROPIC_API_KEY` dipasang di sats-radar. Hasil disimpan di tabel `ai_analysis` per saham per tanggal data dan dipakai bersama satu tim. Batas analisis baru per hari untuk semua pengguna = `ANALYST_DAILY` (bawaan 25, sesuai kuota gratis).
+- Rights issue, RUPS, dan buyback belum tercakup (tidak ada sumber gratis yang bisa dibaca otomatis).
+- Kode: `worker/src/analyst.ts`, `frontend/src/components/AnalystCard.tsx`. Cek: `npx tsx src/test-analyst.ts` (dari `apps/sats/worker`)
+
 ## Profil
 
 - `profile.example.json` berisi semua kolom beserta penjelasannya. Salin menjadi `profile.json` lalu isi.
