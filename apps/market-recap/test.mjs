@@ -40,4 +40,28 @@ assert.equal(intraday(null), null);
 assert.deepEqual(daily({ t: [T0, T0 + 86400], q: { close: [5, null] } }, 5), [["2026-10-19", 5]]);
 assert.deepEqual(quote({ meta: { regularMarketPrice: 110, chartPreviousClose: 100, regularMarketTime: T0 } }), { close: 110, pct: 10, date: "2026-10-19" });
 assert.equal(quote({ meta: {} }), null);
+
+// berita: tema kebijakan yang banyak diberitakan didahulukan, rekomendasi saham diturunkan, maks. 3 per tema
+import { pickNews } from "./calc.js";
+const N = (t, at = "2026-10-21T09:00:00Z") => ({ t, link: "https://x.test/" + encodeURIComponent(t), src: "X", at });
+const items = [
+  N("Simak Rekomendasi Saham BREN dan BBCA untuk Kamis", "2026-10-21T15:00:00Z"),
+  N("Jasa Marga (JSMR) Kaji Buyback Saham", "2026-10-21T14:50:00Z"),
+  N("BI Tahan Suku Bunga di 5,75%", "2026-10-21T07:00:00Z"),
+  N("BI-Rate tetap 5,75 persen, bunga deposit facility naik", "2026-10-21T07:05:00Z"),
+  N("BI Turunkan GWM Bank Konvensional Jadi 7%", "2026-10-21T07:09:00Z"),
+  N("Breaking News! BI Rate Tetap 5,75%", "2026-10-21T06:53:00Z"),
+  N("IHSG rebound, analis sebut pelaku pasar apresiasi BI-Rate ditahan", "2026-10-21T08:02:00Z"),
+  N("BREN Melonjak, Sumbang Poin Terbesar", "2026-10-21T10:00:00Z"),
+  N("Resep Kue Lebaran Paling Enak"),   // tidak relevan
+  N("BI Tahan Suku Bunga di 5,75%"),     // judul kembar
+];
+const pk = pickNews(items, ["BREN", "BBCA"], 6);
+assert.equal(pk.news[0].t, "IHSG rebound, analis sebut pelaku pasar apresiasi BI-Rate ditahan", "berita yang mengaitkan BI dengan IHSG paling atas");
+assert.equal(pk.news.filter((x) => /\bBI\b|BI-Rate|BI Rate/.test(x.t)).length, 3, "maks. 3 judul per tema");
+assert.ok(!pk.news.some((x) => /Resep/.test(x.t)), "berita tidak relevan dibuang");
+assert.equal(new Set(pk.news.map((x) => x.t)).size, pk.news.length, "tanpa judul kembar");
+assert.ok(pk.news.findIndex((x) => /Rekomendasi/.test(x.t)) > pk.news.findIndex((x) => /BREN Melonjak/.test(x.t)), "rekomendasi saham diturunkan");
+assert.deepEqual(pk.events.map((e) => [e.theme, e.count]), [["Bank Indonesia", 5]]);
+assert.deepEqual(pickNews([], []), { news: [], events: [] });
 console.log("cek Yahoo lolos");

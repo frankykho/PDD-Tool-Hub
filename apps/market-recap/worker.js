@@ -20,7 +20,7 @@ import { macroItems, macroUrls } from "../../shared/macro.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
-import { r2, contributions, foreignFlow, intraday, daily, lastChange, quote } from "./calc.js";
+import { r2, contributions, foreignFlow, intraday, daily, lastChange, quote, pickNews, NEWS_RELEVANT } from "./calc.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -142,14 +142,14 @@ async function wrapJson(env) {
   const r = await fetch(u.cal.replace(/calendar\.json$/, "wrap.json") + "?t=" + Date.now(), { signal: AbortSignal.timeout(15000) });
   return r.ok ? r.json() : null;
 }
-async function agenda(env, date) {
+async function agenda(env, date, today = false) {
   const u = macroUrls(env);
   if (!u) return [];
   const get = (url, json) => fetch(url, { signal: AbortSignal.timeout(15000) }).then((r) => (r.ok ? (json ? r.json() : r.text()) : null)).catch(() => null);
   const [js, cal] = await Promise.all([get(u.js), get(u.cal, true)]);
-  return macroItems(js, cal).filter((x) => x.d > date && x.d <= addDays(date, 4)).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 6).map(({ d, t, time, country }) => ({ d, t, time, country }));
+  // sesi 1: agenda siang/sore hari ini (mis. pengumuman BI-Rate 14.00 WIB) ikut; penutupan: mulai besok
+  return macroItems(js, cal).filter((x) => (today ? x.d >= date : x.d > date) && x.d <= addDays(date, 4)).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 6).map(({ d, t, time, country }) => ({ d, t, time, country }));
 }
-const NEWS_RE = /IHSG|saham|bursa|BEI|indeks|asing|rupiah|emiten|investor|The Fed|suku bunga/i;
 
 /** Susun rangkuman satu sesi lalu simpan sebagai draf. { skip } kalau belum waktunya / bursa libur. */
 async function build(env, date, session, { live = false, by = "jadwal" } = {}) {
@@ -165,7 +165,7 @@ async function build(env, date, session, { live = false, by = "jadwal" } = {}) {
   const prev = wrap ? wrap.ihsg.prev : q.ihsg.prevClose, price = wrap ? wrap.ihsg.close : half.ihsg && half.ihsg.price;
   if (!(price > 0 && prev > 0)) throw new Error("Harga IHSG belum tersedia dari Story Data");
   const s1 = session === "s1", s1End = new Date(date + "T00:00:00Z").getUTCDay() === 5 ? 690 : 720;
-  const [rows, ag, y5m, y1d, yLq, yKs, yIdr] = await Promise.all([tradingView(), agenda(env, date),
+  const [rows, ag, y5m, y1d, yLq, yKs, yIdr] = await Promise.all([tradingView(), agenda(env, date, session === "s1"),
     yahoo("^JKSE", "5m", "1d"), yahoo("^JKSE", "1d", "1mo"), yahoo("^JKLQ45", "5m", "1d"), yahoo("^KS11", "5m", "1d"), yahoo("IDR=X", "1d", "1mo")]);
   const intra = intraday(y5m, s1 ? s1End : 0);
   // 10 penutupan terakhir; titik hari ini memakai harga rangkuman ini
@@ -173,9 +173,10 @@ async function build(env, date, session, { live = false, by = "jadwal" } = {}) {
   // USD/IDR dari seri harian Yahoo (q.idr Story Data memakai harga 16:00 hari bursa sebelumnya)
   const ks = quote(yKs), idr = lastChange(yIdr), rupiah = idr && { ...idr, series: daily(yIdr, 20) };
   const mv = contributions(rows, prev);
-  const top = new RegExp(`\\b(${[...mv.up, ...mv.down].map((x) => x.code).join("|") || "IHSG"})\\b`);
-  const since = new Date(date + "T00:00:00+07:00").toISOString();
-  const news = (await newsFor(NEWS_RE, 30, top).catch(() => [])).filter((x) => !x.at || x.at >= since).slice(0, 10).map(({ t, link, src, at }) => ({ t, link, src, at }));
+  const since = new Date(Date.parse(date + "T00:00:00+07:00") - 8 * 3600e3).toISOString();   // sejak 16.00 WIB hari sebelumnya (berita semalam ikut)
+  // berita dipilih menurut kepentingan (kebijakan BI/The Fed, MSCI, rupiah, IHSG, saham penggerak), bukan sekadar yang terbaru
+  const picked = pickNews((await newsFor(NEWS_RELEVANT, 250).catch(() => [])).filter((x) => !x.at || x.at >= since), [...mv.up, ...mv.down].map((x) => x.code), 14);
+  const news = picked.news.map(({ t, link, src, at }) => ({ t, link, src, at })), events = picked.events;
   const data = {
     date, session, at: new Date().toISOString(), official: !!wrap,
     ihsg: {
@@ -194,7 +195,7 @@ async function build(env, date, session, { live = false, by = "jadwal" } = {}) {
     global: [...(ks ? [{ label: "KOSPI", ...ks }] : []), ...Object.entries(GLOBAL).filter(([k]) => q[k]).map(([k, label]) => ({ label, close: r2(q[k].close), pct: r2(q[k].changePct), date: q[k].date }))],
     rupiah,
     commodities: Object.entries(COMMOD).map(([k, label]) => [label, q[k] || (morning.commodities || {})[k]]).filter(([, v]) => v).map(([label, v]) => ({ label, close: r2(v.close), pct: r2(v.changePct) })),
-    news, agenda: ag,
+    news, events, agenda: ag,
   };
   let narrative = "", model = "";
   try { ({ text: narrative, model } = await narrate(env, data)); }
@@ -212,6 +213,8 @@ const SYSTEM = `Anda analis pasar modal Indonesia yang menulis rangkuman harian 
 Aturan:
 - Pakai HANYA fakta dan angka dari data JSON yang diberikan. Jangan menambah angka, nama, kejadian, atau penyebab yang tidak ada di data.
 - Penyebab naik/turun dijelaskan lewat yang terlihat di data: saham penggerak (movers, dalam poin IHSG), sektor, transaksi asing (foreign, kalau ada), bursa global, rupiah & komoditas, dan judul berita hari ini. Kalau tidak ada berita yang jelas terkait, jangan menebak alasannya.
+- "events" = tema yang paling banyak diberitakan hari ini (mis. keputusan suku bunga Bank Indonesia, The Fed, MSCI), diurutkan dari yang terbanyak. Tema teratas WAJIB disinggung di NARASI (paragraf penyebab atau yang perlu dicermati) beserta faktanya dari judul berita (mis. keputusan dan angka suku bunga persis seperti di judul), dan di AGENDA atau OUTLOOK bila relevan. Sebut sebagai penyebab gerak IHSG hanya bila judul berita mengaitkannya dengan pasar (mis. judul "IHSG rebound, analis sebut ... suku bunga ditahan"); kalau tidak, tulis sebagai sentimen yang menyertai.
+- Judul berita yang berupa rekomendasi saham analis bukan penyebab; jangan dipakai.
 - Bahasa Indonesia baku yang mudah dipahami. Tanpa rekomendasi beli/jual dan tanpa prediksi harga.
 - Kontribusi poin saham adalah perkiraan; tulis "sekitar" bila menyebutnya. Angka memakai format Indonesia (koma desimal, titik ribuan).
 - Judul slide adalah KESIMPULAN yang memuat angka, bukan nama topik. Contoh: "IHSG ditutup turun 3,64% ke 4.996,60, di atas level terendah Sesi I".
@@ -228,7 +231,7 @@ async function narrate(env, data) {
   const { news, intraday, rupiah, ...rest } = data; // titik grafik tidak perlu; buka/tertinggi/terendah ada di ihsg
   rest.rupiah = rupiah && { close: rupiah.close, pct: rupiah.pct };
   const user = `Rangkuman ${data.session === "s1" ? "SESI 1 (jeda siang, perdagangan belum selesai)" : "PENUTUPAN hari ini"}, tanggal ${data.date}.\n` +
-    `Data:\n${JSON.stringify({ ...rest, news: news.map((n) => n.t) })}`;
+    `Data:\n${JSON.stringify({ ...rest, news: news.map((n) => n.t), events: (data.events || []).slice(0, 4).map(({ theme, count, titles }) => ({ theme, berita: count, judul: titles })) })}`;
   return ai(env, SYSTEM, user, 4000, env.CLAUDE_MODEL || "claude-opus-5-5");
 }
 

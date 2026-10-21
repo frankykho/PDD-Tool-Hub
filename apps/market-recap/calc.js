@@ -55,3 +55,47 @@ export function quote(y) {
   if (!m || !(m.regularMarketPrice > 0 && m.chartPreviousClose > 0)) return null;
   return { close: r2(m.regularMarketPrice), pct: r2((m.regularMarketPrice / m.chartPreviousClose - 1) * 100), date: new Date((m.regularMarketTime + 7 * 3600) * 1000).toISOString().slice(0, 10) };
 }
+
+/* ---------- Berita: pilih yang PENTING, bukan sekadar yang terbaru ---------- */
+// Tema makro/kebijakan yang biasanya menggerakkan pasar. Urutan = prioritas tema saat skor sama.
+export const NEWS_THEMES = [
+  ["Bank Indonesia", /\bBI[- ]?Rate\b|suku bunga|Bank Indonesia|\bBI\b|\bRDG\b|\bGWM\b|deposit facility|lending facility/i],
+  ["The Fed & AS", /The Fed|\bFed\b|FOMC|Powell|Wall Street|yield AS|Treasury|Trump/i],
+  ["MSCI & arus asing", /\bMSCI\b|FTSE|capital outflow|modal asing|arus (?:modal|dana) asing|net (?:sell|buy) asing|asing (?:net|catat|lepas|borong)/i],
+  ["Rupiah", /rupiah|kurs|dolar AS/i],
+  ["Inflasi & ekonomi", /inflasi|\bPDB\b|pertumbuhan ekonomi|neraca (?:dagang|perdagangan|pembayaran)|transaksi berjalan|cadangan devisa|\bPMI\b|APBN|defisit/i],
+  ["OJK & regulasi", /\bOJK\b|\bBEI\b.*(?:suspen|aturan|sanksi)|sanksi|denda|regulasi/i],
+  ["Komoditas", /minyak|batu bara|emas|nikel|\bCPO\b|komoditas/i],
+  ["Obligasi & SBN", /\bSBN\b|obligasi|yield SBN|lelang/i],
+];
+export const NEWS_RELEVANT = /IHSG|saham|bursa|\bBEI\b|indeks|asing|rupiah|emiten|investor|suku bunga|\bBI\b|Bank Indonesia|The Fed|\bFed\b|MSCI|inflasi|yield|obligasi|\bSBN\b|\bOJK\b|minyak|batu bara|emas|nikel|komoditas|ekonomi|APBN|\bPDB\b|kurs|dolar/i;
+const NEWS_NOISE = /rekomendasi saham|simak rekomendasi|saham pilihan|saham (?:yang )?(?:layak|bisa) (?:dibeli|dicermati)|cek saham|^video:|\bvideo\b|cara |tips |promo|giveaway|QRIS|judol|luncurkan|fitur/i;
+/** Pilih maks. n judul berita untuk AI & slide: skor = tema makro/kebijakan + menyebut IHSG + menyebut saham penggerak
+ *  + seberapa banyak media memberitakan tema yang sama; maks. 3 judul per tema supaya beragam.
+ *  Mengembalikan { news, events }: events = tema yang diberitakan >= 2 kali hari ini (wajib disinggung AI). */
+export function pickNews(items, codes = [], n = 14) {
+  const tick = codes.length ? new RegExp(`\\b(${codes.join("|")})\\b`) : null;
+  const seen = new Set(), list = [];
+  for (const x of items || []) {
+    const t = String(x.t || "").trim(), k = t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!t || seen.has(k) || !NEWS_RELEVANT.test(t)) continue;
+    seen.add(k);
+    const theme = (NEWS_THEMES.find(([, re]) => re.test(t)) || [])[0] || "";
+    list.push({ ...x, theme });
+  }
+  const count = {};
+  for (const x of list) if (x.theme) count[x.theme] = (count[x.theme] || 0) + 1;
+  const score = (x) => (x.theme ? 5 + Math.min(count[x.theme] - 1, 4) : 0) + (/IHSG|indeks/i.test(x.t) ? 3 : 0)
+    + (tick && tick.test(x.t) ? 2 : 0) - (NEWS_NOISE.test(x.t) ? 4 : 0)
+    + (x.theme && /IHSG|saham|bursa|pasar/i.test(x.t) ? 2 : 0);   // judul yang mengaitkan tema dengan pasar = paling berguna
+  const ranked = list.map((x) => ({ x, s: score(x) })).sort((a, b) => b.s - a.s || String(b.x.at).localeCompare(String(a.x.at)));
+  const per = {}, out = [];
+  for (const { x } of ranked) {
+    if (out.length >= n) break;
+    if (x.theme && (per[x.theme] = (per[x.theme] || 0) + 1) > 3) continue;
+    out.push(x);
+  }
+  const events = Object.entries(count).filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1])
+    .map(([theme, c]) => ({ theme, count: c, titles: ranked.filter(({ x }) => x.theme === theme).slice(0, 3).map(({ x }) => x.t) }));
+  return { news: out.map(({ theme, ...x }) => x), events };
+}
