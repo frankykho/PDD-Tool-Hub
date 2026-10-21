@@ -2,7 +2,7 @@
 // Jalankan: node apps/competitor-intel/test.mjs   (Node 22.15+)
 import assert from "node:assert";
 import { DatabaseSync } from "node:sqlite";
-import ci, { ciNotPromo, ciPromoVerdict } from "./worker.js";
+import ci, { ciHold, ciMigrate, ciNotPromo, ciPromoVerdict } from "./worker.js";
 
 // bukan promo: pengumuman pemenang & artikel update mingguan (judul nyata dari beranda Tool Hub)
 assert.equal(ciNotPromo("Selamat! Ini Pemenang Promo Saham September 2026 Berhadiah hingga Rp250 Ribu"), "pengumuman pemenang");
@@ -66,4 +66,29 @@ assert.equal(s, 200, "lengkapi satu field saja (mode Lengkapi)");
 assert.equal(db.prepare("SELECT holding_period FROM ci_programs WHERE id=?").get(noUrl).holding_period, "Tidak ada");
 const list = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k"), env, { waitUntil() {} })).json();
 assert.equal(list.find((p) => p.id === noUrl).source_note, "Aplikasi X (screenshot)", "keterangan sumber ikut di daftar (dipakai tampilan & PDF)");
+
+/* ---------- daftar manajer investasi untuk dropdown (dari snapshot pasar reksa dana) ---------- */
+const mis = async () => (await (await ci.fetch(new Request("https://ci.test/api/ci/managers?key=k"), env, { waitUntil() {} })).json()).managers;
+assert.deepEqual(await mis(), [], "belum ada data pasar -> daftar kosong, tidak error");
+db.exec("CREATE TABLE mktsnap (d TEXT PRIMARY KEY, v TEXT)");
+db.prepare("INSERT INTO mktsnap VALUES ('latest', ?)").run(JSON.stringify({ names: { 1: ["RD A", "Schroder Investment Management Indonesia"], 2: ["RD B", "Bahana TCW Investment Management"], 3: ["RD C", "Schroder Investment Management Indonesia"], 4: ["RD D", ""] } }));
+assert.deepEqual(await mis(), ["Bahana TCW Investment Management", "Schroder Investment Management Indonesia"], "MI unik, urut abjad, tanpa nama kosong");
+
+/* ---------- holding period & periode penilaian jadi satu kolom ---------- */
+assert.equal(ciHold("30 hari", "1–31 Okt"), "30 hari; 1–31 Okt");
+assert.equal(ciHold("30 hari", "30 hari"), "30 hari", "teks sama tidak dobel");
+assert.equal(ciHold(null, "1–31 Okt"), "1–31 Okt");
+assert.equal(ciHold("30 hari", null), "30 hari");
+assert.equal(ciHold(null, null), null);
+// data lama: periode penilaian digabung ke holding_period, lalu dikosongkan (sekali jalan, aman diulang)
+const put = (id, h, a) => db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, holding_period, assessment_period) VALUES (?, 'x', 'https://x.test/' || ?, '2026-10-01', ?, ?)").run(id, id, h, a);
+put("m1", "30 hari", "1–31 Okt"); put("m2", null, "saldo 30 Nov"); put("m3", "60 hari", "60 hari"); put("m4", "90 hari", null);
+await ciMigrate(env); await ciMigrate(env);
+const hp = (id) => db.prepare("SELECT holding_period AS h, assessment_period AS a FROM ci_programs WHERE id = ?").get(id);
+assert.deepEqual({ ...hp("m1") }, { h: "30 hari; 1–31 Okt", a: null });
+assert.deepEqual({ ...hp("m2") }, { h: "saldo 30 Nov", a: null });
+assert.deepEqual({ ...hp("m3") }, { h: "60 hari", a: null });
+assert.deepEqual({ ...hp("m4") }, { h: "90 hari", a: null }, "tanpa periode penilaian tidak berubah");
+const one = await (await ci.fetch(new Request("https://ci.test/api/ci/programs?key=k&id=m1"), env, { waitUntil() {} })).json();
+assert.equal("assessment_period" in one, false, "kolom lama tidak dikirim ke tampilan");
 console.log("semua cek lolos");
