@@ -74,6 +74,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - "Masukkan ke Content Planner" membuat kegiatan konten berstatus Ide lewat service binding `PLANNER` (`POST /__hub/item`), opsional dengan permintaan visual ke desainer (desainer dapat notifikasi). Konten kompetitornya ditandai sudah dipakai. Karena itu Content Insight di-deploy setelah Content Planner.
 - Cek: `node apps/content-insight/test.mjs`
 
+### Fund Insight: halaman untuk nasabah
+
+- Semua tanpa login. `/p/<id>` = halaman produk. Halaman ini (juga tampilan internal) punya kartu **Seandainya rutin investasi** (setoran bulanan 1/3/5 tahun terakhir vs deposito, memakai `simulate()` Simulator) dan **Berapa lama sebaiknya disimpan** (persen periode bergulir 3 bulan–5 tahun yang berakhir untung, dari NAB akhir bulan).
+- `/profil` = kuis profil risiko 6 pertanyaan. Hasilnya profil (konservatif/moderat/agresif), contoh pembagian dana (`QZ_ALLOC`), dan 2 produk per kelompok yang risikonya sesuai `PROF`. Kelompok tanpa produk yang sesuai dibagi ke kelompok lain. Link kuis ada di Panduan.
+- `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
+- Cek: `node apps/fund-insight/test.mjs`
+
 ## Profil
 
 - `profile.example.json` berisi semua kolom beserta penjelasannya. Salin menjadi `profile.json` lalu isi.
