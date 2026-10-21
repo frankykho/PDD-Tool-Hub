@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type ScreenerRow } from "../api";
 import { ErrorBox, Loading } from "../components/Bits";
 import Info, { WithInfo } from "../components/Info";
-import { fmt1, fmtDate, fmtNum, fmtPct, fmtPrice, fmtRp, fundHealthy } from "../format";
+import { fmt1, fmtDate, fmtNum, fmtPct, fmtPrice, fmtRp } from "../format";
+import { withRank } from "../screener/rank";
 import { openStock } from "../nav";
 import { FIELDS, OPS, decodeFilters, encodeFilters, fieldMeta, passes, type CustomFilter, type FieldKey, type Op } from "../screener/fields";
 import { PRESET_GROUPS, PRESETS, presetById, type PresetGroup } from "../screener/presets";
@@ -141,29 +142,7 @@ export default function Screener() {
   }, [p, filters]);
 
   // RS rank: percentile of the 6-month return among liquid stocks (>= Rp 1 M/day)
-  const ranked = useMemo(() => {
-    const src = data.data?.rows ?? [];
-    const liquid = src.filter((r) => (r.value_20d ?? 0) >= 1e9 && r.chg126 != null).map((r) => r.chg126 as number);
-    liquid.sort((a, b) => a - b);
-    const rank = (v: number) => {
-      let lo = 0;
-      let hi = liquid.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (liquid[mid] < v) lo = mid + 1;
-        else hi = mid;
-      }
-      return liquid.length > 1 ? Math.round((lo / (liquid.length - 1)) * 100) : null;
-    };
-    return src.map((r) => {
-      const ok = fundHealthy(r.profitable, r.equity_positive, r.der, r.fund_stale);
-      return {
-        ...r,
-        rs_rank: (r.value_20d ?? 0) >= 1e9 && r.chg126 != null ? rank(r.chg126) : null,
-        fund_ok: ok == null ? null : ok ? 1 : 0,
-      };
-    });
-  }, [data.data]);
+  const ranked = useMemo(() => withRank(data.data?.rows ?? []), [data.data]);
 
   const rows = useMemo(() => {
     const all = ranked;

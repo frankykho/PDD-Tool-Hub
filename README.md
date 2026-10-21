@@ -88,6 +88,12 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - KPI dan filter "Belum lengkap" menunjukkan promo yang masih perlu dilengkapi. Sebelum Export PDF, dialog menyebut promo yang belum lengkap.
 - Cek: `node apps/competitor-intel/test.mjs`
 
+### SATS: Opportunity Radar
+
+- Menu **Radar** (`#/radar`) memakai data `/api/screener` yang sama dengan Screener, tanpa tabel atau API baru. Setiap saham diberi skor 0–100 dari empat pilar: momentum, breakout, volume, dan likuiditas. Skor dikurangi bila ada peringatan (RSI ≥ 80, terlalu jauh dari MA50, ledakan volume, death cross, candle bearish, rugi, tidak likuid).
+- Setiap poin berasal dari alasan yang ditampilkan. Aturan skornya ada di `frontend/src/radar/score.ts`; fokus (bobot pilar), skor minimal, likuiditas, indeks, dan syarat lain bisa diatur pengguna dan disimpan di browser.
+- Cek: `npx tsx src/screener/test-radar.ts` (dari `apps/sats/worker`)
+
 ## Profil
 
 - `profile.example.json` berisi semua kolom beserta penjelasannya. Salin menjadi `profile.json` lalu isi.

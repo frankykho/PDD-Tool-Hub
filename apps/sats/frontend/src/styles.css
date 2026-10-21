@@ -831,3 +831,46 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- Opportunity Radar */
+.radar-crit { display: flex; flex-direction: column; gap: 14px; }
+.radar-crit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.radar-crit .segmented { flex-wrap: wrap; max-width: 100%; }
+.radar-lbl { color: var(--mu); font-size: 13px; min-width: 44px; }
+.radar-w { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mu); }
+.radar-w input { width: 68px; height: 40px; padding: 0 8px; background: var(--bg); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; }
+.radar-how { display: grid; gap: 6px; font-size: 13px; color: var(--mu); }
+.radar-how p { margin: 0; }
+.radar-how b { color: var(--tx); }
+.radar-legend { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+.radar-legend b { color: var(--tx); font-family: var(--mono); }
+.radar-list { list-style: none; margin: 0; padding: 0; }
+.radar-list > li + li { border-top: 1px solid var(--bd); }
+.radar-row { display: grid; grid-template-columns: minmax(190px, 1.1fr) minmax(220px, 1fr) minmax(260px, 2fr); gap: 14px 20px; align-items: start; padding: 14px 20px; cursor: pointer; }
+.radar-row:hover { background: rgba(255, 255, 255, 0.025); }
+.radar-id { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.radar-id > .dim { min-width: 20px; padding-top: 2px; }
+.radar-score { display: flex; gap: 14px; align-items: flex-start; }
+.radar-total { flex: 0 0 auto; display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; border: 2px solid currentColor; font-family: var(--mono); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.radar-total.hi { color: var(--buy); }
+.radar-total.mid { color: var(--ac); }
+.radar-total.lo { color: var(--mu); }
+.radar-bars { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.radar-bar { display: grid; grid-template-columns: 14px 1fr 26px; gap: 8px; align-items: center; font-size: 11px; color: var(--mu); }
+.radar-bar i { display: block; height: 6px; border-radius: 3px; background: var(--s2); overflow: hidden; }
+.radar-bar i b { display: block; height: 100%; background: var(--c2); border-radius: 3px; }
+.radar-bar .mono { text-align: right; color: var(--tx); }
+.radar-pen { color: var(--sell); }
+.radar-why { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.radar-why .good { color: var(--tx); }
+.radar-why .info { color: var(--mu); }
+.radar-why .warn { color: var(--sell); }
+@media (max-width: 900px) {
+  .radar-row { grid-template-columns: 1fr minmax(0, 1fr); padding: 14px 15px; }
+  .radar-why { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .radar-row { grid-template-columns: 1fr; }
+  .radar-id .ellipsis { max-width: 230px; }
+}
+.radar-hint { margin: 0; padding: 12px 20px; border-bottom: 1px solid var(--bd); color: var(--mu); }

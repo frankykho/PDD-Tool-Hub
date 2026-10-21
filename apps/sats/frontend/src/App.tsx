@@ -5,6 +5,7 @@ import StockDetail from "./pages/StockDetail";
 import TrackRecord from "./pages/TrackRecord";
 import StaleBanner from "./components/StaleBanner";
 import Screener from "./pages/Screener";
+import Radar from "./pages/Radar";
 import Today from "./pages/Today";
 import Market from "./pages/Market";
 import Lab from "./pages/Lab";
@@ -15,7 +16,7 @@ import { api, fetchMe, type Me } from "./api";
 import { loadWatchlist } from "./watchlist";
 
 /** Hash routes: #/  and  #/saham/BBCA  (works on any static host, no server rewrites). */
-type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "admin" } | { page: "stock"; code: string };
+type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "radar" } | { page: "admin" } | { page: "stock"; code: string };
 
 function parseRoute(hash: string): Route {
   const m = hash.match(/^#\/saham\/([A-Za-z0-9]{2,6})/);
@@ -25,6 +26,7 @@ function parseRoute(hash: string): Route {
   if (hash.startsWith("#/lab")) return { page: "lab" };
   if (hash.startsWith("#/track-record")) return { page: "track" };
   if (hash.startsWith("#/screener")) return { page: "screener" };
+  if (hash.startsWith("#/radar")) return { page: "radar" };
   if (hash.startsWith("#/admin")) return { page: "admin" };
   return { page: "dashboard" };
 }
@@ -108,6 +110,8 @@ export default function App() {
       <TrackRecord />
     ) : route.page === "screener" ? (
       <Screener />
+    ) : route.page === "radar" ? (
+      <Radar />
     ) : route.page === "admin" && me.isAdmin && me.email && me.method !== "hub" ? (
       <Admin selfEmail={me.email} onChange={loadPending} />
     ) : (
