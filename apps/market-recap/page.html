@@ -109,10 +109,45 @@ textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:v
 .slide .ag p small{display:block;font-size:16px;color:var(--s-t2);font-weight:500;margin-top:4px}
 .slide .disc{font-size:14px;color:var(--s-t2);line-height:1.45}
 
-@page{size:1080px 1080px;margin:0}
+/* ---------- laporan A4 (PDF enak dibaca) ---------- */
+#a4{display:none}
+.rep{font-family:"Noto Sans","Segoe UI",system-ui,sans-serif;color:#1d1d1b;font-size:10.5pt;line-height:1.5;background:#fff}
+.rep .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #6b2b10;padding-bottom:6px;margin-bottom:12px}
+.rep .hd img{height:26px}.rep .hd .brand{font-weight:800;font-size:13pt}.rep .hd span{color:#62625e;font-size:9.5pt;font-weight:600}
+.rep .kick{color:#1f6b56;font-weight:700;font-size:9pt;text-transform:uppercase;letter-spacing:.05em}
+.rep h1{font-size:19pt;line-height:1.2;margin:2px 0 10px}
+.rep .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 12px}
+.rep .kpi div{border:1px solid #e3e3df;border-radius:6px;padding:5px 8px}
+.rep .kpi small{display:block;color:#62625e;font-size:7.5pt;font-weight:600}
+.rep .kpi b{display:block;font-size:12.5pt;line-height:1.25}.rep .kpi span{font-size:8pt;color:#62625e}
+.rep h2{font-size:12pt;color:#1f6b56;border-bottom:1px solid #e3e3df;padding-bottom:3px;margin:14px 0 4px;break-after:avoid}
+.rep h3{font-size:10pt;margin:8px 0 4px}
+.rep .sub{font-weight:700;margin:0 0 6px}
+.rep p{margin:0 0 7px;text-align:justify}
+.rep .out{background:#eef4f1;border-left:4px solid #1f6b56;padding:7px 10px;margin:8px 0}
+.rep .out small{display:block;font-weight:700;color:#1f6b56;font-size:8.5pt}
+.rep table{width:100%;border-collapse:collapse;font-size:9.5pt}
+.rep th{font-size:8pt;color:#62625e;font-weight:600}
+.rep td,.rep th{padding:3px 6px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+.rep .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rep .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rep .up{color:#1f8a5b}.rep .dn{color:#c8352f}
+.rep svg{width:100%;height:auto}
+.rep .cap{font-size:8pt;color:#62625e;margin:2px 0 6px}
+.rep ol{margin:0;padding-left:18px}.rep li{margin-bottom:4px}
+.rep a{color:#1d1d1b;text-decoration:none}.rep li small{color:#62625e}
+.rep .foot{font-size:7.5pt;color:#62625e;border-top:1px solid #e3e3df;margin-top:14px;padding-top:6px;line-height:1.45}
+.rep section{break-inside:avoid}
+
+@media print{
+  body.a4 .wrap,body.a4 #stage{display:none!important}
+  body.a4 #a4{display:block}
+  body.a4 .rep{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
 @media print{
   html,body{background:#fff}
-  .wrap>*:not(main),main>*:not(.printing),.printing>*:not(.slides),#stage{display:none!important}
+  body:not(.a4) .wrap>*:not(main),body:not(.a4) main>*:not(.printing),body:not(.a4) .printing>*:not(.slides),#stage{display:none!important}
   .wrap,main{display:block;padding:0;margin:0;max-width:none}
   .printing{border:0;padding:0;margin:0}
   .printing .slides{display:block;overflow:visible}
@@ -128,6 +163,7 @@ textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:v
   <main id="main"><div class="sess empty muted">Memuat…</div></main>
 </div>
 <div id="stage"></div>
+<div id="a4"></div>
 <script>
 const C = window.RC, P = window.PROFILE || {}, B = P.brand || {}, TEAM = C.mode === "team";
 const SES = { s1: "Sesi 1", close: "Penutupan" };
@@ -308,6 +344,66 @@ function slides(r) {
   return out;
 }
 
+/* ---------- laporan A4: teks utuh + angka kunci + grafik + tabel + berita (untuk PDF yang enak dibaca) ---------- */
+function report(r) {
+  const d = r.data, i = d.ihsg, s1 = r.session === "s1", t = { ...fallback(r) }, p = parse(r.narrative);
+  for (const k of LABELS) if (p[k]) t[k] = p[k];
+  const m = d.movers || {}, br = d.breadth || { up: 0, down: 0, flat: 0 }, colr = i.chg < 0 ? "#c8352f" : "#1f8a5b", f = d.foreign, rp = d.rupiah;
+  const head = C.logo ? `<img src="${esc(C.logo)}" alt="">` : `<span class="brand">${esc(B.company || B.short || "Market Recap")}</span>`;
+  const kpi = (lbl, val, sub, c = "") => `<div><small>${lbl}</small><b class="${c}">${val}</b>${sub ? `<span>${sub}</span>` : ""}</div>`;
+  const cards = [
+    kpi(`IHSG ${s1 ? "Sesi I" : "penutupan"}`, fmt(i.close), `<span class="${cls(i.chg)}">${sgn(i.chg)} poin (${sgn(i.pct)}%)</span>`, cls(i.chg)),
+    i.high != null ? kpi("Rentang hari ini", `${fmt(i.low, 0)}–${fmt(i.high, 0)}`, i.open != null ? `buka ${fmt(i.open)}` : "") : "",
+    i.value ? kpi(`Nilai transaksi${s1 ? " Sesi I" : ""}`, rpT(i.value), i.valueOfficial ? "IDX" : "perkiraan TradingView") : "",
+    kpi("Sebaran saham", `<span class="up">▲${br.up}</span> <span class="dn">▼${br.down}</span>`, `${br.flat} stagnan`),
+    f ? kpi("Asing (bersih)", rpT(f.net), f.net < 0 ? "jual bersih" : "beli bersih", f.net < 0 ? "dn" : "up") : "",
+    d.lq45 ? kpi("LQ45", fmt(d.lq45.close), `${sgn(d.lq45.pct)}%`, cls(d.lq45.pct)) : "",
+    rp ? kpi("Rupiah per US$", fmt(rp.close, 0), `${sgn(rp.pct)}% (naik = melemah)`, rp.pct > 0 ? "dn" : "up") : "",
+  ].filter(Boolean).join("");
+  const fri = new Date(r.date + "T00:00:00Z").getUTCDay() === 5, brk = fri ? [690, 840] : [720, 810], end = s1 ? d.s1End || brk[0] : 960;
+  const pts = (d.intraday || []).filter((x) => x[0] <= end), hist = (d.history || []).map((x, k) => [k, x[1], x[0]]);
+  const intra = pts.length > 1 ? chart(pts, { w: 640, h: 330, x0: 540, x1: end, color: colr, area: true, gap: 20, band: s1 ? null : brk,
+    xTicks: (s1 ? [540, 600, 660, 720].filter((x) => x <= end) : [540, 660, brk[1], 960]).map((x) => [x, hm(x)]),
+    hlines: [...(i.high != null ? [{ y: i.high, label: `Tertinggi ${fmt(i.high, 0)}`, color: "#1f8a5b", x: 100 }] : []), ...(i.low != null ? [{ y: i.low, label: `Terendah ${fmt(i.low, 0)}`, color: "#c8352f", x: 330, below: true }] : [])] }) : "";
+  const hch = hist.length > 1 ? chart(hist, { w: 640, h: 330, color: "#1f6b56", area: true, dec: 0, xTicks: hist.filter((_, k) => k % 3 === 0 || k === hist.length - 1).map((x) => [x[0], dshort(x[2])]) }) : "";
+  const mvRows = (list) => (list || []).map((x) => `<tr><td><b>${esc(x.code)}</b></td><td class="n ${cls(x.pts)}">${sgn(x.pts, 1)}</td><td class="n ${cls(x.pct)}">${x.pct != null ? sgn(x.pct) + "%" : ""}</td></tr>`).join("");
+  const sec = d.sectors || [], half = Math.ceil(sec.length / 2);
+  const secTab = (list) => `<table>${list.map((s) => `<tr><td>${esc(s.name)}</td><td class="n ${cls(s.pct)}">${sgn(s.pct)}%</td></tr>`).join("")}</table>`;
+  const src = `Sumber: TradingView · Yahoo Finance · ${d.official ? "IDX · " : ""}RSS media · per ${dlong(r.date)} pukul ${time(d.at)}${s1 ? " (jeda Sesi I)" : ""}`;
+  return `<div class="rep">
+    <div class="hd">${head}<span>Market Recap · ${SES[r.session]} · ${dlong(r.date)}</span></div>
+    <div class="kick">${esc(`${B.short ? B.short + " " : ""}${SES[r.session]} · Market Recap`)}</div>
+    <h1>${esc(t.JUDUL)}</h1>
+    <div class="kpi">${cards}</div>
+    <section><h2>Ringkasan</h2>${(p.paras.length ? p.paras : [t.PENGGERAK, t.INTRADAY, t.GLOBAL].filter(Boolean)).map((x) => `<p>${esc(x)}</p>`).join("")}
+      ${t.OUTLOOK ? `<div class="out"><small>${s1 ? "Menjelang Sesi II" : "Yang perlu dicermati"}</small>${esc(t.OUTLOOK)}</div>` : ""}</section>
+    ${intra || hch ? `<section><h2>Grafik IHSG</h2><div class="two">
+      ${intra ? `<div>${intra}<div class="cap">${s1 ? "Perjalanan Sesi I" : "Perjalanan hari ini"} (WIB)</div></div>` : "<div></div>"}
+      ${hch ? `<div>${hch}<div class="cap">Penutupan ${hist.length} hari bursa terakhir</div></div>` : ""}</div></section>` : ""}
+    <section><h2>Penggerak IHSG</h2><p class="sub">${esc(t.PENGGERAK)}</p>
+      <div class="two"><div><h3 class="up">Pendorong terbesar</h3><table><tr><th>Saham</th><th class="n">Poin IHSG*</th><th class="n">Perubahan</th></tr>${mvRows(m.up)}</table></div>
+        <div><h3 class="dn">Penekan terbesar</h3><table><tr><th>Saham</th><th class="n">Poin IHSG*</th><th class="n">Perubahan</th></tr>${mvRows(m.down)}</table></div></div>
+      <div class="cap">*Perkiraan kontribusi dari kapitalisasi pasar.</div></section>
+    ${sec.length ? `<section><h2>Sektor</h2><div class="two">${secTab(sec.slice(0, half))}${secTab(sec.slice(half))}</div></section>` : ""}
+    ${f && (f.buy.length || f.sell.length) ? `<section><h2>Transaksi asing</h2><div class="two">
+      <div><h3 class="up">Beli bersih terbesar</h3><table>${f.buy.map((x) => `<tr><td><b>${esc(x.code)}</b></td><td class="n up">${rpT(x.net)}</td></tr>`).join("")}</table></div>
+      <div><h3 class="dn">Jual bersih terbesar</h3><table>${f.sell.map((x) => `<tr><td><b>${esc(x.code)}</b></td><td class="n dn">${rpT(x.net)}</td></tr>`).join("")}</table></div></div></section>` : ""}
+    <section><h2>Latar global</h2><p class="sub">${esc(t.GLOBAL)}</p><div class="two">
+      <table><tr><th>Indeks</th><th>Tutup</th><th class="n">Perubahan</th></tr>${(d.global || []).map((g) => `<tr><td>${esc(g.label)}</td><td>${dshort(g.date)}${/Dow|S&P|Nasdaq/.test(g.label) ? " (NY)" : ""}</td><td class="n ${cls(g.pct)}">${sgn(g.pct)}%</td></tr>`).join("")}</table>
+      <table><tr><th>Komoditas</th><th class="n">Harga</th><th class="n">Perubahan</th></tr>${(d.commodities || []).map((c) => `<tr><td>${esc(c.label)}</td><td class="n">${fmt(c.close)}</td><td class="n ${cls(c.pct)}">${sgn(c.pct)}%</td></tr>`).join("")}</table></div></section>
+    <section><h2>Yang perlu dicermati</h2><p class="sub">${esc(t.AGENDA)}</p>
+      ${(d.agenda || []).length ? `<table><tr><th>Tanggal</th><th>Agenda</th><th>Negara</th></tr>${d.agenda.map((a) => `<tr><td class="n" style="text-align:left">${HARI[new Date(a.d + "T00:00:00Z").getUTCDay()]}, ${dshort(a.d)}${a.time ? " " + esc(a.time) : ""}</td><td>${esc(a.t)}</td><td>${esc(NEGARA[a.country] || a.country || "")}</td></tr>`).join("")}</table>` : `<div class="cap">Tidak ada agenda ekonomi terjadwal dalam beberapa hari ke depan.</div>`}</section>
+    ${(d.news || []).length ? `<section><h2>Berita terkait</h2><ol>${d.news.map((x) => `<li><a href="${esc(x.link)}">${esc(x.t)}</a> <small>· ${esc(x.src)}${x.at ? " · " + esc(new Date(x.at).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jakarta" }) + " " + time(x.at)) : ""}</small></li>`).join("")}</ol></section>` : ""}
+    <div class="foot">${esc(src)}<br>${B.disclaimer ? esc(B.disclaimer) + "<br>" : ""}Disusun dengan bantuan kecerdasan artifisial (AI) dari data pasar publik; dapat mengandung kesalahan dan tidak dapat dijadikan satu-satunya dasar pengambilan keputusan. Untuk informasi semata; bukan penawaran, ajakan, maupun rekomendasi investasi. Kinerja masa lalu tidak mencerminkan hasil di masa depan.${B.company ? `<br>${esc(B.company)}${B.license ? " · " + esc(B.license) : ""}` : ""}</div>
+  </div>`;
+}
+// ukuran halaman cetak dipasang saat dibutuhkan: A4 untuk laporan, 1080×1080 untuk PDF slide
+function printAs(size, done) {
+  const st = document.createElement("style"); st.textContent = `@page{${size}}`; document.head.appendChild(st);
+  addEventListener("afterprint", () => { st.remove(); done(); }, { once: true });
+  print();
+}
+
 /* ---------- halaman ---------- */
 let DAY = [], DATE = C.date || C.today;
 function zoomFit() {
@@ -322,7 +418,7 @@ function section(r) {
   const p = parse(r.narrative), failed = !r.narrative && /^gagal/.test(r.model || "");
   return `<section class="sess" data-s="${r.session}">
     <div class="sh"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
-      <button class="btn" data-a="png">Unduh PNG</button><button class="btn" data-a="pdf">Unduh PDF</button></div>
+      <button class="btn" data-a="png">Unduh PNG</button><button class="btn" data-a="pdf" title="Laporan A4: teks lengkap, angka kunci, grafik, tabel, dan berita">Unduh PDF A4</button><button class="btn" data-a="pdfslide" title="Slide carousel 1080×1080, satu per halaman">PDF slide</button></div>
     <div class="slides">${slides(r).join("")}</div>
     ${TEAM && C.canEdit ? `<div class="edit"><textarea class="f" aria-label="Teks ${SES[r.session]}">${esc(r.narrative)}</textarea>
       <small class="muted">Satu baris per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); setelah "NARASI:" teks untuk halaman web. Slide di atas ikut berubah saat diketik.</small></div>`
@@ -402,10 +498,13 @@ document.addEventListener("click", async (e) => {
       b.textContent = "Menyusun… (±30 detik)"; await api("/api/rebuild", { date: DATE, session: s }); await load(DATE); await side();
     }
     if (a === "png") { b.textContent = "Membuat gambar…"; await png(r); b.textContent = label; }
-    if (a === "pdf") {
-      sec.classList.add("printing"); document.title = `Market Recap ${r.date} ${SES[s]}`;
-      addEventListener("afterprint", () => sec.classList.remove("printing"), { once: true });
-      print();
+    if (a === "pdf") {   // laporan A4
+      $("#a4").innerHTML = report(r); document.body.classList.add("a4"); document.title = `Market Recap ${r.date} ${SES[s]}`;
+      printAs("size:A4;margin:14mm 14mm 16mm", () => { document.body.classList.remove("a4"); $("#a4").innerHTML = ""; });
+    }
+    if (a === "pdfslide") {   // slide 1080×1080, satu per halaman (untuk dibagikan seperti carousel)
+      sec.classList.add("printing"); document.title = `Market Recap ${r.date} ${SES[s]} (slide)`;
+      printAs("size:1080px 1080px;margin:0", () => sec.classList.remove("printing"));
     }
   } catch (err) { alert(err.message); b.textContent = label; } finally { b.disabled = false; }
 });
