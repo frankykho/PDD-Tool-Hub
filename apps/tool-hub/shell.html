@@ -918,7 +918,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     Object.keys(frames).forEach(function (k) { frames[k].style.display = k === id ? "block" : "none"; });
     var f = frames[id];
     if (!f) {
-      f = document.createElement("iframe"); f.title = a.name; f.style.display = "block"; f.dataset.cur = page || a.src; f.setAttribute("allow", "clipboard-write");
+      f = document.createElement("iframe"); f.title = a.name; f.style.display = "block"; f.dataset.cur = page || a.src; f.setAttribute("allow", "clipboard-write; web-share"); // web-share: tombol bagikan (gambar + teks) di dalam tool
       f.onload = function () { f.dataset.loaded = "1"; if (curId === id) loader.classList.remove("on"); try { f.contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (e) { } };
       framebox.appendChild(f); frames[id] = f; f.src = page || a.src;
     } else if (page && f.dataset.cur !== page) { f.dataset.cur = page; f.dataset.loaded = ""; f.src = page; }

@@ -129,6 +129,18 @@ function shareBtns(x){return(TEAM?'<button class="btn sm" type="button" data-cha
   +(canFiles&&x.img?'<button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan dengan gambar</button>':"")
   +'<button class="btn sm" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button>'}
 var byId=function(id){return(TEAM?items:C.items||[]).filter(function(x){return x.id===id})[0]};
+// Banner untuk menu bagikan HP: disiapkan lebih dulu (izin berbagi hanya sesaat setelah tombol ditekan) dan diubah ke JPEG,
+// karena sebagian media mengirim AVIF yang tidak diterima menu bagikan Chrome
+var files={};
+function fileOf(it){
+  if(!files[it.id]){files[it.id]=fetch(it.img).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){return new Promise(function(ok,no){
+    var u=URL.createObjectURL(b),im=new Image();
+    im.onload=function(){var c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);URL.revokeObjectURL(u);
+      c.toBlob(function(j){j?ok(new File([j],"banner.jpg",{type:"image/jpeg"})):no(Error("Gambar tidak bisa diubah"))},"image/jpeg",.9)};
+    im.onerror=function(){URL.revokeObjectURL(u);no(Error("Gambar tidak bisa dibaca"))};im.src=u})});
+    files[it.id].catch(function(){delete files[it.id]})}
+  return files[it.id]}
+function prep(L){if(canFiles)L.filter(function(x){return x.img}).slice(0,20).forEach(function(x){fileOf(x).catch(function(){})})}
 // Posting ke WhatsApp Channel: channel hanya bisa diisi dari aplikasi WhatsApp oleh adminnya, jadi gambar diunduh & teks disalin
 function channel(x){
   var fn="berita-"+String(x.title||"pasar").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".jpg";
@@ -143,6 +155,7 @@ function channel(x){
    +'<p class="small muted" style="margin:0">Tanpa gambar? Cukup tempel teks: WhatsApp menampilkan pratinjau link dengan gambar dari media sumber.</p>'
    +'<div class="acts" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Tutup</button></div>';
   $("chDlg").hidden=false;
+  if(canFiles&&x.img)fileOf(x).catch(function(){});
 }
 document.addEventListener("keydown",function(e){if(e.key==="Escape")$("chDlg").hidden=true});
 $("chDlg").addEventListener("click",function(e){if(e.target===this||e.target.closest("[data-close]"))this.hidden=true});
@@ -181,6 +194,7 @@ function renderPublic(){
    +(C.single?"":market(C.market)+'<div class="tabs">'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
    +'<div class="list">'+(C.missing?'<div class="card empty">Berita ini tidak ditemukan atau sudah ditarik.</div>':L.length?L.map(pubCard).join(""):'<div class="card empty">Belum ada berita yang diterbitkan.</div>')+"</div>"
    +(C.single||C.missing?'<a class="btn" href="/p">Lihat berita pasar lainnya →</a>':"")+disclaimer();
+  prep(L);
 }
 
 /* ---------- halaman tim ---------- */
@@ -197,6 +211,7 @@ function renderTeam(){
    +'<details class="src card" style="padding:10px 14px"><summary>Sumber berita: '+ok+" dari "+(C.sources||[]).length+" terbaca terakhir"+(srcSt.ai&&srcSt.ai.n!=null?" · AI hari ini "+srcSt.ai.n+"/"+srcSt.aiLimit:"")+'</summary><div class="srcs">'
    +(C.sources||[]).map(function(s){var v=(srcSt.src||{})[s.id];return"<div>"+(v?(v.ok?'<span class="up">●</span> ':'<span class="dn">●</span> '):"○ ")+esc(s.name)+' <span class="muted">'+esc(s.id)+" · "+(v?(v.ok?v.n+" berita relevan":esc(v.err||"gagal"))+", "+esc(ago(v.at)):"belum dibaca")+"</span></div>"}).join("")+"</div></details>"
    +'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>";
+  prep(L.filter(function(x){return x.status==="terbit"}));
 }
 function loadTeam(){
   return Promise.all([api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
@@ -208,10 +223,11 @@ document.addEventListener("click",function(e){
   // banner ikut terkirim sebagai gambar (berbagi bawaan HP), judul + ringkasan + link sebagai keterangannya
   if(d.channel){var ch=byId(d.channel);if(ch)channel(ch);return}
   if(d.share){var it=byId(d.share);if(!it)return;t.disabled=true;
-    fetch(it.img).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){
-      var f=new File([b],"banner."+(/png/.test(b.type)?"png":/webp/.test(b.type)?"webp":"jpg"),{type:b.type||"image/jpeg"}),data={files:[f],text:textOf(it)};
-      if(!navigator.canShare(data))throw Error("Perangkat ini tidak bisa membagikan gambar; pakai “Bagikan ke WhatsApp”");
-      return navigator.share(data)}).catch(function(x){if(x&&x.name!=="AbortError")toast(x.message)}).then(function(){t.disabled=false});return}
+    fileOf(it).then(function(f){var data={files:[f],text:textOf(it)};
+      if(!navigator.canShare(data))throw Error("Browser ini tidak bisa membagikan gambar dari halaman ini. Pakai “Unduh gambar” + “Salin teks”, atau “Bagikan ke WhatsApp”.");
+      return navigator.share(data)})
+    // izin berbagi hanya berlaku sesaat setelah tombol ditekan; bila gambar baru selesai disiapkan, tekan sekali lagi
+    .catch(function(x){if(x&&x.name!=="AbortError")toast(x.name==="NotAllowedError"?"Gambar siap. Tekan “Bagikan gambar + teks” sekali lagi.":x.message)}).then(function(){t.disabled=false});return}
   if(d.cat!==undefined){cat=d.cat;return TEAM?renderTeam():renderPublic()}
   if(d.view){view=d.view;return loadTeam()}
   if(t.id==="bCollect"){t.disabled=true;t.textContent="Mengambil…";api("/api/collect",{method:"POST",body:"{}"}).then(function(j){toast(j.n+" berita dari "+j.sources.length+" sumber");return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false});return}
