@@ -87,4 +87,36 @@ assert.equal(qzScore([2, 2, 2, 2, 1, 1]).p, "m");
 assert.equal(qzScore([1, 1, 1, 1, 1, 1]).p, "k");
 assert.equal(qzScore([0, 3, 3, 3, 3, 3]).p, "k", "dana dipakai < 1 tahun -> konservatif");
 assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> paling tinggi moderat");
+/* ---------- semua reksa dana di pasar: /api/xfund (NAB 1 th + portofolio dari Bareksa, disimpan 12 jam) ---------- */
+{
+  const { parseNav, xfund } = await import("./worker.js");
+  assert.deepEqual(parseNav({ status: true, data: { auth: true, datas: [{ nav: [{ date: "2026-10-22", value: "1607.33" }, { date: "2026-10-21", value: "1607.1" }, { date: "x", value: "1" }] }] } }),
+    [["2026-10-21", 1607.1], ["2026-10-22", 1607.33]]);
+  assert.equal(parseNav({ status: true, data: { auth: false, redirect_url: "https://www.bareksa.com/id/member/langganan" } }), null, "butuh login -> null");
+  const realFetch = globalThis.fetch, seen = [];
+  globalThis.fetch = async (u, init = {}) => {
+    seen.push([String(u), init.headers || {}]);
+    if (String(u).includes("/ajax/mutualfund/nav/product1/")) return Response.json({ status: true, data: { auth: true, datas: [{ nav: [{ date: "2026-10-21", value: "100" }, { date: "2026-10-22", value: "101" }] }] } });
+    return new Response('<div>Bank Kustodian</div><div>PT Bank Contoh</div>', { status: 200 });
+  };
+  try {
+    let r = await call("/api/xfund?pid=2072");
+    assert.equal(r.status, 401, "tanpa login ditolak");
+    r = await call("/api/xfund?pid=12ab&key=kunci-admin");
+    assert.equal(r.status, 400);
+    r = await call("/api/xfund?pid=2072&key=kunci-admin");
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.deepEqual(j.nav, [["2026-10-21", 100], ["2026-10-22", 101]]);
+    assert.equal(j.hold.custodian, "PT Bank Contoh");
+    assert.ok(seen.some(([u, h]) => u.includes("cperiod=1y") && h["X-Requested-With"] === "XMLHttpRequest"), "tanpa header ini Bareksa mengalihkan ke beranda");
+    const n = seen.length;
+    await xfund(env, "2072");
+    assert.equal(seen.length, n, "dalam 12 jam dibaca dari simpanan, tidak menarik ulang");
+    globalThis.fetch = async () => { throw new Error("offline"); };
+    const st = await xfund(env, "2072", true);
+    assert.equal(st.stale, true, "sumber gagal -> data lama tetap dipakai");
+    await assert.rejects(() => xfund(env, "9999"), /tidak bisa dihubungi/);
+  } finally { globalThis.fetch = realFetch; }
+}
 console.log("semua cek lolos");
