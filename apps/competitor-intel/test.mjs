@@ -165,8 +165,16 @@ const ANS = { is_promo: true, title: "Voucher Reksa Dana Syariah Oktober", manag
 const pf = ciAiParse("Berikut datanya:\n```json\n" + JSON.stringify(ANS) + "\n```", MIS);
 assert.deepEqual(pf, { is_promo: true, not_promo_reason: "", title: "Voucher Reksa Dana Syariah Oktober", manager: "Insight Investments Management", category: "Reksa dana", promo_type: "Hadiah/undian",
   trx_start: "2026-10-06", trx_end: "2026-10-31", start_date: "2026-10-06", end_date: "2027-01-31", holding_period: "Dana ditahan s.d. 31 Jan 2027", min_transaction: "Rp2 jt per transaksi",
-  benefit: "Pembeli terbesar: voucher Rp1 jt\nPeringkat 2–3: voucher Rp750 rb", products: "Insight Money Syariah", terms: ["Berlaku nasabah baru & lama", "Kuota 16 voucher"] },
+  benefit: "Pembeli terbesar: voucher Rp1 jt\nPeringkat 2–3: voucher Rp750 rb", products: "Insight Money Syariah", terms: ["Berlaku nasabah baru & lama", "Kuota 16 voucher"],
+  summary: "", lockin: "", min_rp: null, reward_max: "", reward_rp: null, steps: "", components: "", why_matters: "", our_action: "" },
   "teks/blok kode di sekitar JSON diabaikan, benefit jadi satu poin per baris, periode program kosong = mulai transaksi");
+// isian laporan: angka rupiah, cara kerja, tabel komponen jadi teks yang bisa diedit di form
+const rep = ciAiParse(JSON.stringify({ min_rp: "Rp1.000.000", reward_rp: 50000, lockin: "S.d. 31 Jan 2027", reward_max: "Rp2,5 jt",
+  steps: [{ title: "Bagikan kode", text: "Nasabah aktif KYC" }, "Beli ≥ Rp1 jt: pembelian pertama"], components: { head: ["Kode", "Minimum"], rows: [["26RDOKT", "Rp1 jt"], ["USD|OCT", "US$1.000"]] },
+  why_matters: "Akuisisi murah.", our_action: "Luncurkan Ajak Teman." }));
+assert.deepEqual([rep.min_rp, rep.reward_rp, rep.lockin, rep.steps, rep.components, rep.why_matters, rep.our_action],
+  [1000000, 50000, "S.d. 31 Jan 2027", "Bagikan kode: Nasabah aktif KYC\nBeli ≥ Rp1 jt: pembelian pertama", "Kode | Minimum\n26RDOKT | Rp1 jt\nUSD/OCT | US$1.000", "Akuisisi murah.", "Luncurkan Ajak Teman."]);
+assert.match(ciAiPrompt(null, { us: "KISI", text: "Perusahaan kita: Korea Investment & Sekuritas Indonesia (KISI).\nMI satu grup: KIM." }), /bisa dilakukan KISI[\s\S]*MI satu grup: KIM/, "konteks perusahaan masuk ke perintah AI");
 const bad = ciAiParse(JSON.stringify({ category: "Kripto", promo_type: "Gratis", trx_start: "6 Okt 2026", trx_end: "2026-10-31", end_date: "2026-10-15", is_promo: false, not_promo_reason: "artikel berita" }));
 assert.deepEqual([bad.category, bad.promo_type, bad.trx_start, bad.end_date, bad.is_promo, bad.not_promo_reason], ["", "", "", "2026-10-31", false, "artikel berita"], "nilai di luar pilihan & tanggal tak sah dibuang; program mencakup transaksi");
 assert.throws(() => ciAiParse("Maaf, saya tidak bisa membaca gambarnya."), /tidak berisi data JSON/);
@@ -227,4 +235,39 @@ env.CI_AI_DAILY = "0";
 [s, j] = await aiApi("read?id=" + sid, {});
 assert.equal(s, 429);
 delete env.CI_AI_DAILY;
+
+/* ---------- pengaturan laporan + AI catatan & analisis laporan ---------- */
+const call = async (path, method = "GET", body) => { const r = await ci.fetch(new Request("https://ci.test" + path + (path.includes("?") ? "&" : "?") + "key=k", { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }), env, { waitUntil() {} }); return [r.status, r.headers.get("content-type")?.includes("json") ? await r.json() : await r.arrayBuffer()]; };
+[s, j] = await call("/api/ci/settings");
+assert.deepEqual([j.company, j.short, j.has_logo], ["", "", false]);
+[s] = await call("/api/ci/settings", "PUT", { company: "Korea Investment & Sekuritas Indonesia", short: "KISI", division: "Digital Development", context: "MI satu grup: Korea Investment Management (KIM).", logo: "data:image/png;base64,iVBORw0KGgo=" });
+assert.equal(s, 200);
+[s, j] = await call("/api/ci/settings");
+assert.deepEqual([j.short, j.division, j.has_logo, "logo" in j], ["KISI", "Digital Development", true, false], "logo tidak ikut di pengaturan, diambil lewat /api/ci/logo");
+[s] = await call("/api/ci/logo");
+assert.equal(s, 200);
+[s] = await call("/api/ci/settings", "PUT", { logo: "data:text/html;base64,PGI+" });
+assert.equal(s, 400, "logo harus gambar");
+let lastSys = "";
+env.AI = { run: async (_m, q) => { lastSys = q.messages[0].content; return { response: JSON.stringify(/analisis lintas promo/.test(lastSys)
+  ? { highlights: ["Promo gajian makin sering"], patterns: [{ title: "Reward unit RDPU", text: "Reward jadi AUM" }, { text: "tanpa judul" }], ideas: [{ name: "Gajian Investasi", priority: "Quick win" }, { name: "Ajak Teman", priority: "Segera" }], next_steps: [{ title: "Penjajakan MI", owner: "Marketing" }], decisions: ["Pajak reward"] }
+  : { why_matters: "Bareksa menahan AUM 3 bulan.", our_action: "KISI bisa memakai KIM MMF sebagai reward." }) }; } };
+[s, j] = await call("/api/ci/ai/notes?id=" + sid, "POST", {});
+assert.deepEqual([s, j.why_matters, j.our_action], [200, "Bareksa menahan AUM 3 bulan.", "KISI bisa memakai KIM MMF sebagai reward."]);
+assert.match(lastSys, /analis pemasaran KISI[\s\S]*Korea Investment Management/, "catatan AI memakai konteks perusahaan");
+[s, j] = await call("/api/ci/ai/report", "POST", { ids: [sid, noUrl, "tidak-ada"] });
+assert.equal(s, 200, JSON.stringify(j));
+assert.deepEqual([j.highlights, j.patterns.length, j.ideas.map((x) => x.priority), j.next_steps[0].owner, j.decisions], [["Promo gajian makin sering"], 1, ["Quick win", "Kajian"], "Marketing", ["Pajak reward"]], "pola tanpa judul dibuang; prioritas di luar pilihan jadi Kajian");
+[s, j] = await call("/api/ci/ai/report", "POST", { ids: [] });
+assert.equal(s, 400);
+// antrean AI: catatan tim yang sudah ada tidak ditimpa, yang kosong diisi draf AI
+env.AI = { run: async () => ({ response: JSON.stringify({ ...ANS, summary: "Voucher untuk pembeli terbesar.", lockin: "S.d. 31 Jan 2027", min_rp: 2000000, why_matters: "draf AI", our_action: "draf AI aksi" }) }) };
+db.prepare("UPDATE ci_programs SET ai_state = 'pending', status = 'Perlu verifikasi', verified_by = NULL, why_matters = 'catatan tim', our_action = NULL WHERE id = ?").run(sid);
+await ciAiPending(env, 5);
+assert.deepEqual({ ...db.prepare("SELECT summary, lockin, min_rp, why_matters, our_action FROM ci_programs WHERE id = ?").get(sid) },
+  { summary: "Voucher untuk pembeli terbesar.", lockin: "S.d. 31 Jan 2027", min_rp: 2000000, why_matters: "catatan tim", our_action: "draf AI aksi" });
+// isian laporan lewat form: angka rupiah boleh bertitik, kosong = null
+[s] = await api("PATCH", { id: sid, min_rp: "1.000.000", reward_rp: "", steps: "Langkah 1: daftar", components: "Kode | Minimum\nA | Rp1 jt" });
+assert.equal(s, 200);
+assert.deepEqual({ ...db.prepare("SELECT min_rp, reward_rp, steps FROM ci_programs WHERE id = ?").get(sid) }, { min_rp: 1000000, reward_rp: null, steps: "Langkah 1: daftar" });
 console.log("semua cek lolos");
