@@ -1033,7 +1033,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   <div class="fst">Foreign Flow</div>
   <div class="cal-steps">
     <div class="cal-step"><b>1.</b> Buka <a class="fl-link" target="_blank" rel="noopener">Foreign Lens</a> (jaringan kantor/VPN) → tanggal hari ini → <b>Ambil</b> → Session <b>sore / penutupan</b> (bukan Midday Flow) → <b>Generate Gambar</b>.</div>
-    <div class="cal-step"><b>2.</b> Klik bookmark <b class="bm-link" style="cursor:default">📋 Foreign Flow</b> di halaman itu (bookmark yang sama dengan Halftime; cara memasangnya ada di tab Halftime).</div>
+    <div class="cal-step"><b>2.</b> Klik bookmark <a id="fl-bookmarklet-wrap" class="bm-link" href="#" onclick="alert('Jangan diklik di sini. Seret (drag) tombol ini ke Bookmarks bar browser, lalu klik bookmark itu saat halaman Foreign Lens terbuka.');return false;">📋 Foreign Flow</a> di halaman itu. Belum punya? Seret tombol ungu ini ke Bookmarks bar (cukup sekali; sama dengan bookmark di tab Halftime).</div>
     <div class="cal-step"><b>3.</b> Kembali ke sini, klik kotak di bawah, tekan <b>Ctrl+V</b>.</div>
   </div>
   <textarea class="fi" id="w-fx-paste" rows="2" placeholder="Tempel (Ctrl+V) hasil salinan Foreign Lens (sesi sore) di sini" oninput="importForeignLens(this.value,'w')"></textarea>
@@ -3861,7 +3861,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['m-date','h-date','w-date','wk-date','rh-date','bp-date'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=TODAY;});
   [buildMCatalystForm,buildMStockForm,buildMNewsForm,buildHForm,buildHSectorForm,buildWContribForm,renderCalForm,buildBPForms,renderWKResult].forEach(safe);
   const bm=document.getElementById('idx-bookmarklet');if(bm)bm.setAttribute('href','javascript:'+IDX_BOOKMARKLET);
-  const fl=document.getElementById('fl-bookmarklet');if(fl)fl.setAttribute('href','javascript:'+FL_BOOKMARKLET);
+  ['fl-bookmarklet','fl-bookmarklet-wrap'].forEach(id=>{const fl=document.getElementById(id);if(fl)fl.setAttribute('href','javascript:'+FL_BOOKMARKLET);});
   const wb=document.getElementById('wrap-bookmarklet');if(wb)wb.setAttribute('href','javascript:'+WRAP_BOOKMARKLET);
   Object.keys(AUTO_GROUPS).forEach(g=>safe(()=>setLocked(g,true)));
   if(!PS.foreignLens)['h-fx','w-fx'].forEach(g=>safe(()=>setLocked(g,false)));   // tanpa Foreign Lens: Buy/Sell diisi manual
