@@ -23,7 +23,8 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
 | Market Recap | `apps/market-recap` | Rangkuman IHSG sesi 1 & penutupan setiap hari bursa sebagai carousel 5 slide 1080×1080 (PNG & PDF): sampul + outlook, penggerak indeks (poin) & sektor, grafik intraday, global/rupiah/komoditas, agenda & berita. Judul tiap slide ditulis AI, disunting & diterbitkan tim; publik di `/p`; arsip |
-| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap (tanpa halaman); mencatat jalan terakhir tiap tugas di tabel `cron_runs` (insight-db) |
+| Market News | `apps/market-news` | Berita pilihan makro, pasar & emiten dari 7 media (RSS & halaman daftar berita), skor hype, ringkasan AI, terbit oleh tim; publik di `/p`, per berita `/n/<id>` (pratinjau WhatsApp dengan banner) |
+| Cron | `apps/cron` | Satu-satunya Cron Trigger: menjadwalkan Fund, Competitor, Edukasi, Story Data, SATS, Market Recap, Market News (tanpa halaman); mencatat jalan terakhir tiap tugas di tabel `cron_runs` (insight-db) |
 | PDF Generator | `jobs/pdf-generator` | PDF produk harian (GitHub Actions) |
 
 Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`. Nama worker ada di `wrangler.jsonc` masing-masing.
@@ -70,7 +71,7 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 ### AI penulis & cek orisinalitas (Edukasi Studio)
 
 - `shared/ai.js`: Claude bila secret `ANTHROPIC_API_KEY` ada → Gemini bila secret `GEMINI_API_KEY` ada (paket gratis Google AI Studio; model dicoba berurutan `GEMINI_MODELS`, bisa didahului variabel `GEMINI_MODEL`; 404/403/429 lanjut ke model berikutnya) → Workers AI. Gemini gagal semua = otomatis Workers AI. Paket gratis Gemini: input/output boleh dipakai Google untuk melatih model, jadi jangan kirim data nasabah.
-- Gemini dipakai di semua tool yang memakai `shared/ai.js`: Edukasi Studio, Market Recap, Content Insight, Competitor Intelligence. Secret bersifat per worker, jadi pasang key yang sama di keempatnya: `npx wrangler secret put GEMINI_API_KEY --name <edukasi-studio|market-recap|content-insight|competitor-intel>`.
+- Gemini dipakai di semua tool yang memakai `shared/ai.js`: Edukasi Studio, Market Recap, Content Insight, Competitor Intelligence, Market News. Secret bersifat per worker, jadi pasang key yang sama di semuanya: `npx wrangler secret put GEMINI_API_KEY --name <edukasi-studio|market-recap|content-insight|competitor-intel|market-news>`.
 - Cek kemiripan di browser: frasa 6 kata yang sama persis dengan artikel bahan **dan** artikel lain di bank. Bank dicari di server (`POST /api/similar`: 2 frasa per kalimat, `LIKE` per 30 frasa, maks. 8 artikel), lalu teksnya ikut dicek di browser. Struktur dianggap mirip bila ≥2 subjudul (dan ≥50%) hampir sama (kata ≥60% sama) dengan satu sumber.
 - Draf tidak bisa disimpan selama masih ada kalimat yang sama persis; tombol "Tulis ulang kalimat yang ditandai" memperbaikinya. Cek: `node apps/edukasi-studio/test.mjs`.
 
@@ -111,6 +112,16 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Empat isian wajib tiap promo (`ciRequired`): periode program (`start_date`–`end_date`, sampai akhir holding; kosong = sama dengan periode transaksi), periode transaksi (`trx_start`–`trx_end`, harus di dalam periode program), holding period / masa penilaian, dan minimal satu butir S&K ("Tidak ada" bila memang tidak ada). Server menolak simpan dari form dan "Tandai terverifikasi" bila belum lengkap; hasil scan boleh tersimpan belum lengkap sebagai "Perlu verifikasi". Promo lama: tanggal promo yang tercatat disalin ke periode transaksi.
 - Siapa yang boleh ikut, kuota, mekanisme (teks & tabel tier), cara ikut, dan pengecualian tidak lagi punya isian sendiri: ditulis sebagai butir S&K berlabel (`ciFoldTerms`, mis. "Kuota: 16 voucher"). Data lama dan hasil scan dipindah otomatis; kolomnya tetap ada di tabel tapi selalu kosong.
 - Cek: `node apps/competitor-intel/test.mjs`
+
+### Market News
+
+- Sumber (`apps/market-news/news.js` `SOURCES`): RSS CNBC Indonesia (market & news), Kontan, IDX Channel, Bloomberg Technoz; halaman daftar berita Bisnis.com (market & ekonomi), EmitenNews, Investor Daily (market & makro; artikel PREMIUM dilewati). Bloomberg Technoz & Investor Daily memakai proteksi CloudFront dan kadang menolak (403); status tiap sumber tampil di halaman tim.
+- Cron :20/:50 UTC setiap hari (05.00–23.00 WIB): 3 sumber per jalan bergiliran (batas CPU), data pasar TradingView pada jam bursa (`mn_meta` `mkt`: % per kode, breadth, top gainer dengan nilai >= Rp1 M & harga >= 50, top value), hitung ulang skor 48 jam, lalu ringkas maks. 2 berita teratas (skor >= 8) dengan AI. Batas AI per hari: var `NEWS_AI_DAILY` (bawaan 40).
+- Klasifikasi: emiten (kode saham terdaftar / aksi korporasi), makro (BI-Rate, The Fed, inflasi, PDB, kredit, neraca dagang, cadangan devisa, PMI, APBN), pasar (IHSG, asing, sektor, komoditas, rupiah). Rekomendasi/target harga analis, video, dan kripto tidak dipantau. Skor hype = media berbeda dalam 24 jam (kelompok per kode saham atau tema) + aksi korporasi + rilis data/keputusan makro + saham ikut naik + kebaruan.
+- AI membaca artikel (gambar og:image untuk banner, paragraf isi tanpa biodata penulis) dan menulis judul, ringkasan 2–3 kalimat, "mengapa penting", kategori, dan kode saham; kalimat bernada rekomendasi dibuang. Bukan berita pasar -> diabaikan otomatis.
+- Ringkasan pasar: IHSG, sektor, penggerak (poin), dan komoditas dibaca dari tabel `recaps` Market Recap (binding `RECAP_DB` ke recap-db, hanya baca); komoditas yang bergerak >= 2% disorot bersama emiten sektornya.
+- Gambar berita lewat `/img/<id>` (hotlink media sering diblokir; di-cache 1 hari). Halaman publik mencantumkan media sumber, link artikel asli, dan disclaimer profil.
+- Cek: `node apps/market-news/test.mjs`
 
 ### Competitor Intelligence: AI perapi promo
 

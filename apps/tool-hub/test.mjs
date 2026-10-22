@@ -44,7 +44,7 @@ function d1() {
   return { db, prepare: (sql) => st(sql), batch: async (list) => { const out = []; for (const x of list) out.push(await x.all()); return out; } };
 }
 const SECRET = "s".repeat(40), ADMIN = "admin@acme.test", HUB = "https://hub.acme.test";
-const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "planner", "sats", "tutorial"];
+const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "news", "planner", "sats", "tutorial"];
 const PROFILE = JSON.stringify({ urls: Object.fromEntries([["hub", HUB], ...IDS.map((id) => [id, `https://${id}.acme.test`])]), github: { repo: "acme/tools" }, brand: { short: "Acme" } });
 const recapEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const plannerEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
@@ -109,7 +109,7 @@ assert.match(admin, /^hub_sess=/);
 let r = await call("/", { cookie: admin });
 assert.equal(r.status, 200);
 let html = await r.text(), boot = bootOf(html);
-assert.equal(boot.apps.length, 12, "admin melihat semua 12 tool");
+assert.equal(boot.apps.length, 13, "admin melihat semua 13 tool");
 assert.deepEqual(boot.apps.map((a) => a.id).sort(), [...IDS].sort());
 for (const a of boot.apps) {
   assert.ok(boot.cats[a.cat], `${a.id}: kategori sah`);

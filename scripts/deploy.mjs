@@ -37,6 +37,8 @@ export const APPS = [
   { id: "content", dir: "apps/content-insight" },
   // setelah storydata: memakainya lewat service binding
   { id: "recap", dir: "apps/market-recap" },
+  // membaca database Market Recap (recap-db) untuk ringkasan pasar
+  { id: "news", dir: "apps/market-news" },
   { id: "sats", dir: "apps/sats/worker", watch: ["apps/sats/frontend", "apps/sats/database"],
     build: [["npm", ["ci"], "../frontend"], ["npm", ["run", "build"], "../frontend"]] },
   // paling akhir: memanggil tool lain lewat service binding, dan tool lain harus sudah melepas cron lamanya

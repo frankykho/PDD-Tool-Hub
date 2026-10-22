@@ -8,6 +8,7 @@
 //   :10/:40          Competitor Intel  (dulu */30)
 //   :15/:45, :25/:55 Edukasi Studio    (dulu */15)
 //   :20/:50          Market Recap, Senin–Jumat; memilih sendiri sesi 1 / penutupan menurut jam
+//   :20/:50          Market News, setiap hari; 3 sumber berita bergiliran + ringkasan AI (malam dilewati oleh worker-nya)
 //   10:20 & 12:20    SATS, Senin–Jumat (dulu 10:17 & 12:17)
 //   tiap 5 menit     Story Data, Senin–Jumat; memilih tugas sendiri menurut jam (dulu */5 * * * 1-5)
 //   tiap 5 menit     Content Insight: scan Instagram 07.00 WIB + lanjutkan scan yang berjalan (ringan bila tidak ada; tanpa APIFY_TOKEN langsung selesai)
@@ -24,6 +25,7 @@ export default {
     const jobs = [SLOTS[m], "CONTENT"];
     if (weekday) jobs.push("STORYDATA");
     if (weekday && m === 20) jobs.push("RECAP");
+    if (m === 20) jobs.push("NEWS");
     if (weekday && d.getUTCMinutes() === 20 && (h === 10 || h === 12)) jobs.push("SATS");
 
     const ran = jobs.filter(Boolean);

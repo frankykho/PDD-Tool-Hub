@@ -1,0 +1,14 @@
+// Market News: berita pilihan makro, pasar & emiten untuk dibagikan ke nasabah; halaman publik /p dan /n/<id>.
+// Secret: SSO_SECRET, GEMINI_API_KEY (opsional, gratis; dipakai sebelum Workers AI), ANTHROPIC_API_KEY (opsional).
+// Var opsional NEWS_AI_DAILY = batas ringkasan AI per hari (bawaan 40). Dijadwalkan oleh apps/cron (:20/:50 UTC).
+// RECAP_DB = database Market Recap (hanya dibaca) untuk IHSG, sektor, penggerak, dan komoditas.
+{
+  "name": "market-news",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "news-db", "database_id": "auto" },
+    { "binding": "RECAP_DB", "database_name": "recap-db", "database_id": "auto" }
+  ]
+}
