@@ -192,6 +192,7 @@ function renderPublic(){
   var L=(C.items||[]).filter(function(x){return!cat||x.cat===cat});
   $("app").innerHTML='<div class="bar">'+(C.logo?'<img src="'+esc(C.logo)+'" alt="">':"")+'<h1>Market News</h1><span class="sp"></span><span class="muted small">'+esc(dfmt(new Date().toISOString()))+"</span></div>"
    +(C.single?"":market(C.market)+'<div class="tabs">'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
+   +(C.single&&/bagikan=1/.test(location.search)?'<div class="why"><b>Siap dibagikan</b>'+(canFiles?"Ketuk “Bagikan dengan gambar”, pilih WhatsApp, lalu pilih channel Anda.":"Browser ini tidak bisa membagikan gambar langsung. Simpan banner (tekan lama gambarnya), lalu pakai “Salin teks”.")+"</div>":"")
    +'<div class="list">'+(C.missing?'<div class="card empty">Berita ini tidak ditemukan atau sudah ditarik.</div>':L.length?L.map(pubCard).join(""):'<div class="card empty">Belum ada berita yang diterbitkan.</div>')+"</div>"
    +(C.single||C.missing?'<a class="btn" href="/p">Lihat berita pasar lainnya →</a>':"")+disclaimer();
   prep(L);
@@ -222,7 +223,10 @@ document.addEventListener("click",function(e){
   if(d.copy){var done=function(){toast((d.what||"Link")+" disalin")};(navigator.clipboard?navigator.clipboard.writeText(d.copy).then(done,function(){prompt("Salin:",d.copy)}):prompt("Salin:",d.copy));return}
   // banner ikut terkirim sebagai gambar (berbagi bawaan HP), judul + ringkasan + link sebagai keterangannya
   if(d.channel){var ch=byId(d.channel);if(ch)channel(ch);return}
-  if(d.share){var it=byId(d.share);if(!it)return;t.disabled=true;
+  if(d.share){var it=byId(d.share);if(!it)return;
+    // di dalam bingkai Tool Hub, sebagian browser (mis. Chrome Android) tetap memblokir berbagi: buka halaman beritanya di tab baru
+    if(window.top!==window.self&&navigator.canShare&&!navigator.canShare({text:"x"})){window.open(location.origin+"/n/"+it.id+"?bagikan=1","_blank","noopener");return}
+    t.disabled=true;
     fileOf(it).then(function(f){var data={files:[f],text:textOf(it)};
       if(!navigator.canShare(data))throw Error("Browser ini tidak bisa membagikan gambar dari halaman ini. Pakai “Unduh gambar” + “Salin teks”, atau “Bagikan ke WhatsApp”.");
       return navigator.share(data)})
