@@ -270,4 +270,25 @@ assert.deepEqual({ ...db.prepare("SELECT summary, lockin, min_rp, why_matters, o
 [s] = await api("PATCH", { id: sid, min_rp: "1.000.000", reward_rp: "", steps: "Langkah 1: daftar", components: "Kode | Minimum\nA | Rp1 jt" });
 assert.equal(s, 200);
 assert.deepEqual({ ...db.prepare("SELECT min_rp, reward_rp, steps FROM ci_programs WHERE id = ?").get(sid) }, { min_rp: 1000000, reward_rp: null, steps: "Langkah 1: daftar" });
+
+/* ---------- promo terverifikasi dilengkapi AI ('enrich'); perubahan halaman hanya dicatat untuk tanggal ---------- */
+db.prepare("UPDATE ci_programs SET status = 'Aktif', verified_by = 'tim', ai_state = 'enrich', title = 'Judul tim', start_date = '2026-10-01', why_matters = NULL, our_action = 'aksi tim', components = NULL, page_content = 'Teks v3' WHERE id = ?").run(sid);
+env.AI = { run: async () => ({ response: JSON.stringify({ ...ANS, title: "Judul AI", start_date: "2026-09-01", components: { head: ["Kode", "Minimum"], rows: [["A", "Rp1 jt"]] }, why_matters: "draf why", our_action: "draf aksi", is_promo: false }) }) };
+await ciAiPending(env, 5);
+const e1 = db.prepare("SELECT title, start_date, end_date, status, components, why_matters, our_action, ai_state, history FROM ci_programs WHERE id = ?").get(sid);
+assert.deepEqual([e1.title, e1.start_date, e1.status, e1.components, e1.why_matters, e1.our_action, e1.ai_state], ["Judul tim", "2026-10-01", "Aktif", "Kode | Minimum\nA | Rp1 jt", "draf why", "aksi tim", "done"],
+  "promo terverifikasi: hanya isian detail; judul, periode, status, dan catatan tim tetap");
+assert.match(e1.history, /Detail dilengkapi AI/);
+// scan ulang: halaman berubah (mis. sidebar) tetapi tanggal sama -> tidak dicatat berubah, status tetap Aktif
+assert.equal(await ciSaveScan(env, { ...REC, start_date: e1.start_date, end_date: e1.end_date, page_content: "Teks v4", benefit: "min pemerintah 100% dan bebas risiko" }, "h-ai"), "same");
+assert.deepEqual([sa().status, sa().benefit === "min pemerintah 100% dan bebas risiko"], ["Aktif", false]);
+// migrasi perintah AI v2: promo berjalan masuk antrean sekali (terverifikasi -> enrich)
+db.prepare("INSERT INTO ci_programs (id, title, source_url, discovered_at, status, page_content) VALUES ('v2a', 'x', 'https://x.test/v2a', '2026-10-01', 'Aktif', 'teks'), ('v2b', 'x', 'https://x.test/v2b', '2026-10-01', 'Perlu verifikasi', 'teks'), ('v2c', 'x', 'https://x.test/v2c', '2026-10-01', 'Tidak relevan', 'teks')").run();
+db.exec("DELETE FROM meta WHERE k = 'ci_ai_v'");
+await ciMigrate(env);
+const st2 = () => db.prepare("SELECT id, ai_state FROM ci_programs WHERE id LIKE 'v2%' ORDER BY id").all().map((r) => r.ai_state);
+assert.deepEqual(st2(), ["enrich", "pending", null]);
+db.exec("UPDATE ci_programs SET ai_state = 'done' WHERE id LIKE 'v2%'");
+await ciMigrate(env);
+assert.deepEqual(st2(), ["done", "done", "done"], "hanya sekali");
 console.log("semua cek lolos");

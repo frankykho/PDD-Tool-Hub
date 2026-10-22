@@ -124,6 +124,12 @@ export async function ciMigrate(env) {
   // Siapa yang boleh ikut, kuota, mekanisme (teks & tabel tier), cara ikut, pengecualian sekarang ditulis sebagai butir S&K
   const fold = (await env.DB.prepare(`SELECT id, terms, ${CI_FOLD.map(([k]) => k).join(', ')}, tiers FROM ci_programs WHERE ${CI_FOLD.map(([k]) => `COALESCE(${k}, '') <> ''`).join(' OR ')} OR COALESCE(tiers, '') <> ''`).all()).results || [];
   if (fold.length) await env.DB.batch(fold.map((r) => { const f = ciFoldTerms({ ...r }); return env.DB.prepare(`UPDATE ci_programs SET terms = ?, ${CI_FOLD.map(([k]) => k + ' = NULL').join(', ')}, tiers = NULL WHERE id = ?`).bind(f.terms, r.id); }));
+  // Perintah AI versi 2 (komponen, benefit per tier, catatan): promo berjalan dirapikan ulang sekali. Yang sudah diverifikasi
+  // masuk 'enrich' (hanya isian detail; judul, periode, status tidak diubah).
+  const aiv = await env.DB.prepare("SELECT v FROM meta WHERE k='ci_ai_v'").first();
+  if (!aiv || aiv.v !== '2') await env.DB.batch([
+    env.DB.prepare(`UPDATE ci_programs SET ai_state = CASE WHEN status = 'Aktif' OR verified_by IS NOT NULL THEN 'enrich' ELSE 'pending' END WHERE status IN ('Aktif', 'Perlu verifikasi') AND COALESCE(page_content, '') <> ''`),
+    env.DB.prepare("INSERT OR REPLACE INTO meta (k,v) VALUES ('ci_ai_v','2')")]);
   const seeded = await env.DB.prepare("SELECT v FROM meta WHERE k='ci_src_seed'").first();
   if (!seeded || seeded.v !== '2') {
     const have = new Set(((await env.DB.prepare('SELECT url FROM ci_sources').all()).results || []).map((r) => ciNormUrl(r.url)));
@@ -344,7 +350,9 @@ function ciCat(title, text) {
 // Kolom yang boleh diubah lewat form, dengan panjang maksimal
 const CI_EDIT = { title: 240, platform: 160, manager: 160, promo_type: 60, benefit: 2000, min_transaction: 300, start_date: 10, end_date: 10, trx_start: 10, trx_end: 10, holding_period: 600, products: 600, summary: 300, reward_max: 160, lockin: 160, steps: 2000, components: 4000, source_url: 600, source_note: 300, why_matters: 1500, our_action: 1500, eval_result: 2000, eval_lesson: 2000, status: 40, category: 40, comp_kind: 40 };
 const CI_AUTO = ['title', 'category', 'comp_kind', 'platform', 'manager', 'promo_type', 'benefit', 'min_transaction', 'start_date', 'end_date', 'trx_start', 'trx_end', 'holding_period', 'products', 'terms', 'image_url', 'image_source_url', 'confidence', 'missing_fields'];
-const CI_WATCH = [['start_date', 'Mulai'], ['end_date', 'Berakhir'], ['benefit', 'Benefit'], ['min_transaction', 'Min. transaksi'], ['holding_period', 'Holding / periode penilaian']];
+// Perubahan halaman yang dicatat: hanya tanggal. Benefit/min. transaksi/holding hasil pola kata terlalu berisik (mis. sidebar
+// "promo terbaru" ikut berubah) dan membuat promo terverifikasi kembali ke antrean; isinya dirapikan AI.
+const CI_WATCH = [['start_date', 'Mulai'], ['end_date', 'Berakhir']];
 /** Holding period dan periode penilaian disimpan dalam satu kolom: "holding; penilaian" (tanpa dobel bila sama). */
 export const ciHold = (hold, assess) => (!hold ? assess || null : !assess || assess === hold ? hold : hold + '; ' + assess);
 const ciNow = () => new Date().toISOString();
@@ -657,13 +665,17 @@ export async function ciAiReport(env, rows) {
     recommendation: s(j.recommendation, 800), next_steps: arr(j.next_steps, 6).map((x) => ({ title: s(x.title, 60), text: s(x.text, 300), owner: s(x.owner, 60) })).filter((x) => x.title),
     decisions: ciList(j.decisions, 8, 300) };
 }
-/** Rapikan maksimal n promo di antrean. Promo yang sudah dicek tim (Aktif / terverifikasi / tidak relevan) dilewati. */
+// Isian detail yang boleh dilengkapi AI juga pada promo yang sudah diverifikasi ('enrich')
+const CI_AI_DETAIL = ['summary', 'promo_type', 'holding_period', 'lockin', 'min_transaction', 'min_rp', 'benefit', 'reward_max', 'reward_rp', 'products', 'steps', 'components'];
+/** Rapikan maksimal n promo di antrean: 'pending' = promo belum dicek (semua isian), 'enrich' = promo terverifikasi (hanya isian detail).
+ *  Promo tidak relevan dilewati. Catatan "Mengapa penting / Apa yang bisa dilakukan" hanya diisi bila masih kosong dan konteks perusahaan sudah diisi. */
 export async function ciAiPending(env, n = 2) {
-  if (!env.AI && !env.ANTHROPIC_API_KEY) return 0;
-  const rows = (await env.DB.prepare("SELECT id,title,platform,source_url,page_content,status,verified_by,cat_manual,history,why_matters,our_action FROM ci_programs WHERE ai_state='pending' ORDER BY COALESCE(first_seen, discovered_at) DESC LIMIT ?").bind(n).all()).results || [];
-  let done = 0, mis = null;
+  if (!env.AI && !env.ANTHROPIC_API_KEY && !env.GEMINI_API_KEY) return 0;
+  const rows = (await env.DB.prepare("SELECT id,title,platform,source_url,page_content,status,verified_by,cat_manual,history,why_matters,our_action,ai_state FROM ci_programs WHERE ai_state IN ('pending','enrich') ORDER BY CASE WHEN status='Aktif' THEN 0 ELSE 1 END, COALESCE(first_seen, discovered_at) DESC LIMIT ?").bind(n).all()).results || [];
+  let done = 0, mis = null, ctxOk = null;
   for (const r of rows) {
-    if (r.status === 'Aktif' || r.status === 'Tidak relevan' || r.verified_by || !r.page_content) { await env.DB.prepare("UPDATE ci_programs SET ai_state='lewat' WHERE id=?").bind(r.id).run(); continue; }
+    const locked = r.status === 'Aktif' || !!r.verified_by;
+    if (r.status === 'Tidak relevan' || !r.page_content || (locked && r.ai_state !== 'enrich')) { await env.DB.prepare("UPDATE ci_programs SET ai_state='lewat' WHERE id=?").bind(r.id).run(); continue; }
     if (!(await ciAiTake(env))) break;
     let res;
     try { res = await ciAiRead(env, r, mis || (mis = await ciMis(env))); }
@@ -673,12 +685,13 @@ export async function ciAiPending(env, n = 2) {
       continue;
     }
     const f = res.fields, set = { ai_state: 'done', ai_at: ciNow() };
-    for (const k of ['title', 'summary', 'manager', 'promo_type', 'trx_start', 'trx_end', 'start_date', 'end_date', 'holding_period', 'lockin', 'min_transaction', 'min_rp', 'benefit', 'reward_max', 'reward_rp', 'products', 'steps', 'components']) if (f[k]) set[k] = f[k];
-    for (const k of ['why_matters', 'our_action']) if (f[k] && !String(r[k] || '').trim()) set[k] = f[k]; // catatan tim tidak ditimpa
-    if (f.category && !r.cat_manual) set.category = f.category;
+    for (const k of locked ? CI_AI_DETAIL : ['title', 'manager', 'trx_start', 'trx_end', 'start_date', 'end_date', ...CI_AI_DETAIL]) if (f[k]) set[k] = f[k];
+    if (ctxOk == null) { const s = await ciSettings(env); ctxOk = !!(s.context || '').trim(); }
+    if (ctxOk) for (const k of ['why_matters', 'our_action']) if (f[k] && !String(r[k] || '').trim()) set[k] = f[k]; // catatan tim tidak ditimpa
+    if (f.category && !r.cat_manual && !locked) set.category = f.category;
     if (f.terms.length) set.terms = JSON.stringify(f.terms);
-    let note = `Detail dirapikan AI (${res.model}).`;
-    if (!f.is_promo && r.status === 'Perlu verifikasi') { set.status = 'Tidak relevan'; note = `AI (${res.model}) menilai ini bukan promo${f.not_promo_reason ? ': ' + f.not_promo_reason : ''}. Ditandai tidak relevan; kembalikan bila keliru.`; }
+    let note = locked ? `Detail dilengkapi AI (${res.model}); judul, periode, dan status tidak diubah.` : `Detail dirapikan AI (${res.model}).`;
+    if (!f.is_promo && !locked && r.status === 'Perlu verifikasi') { set.status = 'Tidak relevan'; note = `AI (${res.model}) menilai ini bukan promo${f.not_promo_reason ? ': ' + f.not_promo_reason : ''}. Ditandai tidak relevan; kembalikan bila keliru.`; }
     set.history = ciHist(r.history, note);
     const k = Object.keys(set);
     await env.DB.prepare(`UPDATE ci_programs SET ${k.map((x) => x + '=?').join(',')} WHERE id=?`).bind(...k.map((x) => set[x]), r.id).run();
@@ -965,7 +978,7 @@ export default withCron({
       }
     } catch (err) { console.error("CI weekly scan:", err?.message || err); }
     // Promo hasil scan dirapikan AI sedikit demi sedikit (2 per putaran cron, dibatasi kuota harian)
-    try { await ciAiPending(env, 2); } catch (err) { console.error("CI AI:", err?.message || err); }
+    try { await ciAiPending(env, 3); } catch (err) { console.error("CI AI:", err?.message || err); }
   },
   async fetch(req, env, ctx) {
     const u = new URL(req.url);
