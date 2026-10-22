@@ -17,6 +17,7 @@ import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
 import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
+import { BG_MODEL, BG_DAILY, BG_THEMES, BG_LABEL, bgTheme, bgPrompt, SCENE_RULES, imageB64 } from "./banner.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -85,6 +86,9 @@ export async function ensure(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_fin (code TEXT, period TEXT, company TEXT, currency TEXT, revenue REAL, revenue_prev REAL, revenue_yoy REAL,
     net_profit REAL, net_profit_prev REAL, net_profit_yoy REAL, note TEXT, sources TEXT, item_id TEXT, model TEXT, at TEXT, updated_at TEXT, notified INTEGER DEFAULT 0,
     PRIMARY KEY (code, period))`).run();
+  // latar banner KISI (ilustrasi AI): per tema (status usul → ok setelah disetujui tim) atau khusus satu berita (item_id)
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_bg (id TEXT PRIMARY KEY, theme TEXT, item_id TEXT, status TEXT, img TEXT, prompt TEXT,
+    made_by TEXT, made_at TEXT)`).run();
   ready = true;
 }
 const getMeta = async (env, k) => { try { const r = await env.DB.prepare("SELECT v FROM mn_meta WHERE k=?").bind(k).first(); return r ? JSON.parse(r.v) : null; } catch { return null; } };
@@ -317,6 +321,38 @@ async function image(env, id, ctx) {
   return res;
 }
 
+/* ---------- latar banner KISI ---------- */
+const bgList = async (env) => ((await env.DB.prepare("SELECT id, theme, item_id, status, made_by, made_at FROM mn_bg ORDER BY made_at DESC LIMIT 400").all()).results || []);
+async function bgTake(env) {
+  const d = new Date().toISOString().slice(0, 10), c = (await getMeta(env, "bg_day")) || {}, n = c.d === d ? c.n : 0;
+  if (n >= BG_DAILY) return false;
+  await setMeta(env, "bg_day", { d, n: n + 1 });
+  return true;
+}
+/** Buat satu latar: per tema (`theme`, status usul) atau khusus berita (`item`, langsung dipakai). */
+export async function makeBg(env, { theme, item, who }) {
+  let scene = "";
+  if (item) {
+    theme = bgTheme(item);
+    // adegan visual dari judul + ringkasan (tanpa orang/teks); bila AI teks gagal, pakai subjek tema
+    try { scene = (await ai(env, SCENE_RULES, `Headline: ${item.ai_title || item.title}\nSummary: ${item.summary || item.descr || ""}`, 120, undefined, { temperature: 0.6 })).text; } catch {}
+  }
+  if (!BG_THEMES[theme]) throw new Error("Tema tidak dikenal.");
+  const prompt = bgPrompt(theme, scene);
+  const out = await env.AI.run(BG_MODEL, { prompt, steps: 6 });   // model ini tidak menerima `seed`; tiap panggilan sudah acak
+  const img = await imageB64(out), id = "bg" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  if (item) await env.DB.prepare("DELETE FROM mn_bg WHERE item_id=?").bind(item.id).run();   // satu latar khusus per berita
+  await env.DB.prepare("INSERT INTO mn_bg (id, theme, item_id, status, img, prompt, made_by, made_at) VALUES (?,?,?,?,?,?,?,?)")
+    .bind(id, theme, item ? item.id : null, item ? "ok" : "usul", img, prompt, who || "", nowIso()).run();
+  return { id, theme, item_id: item ? item.id : null, status: item ? "ok" : "usul", made_by: who || "", made_at: nowIso() };
+}
+async function bgImage(env, id) {
+  const r = await env.DB.prepare("SELECT img FROM mn_bg WHERE id=?").bind(id).first();
+  if (!r || !r.img) return new Response("Tidak ada latar", { status: 404 });
+  const bin = Uint8Array.from(atob(r.img), (c) => c.charCodeAt(0));
+  return new Response(bin, { headers: { "content-type": /^iVBOR/.test(r.img) ? "image/png" : "image/jpeg", "cache-control": "public, max-age=31536000, immutable" } });
+}
+
 export default withCron({
   async scheduled(e, env) {
     await ensure(env);
@@ -346,6 +382,8 @@ export default withCron({
       }
       const im = /^\/img\/([a-z0-9]+)$/.exec(path);
       if (im) return image(env, im[1], ctx);
+      const bm = /^\/bg\/([a-z0-9]+)$/.exec(path);
+      if (bm) { await ensure(env); return bgImage(env, bm[1]); }
       const logo = profile(env).brand.logo ? "/logo" : "";
       // publik: hanya berita yang sudah diterbitkan, tanpa login
       if (path === "/p" || path === "/p/") return html(page(env, { mode: "public", logo, items: await published(env), market: await market(env) }, '<meta name="viewport" content="width=device-width,initial-scale=1">'));
@@ -371,6 +409,7 @@ export default withCron({
 
       if (request.method === "GET") {
         if (path === "/api/market") return json(await market(env));
+        if (path === "/api/bg") return json({ bgs: await bgList(env), themes: Object.keys(BG_THEMES).map((k) => ({ k, label: BG_LABEL[k] || k })), day: (await getMeta(env, "bg_day")) || {}, limit: BG_DAILY });
         if (path === "/api/fin") return json({ rows: await finRows(env, Number(url.searchParams.get("days")) || 30), notify: { telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID), webhook: !!env.NOTIFY_WEBHOOK } });
         if (path === "/api/sources") return json({ src: (await getMeta(env, "src")) || {}, ai: (await getMeta(env, "ai_day")) || {}, aiLimit: aiLimit(env) });
         if (path === "/api/items") {
@@ -397,6 +436,21 @@ export default withCron({
           if (!m || Date.now() - Date.parse(m.at) > 15 * 60e3) await refreshMarket(env).catch(() => {});
           await rescore(env);
           return json({ ok: true, n, sources: ids });
+        }
+        if (path === "/api/bg/gen") {   // latar baru: {theme} untuk perpustakaan tema, atau {item} untuk satu berita
+          const it = b.item ? await env.DB.prepare("SELECT * FROM mn_items WHERE id=?").bind(String(b.item)).first() : null;
+          if (b.item && !it) return json({ error: "Berita tidak ditemukan." }, 404);
+          if (!it && !BG_THEMES[b.theme]) return json({ error: "Tema tidak dikenal." }, 400);
+          if (!(await bgTake(env))) return json({ error: `Batas pembuatan gambar hari ini (${BG_DAILY}) sudah tercapai. Pakai latar tema atau coba lagi besok.` }, 429);
+          try { return json({ ok: true, bg: await makeBg(env, { theme: b.theme, item: it, who }) }); }
+          catch (e) { return json({ error: "Gambar AI gagal dibuat: " + e.message }, 503); }
+        }
+        if (path === "/api/bg/set") {   // setujui / kembalikan ke usulan / hapus
+          const id = String(b.bg || "");
+          if (b.status === "hapus") await env.DB.prepare("DELETE FROM mn_bg WHERE id=?").bind(id).run();
+          else if (b.status === "ok" || b.status === "usul") await env.DB.prepare("UPDATE mn_bg SET status=? WHERE id=?").bind(b.status, id).run();
+          else return json({ error: "Status tidak dikenal." }, 400);
+          return json({ ok: true });
         }
         const x = b.id ? await env.DB.prepare("SELECT * FROM mn_items WHERE id=?").bind(String(b.id)).first() : null;
         if (!x) return json({ error: "Berita tidak ditemukan." }, 404);

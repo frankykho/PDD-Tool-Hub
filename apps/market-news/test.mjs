@@ -229,4 +229,31 @@ globalThis.fetch = realFetch;
 const page = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
 for (const [, sc2] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(sc2);
 assert.equal(idOf("https://a.test/x"), idOf("https://a.test/x"));
+// ---- banner KISI: tema, prompt aman, latar AI tersimpan & bisa diambil publik ----
+{
+  const { BG_MODEL, BG_THEMES, bgTheme, bgPrompt, imageB64 } = await import("./banner.js");
+  assert.equal(bgTheme({ theme: "BI-Rate", cat: "makro" }), "BI-Rate");
+  assert.equal(bgTheme({ theme: "Tema Aneh", cat: "emiten" }), "emiten");
+  assert.equal(bgTheme({}), "umum");
+  for (const k of Object.keys(BG_THEMES)) assert.match(bgPrompt(k), /no text.*no people/i, "prompt " + k + " wajib melarang teks & orang");
+  assert.match(bgPrompt("Emas", "gold bars on velvet"), /Subject: gold bars on velvet\./);
+  assert.equal(await imageB64({ image: "QUJD" }), "QUJD");
+  assert.equal(await imageB64(new Uint8Array([65, 66, 67])), "QUJD");
+  const { makeBg } = await import("./worker.js");
+  const calls = [];
+  const env2 = { ...env, AI: { run: async (m, inp) => { calls.push([m, inp]); return m === BG_MODEL ? { image: "/9j/AAAA" } : { response: "a calm vault with neat gold bars" }; } } };
+  await ensure(env2);
+  const t = await makeBg(env2, { theme: "Emas", who: "Uji" });
+  assert.equal(t.status, "usul"); assert.equal(t.item_id, null);
+  assert.ok(!("seed" in calls.at(-1)[1]), "flux-1-schnell menolak parameter seed");
+  await env2.DB.prepare("INSERT INTO mn_items (id, url, title, cat, theme, summary) VALUES ('n1','https://a.test/n1','BI Tahan Bunga','makro','BI-Rate','BI menahan suku bunga.')").run();
+  const it = await env2.DB.prepare("SELECT * FROM mn_items WHERE id='n1'").first();
+  const a = await makeBg(env2, { item: it, who: "Uji" }), b = await makeBg(env2, { item: it, who: "Uji" });
+  assert.equal(b.status, "ok"); assert.equal(b.theme, "BI-Rate");
+  assert.equal((await env2.DB.prepare("SELECT COUNT(*) n FROM mn_bg WHERE item_id='n1'").first()).n, 1, "latar khusus berita diganti, bukan ditumpuk");
+  assert.ok(a.id !== b.id);
+  const r = await news.fetch(new Request("https://mn.test/bg/" + b.id), env2, { waitUntil() {} });
+  assert.equal(r.status, 200); assert.equal(r.headers.get("content-type"), "image/jpeg");
+  assert.equal((await news.fetch(new Request("https://mn.test/bg/tidakada"), env2, { waitUntil() {} })).status, 404);
+}
 console.log("semua cek lolos");

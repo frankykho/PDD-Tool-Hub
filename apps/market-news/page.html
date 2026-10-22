@@ -94,7 +94,7 @@ var C=window.MN||{},P=window.PROFILE||{},B=P.brand||{},$=function(id){return doc
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
 var TEAM=C.mode==="team",CAT={makro:"Makro",pasar:"Pasar",emiten:"Emiten"};
 if(!TEAM)document.body.classList.add("pub");
-function toast(m){var t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},2600)}
+function toast(m,ms){var t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},ms||2600)}
 function api(p,o){o=o||{};return fetch(p,Object.assign({},o,{headers:{"content-type":"application/json"}})).then(function(r){return r.json().catch(function(){return{error:"HTTP "+r.status}}).then(function(j){if(!r.ok)throw Error(j.error||("HTTP "+r.status));return j})})}
 var nf=function(v,d){return Number(v).toLocaleString("id-ID",{minimumFractionDigits:d||0,maximumFractionDigits:d||0})};
 var pct=function(v){return v==null?"–":'<span class="'+(v>0?"up":v<0?"dn":"")+'">'+(v>0?"+":"")+nf(v,2)+"%</span>"};
@@ -125,41 +125,122 @@ function market(m){
 function banner(x){return'<div class="ban">'+(x.img?'<img src="'+esc(x.img)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(CAT[x.cat]||"Berita")+'\'">':esc(CAT[x.cat]||"Berita"))+"</div>"}
 function tks(x){return(x.tickers||[]).map(function(c){var v=x.px&&x.px[c];return'<span class="tk">'+esc(c)+(typeof v==="number"?" "+pct(v):"")+"</span>"}).join(" ")}
 function also(x){return(x.sources||[]).length?'<div class="also">Juga diberitakan: '+x.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join(" · ")+"</div>":""}
-// yang dibagikan: judul (tebal di WhatsApp), ringkasan, lalu link artikel asli di media (pratinjau link menampilkan banner media)
-var textOf=function(x){return"*"+(x.title||"")+"*\n\n"+(x.summary||"")+"\n\n"+x.url};
+// yang dibagikan: judul (tebal di WhatsApp), ringkasan, lalu nama media + link artikel asli (pratinjau link menampilkan foto media)
+var textOf=function(x){return"*"+(x.title||"")+"*\n\n"+(x.summary||"")+"\n\nSumber: "+(x.src?x.src+"\n":"")+x.url};
 var waOf=function(x){return"https://wa.me/?text="+encodeURIComponent(textOf(x))};
 var canFiles=!!(navigator.canShare&&navigator.share);
-function shareBtns(x){return(TEAM?'<button class="btn sm" type="button" data-channel="'+esc(x.id)+'">Posting ke Channel</button>':"")+'<a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">Bagikan ke WhatsApp</a>'
-  +(canFiles&&x.img?'<button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan dengan gambar</button>':"")
-  +'<button class="btn sm" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button>'}
+// HP: menu bagikan bawaan (gambar + teks sekaligus). Komputer: gambar disalin ke clipboard + WhatsApp dibuka dengan teks siap kirim.
+var mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(matchMedia("(pointer:coarse)").matches&&!matchMedia("(pointer:fine)").matches);
+var canCopyImg=!!(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem);
+function shareBtns(x){return'<button class="btn sm pri" type="button" data-wa="'+esc(x.id)+'" title="Foto berita, judul, ringkasan, dan link sumber">Kirim ke WhatsApp</button>'
+  +'<button class="btn sm" type="button" data-channel="'+esc(x.id)+'">Opsi lain</button>'}
 var byId=function(id){return(TEAM?items:C.items||[]).filter(function(x){return x.id===id})[0]};
-// Banner untuk menu bagikan HP: disiapkan lebih dulu (izin berbagi hanya sesaat setelah tombol ditekan) dan diubah ke JPEG,
-// karena sebagian media mengirim AVIF yang tidak diterima menu bagikan Chrome
-var files={};
-function fileOf(it){
-  if(!files[it.id]){files[it.id]=fetch(it.img).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){return new Promise(function(ok,no){
-    var u=URL.createObjectURL(b),im=new Image();
-    im.onload=function(){var c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);URL.revokeObjectURL(u);
-      c.toBlob(function(j){j?ok(new File([j],"banner.jpg",{type:"image/jpeg"})):no(Error("Gambar tidak bisa diubah"))},"image/jpeg",.9)};
-    im.onerror=function(){URL.revokeObjectURL(u);no(Error("Gambar tidak bisa dibaca"))};im.src=u})});
-    files[it.id].catch(function(){delete files[it.id]})}
-  return files[it.id]}
-function prep(L){if(canFiles)L.filter(function(x){return x.img}).slice(0,20).forEach(function(x){fileOf(x).catch(function(){})})}
-// Posting ke WhatsApp Channel: channel hanya bisa diisi dari aplikasi WhatsApp oleh adminnya, jadi gambar diunduh & teks disalin
+// Gambar disiapkan lebih dulu (izin berbagi/salin hanya sesaat setelah tombol ditekan). JPEG untuk menu bagikan HP
+// (sebagian media mengirim AVIF yang tidak diterima menu bagikan Chrome), PNG untuk clipboard komputer.
+var cvs={},files={},pngs={};
+/* ---------- banner KISI: template (logo, kategori, judul, tanggal, sumber) di atas latar ----------
+   gaya: "tema" = latar ilustrasi AI per tema yang disetujui tim, "ai" = latar AI khusus berita ini, "foto" = foto asli media (apa adanya) */
+var BG={bgs:[],themes:[]},GAYA={tema:"Latar tema",ai:"Gambar AI",foto:"Foto media"};
+var QS=new URLSearchParams(location.search);
+function themeOf(x){var ks=BG.themes.map(function(t){return t.k});return x.theme&&ks.indexOf(x.theme)>=0?x.theme:ks.indexOf(x.cat)>=0?x.cat:"umum"}
+function hashOf(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
+function styleOf(x){if(!TEAM)return QS.get("gaya")||"foto";var s=null;try{s=localStorage.getItem("mn_gaya_"+x.id)||localStorage.getItem("mn_gaya")}catch(e){}return GAYA[s]?s:"tema"}
+function setStyle(x,s){try{localStorage.setItem("mn_gaya_"+x.id,s);localStorage.setItem("mn_gaya",s)}catch(e){}forget(x)}
+function forget(x){[cvs,files,pngs].forEach(function(o){Object.keys(o).forEach(function(k){if(k.split("|")[0]===x.id)delete o[k]})})}
+/** id latar yang dipakai (null = tanpa latar: gradasi hijau KISI). */
+function bgFor(x,s){
+  if(!TEAM)return QS.get("bg")||null;
+  if(s==="ai"){var own=BG.bgs.filter(function(b){return b.item_id===x.id})[0];return own?own.id:null}
+  var th=themeOf(x),pick=function(t){return BG.bgs.filter(function(b){return!b.item_id&&b.status==="ok"&&b.theme===t})};
+  var L=pick(th);if(!L.length)L=pick(x.cat);if(!L.length)L=pick("umum");
+  return L.length?L[hashOf(x.id)%L.length].id:null}
+function keyOf(x){var s=styleOf(x);return x.id+"|"+s+"|"+(s==="foto"?"":bgFor(x,s)||"-")+"|"+(x.title||"")}
+function loadImg(src){return fetch(src).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){return new Promise(function(ok,no){
+  var u=URL.createObjectURL(b),im=new Image();im.onload=function(){URL.revokeObjectURL(u);ok(im)};im.onerror=function(){URL.revokeObjectURL(u);no(Error("Gambar tidak bisa dibaca"))};im.src=u})})}
+var logoP=null;function logoImg(){if(!logoP)logoP=C.logo?loadImg(C.logo).catch(function(){return null}):Promise.resolve(null);return logoP}
+function wrap(g,t,maxW){var w=String(t).split(/\s+/),L=[],cur="";w.forEach(function(x){var n=cur?cur+" "+x:x;if(g.measureText(n).width>maxW&&cur){L.push(cur);cur=x}else cur=n});if(cur)L.push(cur);return L}
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+var FONT='Inter,"Segoe UI",Roboto,Arial,sans-serif';
+function compose(x){
+  var s=styleOf(x);
+  if(s==="foto")return x.img?loadImg(x.img).then(function(im){var c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}):Promise.reject(Error("Berita ini tidak punya foto"));
+  var bid=bgFor(x,s);
+  return Promise.all([bid?loadImg("/bg/"+bid).catch(function(){return null}):null,logoImg()]).then(function(r){
+    var bg=r[0],logo=r[1],W=1280,H=720,P=64,c=document.createElement("canvas");c.width=W;c.height=H;var g=c.getContext("2d");
+    if(bg){var k=Math.max(W/bg.naturalWidth,H/bg.naturalHeight),bw=bg.naturalWidth*k,bh=bg.naturalHeight*k;g.drawImage(bg,(W-bw)/2,(H-bh)/2,bw,bh)}
+    else{var gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,"#0f4f33");gr.addColorStop(1,"#1f7a4d");g.fillStyle=gr;g.fillRect(0,0,W,H)}
+    // gelap di kiri & bawah supaya judul selalu terbaca di latar apa pun
+    var sh=g.createLinearGradient(0,0,W,0);sh.addColorStop(0,"rgba(6,24,16,.88)");sh.addColorStop(.62,"rgba(6,24,16,.55)");sh.addColorStop(1,"rgba(6,24,16,.12)");g.fillStyle=sh;g.fillRect(0,0,W,H);
+    var sb=g.createLinearGradient(0,H*.55,0,H);sb.addColorStop(0,"rgba(6,24,16,0)");sb.addColorStop(1,"rgba(6,24,16,.7)");g.fillStyle=sb;g.fillRect(0,0,W,H);
+    var y=P;
+    if(logo){var lh=46,lw=logo.naturalWidth*lh/logo.naturalHeight;g.fillStyle="#fff";rr(g,P-14,y-12,lw+28,lh+24,14);g.fill();g.drawImage(logo,P,y,lw,lh);y+=lh+12}
+    else{g.fillStyle="#fff";g.font="800 40px "+FONT;g.textBaseline="top";g.fillText((window.PROFILE&&PROFILE.brand&&PROFILE.brand.short)||"Market News",P,y);y+=46}
+    // label kategori + tema
+    var lab=(CAT[x.cat]||"Berita").toUpperCase()+(x.theme?" · "+String(x.theme).toUpperCase():"");
+    g.font="700 22px "+FONT;g.textBaseline="middle";var tw=g.measureText(lab).width;y+=36;
+    g.fillStyle="#e2b04a";rr(g,P,y,tw+28,40,20);g.fill();g.fillStyle="#1b1405";g.fillText(lab,P+14,y+21);y+=40;
+    // judul: 58px → mengecil sampai muat 4 baris
+    var fs=58,L;g.textBaseline="top";
+    for(;fs>=38;fs-=4){g.font="800 "+fs+"px "+FONT;L=wrap(g,x.title||"",W*.7);if(L.length<=4)break}
+    if(L.length>4){L=L.slice(0,4);L[3]=L[3].replace(/\s+\S*$/,"")+"…"}
+    var lh2=fs*1.18,ty=Math.max(y+30,H-P-60-L.length*lh2);
+    g.fillStyle="#fff";g.shadowColor="rgba(0,0,0,.35)";g.shadowBlur=8;L.forEach(function(l,i){g.fillText(l,P,ty+i*lh2)});g.shadowBlur=0;
+    // kaki: tanggal + sumber
+    var d=new Date(x.published_at||x.at||Date.now()).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Jakarta"});
+    g.font="600 24px "+FONT;g.fillStyle="rgba(255,255,255,.85)";g.textBaseline="bottom";g.fillText(d+(x.src?"  ·  Sumber: "+x.src:""),P,H-P+8);
+    g.fillStyle="#e2b04a";g.fillRect(0,H-8,W,8);
+    return c})}
+function canvasOf(it){
+  var k=keyOf(it);
+  if(!cvs[k]){cvs[k]=compose(it);cvs[k].catch(function(){delete cvs[k]})}
+  return cvs[k]}
+function blobOf(c,type){return new Promise(function(ok,no){c.toBlob(function(j){j?ok(j):no(Error("Gambar tidak bisa diubah"))},type,.9)})}
+function fileOf(it){var k=keyOf(it);
+  if(!files[k]){files[k]=canvasOf(it).then(function(c){return blobOf(c,"image/jpeg")}).then(function(j){return new File([j],"banner.jpg",{type:"image/jpeg"})});files[k].catch(function(){delete files[k]})}
+  return files[k]}
+function pngOf(it){var k=keyOf(it);
+  if(!pngs[k]){pngs[k]=canvasOf(it).then(function(c){return blobOf(c,"image/png")});pngs[k].catch(function(){delete pngs[k]})}
+  return pngs[k]}
+var hasPic=function(x){return styleOf(x)!=="foto"||!!x.img};
+function prep(L){L.filter(hasPic).slice(0,20).forEach(function(x){(mobile&&canFiles?fileOf(x):canCopyImg?pngOf(x):Promise.resolve()).catch(function(){})})}
+function openWa(it){window.open(waOf(it),"_blank","noopener")}
+/** Satu tombol: HP -> menu bagikan (pilih WhatsApp, lalu chat/grup/channel); komputer -> gambar disalin + WhatsApp terbuka. */
+function sendWa(it,btn){
+  if(!hasPic(it)){openWa(it);return}
+  if(mobile&&canFiles){
+    // di dalam bingkai Tool Hub, sebagian browser (mis. Chrome Android) tetap memblokir berbagi: buka halaman beritanya di tab baru
+    if(window.top!==window.self&&navigator.canShare&&!navigator.canShare({text:"x"})){window.open(location.origin+"/n/"+it.id+"?bagikan=1&gaya="+styleOf(it)+(bgFor(it,styleOf(it))?"&bg="+bgFor(it,styleOf(it)):""),"_blank","noopener");return}
+    btn.disabled=true;
+    fileOf(it).then(function(f){var data={files:[f],text:textOf(it)};
+      if(!navigator.canShare(data)){openWa(it);return}   // tanpa gambar: teks + link (pratinjau link tetap menampilkan foto media)
+      return navigator.share(data)})
+    // izin berbagi hanya berlaku sesaat setelah tombol ditekan; bila gambar baru selesai disiapkan, tekan sekali lagi
+    .catch(function(x){if(x&&x.name==="NotAllowedError")toast("Gambar siap. Tekan “Kirim ke WhatsApp” sekali lagi.");else if(x&&x.name!=="AbortError")openWa(it)}).then(function(){btn.disabled=false});
+    return}
+  if(canCopyImg){
+    btn.disabled=true;
+    navigator.clipboard.write([new ClipboardItem({"image/png":pngOf(it)})])
+      .then(function(){openWa(it);toast("WhatsApp terbuka dengan judul, ringkasan & link. Gambar sudah disalin: pilih chat, tekan Ctrl+V, lalu kirim.",8000)},
+        function(){openWa(it);toast("WhatsApp terbuka dengan judul, ringkasan & link (foto muncul sebagai pratinjau link).",6000)})
+      .then(function(){btn.disabled=false});
+    return}
+  openWa(it);
+}
+function copyImg(it,btn){btn.disabled=true;navigator.clipboard.write([new ClipboardItem({"image/png":pngOf(it)})]).then(function(){toast("Gambar disalin. Tempel (Ctrl+V) di WhatsApp.")},function(e){toast("Gambar tidak bisa disalin: "+e.message)}).then(function(){btn.disabled=false})}
+// Opsi lain / WhatsApp Channel: channel hanya bisa diisi dari aplikasi WhatsApp oleh adminnya, jadi gambar disalin/diunduh & teks disalin
 function channel(x){
   var fn="berita-"+String(x.title||"pasar").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".jpg";
   var wa=esc(textOf(x)).replace(/^\*([^*\n]+)\*/,"<b>$1</b>").replace(/(https?:\/\/\S+)$/,'<a href="$1" target="_blank" rel="noopener">$1</a>');
-  $("chBox").innerHTML='<h2 id="chH">Posting ke WhatsApp Channel</h2>'
-   +'<div class="wa"><div class="bub">'+(x.img?'<img src="'+esc(x.img)+'" alt="">':"")+"<div>"+wa+"</div></div></div>"
+  $("chBox").innerHTML='<h2 id="chH">Kirim manual (chat, grup, atau Channel)</h2>'
+   +'<div class="wa"><div class="bub">'+(hasPic(x)?'<img id="chImg" alt="">':"")+"<div>"+wa+"</div></div></div>"
    +'<ol class="steps">'
-   +(x.img?'<li>Unduh gambar banner.<div class="acts"><a class="btn sm pri" href="'+esc(x.img)+'" download="'+esc(fn)+'">Unduh gambar</a></div></li>':"")
+   +(hasPic(x)?'<li>Ambil gambarnya.<div class="acts">'+(canCopyImg&&!mobile?'<button class="btn sm pri" type="button" data-copyimg="'+esc(x.id)+'">Salin gambar</button>':"")+'<button class="btn sm'+(canCopyImg&&!mobile?"":" pri")+'" type="button" data-dl="'+esc(x.id)+'" data-fn="'+esc(fn)+'">Unduh gambar</button></div></li>':"")
    +'<li>Salin teksnya (judul, ringkasan, link sumber).<div class="acts"><button class="btn sm pri" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button></div></li>'
-   +"<li>Buka channel di WhatsApp (HP atau WhatsApp Web/Desktop) → "+(x.img?"lampirkan gambar tadi → tempel teks sebagai keterangan":"tempel teks")+" → kirim.</li></ol>"
-   +(canFiles&&x.img?'<p class="small muted" style="margin:0">Di HP bisa sekaligus: <button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan gambar + teks</button> lalu pilih WhatsApp dan channel Anda (bila channel tidak muncul di daftar, pakai langkah di atas).</p>':"")
-   +'<p class="small muted" style="margin:0">Tanpa gambar? Cukup tempel teks: WhatsApp menampilkan pratinjau link dengan gambar dari media sumber.</p>'
+   +"<li>Buka chat, grup, atau channel di WhatsApp (HP atau WhatsApp Web/Desktop) → "+(hasPic(x)?"tempel/lampirkan gambar → tempel teks sebagai keterangan":"tempel teks")+" → kirim.</li></ol>"
+   +'<p class="small muted" style="margin:0">Tanpa gambar pun tetap rapi: cukup tempel teks, WhatsApp menampilkan pratinjau link dengan foto dari media sumber.</p>'
    +'<div class="acts" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Tutup</button></div>';
   $("chDlg").hidden=false;
-  if(canFiles&&x.img)fileOf(x).catch(function(){});
+  if(hasPic(x))canvasOf(x).then(function(c){var im=$("chImg");if(im)im.src=c.toDataURL("image/jpeg",.85)}).catch(function(e){var im=$("chImg");if(im)im.remove();toast(e.message)});
 }
 document.addEventListener("keydown",function(e){if(e.key==="Escape")$("chDlg").hidden=true});
 $("chDlg").addEventListener("click",function(e){if(e.target===this||e.target.closest("[data-close]"))this.hidden=true});
@@ -173,7 +254,7 @@ function pubCard(x){
 function teamCard(x){
   var ed=C.canEdit,pubd=x.status==="terbit",ro=ed?"":" readonly";
   var st=x.ai_state==="gagal"?'<span class="dn">AI gagal; coba lagi</span>':x.ai_state==="bukan"?'<span class="dn">AI: bukan berita pasar</span>':x.ai_state==="done"?"Diringkas AI":"Belum diringkas";
-  return'<article class="card it" data-id="'+esc(x.id)+'">'+banner(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"–")+"</span>"+(x.theme?'<span class="tag" style="background:var(--bg);color:var(--t2)">'+esc(x.theme)+"</span>":"")+tks(x)
+  return'<article class="card it" data-id="'+esc(x.id)+'">'+teamBan(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"–")+"</span>"+(x.theme?'<span class="tag" style="background:var(--bg);color:var(--t2)">'+esc(x.theme)+"</span>":"")+tks(x)
    +'<span title="skor hype">🔥 '+nf(x.score||0,0)+" · "+(1+(x.sources||[]).length)+" media</span><span>"+esc(x.src)+" · "+esc(ago(x.at||x.seen_at))+"</span><span>"+st+"</span>"+(pubd?'<span class="tag">Terbit · '+esc(x.published_by||"")+"</span>":"")+"</div>"
    +'<label class="fld">Judul<input data-f="title" value="'+esc(x.title)+'"'+ro+"></label>"
    +(x.raw_title&&x.raw_title!==x.title?'<div class="muted small">Judul asli: '+esc(x.raw_title)+"</div>":"")
@@ -196,7 +277,7 @@ function renderPublic(){
   var L=(C.items||[]).filter(function(x){return!cat||x.cat===cat});
   $("app").innerHTML='<div class="bar">'+(C.logo?'<img src="'+esc(C.logo)+'" alt="">':"")+'<h1>Market News</h1><span class="sp"></span><span class="muted small">'+esc(dfmt(new Date().toISOString()))+"</span></div>"
    +(C.single?"":market(C.market)+'<div class="tabs">'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
-   +(C.single&&/bagikan=1/.test(location.search)?'<div class="why"><b>Siap dibagikan</b>'+(canFiles?"Ketuk “Bagikan dengan gambar”, pilih WhatsApp, lalu pilih channel Anda.":"Browser ini tidak bisa membagikan gambar langsung. Simpan banner (tekan lama gambarnya), lalu pakai “Salin teks”.")+"</div>":"")
+   +(C.single&&/bagikan=1/.test(location.search)?'<div class="why"><b>Siap dibagikan</b>Ketuk “Kirim ke WhatsApp”, pilih WhatsApp, lalu pilih chat, grup, atau channel. Bila channel tidak muncul, pakai “Opsi lain”.</div>':"")
    +'<div class="list">'+(C.missing?'<div class="card empty">Berita ini tidak ditemukan atau sudah ditarik.</div>':L.length?L.map(pubCard).join(""):'<div class="card empty">Belum ada berita yang diterbitkan.</div>')+"</div>"
    +(C.single||C.missing?'<a class="btn" href="/p">Lihat berita pasar lainnya →</a>':"")+disclaimer();
   prep(L);
@@ -227,6 +308,29 @@ function finView(){
    +'<div id="finBox">'+finRowsHtml()+"</div></div>";
 }
 document.addEventListener("input",function(e){if(e.target.id==="finQ"){fq=e.target.value;$("finBox").innerHTML=finRowsHtml()}});
+/** Banner di kartu tim: pratinjau gambar yang akan dikirim + pilihan gaya (tema KISI / AI khusus berita / foto media). */
+function teamBan(x){
+  if(!C.canEdit)return banner(x);
+  var s=styleOf(x),own=BG.bgs.filter(function(b){return b.item_id===x.id})[0];
+  var note=s==="tema"&&!bgFor(x,"tema")?"Latar tema “"+esc(themeOf(x))+"” belum ada: pakai warna KISI. Buat di tab Latar banner.":s==="ai"&&!own?"Belum ada gambar AI untuk berita ini.":s==="foto"&&!x.img?"Media tidak menyediakan foto.":"";
+  return'<div style="display:grid;gap:6px;align-self:start"><div class="ban"><img data-ban="'+esc(x.id)+'" alt="Pratinjau banner"></div>'
+   +'<div style="display:flex;gap:4px;flex-wrap:wrap">'+Object.keys(GAYA).map(function(k){return'<button class="chip'+(s===k?" on":"")+'" type="button" data-gaya="'+esc(x.id)+'|'+k+'">'+GAYA[k]+"</button>"}).join("")
+   +(s==="ai"?'<button class="btn sm" type="button" data-genbg="'+esc(x.id)+'">'+(own?"Buat ulang":"Buat gambar AI")+"</button>":"")+"</div>"
+   +(note?'<div class="muted small">'+note+"</div>":"")
+   +(s!=="foto"?'<div class="muted small">Judul di banner mengikuti judul yang sudah disimpan.</div>':"")+"</div>"}
+function fillBans(){document.querySelectorAll("img[data-ban]").forEach(function(im){var x=byId(im.dataset.ban);if(!x)return;
+  if(!hasPic(x)){im.parentNode.textContent=CAT[x.cat]||"Berita";return}
+  canvasOf(x).then(function(c){im.src=c.toDataURL("image/jpeg",.8)}).catch(function(){im.parentNode.textContent=CAT[x.cat]||"Berita"})})}
+/** Tab Latar banner: perpustakaan latar per tema. Usulan AI baru dipakai setelah disetujui. */
+function bgView(){
+  var ed=C.canEdit,d=BG.day||{},n=d.d===new Date().toISOString().slice(0,10)?d.n:0;
+  return'<div class="card" style="display:grid;gap:12px"><p class="muted small" style="margin:0">Latar ilustrasi AI (tanpa teks, orang, atau grafik) yang dipakai banner gaya “Latar tema”. Buat beberapa variasi per tema, lalu <b>Setujui</b> yang cocok; hanya latar yang disetujui yang dipakai, dan bila tema belum punya latar, banner memakai latar kategori (Makro/Pasar/Emiten) atau warna KISI. Pembuatan hari ini: '+n+"/"+(BG.limit||30)+".</p>"
+   +BG.themes.map(function(t){var L=BG.bgs.filter(function(b){return!b.item_id&&b.theme===t.k});
+     return'<div><div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>'+esc(t.label)+'</b><span class="muted small">'+L.filter(function(b){return b.status==="ok"}).length+" disetujui"+(L.some(function(b){return b.status!=="ok"})?" · "+L.filter(function(b){return b.status!=="ok"}).length+" usulan":"")+"</span>"
+      +(ed?'<button class="btn sm" type="button" data-bgnew="'+esc(t.k)+'">+ Buat variasi</button>':"")+"</div>"
+      +(L.length?'<div style="display:flex;gap:8px;flex-wrap:wrap">'+L.map(function(b){return'<div style="width:200px;display:grid;gap:4px"><img src="/bg/'+esc(b.id)+'" alt="" loading="lazy" style="width:200px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:2px solid '+(b.status==="ok"?"var(--g)":"var(--line)")+'">'
+        +'<div class="small">'+(b.status==="ok"?'<span class="up">● Disetujui</span>':'<span class="muted">○ Usulan</span>')
+        +(ed?" "+(b.status==="ok"?'<button class="btn sm" type="button" data-bgset="'+esc(b.id)+'|usul">Batalkan</button>':'<button class="btn sm pri" type="button" data-bgset="'+esc(b.id)+'|ok">Setujui</button>')+' <button class="btn sm dng" type="button" data-bgset="'+esc(b.id)+'|hapus">Hapus</button>':"")+"</div></div>"}).join("")+"</div>":'<div class="muted small">Belum ada latar.</div>')+"</div>"}).join("")+"</div>"}
 function renderTeam(){
   var L=items.filter(function(x){return!cat||x.cat===cat}),ok=Object.keys(srcSt.src||{}).filter(function(k){return srcSt.src[k].ok}).length;
   $("app").innerHTML='<div class="bar">'+(C.logo?'<img src="'+esc(C.logo)+'" alt="">':"")+'<h1>Market News</h1><span class="sp"></span>'
@@ -234,31 +338,32 @@ function renderTeam(){
    +'<button class="btn" type="button" data-copy="'+esc(C.publicUrl)+'">Salin link publik</button><a class="btn" href="'+esc(C.publicUrl)+'" target="_blank" rel="noopener">Halaman publik ↗</a></div>'
    +'<p class="muted small" style="margin:-6px 0 0">Berita makro, pasar, dan emiten dari CNBC Indonesia, Kontan, IDX Channel, Bloomberg Technoz, Bisnis.com, EmitenNews, dan Investor Daily. Diurutkan menurut skor hype: berapa media yang memberitakan, aksi korporasi, rilis data ekonomi, dan saham yang ikut naik. Berita teratas diringkas AI otomatis; tim mengecek lalu menerbitkan.</p>'
    +market(mk)
-   +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["skip","Diabaikan"],["all","Semua 48 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
-   +(view==="fin"?"":'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join(""))+"</div>"
+   +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 48 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
+   +(view==="fin"||view==="bg"?"":'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join(""))+"</div>"
    +'<details class="src card" style="padding:10px 14px"><summary>Sumber berita: '+ok+" dari "+(C.sources||[]).length+" terbaca terakhir"+(srcSt.ai&&srcSt.ai.n!=null?" · AI hari ini "+srcSt.ai.n+"/"+srcSt.aiLimit:"")+'</summary><div class="srcs">'
    +(C.sources||[]).map(function(s){var v=(srcSt.src||{})[s.id];return"<div>"+(v?(v.ok?'<span class="up">●</span> ':'<span class="dn">●</span> '):"○ ")+esc(s.name)+' <span class="muted">'+esc(s.id)+" · "+(v?(v.ok?v.n+" berita relevan":esc(v.err||"gagal"))+", "+esc(ago(v.at)):"belum dibaca")+"</span></div>"}).join("")+"</div></details>"
-   +(view==="fin"?finView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
-  prep(L.filter(function(x){return x.status==="terbit"}));
+   +(view==="fin"?finView():view==="bg"?bgView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
+  fillBans();prep(L.filter(function(x){return x.status==="terbit"}));
 }
 function loadTeam(){
-  return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
+  return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):view==="bg"?Promise.resolve([]):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}}),api("/api/bg").catch(function(){return null})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];if(r[3])BG=r[3];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
 function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.type==="checkbox"?el.checked:el.value});return o}
 
 document.addEventListener("click",function(e){
   var t=e.target.closest("button,[data-copy]");if(!t)return;var d=t.dataset;
   if(d.copy){var done=function(){toast((d.what||"Link")+" disalin")};(navigator.clipboard?navigator.clipboard.writeText(d.copy).then(done,function(){prompt("Salin:",d.copy)}):prompt("Salin:",d.copy));return}
-  // banner ikut terkirim sebagai gambar (berbagi bawaan HP), judul + ringkasan + link sebagai keterangannya
+  // satu tombol: HP -> menu bagikan (gambar + teks), komputer -> gambar disalin + WhatsApp terbuka dengan teks
   if(d.channel){var ch=byId(d.channel);if(ch)channel(ch);return}
-  if(d.share){var it=byId(d.share);if(!it)return;
-    // di dalam bingkai Tool Hub, sebagian browser (mis. Chrome Android) tetap memblokir berbagi: buka halaman beritanya di tab baru
-    if(window.top!==window.self&&navigator.canShare&&!navigator.canShare({text:"x"})){window.open(location.origin+"/n/"+it.id+"?bagikan=1","_blank","noopener");return}
-    t.disabled=true;
-    fileOf(it).then(function(f){var data={files:[f],text:textOf(it)};
-      if(!navigator.canShare(data))throw Error("Browser ini tidak bisa membagikan gambar dari halaman ini. Pakai “Unduh gambar” + “Salin teks”, atau “Bagikan ke WhatsApp”.");
-      return navigator.share(data)})
-    // izin berbagi hanya berlaku sesaat setelah tombol ditekan; bila gambar baru selesai disiapkan, tekan sekali lagi
-    .catch(function(x){if(x&&x.name!=="AbortError")toast(x.name==="NotAllowedError"?"Gambar siap. Tekan “Bagikan gambar + teks” sekali lagi.":x.message)}).then(function(){t.disabled=false});return}
+  if(d.wa||d.share){var it=byId(d.wa||d.share);if(it)sendWa(it,t);return}
+  if(d.copyimg){var ci=byId(d.copyimg);if(ci)copyImg(ci,t);return}
+  if(d.dl){var di=byId(d.dl);if(!di)return;t.disabled=true;fileOf(di).then(function(fl){var a=document.createElement("a"),u=URL.createObjectURL(fl);a.href=u;a.download=d.fn||"banner.jpg";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}).catch(function(x){toast(x.message)}).then(function(){t.disabled=false});return}
+  if(d.gaya){var gp=d.gaya.split("|"),gx=byId(gp[0]);if(gx){setStyle(gx,gp[1]);renderTeam()}return}
+  if(d.genbg){var gi=byId(d.genbg);t.disabled=true;t.textContent="Membuat gambar… (±10 dtk)";
+    api("/api/bg/gen",{method:"POST",body:JSON.stringify({item:d.genbg})}).then(function(j){BG.bgs=BG.bgs.filter(function(b){return b.item_id!==d.genbg}).concat([j.bg]);if(gi)forget(gi);renderTeam();toast("Gambar AI siap. Cek dulu sebelum dikirim.")}).catch(function(x){toast(x.message,6000);t.disabled=false;t.textContent="Buat gambar AI"});return}
+  if(d.bgnew){t.disabled=true;t.textContent="Membuat… (±10 dtk)";
+    api("/api/bg/gen",{method:"POST",body:JSON.stringify({theme:d.bgnew})}).then(function(){return loadTeam()}).catch(function(x){toast(x.message,6000);t.disabled=false;t.textContent="+ Buat variasi"});return}
+  if(d.bgset){var bp=d.bgset.split("|");if(bp[1]==="hapus"&&!confirm("Hapus latar ini?"))return;t.disabled=true;
+    api("/api/bg/set",{method:"POST",body:JSON.stringify({bg:bp[0],status:bp[1]})}).then(function(){cvs={};files={};pngs={};return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false});return}
   if(d.cat!==undefined){cat=d.cat;return TEAM?renderTeam():renderPublic()}
   if(d.view){view=d.view;return loadTeam()}
   if(t.id==="bCollect"){t.disabled=true;t.textContent="Mengambil…";api("/api/collect",{method:"POST",body:"{}"}).then(function(j){toast(j.n+" berita dari "+j.sources.length+" sumber");return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false});return}
