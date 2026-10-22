@@ -61,6 +61,18 @@ a{color:var(--g)}
 .fld textarea{min-height:76px;resize:vertical}
 .empty{text-align:center;color:var(--t2);padding:40px 16px}
 .disc{font-size:12px;color:var(--t2);line-height:1.5}
+.dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:8;padding:16px}
+.dlg .card{width:min(520px,100%);max-height:92vh;overflow:auto;display:grid;gap:12px}
+.dlg h2{margin:0;font-size:18px}
+.wa{background:#e7ded5;border-radius:12px;padding:12px}
+:root[data-theme="dark"] .wa{background:#0b141a}
+.wa .bub{background:#fff;border-radius:10px;padding:5px;max-width:330px;box-shadow:0 1px 1px rgba(0,0,0,.15);color:#111b21}
+:root[data-theme="dark"] .wa .bub{background:#202c33;color:#e9edef}
+.wa .bub img{width:100%;border-radius:7px;display:block}
+.wa .bub div{padding:6px 6px 4px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.wa .bub a{color:#027eb5}
+.steps{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
+.steps .acts{margin-top:4px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--t);color:var(--card);padding:9px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.show{opacity:1}
 details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
@@ -70,6 +82,7 @@ details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
 </head>
 <body>
 <div class="wrap" id="app"></div>
+<div class="dlg" id="chDlg" hidden><div class="card" role="dialog" aria-modal="true" aria-labelledby="chH" id="chBox"></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
 (function(){
@@ -112,10 +125,27 @@ function also(x){return(x.sources||[]).length?'<div class="also">Juga diberitaka
 var textOf=function(x){return"*"+(x.title||"")+"*\n\n"+(x.summary||"")+"\n\n"+x.url};
 var waOf=function(x){return"https://wa.me/?text="+encodeURIComponent(textOf(x))};
 var canFiles=!!(navigator.canShare&&navigator.share);
-function shareBtns(x){return'<a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">Bagikan ke WhatsApp</a>'
+function shareBtns(x){return(TEAM?'<button class="btn sm" type="button" data-channel="'+esc(x.id)+'">Posting ke Channel</button>':"")+'<a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">Bagikan ke WhatsApp</a>'
   +(canFiles&&x.img?'<button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan dengan gambar</button>':"")
   +'<button class="btn sm" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button>'}
 var byId=function(id){return(TEAM?items:C.items||[]).filter(function(x){return x.id===id})[0]};
+// Posting ke WhatsApp Channel: channel hanya bisa diisi dari aplikasi WhatsApp oleh adminnya, jadi gambar diunduh & teks disalin
+function channel(x){
+  var fn="berita-"+String(x.title||"pasar").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".jpg";
+  var wa=esc(textOf(x)).replace(/^\*([^*\n]+)\*/,"<b>$1</b>").replace(/(https?:\/\/\S+)$/,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+  $("chBox").innerHTML='<h2 id="chH">Posting ke WhatsApp Channel</h2>'
+   +'<div class="wa"><div class="bub">'+(x.img?'<img src="'+esc(x.img)+'" alt="">':"")+"<div>"+wa+"</div></div></div>"
+   +'<ol class="steps">'
+   +(x.img?'<li>Unduh gambar banner.<div class="acts"><a class="btn sm pri" href="'+esc(x.img)+'" download="'+esc(fn)+'">Unduh gambar</a></div></li>':"")
+   +'<li>Salin teksnya (judul, ringkasan, link sumber).<div class="acts"><button class="btn sm pri" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button></div></li>'
+   +"<li>Buka channel di WhatsApp (HP atau WhatsApp Web/Desktop) → "+(x.img?"lampirkan gambar tadi → tempel teks sebagai keterangan":"tempel teks")+" → kirim.</li></ol>"
+   +(canFiles&&x.img?'<p class="small muted" style="margin:0">Di HP bisa sekaligus: <button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan gambar + teks</button> lalu pilih WhatsApp dan channel Anda (bila channel tidak muncul di daftar, pakai langkah di atas).</p>':"")
+   +'<p class="small muted" style="margin:0">Tanpa gambar? Cukup tempel teks: WhatsApp menampilkan pratinjau link dengan gambar dari media sumber.</p>'
+   +'<div class="acts" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Tutup</button></div>';
+  $("chDlg").hidden=false;
+}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")$("chDlg").hidden=true});
+$("chDlg").addEventListener("click",function(e){if(e.target===this||e.target.closest("[data-close]"))this.hidden=true});
 function pubCard(x){
   return'<article class="card it">'+banner(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"Berita")+"</span>"+tks(x)+"<span>"+esc(x.src)+" · "+esc(ago(x.published_at||x.at))+'</span></div>'
    +"<h2>"+esc(x.title)+"</h2><p>"+esc(x.summary||"")+"</p>"
@@ -176,6 +206,7 @@ document.addEventListener("click",function(e){
   var t=e.target.closest("button,[data-copy]");if(!t)return;var d=t.dataset;
   if(d.copy){var done=function(){toast((d.what||"Link")+" disalin")};(navigator.clipboard?navigator.clipboard.writeText(d.copy).then(done,function(){prompt("Salin:",d.copy)}):prompt("Salin:",d.copy));return}
   // banner ikut terkirim sebagai gambar (berbagi bawaan HP), judul + ringkasan + link sebagai keterangannya
+  if(d.channel){var ch=byId(d.channel);if(ch)channel(ch);return}
   if(d.share){var it=byId(d.share);if(!it)return;t.disabled=true;
     fetch(it.img).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){
       var f=new File([b],"banner."+(/png/.test(b.type)?"png":/webp/.test(b.type)?"webp":"jpg"),{type:b.type||"image/jpeg"}),data={files:[f],text:textOf(it)};
