@@ -108,14 +108,20 @@ function market(m){
 function banner(x){return'<div class="ban">'+(x.img?'<img src="'+esc(x.img)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(CAT[x.cat]||"Berita")+'\'">':esc(CAT[x.cat]||"Berita"))+"</div>"}
 function tks(x){return(x.tickers||[]).map(function(c){var v=x.px&&x.px[c];return'<span class="tk">'+esc(c)+(typeof v==="number"?" "+pct(v):"")+"</span>"}).join(" ")}
 function also(x){return(x.sources||[]).length?'<div class="also">Juga diberitakan: '+x.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join(" · ")+"</div>":""}
-var linkOf=function(x){return location.origin+"/n/"+x.id};
-var waOf=function(x){return"https://wa.me/?text="+encodeURIComponent((x.title||"")+"\n\n"+(x.summary||"")+"\n\n"+linkOf(x))};
+// yang dibagikan: judul (tebal di WhatsApp), ringkasan, lalu link artikel asli di media (pratinjau link menampilkan banner media)
+var textOf=function(x){return"*"+(x.title||"")+"*\n\n"+(x.summary||"")+"\n\n"+x.url};
+var waOf=function(x){return"https://wa.me/?text="+encodeURIComponent(textOf(x))};
+var canFiles=!!(navigator.canShare&&navigator.share);
+function shareBtns(x){return'<a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">Bagikan ke WhatsApp</a>'
+  +(canFiles&&x.img?'<button class="btn sm" type="button" data-share="'+esc(x.id)+'">Bagikan dengan gambar</button>':"")
+  +'<button class="btn sm" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button>'}
+var byId=function(id){return(TEAM?items:C.items||[]).filter(function(x){return x.id===id})[0]};
 function pubCard(x){
   return'<article class="card it">'+banner(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"Berita")+"</span>"+tks(x)+"<span>"+esc(x.src)+" · "+esc(ago(x.published_at||x.at))+'</span></div>'
    +"<h2>"+esc(x.title)+"</h2><p>"+esc(x.summary||"")+"</p>"
    +(x.why?'<div class="why"><b>Mengapa penting</b>'+esc(x.why)+"</div>":"")
    +'<div class="acts"><a class="btn pri sm" href="'+esc(x.url)+'" target="_blank" rel="noopener">Baca selengkapnya di '+esc(x.src)+' ↗</a>'
-   +'<a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">Bagikan ke WhatsApp</a><button class="btn sm" type="button" data-copy="'+esc(linkOf(x))+'">Salin link</button></div>'+also(x)+"</div></article>";
+   +shareBtns(x)+"</div>"+also(x)+"</div></article>";
 }
 function teamCard(x){
   var ed=C.canEdit,pubd=x.status==="terbit",ro=ed?"":" readonly";
@@ -127,7 +133,7 @@ function teamCard(x){
    +'<label class="fld">Ringkasan<textarea data-f="summary" placeholder="Klik “Ringkas dengan AI” atau tulis 2–3 kalimat fakta utama"'+ro+">"+esc(x.summary||"")+"</textarea></label>"
    +'<label class="fld">Mengapa penting (opsional)<input data-f="why" value="'+esc(x.why||"")+'"'+ro+"></label>"
    +also(x)
-   +'<div class="acts">'+(ed?(pubd?'<button class="btn pri sm" data-act="save">Simpan</button><button class="btn sm" data-copy="'+esc(linkOf(x))+'">Salin link</button><a class="btn sm" href="'+esc(waOf(x))+'" target="_blank" rel="noopener">WhatsApp</a><button class="btn sm dng" data-act="unpublish">Tarik dari publik</button>'
+   +'<div class="acts">'+(ed?(pubd?'<button class="btn pri sm" data-act="save">Simpan</button>'+shareBtns(x)+'<button class="btn sm dng" data-act="unpublish">Tarik dari publik</button>'
      :'<button class="btn pri sm" data-act="publish">Terbitkan</button><button class="btn sm" data-act="ai">Ringkas dengan AI</button><button class="btn sm" data-act="save">Simpan</button>'+(x.status==="abaikan"?'<button class="btn sm" data-act="restore">Kembalikan</button>':'<button class="btn sm dng" data-act="skip">Abaikan</button>'))
      +'<label class="small muted" style="display:inline-flex;gap:5px;align-items:center"><input type="checkbox" data-f="no_img"'+(x.no_img?" checked":"")+"> Tanpa gambar</label>":"")
    +'<a class="btn sm" href="'+esc(x.url)+'" target="_blank" rel="noopener">Buka berita ↗</a></div></div></article>';
@@ -168,7 +174,13 @@ function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(
 
 document.addEventListener("click",function(e){
   var t=e.target.closest("button,[data-copy]");if(!t)return;var d=t.dataset;
-  if(d.copy){var done=function(){toast("Link disalin")};(navigator.clipboard?navigator.clipboard.writeText(d.copy).then(done,function(){prompt("Salin link:",d.copy)}):prompt("Salin link:",d.copy));return}
+  if(d.copy){var done=function(){toast((d.what||"Link")+" disalin")};(navigator.clipboard?navigator.clipboard.writeText(d.copy).then(done,function(){prompt("Salin:",d.copy)}):prompt("Salin:",d.copy));return}
+  // banner ikut terkirim sebagai gambar (berbagi bawaan HP), judul + ringkasan + link sebagai keterangannya
+  if(d.share){var it=byId(d.share);if(!it)return;t.disabled=true;
+    fetch(it.img).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){
+      var f=new File([b],"banner."+(/png/.test(b.type)?"png":/webp/.test(b.type)?"webp":"jpg"),{type:b.type||"image/jpeg"}),data={files:[f],text:textOf(it)};
+      if(!navigator.canShare(data))throw Error("Perangkat ini tidak bisa membagikan gambar; pakai “Bagikan ke WhatsApp”");
+      return navigator.share(data)}).catch(function(x){if(x&&x.name!=="AbortError")toast(x.message)}).then(function(){t.disabled=false});return}
   if(d.cat!==undefined){cat=d.cat;return TEAM?renderTeam():renderPublic()}
   if(d.view){view=d.view;return loadTeam()}
   if(t.id==="bCollect"){t.disabled=true;t.textContent="Mengambil…";api("/api/collect",{method:"POST",body:"{}"}).then(function(j){toast(j.n+" berita dari "+j.sources.length+" sumber");return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false});return}
@@ -176,7 +188,7 @@ document.addEventListener("click",function(e){
     if(d.act==="ai"){t.textContent="AI membaca artikel…";api("/api/ai",{method:"POST",body:JSON.stringify({id:id})}).then(function(){toast("Ringkasan AI siap; cek dulu sebelum terbit");return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false;t.textContent="Ringkas dengan AI"});return}
     var b=Object.assign({id:id,action:d.act==="save"?"":d.act},vals(card));
     api("/api/item",{method:"POST",body:JSON.stringify(b)}).then(function(j){
-      if(d.act==="publish"){toast("Diterbitkan. Link disalin");try{navigator.clipboard.writeText(j.link)}catch(x){}}else toast({save:"Tersimpan",skip:"Diabaikan",restore:"Dikembalikan",unpublish:"Ditarik dari halaman publik"}[d.act]||"OK");
+      if(d.act==="publish"){var it=byId(id)||{};toast("Diterbitkan. Teks untuk dibagikan sudah disalin");try{navigator.clipboard.writeText(textOf({title:b.title||it.title,summary:b.summary||it.summary,url:it.url}))}catch(x){}}else toast({save:"Tersimpan",skip:"Diabaikan",restore:"Dikembalikan",unpublish:"Ditarik dari halaman publik"}[d.act]||"OK");
       return loadTeam()}).catch(function(x){toast(x.message);t.disabled=false})}
 });
 if(TEAM){$("app").innerHTML='<div class="card empty">Memuat…</div>';loadTeam()}else renderPublic();

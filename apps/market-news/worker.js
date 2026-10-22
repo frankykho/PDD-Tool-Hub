@@ -165,16 +165,17 @@ export async function enrich(env, x) {
     const r = await fetch(x.url, { headers: { ...UA, accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(12000) });
     if (r.ok) art = article((await r.text()).slice(0, 900000));
   } catch {}
+  // judul dari slug (halaman daftar tanpa teks judul) diganti judul asli artikel
+  const slug = art.title && art.title.length >= 20 && x.title.slice(1) === x.title.slice(1).toLowerCase(), t0 = slug ? cleanTitle(art.title) : x.title;
   const us = profile(env).brand.short || profile(env).brand.company || "";
-  const input = `Media: ${x.src}\nJudul: ${x.title}\nTanggal: ${x.at || ""}\n\nIsi artikel:\n${art.text || art.descr || x.descr || "(isi tidak terbaca; ringkas dari judul saja, jangan menambah fakta)"}`;
+  const input = `Media: ${x.src}\nJudul: ${t0}\nTanggal: ${x.at || ""}\n\nIsi artikel:\n${art.text || art.descr || x.descr || "(isi tidak terbaca; ringkas dari judul saja, jangan menambah fakta)"}`;
   const { text, model } = await ai(env, AI_RULES(us), input, 900, undefined, { temperature: 0.3, json: true });
   const f = parseAi(text);
   // kode dari AI hanya yang terdaftar di BEI (daftar kode dari data pasar TradingView)
   const mkt = await getMeta(env, "mkt"), codes = new Set(String((mkt && mkt.codes) || "").split(",").filter(Boolean));
   const tk = [...new Set([...(x.tickers ? String(x.tickers).split(",").filter(Boolean) : []), ...f.tickers.filter((c) => !codes.size || codes.has(c))])].slice(0, 6).join(",");
   const set = { ai_state: f.summary ? "done" : "bukan", ai_title: f.title || null, summary: f.summary || null, why: f.why || null, model, image: art.image || x.image || null, tickers: tk || null, updated_at: nowIso() };
-  // judul dari slug (halaman daftar tanpa teks judul) diganti judul asli artikel
-  if (art.title && art.title.length >= 20 && x.title.slice(1) === x.title.slice(1).toLowerCase()) set.title = cleanTitle(art.title);
+  if (slug) set.title = t0;
   if (f.cat) set.cat = f.cat;
   if (!f.summary) set.status = "abaikan"; // AI menilai bukan berita pasar/ekonomi; tim bisa mengembalikannya
   const k = Object.keys(set);
