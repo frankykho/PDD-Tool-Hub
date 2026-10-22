@@ -1,5 +1,6 @@
 // Competitor Intel: promo investasi kompetitor. Secret: SSO_SECRET, ADMIN_KEY (opsional), ANTHROPIC_API_KEY (opsional:
-// AI perapi promo memakai Claude, bukan Workers AI). Var opsional CI_AI_DAILY = batas panggilan AI per hari (bawaan 20).
+// AI perapi promo memakai Claude), GEMINI_API_KEY (opsional, gratis; dipakai sebelum Workers AI).
+// Var opsional CI_AI_DAILY = batas panggilan AI per hari (bawaan 30).
 {
   "name": "competitor-intel",
   "main": "worker.js",
