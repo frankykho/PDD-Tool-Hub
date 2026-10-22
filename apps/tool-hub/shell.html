@@ -659,7 +659,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
   // Market Recap & jadwal berjam Content Planner tampil di Ritme hari ini, jadi tidak punya kartu sendiri
   var PANELS = [["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"],
-    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"]];
+    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"]];
   function renderToday() {
     var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
@@ -730,6 +730,22 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     html += '<div class="subh">Semua promo</div><div class="rows">' + rowHtml(d.review ? "warn" : "ok", d.review ? d.review + " promo perlu verifikasi" : "Tidak ada yang menunggu verifikasi", d.active + " promo aktif") + "</div>";
     el.innerHTML = html + foot(hari(d.date), "competitor", "Buka Competitor");
   }
+  // Market News: laporan keuangan emiten yang dibaca AI dari berita (angka dalam miliar rupiah / juta USD)
+  function fillNews(r) {
+    var el = $("#newsBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Market News tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, it = d.fin || [];
+    var nf = function (x, k) { return Math.abs(x).toLocaleString("id-ID", { maximumFractionDigits: k }); };
+    var fm = function (v, c) { if (v == null) return "–"; var s = v < 0 ? "−" : ""; return c === "USD" ? s + (Math.abs(v) >= 1000 ? "US$" + nf(v / 1000, 2) + " M" : "US$" + nf(v, 1) + " jt") : s + (Math.abs(v) >= 1000 ? "Rp" + nf(v / 1000, 2) + " T" : "Rp" + nf(v, 1) + " M"); };
+    var yoy = function (v) { return v == null ? "" : " (" + (v > 0 ? "+" : v < 0 ? "−" : "") + nf(v, 1) + "%)"; };
+    NN = it.map(function (x) { return { id: "fin:" + x.code + ":" + x.period, kind: "fin", title: x.code + " · laporan keuangan " + x.period, body: "Laba bersih " + fm(x.net_profit, x.currency) + yoy(x.net_profit_yoy), at: x.at }; });
+    mergeBell();
+    var html = '<div class="subh">Rilis sejak kemarin · ' + it.length + " emiten</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
+      return rowHtml(x.net_profit_yoy == null ? "" : x.net_profit_yoy >= 0 ? "ok" : "err", x.code + " · " + x.period, "Pendapatan " + fm(x.revenue, x.currency) + yoy(x.revenue_yoy) + " · Laba bersih " + fm(x.net_profit, x.currency) + yoy(x.net_profit_yoy), "");
+    }).join("") + "</div>" : '<p class="muted small" style="margin:0">Belum ada laporan keuangan baru sejak kemarin.</p>');
+    html += '<div class="subh">Berita</div><div class="rows">' + rowHtml(d.ready ? "warn" : "ok", d.ready ? d.ready + " berita siap dicek & diterbitkan" : "Tidak ada berita yang menunggu", d.pub + " terbit sejak kemarin") + "</div>";
+    el.innerHTML = html + foot(hari(d.date), "news", "Buka Market News");
+  }
   var FN = { web: "Artikel", feed: "Feed", story: "Story" };
   function fillEdu(r) {
     var el = $("#eduBody"); if (!el) return;
@@ -797,7 +813,17 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   /* ---------- notifikasi tugas (disimpan Content Planner, ikut /api/today) ---------- */
   var TSL = { belum: "Belum mulai", proses: "Dikerjakan", revisi: "Revisi", selesai: "Selesai" };
   function todayIso() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); }
-  var NOTIF = { unread: 0, items: [] };
+  var NOTIF = { unread: 0, items: [] }, NP = { unread: 0, items: [] }, NN = [];
+  // lonceng = tugas Content Planner (status dibaca di server) + laporan keuangan baru dari Market News (status dibaca di browser ini)
+  var FINREAD = (function () { try { return JSON.parse(localStorage.getItem("hub_fin_read") || "[]"); } catch (e) { return []; } })();
+  function finSave() { try { localStorage.setItem("hub_fin_read", JSON.stringify(FINREAD.slice(-300))); } catch (e) { } }
+  function mergeBell() {
+    var items = NP.items.concat(NN.map(function (x) { x.read_at = FINREAD.indexOf(x.id) >= 0 ? x.at : null; return x; }));
+    items.sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });
+    NOTIF = { unread: NP.unread + NN.filter(function (x) { return !x.read_at; }).length, items: items.slice(0, 30) };
+    renderBell();
+  }
+  function openNewsFin() { var a = byId.news, p = a && a.pages && a.pages[0]; if (!p) { go("#news"); return; } openPage("news", "/sso?app=news&back=" + encodeURIComponent(new URL(p[1]).origin + "/?view=fin")); }
   function plannerUrl(q) { var a = byId.planner, base = a && a.pages && a.pages[0] ? a.pages[0][1] : ""; if (!base) return ""; var u = new URL(base); u.search = q; return u.href; }
   function openPlanner(q) { var u = plannerUrl(q); if (u) openPage("planner", u); else go("#planner"); }
   function renderBell() {
@@ -807,14 +833,14 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     $("#bellBtn").setAttribute("aria-label", "Notifikasi" + (n ? ", " + n + " belum dibaca" : ""));
     $("#bellMenu").innerHTML = '<div class="nh"><b>Notifikasi</b>' + (n ? '<button class="link" type="button" data-nall>Tandai semua dibaca</button>' : "") + "</div>" +
       (NOTIF.items.length ? NOTIF.items.map(function (x) {
-        return '<button type="button" role="menuitem" class="ni' + (x.read_at ? " read" : "") + '" data-nid="' + esc(String(x.id)) + '" data-item="' + esc(x.item_id || "") + '"><span class="dot ' + (x.read_at ? "" : x.kind === "due" ? "warn" : "info") + '" aria-hidden="true"></span><span><b>' + esc(x.title) + "</b><small>" + esc((x.body ? x.body + " · " : "") + ago(Date.parse(x.at))) + "</small></span></button>";
-      }).join("") : '<div class="nempty">Belum ada notifikasi. Tugas yang diberikan kepadamu akan muncul di sini.</div>') +
-      '<div class="nf"><button class="link" type="button" data-ntasks>Lihat semua tugas ' + icon("arrowR") + "</button></div>";
+        return '<button type="button" role="menuitem" class="ni' + (x.read_at ? " read" : "") + '" data-nid="' + esc(String(x.id)) + '" data-item="' + esc(x.item_id || "") + '"><span class="dot ' + (x.read_at ? "" : x.kind === "due" ? "warn" : x.kind === "fin" ? "ok" : "info") + '" aria-hidden="true"></span><span><b>' + esc(x.title) + "</b><small>" + esc((x.body ? x.body + " · " : "") + ago(Date.parse(x.at))) + "</small></span></button>";
+      }).join("") : '<div class="nempty">Belum ada notifikasi.' + (byId.planner ? " Tugas yang diberikan kepadamu" : "") + (byId.planner && byId.news ? " dan laporan keuangan emiten baru" : byId.news ? " Laporan keuangan emiten baru" : "") + " akan muncul di sini.</div>") +
+      (byId.planner ? '<div class="nf"><button class="link" type="button" data-ntasks>Lihat semua tugas ' + icon("arrowR") + "</button></div>" : "");
   }
-  function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NOTIF = r.data.notif; renderBell(); } }
+  function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NP = r.data.notif; mergeBell(); } }
   function bell(open) { var m = $("#bellMenu"); if (!m) return; m.classList.toggle("open", open); $("#bellBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = m.querySelector("button"); if (f) f.focus(); } }
   function markRead(body) { return fetch("/api/notif/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(function () { }); }
-  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillJobs(d.jobs, d.cron); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {
@@ -825,7 +851,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
       if (r.status === 401) throw new Error("Sesi habis. Muat ulang halaman lalu login lagi.");
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
     }).then(function (d) { feed = d; fillAll(d); })
-      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, jobs: m, cron: m }); })
+      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, news: m, jobs: m, cron: m }); })
       .then(function () { clearTimeout(t); loadingFeed = false; });
   }
 
@@ -1038,19 +1064,24 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     if (k === "escape") { if (!pal.hidden) return palClose(); if ($("#acctMenu").classList.contains("open")) { acct(false); $("#acctBtn").focus(); return; } if ($("#bellMenu").classList.contains("open")) { bell(false); $("#bellBtn").focus(); return; } if (app.classList.contains("drawer")) { closeDrawer(); $(curId ? "#menuBtn2" : "#menuBtn").focus(); } }
   });
   $("#acctBtn").addEventListener("click", function (e) { e.stopPropagation(); bell(false); acct(!$("#acctMenu").classList.contains("open")); });
-  // lonceng: hanya untuk yang boleh membuka Content Planner (notifikasi tugas disimpan di sana)
-  $("#bell").hidden = !byId.planner;
+  // lonceng: untuk yang boleh membuka Content Planner (tugas) atau Market News (laporan keuangan emiten)
+  $("#bell").hidden = !byId.planner && !byId.news;
   $("#bellBtn").innerHTML = icon("bell") + '<span class="nbadge" id="bellN" hidden></span>'; renderBell();
   $("#bellBtn").addEventListener("click", function (e) { e.stopPropagation(); acct(false); bell(!$("#bellMenu").classList.contains("open")); });
   $("#bellMenu").addEventListener("click", function (e) {
     e.stopPropagation();
     var all = e.target.closest("[data-nall]"), it = e.target.closest("[data-nid]"), tk = e.target.closest("[data-ntasks]");
-    if (all) { NOTIF.items.forEach(function (x) { if (!x.read_at) x.read_at = new Date().toISOString(); }); NOTIF.unread = 0; renderBell(); markRead({ all: true }); return; }
+    if (all) {
+      if (NP.unread) markRead({ all: true });
+      NP.items.forEach(function (x) { if (!x.read_at) x.read_at = new Date().toISOString(); }); NP.unread = 0;
+      NN.forEach(function (x) { if (FINREAD.indexOf(x.id) < 0) FINREAD.push(x.id); }); finSave(); mergeBell(); return;
+    }
     if (tk) { bell(false); openPlanner("?view=tasks"); return; }
     if (!it) return;
     var x = NOTIF.items.filter(function (y) { return String(y.id) === it.dataset.nid; })[0];
-    if (x && !x.read_at) { x.read_at = new Date().toISOString(); NOTIF.unread = Math.max(0, NOTIF.unread - 1); markRead({ ids: [x.id] }); }
-    renderBell(); bell(false);
+    if (x && x.kind === "fin") { if (FINREAD.indexOf(x.id) < 0) { FINREAD.push(x.id); finSave(); } mergeBell(); bell(false); openNewsFin(); return; }
+    if (x && !x.read_at) { x.read_at = new Date().toISOString(); NP.unread = Math.max(0, NP.unread - 1); markRead({ ids: [x.id] }); }
+    mergeBell(); bell(false);
     openPlanner(it.dataset.item ? "?item=" + encodeURIComponent(it.dataset.item) : "?view=tasks");
   });
   $("#bellMenu").addEventListener("keydown", function (e) {

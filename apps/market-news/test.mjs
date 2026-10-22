@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { parseRss, parseList, cleanTitle, classify, score, article, parseAi, marketFrom, overview, SOURCES, idOf } from "./news.js";
+import { parseRss, parseList, cleanTitle, classify, score, article, parseAi, marketFrom, overview, SOURCES, idOf, parseFin, finMoney } from "./news.js";
 
 registerHooks({
   load(url, ctx, next) {
@@ -80,7 +80,7 @@ assert.deepEqual([ov.ihsg.pct, ov.sectors.best[0].name, ov.sectors.worst[0].name
   "komoditas bergerak >= 2% disorot bersama emiten sektornya");
 
 /* ---------- worker: kumpulkan, skor, AI, terbitkan, halaman publik ---------- */
-const { default: news, collect, rescore, enrich, ensure } = await import("./worker.js");
+const { default: news, collect, rescore, enrich, ensure, finQueue, notifyFin } = await import("./worker.js");
 function d1() {
   const db = new DatabaseSync(":memory:");
   const st = (sql, args = []) => ({ bind: (...a) => st(sql, a), all: async () => ({ results: db.prepare(sql).all(...args) }), first: async () => db.prepare(sql).get(...args) ?? null,
@@ -183,6 +183,46 @@ assert.equal(s, 404);
 env.AI = { run: async () => ({ response: '{"title":"x","summary":"","why":"","cat":"","tickers":[]}' }) };
 await enrich(env, env.DB.db.prepare("SELECT * FROM mn_items WHERE id=?").get(bi.id));
 assert.deepEqual({ ...env.DB.db.prepare("SELECT status, ai_state FROM mn_items WHERE id=?").get(bi.id) }, { status: "abaikan", ai_state: "bukan" });
+
+/* ---------- laporan keuangan emiten ---------- */
+const codes2 = new Set(["PTPP", "UNVR", "ADRO"]);
+assert.equal(parseFin('{"is_report":false,"code":"PTPP","period":"Q3-2026","revenue":1}', codes2), null, "proyeksi / bukan laporan");
+assert.equal(parseFin('{"is_report":true,"code":"ABCD","period":"Q3-2026","revenue":1}', codes2), null, "kode tidak terdaftar");
+assert.equal(parseFin('{"is_report":true,"code":"PTPP","period":"kuartal ketiga","revenue":1}', codes2), null, "periode tidak dikenali");
+assert.equal(parseFin('{"is_report":true,"code":"PTPP","period":"Q3-2026"}', codes2), null, "tanpa angka");
+const usd = parseFin('{"is_report":true,"code":"ADRO","period":"9m 2026","currency":"USD","revenue":4200,"revenue_prev":5000,"net_profit":-50,"net_profit_prev":100}', codes2);
+assert.deepEqual([usd.period, usd.revenue_yoy, usd.net_profit_yoy, finMoney(usd.revenue, "USD"), finMoney(usd.net_profit, "USD")], ["9M-2026", -16, -150, "US$4,2 M", "−US$50 jt"], "YoY dihitung dari angka tahun lalu; rugi negatif");
+// antrean: berita kinerja dari 2 media -> 1 baris, AI sekali
+const FIN_AI = { is_report: true, code: "PTPP", company: "PP (Persero)", period: "9M-2026", currency: "IDR", revenue: 12500, revenue_prev: 13900, net_profit: 210.5, net_profit_prev: 180, note: "Ditopang efisiensi beban usaha." };
+let finCalls = 0, tg = [];
+env.AI = { run: async (_m, q) => { if (/laporan keuangan emiten/.test(q.messages[0].content)) { finCalls++; return { response: JSON.stringify(FIN_AI) }; } return { response: JSON.stringify({ title: "x", summary: "Ringkasan.", why: "", cat: "emiten", tickers: [] }) }; } };
+FEEDS["https://investasi.kontan.co.id/rss"] = rss([["Laba PT PP (PTPP) Naik 16,9% per Kuartal III 2026", "https://investasi.kontan.co.id/news/ptpp-laba"], ["Rekomendasi Saham PTPP Hari Ini", "https://investasi.kontan.co.id/news/rek-ptpp"]]);
+FEEDS["https://www.cnbcindonesia.com/market/rss"] = rss([["PTPP Cetak Laba Rp210 Miliar hingga Kuartal III", "guid:https://www.cnbcindonesia.com/market/ptpp"]]);
+const realF2 = globalThis.fetch;
+globalThis.fetch = async (u, o) => { if (String(u).startsWith("https://api.telegram.org/")) { tg.push(JSON.parse(o.body)); return Response.json({ ok: true }); } return realF2(u, o); };
+env.DB.db.prepare("UPDATE mn_meta SET v=json_set(v, '$.codes', ?) WHERE k='mkt'").run("MBSS,TLKM,ADRO,PTPP"); // daftar kode BEI (di produksi: semua kode dari TradingView)
+await collect(env, ["kontan", "cnbc-market"]);
+assert.deepEqual(env.DB.db.prepare("SELECT title FROM mn_items WHERE fin_state='pending' ORDER BY title").all().map((x) => x.title), ["Laba PT PP (PTPP) Naik 16,9% per Kuartal III 2026", "PTPP Cetak Laba Rp210 Miliar hingga Kuartal III"]);
+await finQueue(env, 3);
+const fr = env.DB.db.prepare("SELECT * FROM mn_fin").all();
+assert.deepEqual([fr.length, fr[0].code, fr[0].period, fr[0].net_profit_yoy, JSON.parse(fr[0].sources).length, finCalls], [1, "PTPP", "9M-2026", 16.94, 2, 1], "berita kedua jadi sumber tambahan tanpa AI");
+// notifikasi: tanpa saluran -> ditandai terkirim tanpa mengirim; dengan Telegram -> satu pesan berisi angka
+await notifyFin(env);
+assert.deepEqual([tg.length, env.DB.db.prepare("SELECT notified FROM mn_fin").get().notified], [0, 1]);
+env.DB.db.exec("UPDATE mn_fin SET notified=0"); env.TELEGRAM_BOT_TOKEN = "123:abc"; env.TELEGRAM_CHAT_ID = "-100";
+await notifyFin(env);
+assert.equal(tg.length, 1);
+assert.match(tg[0].text, /<b>PTPP · PP \(Persero\) — 9M-2026<\/b>\nPendapatan Rp12,5 T \(−10,07% YoY\)\nLaba bersih Rp210,5 M \(\+16,94% YoY\)/);
+await notifyFin(env);
+assert.equal(tg.length, 1, "tidak dikirim ulang");
+delete env.TELEGRAM_BOT_TOKEN; delete env.TELEGRAM_CHAT_ID;
+[s, j] = await call("/api/fin", VIEW);
+assert.deepEqual([s, j.rows[0].code, j.rows[0].sources.length, j.notify.telegram], [200, "PTPP", 2, false]);
+// kartu "Hari ini" di beranda Tool Hub
+let hr = await news.fetch(new Request(BASE + "/__hub/today"), env, { waitUntil() {} });
+assert.equal(hr.status, 403);
+hr = await news.fetch(new Request(BASE + "/__hub/today", { headers: { "x-hub-key": SECRET } }), env, { waitUntil() {} });
+assert.deepEqual((await hr.json()).fin.map((x) => x.code), ["PTPP"]);
 globalThis.fetch = realFetch;
 
 // skrip halaman harus bisa di-parse

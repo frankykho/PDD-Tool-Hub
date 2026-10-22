@@ -73,6 +73,10 @@ a{color:var(--g)}
 .wa .bub a{color:#027eb5}
 .steps{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
 .steps .acts{margin-top:4px}
+table.fin{width:100%;border-collapse:collapse;font-size:13.5px;min-width:860px}
+table.fin th{text-align:left;font-size:12px;color:var(--t2);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.fin td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.fin td b{font-size:14.5px}table.fin .num{white-space:nowrap}table.fin .num span{display:block;font-size:12px;font-weight:600}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--t);color:var(--card);padding:9px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.show{opacity:1}
 details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
@@ -199,7 +203,30 @@ function renderPublic(){
 }
 
 /* ---------- halaman tim ---------- */
-var view="pick",items=[],mk=null,srcSt={};
+var view=(function(){try{var v=new URLSearchParams(location.search).get("view");return/^(pick|pub|fin|skip|all)$/.test(v)?v:"pick"}catch(e){return"pick"}})(),items=[],mk=null,srcSt={},fin=[],finN={},fq="";
+/* ---------- laporan keuangan (angka dibaca AI dari berita kinerja) ---------- */
+var fm=function(v,c){if(v==null)return"–";var n=function(x,d){return Math.abs(x).toLocaleString("id-ID",{maximumFractionDigits:d})},neg=v<0?"−":"";
+  return c==="USD"?neg+(Math.abs(v)>=1000?"US$"+n(v/1000,2)+" M":"US$"+n(v,1)+" jt"):neg+(Math.abs(v)>=1000?"Rp"+n(v/1000,2)+" T":"Rp"+n(v,1)+" M")};
+var fyT=function(v){return v==null?"":" ("+(v>0?"+":v<0?"−":"")+nf(Math.abs(v),2)+"% YoY)"};
+var fy=function(v){return v==null?"":'<span class="'+(v>0?"up":v<0?"dn":"")+'">'+(v>0?"+":v<0?"−":"")+nf(Math.abs(v),2)+"% YoY</span>"};
+function finTextC(f){var s=f.sources[0];return["*"+f.code+(f.company?" · "+f.company:"")+" — "+f.period+"*","Pendapatan "+fm(f.revenue,f.currency)+fyT(f.revenue_yoy),"Laba bersih "+fm(f.net_profit,f.currency)+fyT(f.net_profit_yoy),f.note||"",s?"Sumber: "+s.src+" "+s.url:""].filter(Boolean).join("\n")}
+function finRowsHtml(){
+  var L=fin.filter(function(f){return!fq||(f.code+" "+(f.company||"")).toLowerCase().indexOf(fq.toLowerCase())>=0});
+  if(!L.length)return'<div class="empty">'+(fin.length?"Tidak ada yang cocok.":"Belum ada laporan keuangan. Berita kinerja emiten (laba, pendapatan, kuartal) dibaca AI otomatis tiap 30 menit.")+"</div>";
+  return'<div style="overflow-x:auto"><table class="fin"><thead><tr><th>Rilis</th><th>Emiten</th><th>Periode</th><th>Pendapatan</th><th>Laba bersih</th><th>Catatan</th><th>Sumber</th><th></th></tr></thead><tbody>'
+   +L.map(function(f){return"<tr><td class=\"muted\" style=\"white-space:nowrap\">"+esc(ago(f.at))+"</td><td><b>"+esc(f.code)+'</b><div class="muted small">'+esc(f.company||"")+"</div></td><td style=\"white-space:nowrap\">"+esc(f.period)+"</td>"
+     +'<td class="num">'+fm(f.revenue,f.currency)+fy(f.revenue_yoy)+'</td><td class="num"><b>'+fm(f.net_profit,f.currency)+"</b>"+fy(f.net_profit_yoy)+"</td>"
+     +'<td class="small">'+esc(f.note||"")+'</td><td class="small">'+f.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join("<br>")+"</td>"
+     +'<td style="white-space:nowrap"><button class="btn sm" type="button" data-copy="'+esc(finTextC(f))+'" data-what="Teks">Salin</button> <a class="btn sm" href="https://wa.me/?text='+encodeURIComponent(finTextC(f))+'" target="_blank" rel="noopener">WhatsApp</a></td></tr>'}).join("")
+   +"</tbody></table></div>";
+}
+function finView(){
+  return'<div class="card" style="display:grid;gap:10px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input id="finQ" placeholder="Cari kode / nama emiten" value="'+esc(fq)+'" style="border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:var(--card);min-width:220px">'
+   +'<span class="muted small">Notifikasi: '+(finN.telegram?'<span class="up">Telegram aktif</span>':"Telegram belum dipasang")+(finN.webhook?' · <span class="up">webhook aktif</span>':"")+"</span></div>"
+   +'<p class="muted small" style="margin:0">Angka dibaca AI dari berita media (miliar rupiah; T = triliun). Cek ke laporan resmi di idx.co.id sebelum dibagikan ke nasabah.</p>'
+   +'<div id="finBox">'+finRowsHtml()+"</div></div>";
+}
+document.addEventListener("input",function(e){if(e.target.id==="finQ"){fq=e.target.value;$("finBox").innerHTML=finRowsHtml()}});
 function renderTeam(){
   var L=items.filter(function(x){return!cat||x.cat===cat}),ok=Object.keys(srcSt.src||{}).filter(function(k){return srcSt.src[k].ok}).length;
   $("app").innerHTML='<div class="bar">'+(C.logo?'<img src="'+esc(C.logo)+'" alt="">':"")+'<h1>Market News</h1><span class="sp"></span>'
@@ -207,15 +234,15 @@ function renderTeam(){
    +'<button class="btn" type="button" data-copy="'+esc(C.publicUrl)+'">Salin link publik</button><a class="btn" href="'+esc(C.publicUrl)+'" target="_blank" rel="noopener">Halaman publik ↗</a></div>'
    +'<p class="muted small" style="margin:-6px 0 0">Berita makro, pasar, dan emiten dari CNBC Indonesia, Kontan, IDX Channel, Bloomberg Technoz, Bisnis.com, EmitenNews, dan Investor Daily. Diurutkan menurut skor hype: berapa media yang memberitakan, aksi korporasi, rilis data ekonomi, dan saham yang ikut naik. Berita teratas diringkas AI otomatis; tim mengecek lalu menerbitkan.</p>'
    +market(mk)
-   +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["skip","Diabaikan"],["all","Semua 48 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
-   +'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>"
+   +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["skip","Diabaikan"],["all","Semua 48 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
+   +(view==="fin"?"":'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join(""))+"</div>"
    +'<details class="src card" style="padding:10px 14px"><summary>Sumber berita: '+ok+" dari "+(C.sources||[]).length+" terbaca terakhir"+(srcSt.ai&&srcSt.ai.n!=null?" · AI hari ini "+srcSt.ai.n+"/"+srcSt.aiLimit:"")+'</summary><div class="srcs">'
    +(C.sources||[]).map(function(s){var v=(srcSt.src||{})[s.id];return"<div>"+(v?(v.ok?'<span class="up">●</span> ':'<span class="dn">●</span> '):"○ ")+esc(s.name)+' <span class="muted">'+esc(s.id)+" · "+(v?(v.ok?v.n+" berita relevan":esc(v.err||"gagal"))+", "+esc(ago(v.at)):"belum dibaca")+"</span></div>"}).join("")+"</div></details>"
-   +'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>";
+   +(view==="fin"?finView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
   prep(L.filter(function(x){return x.status==="terbit"}));
 }
 function loadTeam(){
-  return Promise.all([api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
+  return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
 function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.type==="checkbox"?el.checked:el.value});return o}
 
 document.addEventListener("click",function(e){

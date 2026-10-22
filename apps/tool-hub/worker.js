@@ -609,6 +609,7 @@ const FEEDS = [
   { id: 'fund', binding: 'FUND', name: 'Fund Insight' },
   { id: 'competitor', binding: 'COMPETITOR', name: 'Competitor Intelligence' },
   { id: 'edukasi', binding: 'EDUKASI', name: 'Edukasi Studio', email: true },
+  { id: 'news', binding: 'NEWS', name: 'Market News' },
 ];
 /** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
 async function todayFeed(env, sess, mine) {

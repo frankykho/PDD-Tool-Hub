@@ -15,7 +15,8 @@ import { title, profileScript, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
-import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, tickers, marketFrom, overview } from "./news.js";
+import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
+import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -79,6 +80,11 @@ export async function ensure(env) {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS mn_items_pub ON mn_items(status, published_at)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS mn_meta (k TEXT PRIMARY KEY, v TEXT)"),
   ]);
+  try { await env.DB.prepare("ALTER TABLE mn_items ADD COLUMN fin_state TEXT").run(); } catch {} // antrean laporan keuangan
+  // laporan keuangan emiten dari berita (satu baris per emiten & periode); notified = sudah dikirim ke Telegram / webhook
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_fin (code TEXT, period TEXT, company TEXT, currency TEXT, revenue REAL, revenue_prev REAL, revenue_yoy REAL,
+    net_profit REAL, net_profit_prev REAL, net_profit_yoy REAL, note TEXT, sources TEXT, item_id TEXT, model TEXT, at TEXT, updated_at TEXT, notified INTEGER DEFAULT 0,
+    PRIMARY KEY (code, period))`).run();
   ready = true;
 }
 const getMeta = async (env, k) => { try { const r = await env.DB.prepare("SELECT v FROM mn_meta WHERE k=?").bind(k).first(); return r ? JSON.parse(r.v) : null; } catch { return null; } };
@@ -106,13 +112,14 @@ export async function collect(env, ids) {
       for (const x of L) {
         const t = cleanTitle(x.title), c = classify(t, x.descr, codes);
         if (!c || (x.at && Date.parse(x.at) < old)) continue;
-        rows.push([idOf(x.url), x.url, s.name, s.id, t, x.at || now, now, x.descr || "", x.image || "", c.cat, c.theme, c.corp, c.tickers.join(",")]); n++;
+        const fin = c.cat === "emiten" && c.tickers.length && FIN.test(t) ? "pending" : null; // berita kinerja emiten -> antrean laporan keuangan
+        rows.push([idOf(x.url), x.url, s.name, s.id, t, x.at || now, now, x.descr || "", x.image || "", c.cat, c.theme, c.corp, c.tickers.join(","), fin]); n++;
       }
       st[s.id] = { at: now, ok: true, n, total: L.length };
     } catch (e) { st[s.id] = { ...(st[s.id] || {}), at: now, ok: false, err: String(e.message || e).slice(0, 120) }; }
   }
   for (let i = 0; i < rows.length; i += 40)
-    await env.DB.batch(rows.slice(i, i + 40).map((v) => env.DB.prepare("INSERT OR IGNORE INTO mn_items (id,url,src,src_id,title,at,seen_at,descr,image,cat,theme,corp,tickers) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(...v)));
+    await env.DB.batch(rows.slice(i, i + 40).map((v) => env.DB.prepare("INSERT OR IGNORE INTO mn_items (id,url,src,src_id,title,at,seen_at,descr,image,cat,theme,corp,tickers,fin_state) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(...v)));
   await setMeta(env, "src", st);
   return rows.length;
 }
@@ -150,7 +157,7 @@ export async function market(env) { return overview(await recapLatest(env), awai
 /* =========================================================
    AI: banner & ringkasan dari isi artikel
    ========================================================= */
-const aiLimit = (env) => Number(env.NEWS_AI_DAILY || 40);
+const aiLimit = (env) => Number(env.NEWS_AI_DAILY || 150);
 async function aiTake(env) {
   const d = new Date().toISOString().slice(0, 10), c = (await getMeta(env, "ai_day")) || {};
   const n = c.d === d ? c.n : 0;
@@ -200,6 +207,84 @@ async function enrichQueue(env, n) {
 }
 
 /* =========================================================
+   LAPORAN KEUANGAN EMITEN (dari berita kinerja)
+   ========================================================= */
+const FIN_COLS = "code,period,company,currency,revenue,revenue_prev,revenue_yoy,net_profit,net_profit_prev,net_profit_yoy,note,sources,item_id,model,at,updated_at";
+const addSrc = (json, s) => { let L = []; try { L = JSON.parse(json || "[]"); } catch {} if (!L.some((x) => x.url === s.url)) L.push(s); return JSON.stringify(L.slice(0, 8)); };
+/** Baca satu berita kinerja: AI mengambil periode, pendapatan, laba bersih. Hasil: "done" (tersimpan), "bukan", atau error. */
+export async function finRead(env, x) {
+  let art = { text: "", descr: "" };
+  try { const r = await fetch(x.url, { headers: { ...UA, accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(12000) }); if (r.ok) art = article((await r.text()).slice(0, 900000)); } catch {}
+  const mkt = await getMeta(env, "mkt"), codes = new Set(String((mkt && mkt.codes) || "").split(",").filter(Boolean));
+  const { text, model } = await ai(env, FIN_RULES, `Media: ${x.src}\nJudul: ${x.title}\nTanggal: ${x.at || ""}\n\nIsi artikel:\n${art.text || art.descr || x.descr || x.title}`, 700, undefined, { temperature: 0.1, json: true });
+  const f = parseFin(text, codes);
+  if (!f) { await env.DB.prepare("UPDATE mn_items SET fin_state='bukan' WHERE id=?").bind(x.id).run(); return "bukan"; }
+  const now = nowIso(), src = { src: x.src, url: x.url, title: x.title };
+  const old = await env.DB.prepare("SELECT sources FROM mn_fin WHERE code=? AND period=?").bind(f.code, f.period).first();
+  if (old) {
+    // laporan yang sama dari media lain: angka yang kosong dilengkapi, sumber ditambah, tidak dikirim ulang
+    await env.DB.prepare(`UPDATE mn_fin SET revenue=COALESCE(revenue,?), revenue_prev=COALESCE(revenue_prev,?), revenue_yoy=COALESCE(revenue_yoy,?), net_profit=COALESCE(net_profit,?),
+      net_profit_prev=COALESCE(net_profit_prev,?), net_profit_yoy=COALESCE(net_profit_yoy,?), note=COALESCE(NULLIF(note,''),?), sources=?, updated_at=? WHERE code=? AND period=?`)
+      .bind(f.revenue, f.revenue_prev, f.revenue_yoy, f.net_profit, f.net_profit_prev, f.net_profit_yoy, f.note, addSrc(old.sources, src), now, f.code, f.period).run();
+  } else {
+    await env.DB.prepare(`INSERT INTO mn_fin (${FIN_COLS},notified) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`).bind(f.code, f.period, f.company, f.currency, f.revenue, f.revenue_prev, f.revenue_yoy,
+      f.net_profit, f.net_profit_prev, f.net_profit_yoy, f.note, JSON.stringify([src]), x.id, model, x.at || now, now).run();
+  }
+  await env.DB.prepare("UPDATE mn_items SET fin_state='done' WHERE id=?").bind(x.id).run();
+  return "done";
+}
+/** Antrean berita kinerja (4 hari terakhir, terbaru dulu). Emiten yang sudah terbaca dalam 3 hari: berita lain cukup jadi sumber tambahan (tanpa AI). */
+export async function finQueue(env, n = 3) {
+  if (!env.AI && !env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
+  const since = new Date(Date.now() - 4 * 864e5).toISOString(), recent = new Date(Date.now() - 3 * 864e5).toISOString();
+  const L = (await env.DB.prepare("SELECT id,url,src,title,at,descr,tickers FROM mn_items WHERE fin_state='pending' AND seen_at>=? ORDER BY seen_at DESC LIMIT 12").bind(since).all()).results || [];
+  let done = 0;
+  for (const x of L) {
+    const code = String(x.tickers || "").split(",")[0];
+    const have = code ? await env.DB.prepare("SELECT period, sources FROM mn_fin WHERE code=? AND updated_at>=? ORDER BY updated_at DESC LIMIT 1").bind(code, recent).first() : null;
+    if (have) {
+      await env.DB.batch([env.DB.prepare("UPDATE mn_fin SET sources=? WHERE code=? AND period=?").bind(addSrc(have.sources, { src: x.src, url: x.url, title: x.title }), code, have.period),
+        env.DB.prepare("UPDATE mn_items SET fin_state='sama' WHERE id=?").bind(x.id)]);
+      continue;
+    }
+    if (done >= n || !(await aiTake(env))) break;
+    try { await finRead(env, x); done++; }
+    catch (e) { if (/kuota/i.test(e.message)) break; await env.DB.prepare("UPDATE mn_items SET fin_state='gagal' WHERE id=?").bind(x.id).run(); }
+  }
+  return done;
+}
+const finRows = async (env, days = 30) => ((await env.DB.prepare(`SELECT ${FIN_COLS} FROM mn_fin WHERE updated_at>=? ORDER BY at DESC, updated_at DESC LIMIT 300`).bind(new Date(Date.now() - days * 864e5).toISOString()).all()).results || [])
+  .map((r) => ({ ...r, sources: JSON.parse(r.sources || "[]") }));
+/** Kirim laporan keuangan baru ke Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID) dan/atau webhook (NOTIFY_WEBHOOK, mis. gateway WhatsApp). */
+export async function notifyFin(env) {
+  const L = (await env.DB.prepare(`SELECT ${FIN_COLS} FROM mn_fin WHERE notified=0 ORDER BY at LIMIT 8`).all()).results || [];
+  if (!L.length) return 0;
+  const tg = env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID, hook = env.NOTIFY_WEBHOOK;
+  if (tg || hook) {
+    const blocks = L.map((f) => finText(f, (JSON.parse(f.sources || "[]"))[0]));
+    const text = `📊 Laporan keuangan baru (${L.length})\n\n` + blocks.join("\n\n");
+    if (tg) {
+      const hesc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: hesc(text).replace(/^\*(.+)\*$/gm, "<b>$1</b>"), parse_mode: "HTML", disable_web_page_preview: true }) });
+      if (!r.ok) throw new Error("Telegram HTTP " + r.status);
+    }
+    if (hook) await fetch(hook, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ text, content: text.slice(0, 1990) }) });
+  }
+  // tanpa saluran notifikasi pun ditandai terkirim, supaya saat saluran dipasang tidak membanjiri laporan lama
+  await env.DB.batch(L.map((f) => env.DB.prepare("UPDATE mn_fin SET notified=1 WHERE code=? AND period=?").bind(f.code, f.period)));
+  return L.length;
+}
+/** Ringkasan untuk kartu "Hari ini" di beranda Tool Hub (shared/hubfeed.js). */
+async function hubToday(env) {
+  await ensure(env);
+  const today = ymd(wib()), since = new Date(Date.parse(today + "T00:00:00+07:00") - 864e5).toISOString();
+  const fin = (await env.DB.prepare(`SELECT ${FIN_COLS} FROM mn_fin WHERE at>=? OR updated_at>=? ORDER BY at DESC LIMIT 6`).bind(since, since).all()).results || [];
+  const c = await env.DB.prepare("SELECT SUM(status='terbit' AND published_at>=?) AS pub, SUM(status='baru' AND lead=1 AND ai_state='done' AND seen_at>=?) AS ready FROM mn_items").bind(since, since).first();
+  return { date: today, fin: fin.map((r) => ({ ...r, sources: JSON.parse(r.sources || "[]") })), pub: (c && c.pub) || 0, ready: (c && c.ready) || 0 };
+}
+
+/* =========================================================
    HALAMAN
    ========================================================= */
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -245,11 +330,14 @@ export default withCron({
     if ((wd && h >= 9 && h < 17) || !m || Date.now() - Date.parse(m.at) > 6 * 3600e3) await refreshMarket(env).catch((err) => console.error("pasar:", err.message));
     await rescore(env);
     await enrichQueue(env, 2).catch((err) => console.error("AI:", err.message));
+    await finQueue(env, 3).catch((err) => console.error("lapkeu:", err.message));
+    await notifyFin(env).catch((err) => console.error("notifikasi:", err.message));
   },
 
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
     try {
+      if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env)) : new Response("forbidden", { status: 403 });
       if (path === "/logo") {
         const src = profile(env).brand.logo;
         if (!src) return new Response("Tidak ada logo", { status: 404 });
@@ -283,6 +371,7 @@ export default withCron({
 
       if (request.method === "GET") {
         if (path === "/api/market") return json(await market(env));
+        if (path === "/api/fin") return json({ rows: await finRows(env, Number(url.searchParams.get("days")) || 30), notify: { telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID), webhook: !!env.NOTIFY_WEBHOOK } });
         if (path === "/api/sources") return json({ src: (await getMeta(env, "src")) || {}, ai: (await getMeta(env, "ai_day")) || {}, aiLimit: aiLimit(env) });
         if (path === "/api/items") {
           const v = url.searchParams.get("view") || "pick", since = new Date(Date.now() - 48 * 3600e3).toISOString();

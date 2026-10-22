@@ -13,6 +13,7 @@
     { "binding": "FUND", "service": "fund-insight" },
     { "binding": "COMPETITOR", "service": "competitor-intel" },
     { "binding": "EDUKASI", "service": "edukasi-studio" },
+    { "binding": "NEWS", "service": "market-news" },
     { "binding": "CRON", "service": "tool-cron" }
   ]
 }

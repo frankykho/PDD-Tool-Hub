@@ -121,6 +121,8 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - AI membaca artikel (gambar og:image untuk banner, paragraf isi tanpa biodata penulis) dan menulis judul, ringkasan 2–3 kalimat, "mengapa penting", kategori, dan kode saham; kalimat bernada rekomendasi dibuang. Bukan berita pasar -> diabaikan otomatis.
 - Ringkasan pasar: IHSG, sektor, penggerak (poin), dan komoditas dibaca dari tabel `recaps` Market Recap (binding `RECAP_DB` ke recap-db, hanya baca); komoditas yang bergerak >= 2% disorot bersama emiten sektornya.
 - Gambar berita lewat `/img/<id>` (hotlink media sering diblokir; di-cache 1 hari). Halaman publik mencantumkan media sumber, link artikel asli, dan disclaimer profil.
+- **Laporan keuangan emiten**: berita kinerja (laba/pendapatan/kuartal/semester + kode saham) masuk antrean `fin_state`; AI (`FIN_RULES`, suhu 0.1) mengambil kode, periode (`Q1–Q4`, `H1`, `9M`, `FY`), pendapatan & laba bersih (miliar rupiah / juta USD), angka tahun lalu, YoY, dan penyebab. Proyeksi/target analis tidak dihitung. Satu baris per emiten & periode (`mn_fin`); berita emiten yang sama dalam 3 hari cukup jadi sumber tambahan (tanpa AI). Tab **Laporan Keuangan** (salin / WhatsApp), kartu "Laporan keuangan emiten" di beranda Tool Hub (`/__hub/today`, binding `NEWS`).
+- Notifikasi laporan baru: Telegram (secret `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`) dan/atau webhook (`NOTIFY_WEBHOOK`, POST `{text, content}`, mis. gateway WhatsApp). Tanpa saluran, laporan tetap ditandai terkirim supaya tidak membanjiri saat saluran dipasang.
 - Cek: `node apps/market-news/test.mjs`
 
 ### Competitor Intelligence: AI perapi promo

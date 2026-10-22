@@ -209,3 +209,55 @@ export function overview(recap, mkt) {
     movers: { up: ((d.movers || {}).up || []).slice(0, 3), down: ((d.movers || {}).down || []).slice(0, 3) },
     gainers: m.gainers || [], value: m.value || [], commodities: comm, foreign: d.foreign || null };
 }
+
+/* ---------------- laporan keuangan emiten ---------------- */
+// berita kinerja: laba/pendapatan/periode laporan; diproses bila menyebut kode saham
+export const FIN = /\blaba\b|rugi bersih|pendapatan|penjualan bersih|kinerja (keuangan|kuartal|semester)|laporan keuangan|kuartal [iv1-4]+|semester [i12]+|\bq[1-4]\b|\b9m\b|\bfy ?20\d\d\b/i;
+export const FIN_RULES = [
+  "Kamu analis riset pasar modal. Dari artikel berita yang diberikan, ambil hasil laporan keuangan emiten yang BARU DIRILIS.",
+  "Hanya angka yang tertulis di artikel; jangan menghitung atau mengarang. Isi null bila tidak disebut.",
+  '- is_report: true hanya bila artikel memberitakan hasil laporan keuangan untuk periode tertentu yang sudah dirilis. false untuk proyeksi, target, perkiraan analis, atau berita tanpa angka kinerja.',
+  "- code: kode saham 4 huruf emiten yang laporannya diberitakan; company: nama emiten.",
+  '- period: "Q1-2026", "Q2-2026", "Q3-2026", "Q4-2026" untuk satu kuartal; "H1-2026" (semester I / 6 bulan), "9M-2026" (9 bulan / hingga kuartal III), "FY-2025" (setahun penuh). Bila artikel menulis "kuartal III" tetapi angkanya kumulatif sejak Januari, pakai "9M".',
+  '- currency: "IDR" atau "USD". Angka uang dalam MILIAR untuk IDR (Rp4,2 triliun = 4200; Rp870 miliar = 870) atau JUTA untuk USD (US$1,2 miliar = 1200).',
+  "- revenue, revenue_prev: pendapatan/penjualan bersih periode ini dan periode yang sama tahun lalu; revenue_yoy: persen perubahan (angka, mis. -5.2).",
+  "- net_profit, net_profit_prev, net_profit_yoy: laba bersih yang diatribusikan ke pemilik entitas induk (bila disebut; kalau tidak, laba bersih). Rugi = angka negatif.",
+  "- note: 1 kalimat penyebab utama sesuai artikel (maks. 140 karakter), tanpa saran beli/jual.",
+  'Jawab HANYA dengan JSON: {"is_report": true, "code": "", "company": "", "period": "", "currency": "IDR", "revenue": null, "revenue_prev": null, "revenue_yoy": null, "net_profit": null, "net_profit_prev": null, "net_profit_yoy": null, "note": ""}',
+].join("\n");
+const fnum = (v) => { if (v == null || v === "") return null; const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); return Number.isFinite(n) ? Math.round(n * 100) / 100 : null; };
+/** Periode -> "Q3-2026" / "H1-2026" / "9M-2026" / "FY-2025"; "" bila tidak dikenali. */
+export function finPeriod(p) {
+  const s = String(p || "").toUpperCase().replace(/\s+/g, ""), m = /^(Q[1-4]|H[12]|9M|FY)-?(20\d\d)$/.exec(s);
+  if (!m) return "";
+  return (m[1] === "H2" ? "FY" : m[1]) + "-" + m[2]; // semester II dilaporkan sebagai setahun penuh
+}
+/** Jawaban AI -> baris laporan keuangan; null bila bukan laporan atau tanpa kode/periode/angka. YoY dihitung bila hanya angka tahun lalu yang ada. */
+export function parseFin(raw, codes) {
+  const t = String(raw || ""), a = t.indexOf("{"), b = t.lastIndexOf("}");
+  let j = null; try { if (a >= 0 && b > a) j = JSON.parse(t.slice(a, b + 1)); } catch {}
+  if (!j || j.is_report === false) return null;
+  const code = String(j.code || "").toUpperCase().trim(), period = finPeriod(j.period);
+  if (!/^[A-Z]{4}$/.test(code) || (codes && codes.size && !codes.has(code)) || !period) return null;
+  const f = { code, company: String(j.company || "").trim().slice(0, 120), period, currency: j.currency === "USD" ? "USD" : "IDR",
+    revenue: fnum(j.revenue), revenue_prev: fnum(j.revenue_prev), revenue_yoy: fnum(j.revenue_yoy),
+    net_profit: fnum(j.net_profit), net_profit_prev: fnum(j.net_profit_prev), net_profit_yoy: fnum(j.net_profit_yoy),
+    note: String(j.note || "").replace(/\s+/g, " ").trim().slice(0, 200) };
+  const yoy = (c, p) => (c != null && p ? Math.round((c / Math.abs(p) - (p < 0 ? -1 : 1)) * 10000) / 100 : null);
+  if (f.revenue_yoy == null) f.revenue_yoy = yoy(f.revenue, f.revenue_prev);
+  if (f.net_profit_yoy == null) f.net_profit_yoy = yoy(f.net_profit, f.net_profit_prev);
+  return f.revenue == null && f.net_profit == null ? null : f;
+}
+/** Angka laporan -> "Rp4,2 T" / "Rp870 M" / "US$1,2 M" (miliar IDR / juta USD). */
+export function finMoney(v, cur) {
+  if (v == null) return "–";
+  const n = (x, d) => Math.abs(x).toLocaleString("id-ID", { maximumFractionDigits: d }), neg = v < 0 ? "−" : "";
+  if (cur === "USD") return neg + (Math.abs(v) >= 1000 ? "US$" + n(v / 1000, 2) + " M" : "US$" + n(v, 1) + " jt");
+  return neg + (Math.abs(v) >= 1000 ? "Rp" + n(v / 1000, 2) + " T" : "Rp" + n(v, 1) + " M");
+}
+const yoyTxt = (v) => (v == null ? "" : ` (${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("id-ID", { maximumFractionDigits: 2 })}% YoY)`);
+/** Teks siap kirim (WhatsApp / Telegram) untuk satu laporan. */
+export function finText(f, src) {
+  return [`*${f.code}${f.company ? " · " + f.company : ""} — ${f.period}*`, `Pendapatan ${finMoney(f.revenue, f.currency)}${yoyTxt(f.revenue_yoy)}`,
+    `Laba bersih ${finMoney(f.net_profit, f.currency)}${yoyTxt(f.net_profit_yoy)}`, f.note || "", src ? `Sumber: ${src.src} ${src.url}` : ""].filter(Boolean).join("\n");
+}
