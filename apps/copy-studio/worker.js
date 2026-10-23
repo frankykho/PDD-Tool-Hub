@@ -129,15 +129,62 @@ export const AB_TYPES = {
   hook: "kalimat pembuka (hook) caption atau video (maks. 120 karakter)",
   cta: "ajakan bertindak / CTA (maks. 60 karakter)",
 };
-const ANGLES = "manfaat, pertanyaan, angka/data, cerita singkat, rasa ingin tahu, kontras/mitos-vs-fakta";
+/** Petunjuk khusus per jenis teks A/B. */
+const AB_HINT = {
+  headline: "Taruh manfaat atau kata kunci di 3–5 kata pertama.",
+  subject: "Hindari pemicu spam (huruf kapital semua, \"GRATIS\", tanda seru beruntun); angka, pertanyaan, atau rasa ingin tahu biasanya menaikkan open rate.",
+  hook: "Harus bisa dipahami tanpa konteks; jangan buka dengan salam, nama brand, atau \"Halo sobat\".",
+  cta: "Mulai dengan kata kerja dan sebut langkah atau manfaat berikutnya (mis. \"Cek simulasinya\", \"Mulai dari Rp10 ribu\").",
+};
+/** Formula copywriting untuk variasi A/B; tiap variasi memakai satu formula yang berbeda. */
+const FORMULAS = "manfaat langsung, pertanyaan, angka spesifik, mitos vs fakta, kesalahan umum, \"kalau kamu…\", cerita mini, rasa ingin tahu, perbandingan, PAS (masalah–dampak–solusi)";
+
+/** Nada tulisan yang bisa dipilih di tiap menu AI. */
+export const TONES = {
+  santai: { label: "Santai", desc: "santai dan akrab seperti teman yang paham investasi; sapa pembaca dengan \"kamu\"" },
+  semangat: { label: "Semangat", desc: "energik dan memotivasi, kalimat pendek bertenaga; tetap tanpa janji hasil" },
+  edukatif: { label: "Edukatif", desc: "jelas dan sabar seperti mentor; satu konsep, satu contoh angka sederhana" },
+  profesional: { label: "Profesional", desc: "rapi, ringkas, dan meyakinkan untuk investor berpengalaman; sapa pembaca dengan \"Anda\"" },
+  syariah: { label: "Syariah", desc: "hangat dan santun, istilah syariah tepat (akad, sesuai prinsip syariah, DSN-MUI) tanpa menggurui" },
+};
+const toneLine = (b) => (TONES[b && b.tone] ? `Nada: ${TONES[b.tone].desc}.\n` : "");
+
+/** Pola hook (kalimat pembuka yang menghentikan scroll) dengan contoh yang patuh aturan. */
+export const HOOKS = [
+  ["pertanyaan langsung", "Masih nyimpen semua uang di tabungan?"],
+  ["angka spesifik", "Rp10 ribu sudah cukup untuk mulai reksa dana."],
+  ["mitos vs fakta", "Katanya investasi harus modal besar. Faktanya?"],
+  ["kesalahan umum", "3 kesalahan pemula saat pertama beli saham."],
+  ["kalau kamu…", "Kalau kamu baru gajian, baca ini dulu."],
+  ["sebelum–sesudah", "Dulu bingung mulai dari mana. Sekarang tiap bulan rutin investasi."],
+  ["rasa ingin tahu", "Ini alasan banyak pemula mulai dari reksa dana pasar uang."],
+  ["cerita mini", "Rina mulai investasi Rp50 ribu per minggu. Ini yang dia pelajari."],
+  ["langkah/daftar", "Cara mulai investasi dalam 3 langkah."],
+  ["perbandingan", "Deposito vs reksa dana pasar uang: mana yang cocok untuk dana darurat?"],
+];
+/** Cara menulis copy yang menjual; aturan kepatuhan (RULES_PROMPT) tetap di atasnya. */
+const CRAFT = [
+  "Cara menulis copy yang menjual:",
+  "- Kalimat pertama adalah hook: buat orang berhenti scroll dalam 1–2 detik. Pola yang bisa dipakai: " + HOOKS.map(([n, e]) => `${n} ("${e}")`).join("; ") + ".",
+  "- Manfaat dulu, fitur kemudian: tulis apa yang pembaca dapat atau rasakan, bukan hanya nama fitur.",
+  "- Spesifik mengalahkan umum: angka, waktu, langkah, dan situasi nyata pembaca (gajian, dana darurat, THR, biaya sekolah, liburan).",
+  "- Satu pesan utama per teks. Kalimat pendek, kata kerja aktif, ritme bervariasi; kalimat satu-dua kata boleh untuk penekanan.",
+  "- Bicara ke satu orang dengan bahasa sehari-hari yang natural, bukan bahasa brosur atau siaran pers.",
+  "- Satu CTA yang jelas, diawali kata kerja: Mulai, Cek, Pelajari, Simpan, Bagikan, Buka aplikasi.",
+  "- Hindari klise dan gaya tulisan AI: \"di era digital\", \"tidak hanya … tetapi juga\", \"mari kita\", \"yuk simak\", \"kesempatan emas\", \"solusi terbaik\", \"wujudkan impianmu\", \"tunggu apa lagi\", \"jangan sampai ketinggalan\", tanda seru beruntun.",
+  "- Urgensi hanya bila nyata (tanggal penawaran, kuota resmi); jangan membuat FOMO palsu.",
+  "- Emoji secukupnya dan bermakna (maks. 3), tidak menggantikan kata penting.",
+  "- Sebelum menjawab, baca ulang tiap teks: ganti kata generik dengan yang konkret dan buang kata yang tidak menambah makna.",
+].join("\n");
 
 function system(env, style) {
   const p = profile(env), co = p.brand.company || "perusahaan sekuritas", app = p.app.name;
   const gl = style.glossary.filter((g) => g.good).map((g) => `"${g.good}" (bukan "${g.bad}")`).join(", ");
   const ban = style.glossary.filter((g) => !g.good).map((g) => `"${g.bad}"`).join(", ");
   return [
-    `Kamu copywriter senior untuk ${co}${app ? ` (aplikasi investasi ${app})` : ""}. Tulis dalam Bahasa Indonesia.`,
-    style.guide ? "Panduan gaya tim:\n" + style.guide : "",
+    `Kamu copywriter senior untuk ${co}${app ? ` (aplikasi investasi ${app})` : ""}: tulisanmu menarik, terasa manusiawi, dan membuat orang bertindak. Tulis dalam Bahasa Indonesia.`,
+    CRAFT,
+    style.guide ? "Panduan gaya tim (utamakan bila berbeda dengan cara menulis di atas):\n" + style.guide : "",
     gl ? "Ejaan wajib: " + gl + "." : "",
     ban ? "Kata yang tidak boleh dipakai: " + ban + "." : "",
     RULES_PROMPT,
@@ -150,29 +197,29 @@ export function prompt(kind, b) {
   if (kind === "ab") {
     const type = AB_TYPES[b.type] ? b.type : "headline", n = Math.min(8, Math.max(3, Number(b.n) || 5)), brief = str(b.brief, 3000);
     if (!brief) return null;
-    return { max: 1500, user: `Buat ${n} variasi ${AB_TYPES[type]} untuk diuji A/B.\nPlatform: ${PLATFORMS[b.platform] ? PLATFORMS[b.platform].label : "umum"}.\nBrief:\n${brief}\n\nSetiap variasi memakai sudut berbeda (pilih dari: ${ANGLES}) dan patuhi batas karakternya.\nFormat: {"items":[{"text":"","angle":""}]}` };
+    return { max: 2000, user: `Buat ${n} variasi ${AB_TYPES[type]} untuk diuji A/B.\nPlatform: ${PLATFORMS[b.platform] ? PLATFORMS[b.platform].label : "umum"}.\n${toneLine(b)}Brief:\n${brief}\n\nSetiap variasi memakai formula yang berbeda (pilih dari: ${FORMULAS}) sehingga hasil ujinya benar-benar membandingkan pendekatan, bukan sekadar ganti kata. ${AB_HINT[type]} Patuhi batas karakternya.\n- angle: nama formula yang dipakai.\n- why: alasan singkat (maks. 100 karakter) kenapa versi ini bisa menang dan untuk pembaca seperti apa.\nFormat: {"items":[{"text":"","angle":"","why":""}]}` };
   }
   if (kind === "app") {
     const brief = str(b.brief, 3000);
     if (!brief) return null;
-    return { max: 1500, user: `Buat teks pendek di dalam aplikasi dari brief ini:\n${brief}\n${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}\n- 3 push notification: title maks. 40 karakter, body maks. 110 karakter. Boleh 1 emoji di title.\n- 3 banner in-app: title maks. 40 karakter, body maks. 90 karakter, cta maks. 18 karakter.\nPromo selalu sebut \"S&K berlaku\" di body.\nFormat: {"push":[{"title":"","body":""}],"inapp":[{"title":"","body":"","cta":""}]}` };
+    return { max: 1800, user: `Buat teks pendek di dalam aplikasi dari brief ini:\n${brief}\n${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}${toneLine(b)}\n- 3 push notification: title maks. 40 karakter, body maks. 110 karakter. Boleh 1 emoji di title. Ketiganya memakai pendekatan berbeda: manfaat, rasa ingin tahu, dan pengingat/tenggat (tenggat hanya bila ada di brief).\n- Title harus membuat orang ingin membuka notifikasi; body menjelaskan apa yang didapat dan langkah berikutnya.\n- 3 banner in-app: title maks. 40 karakter, body maks. 90 karakter, cta maks. 18 karakter diawali kata kerja.\nPromo selalu sebut \"S&K berlaku\" di body.\nFormat: {"push":[{"title":"","body":""}],"inapp":[{"title":"","body":"","cta":""}]}` };
   }
   if (kind === "reels") {
     const topic = str(b.topic, 500), source = str(b.source, 8000), dur = [15, 30, 60, 90].includes(Number(b.duration)) ? Number(b.duration) : 30;
     if (!topic && !source) return null;
     const plat = { reels: "Instagram Reels", tiktok: "TikTok", shorts: "YouTube Shorts" }[b.platform] || "Instagram Reels";
-    return { max: 2500, user: `Tulis naskah video vertikal ${plat} berdurasi ${dur} detik.\n${topic ? "Topik: " + topic + "\n" : ""}${b.audience ? "Penonton: " + str(b.audience, 200) + "\n" : ""}${source ? "Bahan (gunakan hanya fakta dari sini, jangan menyalin kalimatnya):\n" + source + "\n" : ""}\nAturan naskah:\n- hook: kalimat 0–3 detik pertama yang membuat orang berhenti scroll.\n- scenes: 4–8 adegan; time (mis. \"0–3 dtk\"), visual (apa yang tampil/direkam), voiceover (yang diucapkan), onscreen (teks di layar, maks. 8 kata).\n- Total voiceover pas untuk ${dur} detik (±2,5 kata per detik).\n- cta: satu ajakan di akhir. caption: caption posting (maks. 600 karakter). hashtags: 3–6 tagar. notes: catatan produksi singkat (musik, b-roll, risiko yang perlu disebut).\nFormat: {"title":"","hook":"","scenes":[{"time":"","visual":"","voiceover":"","onscreen":""}],"cta":"","caption":"","hashtags":[],"notes":""}` };
+    return { max: 3000, user: `Tulis naskah video vertikal ${plat} berdurasi ${dur} detik.\n${topic ? "Topik: " + topic + "\n" : ""}${b.audience ? "Penonton: " + str(b.audience, 200) + "\n" : ""}${toneLine(b)}${source ? "Bahan (gunakan hanya fakta dari sini, jangan menyalin kalimatnya):\n" + source + "\n" : ""}\nAturan naskah:\n- hook: kalimat 0–3 detik pertama yang membuat orang berhenti scroll; ucapan dan teks layar langsung ke inti, tanpa salam pembuka.\n- hooks: 3 hook alternatif dengan pola berbeda (text, pattern = nama pola) untuk diuji.\n- Buka rasa penasaran di awal dan jawab di akhir supaya penonton menonton sampai habis; tiap adegan menambah informasi baru.\n- scenes: 4–8 adegan; time (mis. \"0–3 dtk\"), visual (apa yang tampil/direkam), voiceover (yang diucapkan), onscreen (teks di layar, maks. 8 kata).\n- Total voiceover pas untuk ${dur} detik (±2,5 kata per detik).\n- cta: satu ajakan di akhir. caption: caption posting (maks. 600 karakter). hashtags: 3–6 tagar. notes: catatan produksi singkat (musik, b-roll, risiko yang perlu disebut).\nFormat: {"title":"","hook":"","hooks":[{"text":"","pattern":""}],"scenes":[{"time":"","visual":"","voiceover":"","onscreen":""}],"cta":"","caption":"","hashtags":[],"notes":""}` };
   }
   if (kind === "kit") {
     const facts = factLines(b.product);
     if (!facts) return null;
     const co = b.mode === "comarketing" && str(b.partner, 120);
-    return { max: 3500, user: `Susun paket konten ${co ? `co-marketing bersama ${co} (manajer investasi / mitra produk)` : "promosi produk"} dari fakta berikut. Gunakan HANYA angka dan fakta ini, sebut tanggal datanya, dan jangan menambah klaim.\n${facts}\n${b.audience ? "Target pembaca: " + str(b.audience, 200) + "\n" : ""}${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}${co ? `Sebut ${co} sebagai manajer investasi/mitra secara netral; ajakan bertindak tetap ke aplikasi kita.\n` : ""}
+    return { max: 3500, user: `Susun paket konten ${co ? `co-marketing bersama ${co} (manajer investasi / mitra produk)` : "promosi produk"} dari fakta berikut. Gunakan HANYA angka dan fakta ini, sebut tanggal datanya, dan jangan menambah klaim.\n${facts}\n${b.audience ? "Target pembaca: " + str(b.audience, 200) + "\n" : ""}${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}${toneLine(b)}${co ? `Sebut ${co} sebagai manajer investasi/mitra secara netral; ajakan bertindak tetap ke aplikasi kita.\n` : ""}
 Isi:
 - headline: judul kampanye (maks. 60 karakter). key_message: pesan utama 1 kalimat.
-- feed: caption Instagram feed (maks. 900 karakter) dengan 3–5 hashtag di akhir.
-- story: 3–5 frame Instagram Story; tiap frame teks pendek (maks. 120 karakter).
-- wa: pesan WhatsApp broadcast/Channel (maks. 700 karakter).
+- feed: caption Instagram feed (maks. 900 karakter): baris pertama hook (maks. 125 karakter, terlihat sebelum "lainnya"), lalu manfaat, bukti dari fakta (angka + tanggal), CTA, dan 3–5 hashtag di akhir.
+- story: 3–5 frame Instagram Story; tiap frame teks pendek (maks. 120 karakter); frame pertama hook, frame terakhir CTA.
+- wa: pesan WhatsApp broadcast/Channel (maks. 700 karakter): paragraf pendek, judul tebal dengan *...*, satu CTA.
 - email: subject (maks. 45 karakter), preheader (maks. 90 karakter), body (3–6 paragraf pendek).
 - push: notifikasi aplikasi, title (maks. 40 karakter) dan body (maks. 110 karakter).
 - faq: 4–6 tanya-jawab singkat untuk tim CS/sales (biaya, risiko, cara beli, minimal pembelian bila ada di fakta).
@@ -196,13 +243,15 @@ export function parse(kind, raw) {
   let j = null; try { if (a >= 0 && z > a) j = JSON.parse(t.slice(a, z + 1)); } catch {}
   if (!j || typeof j !== "object") throw new AiError("Jawaban AI tidak berisi JSON. Coba lagi.");
   const list = (v, n) => (Array.isArray(v) ? v : []).slice(0, n);
-  if (kind === "ab") return { items: list(j.items, 8).map((x) => ({ text: str(x && x.text, 300), angle: str(x && x.angle, 60) })).filter((x) => x.text) };
+  if (kind === "ab") return { items: list(j.items, 8).map((x) => ({ text: str(x && x.text, 300), angle: str(x && x.angle, 60), why: str(x && x.why, 200) })).filter((x) => x.text) };
   if (kind === "app") return {
     push: list(j.push, 5).map((x) => ({ title: str(x && x.title, 80), body: str(x && x.body, 200) })).filter((x) => x.title || x.body),
     inapp: list(j.inapp, 5).map((x) => ({ title: str(x && x.title, 80), body: str(x && x.body, 200), cta: str(x && x.cta, 40) })).filter((x) => x.title || x.body),
   };
   if (kind === "reels") return {
-    title: str(j.title, 150), hook: str(j.hook, 300), cta: str(j.cta, 200), caption: str(j.caption, 2200), notes: str(j.notes, 1000),
+    title: str(j.title, 150), hook: str(j.hook, 300),
+    hooks: list(j.hooks, 5).map((h) => (typeof h === "string" ? { text: str(h, 300), pattern: "" } : { text: str(h && h.text, 300), pattern: str(h && h.pattern, 60) })).filter((h) => h.text),
+    cta: str(j.cta, 200), caption: str(j.caption, 2200), notes: str(j.notes, 1000),
     hashtags: list(j.hashtags, 10).map((h) => str(h, 40).replace(/^#?/, "#").replace(/\s+/g, "")).filter((h) => h.length > 1),
     scenes: list(j.scenes, 12).map((s) => ({ time: str(s && s.time, 30), visual: str(s && s.visual, 400), voiceover: str(s && s.voiceover, 600), onscreen: str(s && s.onscreen, 120) })),
   };
@@ -300,7 +349,7 @@ export default {
       const role = me.adm ? "admin" : me.a, canEdit = role === "admin" || role === "editor", who = me.n || me.u || me.e;
       if (isPage) {
         const p = profile(env);
-        return html(page(env, { canEdit, style: await getStyle(env), allow: allowCodes(env), abTypes: AB_TYPES,
+        return html(page(env, { canEdit, style: await getStyle(env), allow: allowCodes(env), abTypes: AB_TYPES, tones: Object.fromEntries(Object.entries(TONES).map(([k, t]) => [k, t.label])),
           brand: { hashtags: p.brand.hashtags, license: p.brand.license, disclaimer: p.brand.disclaimer, app: p.app.name } }), { "content-security-policy": HUBSSO.frame(env) });
       }
       if (request.method === "GET" && path === "/api/style") return json(await getStyle(env));

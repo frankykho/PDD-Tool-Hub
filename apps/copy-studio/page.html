@@ -151,6 +151,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
       <div class="row">
         <label>Jenis<select id="abType"></select></label>
         <label>Platform<select id="abPlat"></select></label>
+        <label>Nada<select id="abTone" data-tone></select></label>
         <label>Jumlah<select id="abN"><option>3</option><option selected>5</option><option>8</option></select></label>
       </div>
       <label class="small muted" style="font-weight:600">Brief<textarea id="abBrief" placeholder="Mis. ajak pemula mulai reksa dana pasar uang dari Rp10 ribu di aplikasi; nada santai; target mahasiswa."></textarea></label>
@@ -164,7 +165,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     <div class="card stack">
       <div><h2>Teks Aplikasi</h2><p class="muted small" style="margin:0">Push notification dan banner in-app dari promo, berita, atau produk.</p></div>
       <label class="small muted" style="font-weight:600">Brief<textarea id="apBrief" placeholder="Mis. Sukuk Ritel SR025 masa penawaran 2–25 Nov, kupon 6,4% p.a. minimal Rp1 juta, pesan di aplikasi."></textarea></label>
-      <div class="row"><label class="grow">Tujuan (opsional)<input type="text" id="apGoal" placeholder="Mis. orang membuka halaman produk"></label></div>
+      <div class="row"><label>Nada<select id="apTone" data-tone></select></label><label class="grow">Tujuan (opsional)<input type="text" id="apGoal" placeholder="Mis. orang membuka halaman produk"></label></div>
       <div class="row"><button class="btn pri" id="apGo" type="button">Buat teks</button></div>
     </div>
     <div class="card stack" id="apOut"><div class="empty">Push notif dan banner muncul di sini.</div></div>
@@ -184,7 +185,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
         <label>Mode<select id="kMode"><option value="launch">Peluncuran / promosi produk</option><option value="comarketing">Co-marketing dengan MI / mitra</option></select></label>
         <label class="grow" id="kPartnerL" hidden>Mitra<input type="text" id="kPartner" placeholder="Nama manajer investasi / mitra"></label>
       </div>
-      <div class="row"><label class="grow">Target pembaca (opsional)<input type="text" id="kAud" placeholder="Mis. karyawan muda, pemula, nasabah syariah"></label></div>
+      <div class="row"><label>Nada<select id="kTone" data-tone></select></label><label class="grow">Target pembaca (opsional)<input type="text" id="kAud" placeholder="Mis. karyawan muda, pemula, nasabah syariah"></label></div>
       <div class="row"><label class="grow">Tujuan (opsional)<input type="text" id="kGoal" placeholder="Mis. pembelian pertama, top up, webinar bersama MI"></label></div>
       <div class="row"><button class="btn pri" id="kGo" type="button">Buat paket</button><span class="muted small" id="kInfo"></span></div>
     </div>
@@ -198,6 +199,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
       <div class="row">
         <label>Platform<select id="rsPlat"><option value="reels">Instagram Reels</option><option value="tiktok">TikTok</option><option value="shorts">YouTube Shorts</option></select></label>
         <label>Durasi<select id="rsDur"><option value="15">15 detik</option><option value="30" selected>30 detik</option><option value="60">60 detik</option><option value="90">90 detik</option></select></label>
+        <label>Nada<select id="rsTone" data-tone></select></label>
       </div>
       <div class="row"><label class="grow">Topik<input type="text" id="rsTopic" placeholder="Mis. Bedanya reksa dana pasar uang dan deposito"></label></div>
       <div class="row"><label class="grow">Penonton (opsional)<input type="text" id="rsAud" placeholder="Mis. pekerja muda yang baru mulai investasi"></label></div>
@@ -300,8 +302,8 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
       ["Pilih <b>Platform</b> tempat teks akan tayang (batas karakternya ikut berubah).", "Tempel atau ketik teks. Hasil cek muncul langsung di kanan.", "Baca daftar <b>Hasil cek</b>: <b>Perbaiki</b> = wajib diubah, <b>Periksa</b> = cek ulang, <b>Saran</b> = sebaiknya ditambah. Klik satu baris untuk menandai kata itu di teks.", "Pakai <b>+ Izin & disclaimer</b> / <b>+ Hashtag brand</b> untuk menambah teks baku dari profil.", "Kalau masih ada catatan, klik <b>Perbaiki dengan AI</b>, baca usulannya, lalu <b>Pakai teks ini</b> bila sesuai.", "Klik <b>Salin</b> dan tempel ke Instagram/WhatsApp/aplikasi."],
       ["Kotak “Terlihat sebelum lainnya” menunjukkan bagian caption yang terbaca tanpa diklik: taruh pesan utama di situ.", "Kode produk sendiri (mis. ETF di profil) boleh disebut bersama kata “beli”; kode saham lain akan ditandai.", "Cek ini alat bantu, bukan pengganti review compliance."]],
     ab: ["Membuat beberapa versi judul, subject email, kalimat pembuka (hook), atau ajakan (CTA) dengan sudut berbeda untuk diuji mana yang paling efektif.",
-      ["Pilih <b>Jenis</b> teks dan <b>Platform</b>.", "Pilih <b>Jumlah</b> variasi (3, 5, atau 8).", "Tulis <b>Brief</b>: produk/topik, target pembaca, nada, dan pesan utama.", "Klik <b>Buat variasi</b>. Tiap versi diberi label sudutnya (manfaat, pertanyaan, angka, dll.) dan status cek.", "<b>Salin</b> versi yang dipilih, atau <b>Cek</b> untuk membukanya di Cek Caption. <b>Salin semua</b> untuk dikirim ke atasan/tim."],
-      ["Brief yang spesifik menghasilkan variasi yang lebih tajam (sebut angka, tanggal, dan siapa pembacanya).", "Untuk uji A/B email, kirim 2 subject terbaik ke dua kelompok kecil dulu, lalu pakai pemenangnya.", "Batas tulisan AI dibagi untuk seluruh tim per hari."]],
+      ["Pilih <b>Jenis</b> teks dan <b>Platform</b>.", "Pilih <b>Jumlah</b> variasi (3, 5, atau 8).", "Pilih <b>Nada</b>, lalu tulis <b>Brief</b>: produk/topik, target pembaca, dan pesan utama.", "Klik <b>Buat variasi</b>. Tiap versi memakai formula copywriting berbeda (label di atasnya: pertanyaan, angka spesifik, mitos vs fakta, PAS, dll.), lengkap dengan alasan kenapa versi itu bisa menang, dan status cek.", "<b>Salin</b> versi yang dipilih, atau <b>Cek</b> untuk membukanya di Cek Caption. <b>Salin semua</b> untuk dikirim ke atasan/tim."],
+      ["Brief yang spesifik menghasilkan variasi yang lebih tajam (sebut angka, tanggal, dan siapa pembacanya).", "Untuk uji A/B email, kirim 2 subject terbaik ke dua kelompok kecil dulu, lalu pakai pemenangnya.", "Uji dua versi dengan formula berbeda (mis. pertanyaan vs angka spesifik), bukan dua versi yang mirip, supaya hasilnya bisa dipelajari.", "Pilihan <b>Nada</b> berlaku di semua menu dan diingat di browser ini.", "Batas tulisan AI dibagi untuk seluruh tim per hari."]],
     app: ["Membuat teks pendek di dalam aplikasi: push notification dan banner in-app, lengkap dengan pratinjau dan batas karakternya.",
       ["Tulis <b>Brief</b>: promo, produk, atau berita yang mau diumumkan (sertakan tanggal, angka, dan syaratnya).", "Isi <b>Tujuan</b> bila ada (mis. orang membuka halaman produk).", "Klik <b>Buat teks</b>: keluar 3 push notif dan 3 banner.", "Periksa label panjang tiap judul & isi, lalu <b>Salin</b> yang dipakai dan serahkan ke tim aplikasi."],
       ["Judul push maks. ±40 karakter supaya tidak terpotong di layar kunci.", "Promo wajib menyebut “S&K berlaku”.", "Hindari kata mendesak berlebihan (buruan, kesempatan terakhir)."]],
@@ -309,7 +311,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
       ["Pilih <b>Jenis</b> produk, cari namanya, lalu klik produk di daftar. Fakta produk tampil di bawahnya; cek angkanya.", "Pilih <b>Mode</b>: <b>Peluncuran / promosi</b>, atau <b>Co-marketing</b> bila kampanye bersama manajer investasi/mitra (nama mitra terisi otomatis dari MI produk).", "Isi <b>Target pembaca</b> dan <b>Tujuan</b> (opsional, tapi membuat hasil lebih tepat).", "Klik <b>Buat paket</b>.", "Tiap bagian punya <b>Salin</b> dan <b>Cek</b>. <b>Salin semua</b> / <b>Unduh .txt</b> untuk dibagikan ke tim, desainer, dan CS."],
       ["AI hanya memakai angka dari fakta produk; tetap cocokkan tanggal data dengan fund fact sheet sebelum terbit.", "Brief visual bisa langsung ditempel ke permintaan desain di Content Planner.", "Untuk co-marketing, konfirmasi materi ke MI sebelum tayang."]],
     reels: ["Menulis naskah video vertikal (Reels, TikTok, Shorts): hook 3 detik pertama, adegan demi adegan (visual, voice over, teks layar), CTA, caption, dan hashtag.",
-      ["Pilih <b>Platform</b> dan <b>Durasi</b>.", "Isi <b>Topik</b>, dan bila ada, <b>Penonton</b> yang dituju.", "Tempel <b>Bahan</b> (berita, artikel edukasi, fakta produk) supaya isi naskah akurat. AI hanya memakai fakta dari bahan itu.", "Klik <b>Tulis naskah</b>. Cek perkiraan durasi bicara di bawah tabel adegan.", "<b>Salin naskah</b> / <b>Unduh .txt</b> untuk tim produksi, dan <b>Cek caption</b> sebelum unggah."],
+      ["Pilih <b>Platform</b> dan <b>Durasi</b>.", "Isi <b>Topik</b>, dan bila ada, <b>Penonton</b> yang dituju.", "Tempel <b>Bahan</b> (berita, artikel edukasi, fakta produk) supaya isi naskah akurat. AI hanya memakai fakta dari bahan itu.", "Klik <b>Tulis naskah</b>. Selain hook utama, ada 3 <b>hook alternatif</b> dengan pola berbeda untuk diuji. Cek perkiraan durasi bicara di bawah tabel adegan.", "<b>Salin naskah</b> / <b>Unduh .txt</b> untuk tim produksi, dan <b>Cek caption</b> sebelum unggah."],
       ["Hook yang baik menyebut masalah atau angka yang membuat orang berhenti scroll.", "Teks layar maks. ±8 kata per adegan supaya terbaca.", "Setelah video jadi, buat subtitlenya di menu Subtitle."]],
     sub: ["Membuat subtitle otomatis dari video atau audio, lalu mengunduhnya sebagai .srt atau .vtt untuk CapCut, Premiere, atau YouTube.",
       ["Pilih berkas video/audio (maks. ±15 menit; MP4, MOV, M4A, MP3 umumnya bisa).", "Pilih <b>Bahasa</b> dan <b>Maks. karakter per baris</b> (42 cocok untuk video vertikal).", "Klik <b>Buat subtitle</b> dan tunggu sampai bar selesai (suara diproses per ±20 detik).", "Putar video di kiri; subtitle tampil di atasnya. Perbaiki teks di daftar kanan; klik waktu untuk melompat ke bagian itu.", "Klik <b>Unduh .srt</b> (atau .vtt), lalu impor ke aplikasi edit video. <b>Salin transkrip</b> untuk bahan caption."],
@@ -398,6 +400,14 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
   };
   $("ckFixUse").onclick = function () { $("ckText").value = fixed; $("ckFixBox").hidden = true; runCheck(); };
 
+  /* ---------- NADA (dipakai semua menu AI, diingat per browser) ---------- */
+  var tone0 = "santai"; try { tone0 = localStorage.getItem("cs_tone") || tone0; } catch (e) {}
+  var toneSel = document.querySelectorAll("select[data-tone]");
+  [].forEach.call(toneSel, function (sel) {
+    Object.keys(CS.tones || {}).forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = CS.tones[k]; if (k === tone0) o.selected = true; sel.appendChild(o); });
+    sel.addEventListener("change", function () { var v = sel.value; [].forEach.call(toneSel, function (x) { x.value = v; }); try { localStorage.setItem("cs_tone", v); } catch (e) {} });
+  });
+
   /* ---------- VARIASI A/B ---------- */
   Object.keys(CS.abTypes || {}).forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = CS.abTypes[k]; $("abType").appendChild(o); });
   platOptions($("abPlat"), ["ig", "tiktok", "linkedin", "x", "wa", "yt_title", "email_subject"], "ig");
@@ -407,10 +417,10 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     var btn = this, brief = $("abBrief").value.trim();
     if (!brief) return toast("Isi brief dulu");
     busy(btn, true);
-    api("/api/ai", { kind: "ab", type: $("abType").value, platform: $("abPlat").value, n: $("abN").value, brief: brief }).then(function (j) {
+    api("/api/ai", { kind: "ab", type: $("abType").value, platform: $("abPlat").value, n: $("abN").value, tone: $("abTone").value, brief: brief }).then(function (j) {
       abItems = j.result.items || []; var plat = $("abPlat").value;
       $("abOut").innerHTML = abItems.length ? abItems.map(function (x, n) {
-        return '<div class="var"><div class="row"><b>' + String.fromCharCode(65 + n) + '</b>' + (x.angle ? '<span class="tag">' + esc(x.angle) + "</span>" : "") + '<span style="flex:1"></span><button class="btn sm" data-c="' + n + '" type="button">Salin</button><button class="btn sm" data-k="' + n + '" type="button">Cek</button></div><div class="tx">' + esc(x.text) + "</div><div>" + badge(x.text, plat) + "</div></div>";
+        return '<div class="var"><div class="row"><b>' + String.fromCharCode(65 + n) + '</b>' + (x.angle ? '<span class="tag">' + esc(x.angle) + "</span>" : "") + '<span style="flex:1"></span><button class="btn sm" data-c="' + n + '" type="button">Salin</button><button class="btn sm" data-k="' + n + '" type="button">Cek</button></div><div class="tx">' + esc(x.text) + "</div>" + (x.why ? '<div class="muted small">' + esc(x.why) + "</div>" : "") + "<div>" + badge(x.text, plat) + "</div></div>";
       }).join("") + '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + "</p>" : '<div class="empty">AI tidak memberi variasi. Coba lagi.</div>';
       $("abCopyAll").hidden = !abItems.length;
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
@@ -424,7 +434,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     var btn = this, brief = $("apBrief").value.trim();
     if (!brief) return toast("Isi brief dulu");
     busy(btn, true);
-    api("/api/ai", { kind: "app", brief: brief, goal: $("apGoal").value }).then(function (j) {
+    api("/api/ai", { kind: "app", brief: brief, goal: $("apGoal").value, tone: $("apTone").value }).then(function (j) {
       apRes = j.result; var appName = esc(B.app || P.app && P.app.name || "Aplikasi");
       var push = (apRes.push || []).map(function (x, n) {
         return '<div class="stack" style="gap:6px"><div class="mock"><div class="app"><span>' + appName + "</span><span>sekarang</span></div><div class=\"tt\">" + esc(x.title) + "</div><div>" + esc(x.body) + '</div></div><div class="row small">Judul ' + badge(x.title, "push_title") + '</div><div class="row small">Isi ' + badge(x.body, "push_body") + '</div><div class="row"><button class="btn sm" data-p="' + n + '" type="button">Salin</button></div></div>';
@@ -482,7 +492,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     var btn = this; if (!kSel) return toast("Pilih produknya dulu");
     var mode = $("kMode").value; if (mode === "comarketing" && !$("kPartner").value.trim()) return toast("Isi nama mitra");
     busy(btn, true, "Menyusun paket…");
-    api("/api/ai", { kind: "kit", product: kSel, mode: mode, partner: $("kPartner").value, audience: $("kAud").value, goal: $("kGoal").value }).then(function (j) {
+    api("/api/ai", { kind: "kit", product: kSel, mode: mode, partner: $("kPartner").value, audience: $("kAud").value, goal: $("kGoal").value, tone: $("kTone").value }).then(function (j) {
       var k = kRes = j.result, blk = function (title, text, plat, extra) { return '<div class="var"><div class="row"><b>' + title + '</b><span style="flex:1"></span><button class="btn sm" type="button" data-kc="' + esc(text) + '">Salin</button>' + (plat ? '<button class="btn sm" type="button" data-kk="' + esc(text) + '" data-kp="' + plat + '">Cek</button>' : "") + '</div><div class="hl">' + esc(text) + "</div>" + (plat ? "<div>" + badge(text, plat) + "</div>" : "") + (extra || "") + "</div>"; };
       $("kOut").innerHTML = '<div class="row"><h2 style="flex:1">' + esc(k.headline || kSel.name) + '</h2><button class="btn sm" id="kAll" type="button">Salin semua</button><button class="btn sm" id="kDl" type="button">Unduh .txt</button></div>' +
         (k.key_message ? '<p class="muted small" style="margin:0">' + esc(k.key_message) + "</p>" : "") +
@@ -507,7 +517,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
   /* ---------- NASKAH VIDEO ---------- */
   var rs = null;
   function scriptText(x) {
-    return [x.title, "", "HOOK: " + x.hook, ""].concat((x.scenes || []).map(function (s, n) {
+    return [x.title, "", "HOOK: " + x.hook].concat((x.hooks || []).map(function (h) { return "  alternatif: " + h.text + (h.pattern ? " (" + h.pattern + ")" : ""); }), [""]).concat((x.scenes || []).map(function (s, n) {
       return "Adegan " + (n + 1) + (s.time ? " (" + s.time + ")" : "") + "\n  Visual: " + s.visual + "\n  VO: " + s.voiceover + (s.onscreen ? "\n  Teks layar: " + s.onscreen : "");
     })).concat(["", "CTA: " + x.cta, "", "CAPTION:", x.caption + (x.hashtags && x.hashtags.length ? "\n\n" + x.hashtags.join(" ") : ""), "", "CATATAN PRODUKSI: " + x.notes]).join("\n");
   }
@@ -515,11 +525,12 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     var btn = this, topic = $("rsTopic").value.trim(), src = $("rsSrc").value.trim();
     if (!topic && !src) return toast("Isi topik atau bahan dulu");
     busy(btn, true);
-    api("/api/ai", { kind: "reels", topic: topic, source: src, platform: $("rsPlat").value, duration: $("rsDur").value, audience: $("rsAud").value }).then(function (j) {
+    api("/api/ai", { kind: "reels", topic: topic, source: src, platform: $("rsPlat").value, duration: $("rsDur").value, audience: $("rsAud").value, tone: $("rsTone").value }).then(function (j) {
       rs = j.result; var plat = $("rsPlat").value === "tiktok" ? "tiktok" : "ig", cap = rs.caption + (rs.hashtags.length ? "\n\n" + rs.hashtags.join(" ") : "");
       var words = (rs.scenes || []).map(function (s) { return s.voiceover; }).join(" ").split(/\s+/).filter(Boolean).length;
       $("rsOut").innerHTML = '<div class="row"><h2 style="flex:1">' + esc(rs.title || "Naskah") + '</h2><button class="btn sm" id="rsCopy" type="button">Salin naskah</button><button class="btn sm" id="rsDl" type="button">Unduh .txt</button></div>' +
         '<div class="fold"><b>Hook (0–3 detik)</b>' + esc(rs.hook) + "</div>" +
+        (rs.hooks && rs.hooks.length ? '<div class="fold"><b>Hook alternatif untuk diuji</b>' + rs.hooks.map(function (h) { return "• " + esc(h.text) + (h.pattern ? ' <span class="tag">' + esc(h.pattern) + "</span>" : ""); }).join("<br>") + "</div>" : "") +
         '<div class="scroll"><table><thead><tr><th>Waktu</th><th>Visual</th><th>Voice over</th><th>Teks layar</th></tr></thead><tbody>' +
         (rs.scenes || []).map(function (s) { return "<tr><td>" + esc(s.time) + "</td><td>" + esc(s.visual) + "</td><td>" + esc(s.voiceover) + "</td><td><b>" + esc(s.onscreen) + "</b></td></tr>"; }).join("") + "</tbody></table></div>" +
         '<p class="muted small" style="margin:0">' + words + " kata voice over ≈ " + Math.round(words / 2.5) + " detik bicara.</p>" +

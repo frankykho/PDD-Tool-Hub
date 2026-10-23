@@ -13,7 +13,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: worker, cleanStyle, prompt, parse, segments, DEFAULT_STYLE } = await import("./worker.js");
+const { default: worker, cleanStyle, prompt, parse, segments, DEFAULT_STYLE, HOOKS } = await import("./worker.js");
 
 /* ---------- aturan kepatuhan ---------- */
 const ids = (t, o) => checkCopy(t, o).issues.map((i) => i.id);
@@ -70,7 +70,16 @@ assert.match(prompt("ab", { brief: "reksa dana", type: "subject", n: 99 }).user,
 assert.match(prompt("reels", { topic: "Deposito vs RDPU", duration: 60 }).user, /60 detik/);
 assert.match(prompt("reels", { topic: "x", duration: 7 }).user, /30 detik/, "durasi tidak sah -> 30");
 assert.equal(prompt("nope", {}), null);
-assert.deepEqual(parse("ab", 'oke ```json {"items":[{"text":"Halo","angle":"manfaat"},{"text":""}]} ```'), { items: [{ text: "Halo", angle: "manfaat" }] });
+assert.deepEqual(parse("ab", 'oke ```json {"items":[{"text":"Halo","angle":"manfaat","why":"langsung ke inti"},{"text":""}]} ```'), { items: [{ text: "Halo", angle: "manfaat", why: "langsung ke inti" }] });
+// nada & formula: nada sah masuk ke perintah, nada asing diabaikan; tiap jenis A/B punya petunjuk sendiri
+assert.match(prompt("ab", { brief: "x", tone: "syariah" }).user, /Nada: hangat dan santun/);
+assert.doesNotMatch(prompt("ab", { brief: "x", tone: "aneh" }).user, /Nada:/);
+assert.match(prompt("ab", { brief: "x", type: "subject" }).user, /pemicu spam/);
+assert.match(prompt("ab", { brief: "x" }).user, /PAS \(masalah–dampak–solusi\)/);
+for (const k of ["app", "reels", "kit"]) assert.match(prompt(k, { brief: "x", topic: "x", product: { name: "X" }, tone: "edukatif" }).user, /Nada: jelas dan sabar/, k);
+assert.deepEqual(parse("reels", '{"hooks":["Satu",{"text":"Dua","pattern":"angka spesifik"},{"text":""}]}').hooks, [{ text: "Satu", pattern: "" }, { text: "Dua", pattern: "angka spesifik" }]);
+// contoh hook di panduan menulis AI sendiri harus lolos cek kepatuhan
+for (const [n, e] of HOOKS) assert.equal(checkCopy(e, { platform: "ig" }).issues.filter((i) => i.level === "error").length, 0, n);
 assert.deepEqual(parse("reels", '{"hashtags":["investasi","#Reksa Dana"],"scenes":[{"time":"0-3"}]}').hashtags, ["#investasi", "#ReksaDana"]);
 assert.throws(() => parse("fix", "maaf"), /JSON/);
 assert.deepEqual(segments({ segments: [{ start: 0, end: 2.5, text: " Halo " }, { start: 3, end: 4, text: "" }] }), [{ start: 0, end: 2.5, text: "Halo" }]);
