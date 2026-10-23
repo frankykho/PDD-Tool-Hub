@@ -1,0 +1,11 @@
+// Copy Studio: menulis & menyiapkan konten (cek caption, variasi A/B, teks aplikasi, naskah Reels, subtitle, ubah ukuran, panduan gaya).
+// Secret: SSO_SECRET, GEMINI_API_KEY / ANTHROPIC_API_KEY (opsional; kosong = Workers AI). Subtitle selalu lewat Workers AI (Whisper).
+// DB = panduan gaya, glosarium, dan hitungan pemakaian AI per hari (tabel meta).
+{
+  "name": "copy-studio",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "copy-db", "database_id": "auto" }],
+  "vars": { "COPY_AI_DAILY": "60", "COPY_STT_DAILY": "360" }
+}

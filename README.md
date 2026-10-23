@@ -19,6 +19,7 @@ Semua nama brand, logo, link, dan sumber data diatur lewat **satu file profil** 
 | Content Planner | `apps/content-planner` | Kalender kegiatan tim: konten sosmed, artikel, edukasi/narasumber, permintaan visual ke desainer (papan Tugas desain), laporan PPT/PDF per periode & orang; Program partnership (partner, periode, tujuan, target, hasil bisnis & biaya, kegiatan terkait) dengan tugas yang dibagi Partnership ke anggota tim + tampilan Tugas, notifikasi tugas, dan laporan program PPT/PDF; Paket Mingguan: rangkuman reksa dana, obligasi, agenda pekan depan + draf caption/email; tanpa cron |
 | Competitor Intel | `apps/competitor-intel` | Pantau promo investasi kompetitor |
 | Content Insight | `apps/content-insight` | Galeri konten media sosial kompetitor; ide tim (semua anggota, banyak ide per konten); konsep konten orisinal dibuat AI untuk Social Media Specialist (hook, sudut beda, alur slide/naskah, caption, brief visual, catatan kepatuhan) dan satu tombol ke Content Planner (+ permintaan visual ke desainer) |
+| Copy Studio | `apps/copy-studio` | Untuk Copywriter & Social Media Specialist: cek caption per platform (batas karakter, hashtag, aturan iklan produk investasi, glosarium tim), perbaikan dengan AI, variasi A/B (headline, subject, hook, CTA), push notif & banner in-app, naskah Reels/TikTok/Shorts, subtitle otomatis (.srt/.vtt, Whisper Workers AI), ubah satu gambar ke banyak ukuran, panduan gaya & glosarium |
 | Edukasi Studio | `apps/edukasi-studio` | Riset artikel edukasi & tulis konten orisinal (Workers AI) |
 | SATS Radar | `apps/sats` | Sinyal & screener saham (API + tampilan React) |
 | Tutorial | `apps/tutorial` | Pusat tutorial aplikasi (Firebase) |
@@ -104,6 +105,13 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
 - Cek: `node apps/fund-insight/test.mjs`
 
+### Copy Studio & cek kepatuhan bersama
+
+- `shared/compliance.js`: satu aturan cek teks pemasaran untuk semua tool, dipakai di server (`checkCopy`) dan browser (`complianceScript()` -> `window.Compliance.check`). Menandai janji untung / tanpa risiko dan ajakan beli-jual saham tertentu / target harga (harus diperbaiki); superlatif, bahasa mendesak, angka kinerja tanpa "kinerja masa lalu…", promo tanpa "S&K berlaku", dan teks panjang tanpa keterangan OJK (periksa); produk investasi tanpa pengingat risiko (saran). Batas karakter & hashtag per platform ada di `PLATFORMS`. Kode produk sendiri (ETF di `tools.etf.facts` dan `tools.copy.allow` di profil) boleh disebut bersama "beli".
+- Panduan gaya & glosarium disimpan di D1 `copy-db` (tabel `meta`), diubah Editor/admin, dan ikut di semua prompt AI Copy Studio. Tool lain bisa membacanya lewat `GET /__hub/style` (header `x-hub-key`).
+- AI lewat `shared/ai.js` (Gemini gratis bila `GEMINI_API_KEY` dipasang di `copy-studio`, selain itu Workers AI). Batas per hari: `COPY_AI_DAILY` (bawaan 60).
+- Subtitle: browser mengubah suara video/audio menjadi WAV 16 kHz mono, memotongnya per ±20 detik di jeda paling sunyi, lalu tiap potongan ditulis `@cf/openai/whisper-large-v3-turbo`. Batas: `COPY_STT_DAILY` potongan per hari (bawaan 360 ≈ 2 jam audio). Ubah ukuran gambar sepenuhnya di browser.
+- Cek: `node apps/copy-studio/test.mjs`
 ### Competitor Intelligence: input manual
 
 - Promo yang tidak terbaca scan diisi tim. Ada tiga cara: **+ Tambah manual**; **+ Isi promo** di baris sumber yang Gagal atau Manual (kompetitor, jenis, dan URL sudah terisi); dan **Lengkapi** (form yang hanya berisi field yang belum terbaca, dari kartu Kelengkapan detail, kartu daftar, atau dialog Export PDF). Field yang memang tidak ada diisi "Tidak ada" supaya tidak dihitung kurang.

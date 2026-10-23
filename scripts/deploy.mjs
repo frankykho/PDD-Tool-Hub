@@ -27,6 +27,7 @@ export const APPS = [
   { id: "etf", dir: "apps/etf-insight" },
   { id: "competitor", dir: "apps/competitor-intel" },
   { id: "edukasi", dir: "apps/edukasi-studio" },
+  { id: "copy", dir: "apps/copy-studio" },
   { id: "marketproxy", dir: "apps/market-proxy" },
   { id: "storydata", dir: "apps/story-data" },
   { id: "story", dir: "apps/story-generator" },

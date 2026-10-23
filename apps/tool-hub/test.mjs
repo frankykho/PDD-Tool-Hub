@@ -44,7 +44,7 @@ function d1() {
   return { db, prepare: (sql) => st(sql), batch: async (list) => { const out = []; for (const x of list) out.push(await x.all()); return out; } };
 }
 const SECRET = "s".repeat(40), ADMIN = "admin@acme.test", HUB = "https://hub.acme.test";
-const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "news", "planner", "sats", "tutorial"];
+const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "news", "planner", "sats", "tutorial", "copy"];
 const PROFILE = JSON.stringify({ urls: Object.fromEntries([["hub", HUB], ...IDS.map((id) => [id, `https://${id}.acme.test`])]), github: { repo: "acme/tools" }, brand: { short: "Acme" } });
 const recapEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const plannerEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
@@ -109,14 +109,14 @@ assert.match(admin, /^hub_sess=/);
 let r = await call("/", { cookie: admin });
 assert.equal(r.status, 200);
 let html = await r.text(), boot = bootOf(html);
-assert.equal(boot.apps.length, 13, "admin melihat semua 13 tool");
+assert.equal(boot.apps.length, 14, "admin melihat semua 14 tool");
 assert.deepEqual(boot.apps.map((a) => a.id).sort(), [...IDS].sort());
 for (const a of boot.apps) {
   assert.ok(boot.cats[a.cat], `${a.id}: kategori sah`);
   assert.ok(a.icon && a.blurb && a.features.length, `${a.id}: ikon, ringkasan, dan fitur terisi`);
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
-assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["edukasi", "recap"], "AI Workbench hanya tool yang memang memakai AI");
+assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["copy", "edukasi", "recap"], "AI Workbench hanya tool yang memang memakai AI");
 assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
