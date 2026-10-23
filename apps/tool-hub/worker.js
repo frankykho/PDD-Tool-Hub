@@ -613,6 +613,7 @@ const FEEDS = [
   { id: 'edukasi', binding: 'EDUKASI', name: 'Edukasi Studio', email: true },
   { id: 'news', binding: 'NEWS', name: 'Market News' },
   { id: 'etf', binding: 'ETF', name: 'ETF Insight' },
+  { id: 'bond', binding: 'BOND', name: 'Bond Insight' },
 ];
 /** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
 async function todayFeed(env, sess, mine) {

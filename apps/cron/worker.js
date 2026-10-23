@@ -10,6 +10,7 @@
 //   :20/:50          Market Recap, Senin–Jumat; memilih sendiri sesi 1 / penutupan menurut jam
 //   :20/:50          Market News, setiap hari; 3 sumber berita bergiliran + ringkasan AI (malam dilewati oleh worker-nya)
 //   10:20 & 12:20    SATS, Senin–Jumat (dulu 10:17 & 12:17)
+//   10:00 & 12:00    Bond Insight, Senin–Jumat (17.00 & 19.00 WIB): kurva yield PHEI hari itu + data obligasi
 //   tiap 5 menit     Story Data, Senin–Jumat; memilih tugas sendiri menurut jam (dulu */5 * * * 1-5)
 //   tiap 5 menit     Content Insight: scan Instagram 07.00 WIB + lanjutkan scan yang berjalan (ringan bila tidak ada; tanpa APIFY_TOKEN langsung selesai)
 //
@@ -27,6 +28,7 @@ export default {
     if (weekday && m === 20) jobs.push("RECAP");
     if (m === 20) jobs.push("NEWS");
     if (weekday && d.getUTCMinutes() === 20 && (h === 10 || h === 12)) jobs.push("SATS");
+    if (weekday && d.getUTCMinutes() === 0 && (h === 10 || h === 12)) jobs.push("BOND");
 
     const ran = jobs.filter(Boolean);
     const res = await Promise.allSettled(ran.map(async (b) => {

@@ -660,7 +660,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
   // Market Recap & jadwal berjam Content Planner tampil di Ritme hari ini, jadi tidak punya kartu sendiri
   var PANELS = [["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"],
-    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"], ["etf", "etfBody", "etf", "research", "Ops ETF"]];
+    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"], ["etf", "etfBody", "etf", "research", "Ops ETF"], ["bond", "bondBody", "bond", "research", "Yield obligasi"]];
   function renderToday() {
     var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
@@ -742,6 +742,20 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     NO.etf = A.map(function (a) { return { id: a.key, kind: "ops", app: "etf", title: a.title, body: a.body, at: d.at || new Date().toISOString() }; });
     mergeBell();
     el.innerHTML = html + foot(d.at ? "Data diperbarui " + ago(Date.parse(d.at)) : hari(d.date), "etf", "Buka ETF Insight");
+  }
+  /** Yield SBN tenor utama (PHEI IGSYC) + korporasi 2 tahun per rating, dari Bond Insight. */
+  function fillBond(r) {
+    var el = $("#bondBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Bond Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, pct = function (v) { return v == null ? "–" : v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; };
+    var bps = function (v) { return v == null ? "" : " · " + (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " bps dari kemarin"; };
+    var html = '<div class="subh">Yield SBN (PHEI IGSYC)</div><div class="rows">' + (d.rates || []).map(function (x) {
+      return rowHtml(x.d != null && Math.abs(x.d) >= 10 ? "warn" : "ok", "Tenor " + x.t + " tahun", pct(x.y) + bps(x.d));
+    }).join("") + "</div>";
+    var C = d.corp2 || {}, ks = Object.keys(C);
+    if (ks.length) html += '<div class="subh">Korporasi tenor 2 tahun</div><p class="muted small" style="margin:0">' + ks.map(function (k) { return esc(k) + " " + pct(C[k]); }).join(" · ") + "</p>";
+    if (d.state && d.state.indexOf("stale") === 0) html += '<p class="muted small" style="margin:6px 0 0">PHEI belum bisa dibaca; menampilkan data terakhir yang tersimpan.</p>';
+    el.innerHTML = html + foot(d.date ? "Data PHEI per " + hari(d.date) : "Sumber: PHEI", "bond", "Buka Bond Insight");
   }
   var CST = { "Perlu verifikasi": "st-warn", Aktif: "st-ok", Berakhir: "st-muted", "Tidak relevan": "st-muted" };
   function fillComp(r) {
@@ -867,7 +881,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NP = r.data.notif; mergeBell(); } }
   function bell(open) { var m = $("#bellMenu"); if (!m) return; m.classList.toggle("open", open); $("#bellBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = m.querySelector("button"); if (f) f.focus(); } }
   function markRead(body) { return fetch("/api/notif/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(function () { }); }
-  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillEtf(d.etf); fillJobs(d.jobs, d.cron); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillEtf(d.etf); fillBond(d.bond); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {

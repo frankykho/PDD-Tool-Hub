@@ -1,5 +1,5 @@
 // Bond Insight: data & analisis obligasi. Secret: SSO_SECRET, EDIT_KEY
-// Tanpa cron (batas paket gratis 5 cron per akun); data & riwayat diperbarui saat halaman dibuka.
+// Tanpa cron sendiri (batas paket gratis 5 cron per akun): apps/cron memanggil /__cron 2x sehari (kurva PHEI & data obligasi), selain itu diperbarui saat halaman dibuka.
 {
   "name": "bond-insight",
   "main": "worker.js",

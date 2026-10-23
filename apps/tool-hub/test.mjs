@@ -117,7 +117,7 @@ for (const a of boot.apps) {
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
 assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["copy", "edukasi", "recap"], "AI Workbench hanya tool yang memang memakai AI");
-assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, jobs: true, cron: true, rhythm: true });
+assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, bond: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
 assert.equal(boot.me.job, "Partnership");
@@ -340,7 +340,7 @@ boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
 assert.equal(boot.me.job, "Copywriter");
-assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, news: false, etf: false, jobs: true, cron: true, rhythm: true });
+assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, news: false, etf: false, bond: false, jobs: true, cron: true, rhythm: true });
 assert.equal(boot.me.admin, false);
 const ut = await (await call("/api/today", { cookie: user })).json();
 assert.deepEqual(Object.keys(ut).sort(), ["cron", "fund", "jobs", "rhythm"], "ringkasan tool tanpa akses tidak diminta");

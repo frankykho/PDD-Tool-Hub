@@ -16,6 +16,7 @@
     { "binding": "SATS", "service": "sats-radar" },
     { "binding": "RECAP", "service": "market-recap" },
     { "binding": "NEWS", "service": "market-news" },
-    { "binding": "CONTENT", "service": "content-insight" }
+    { "binding": "CONTENT", "service": "content-insight" },
+    { "binding": "BOND", "service": "bond-insight" }
   ]
 }

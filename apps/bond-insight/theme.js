@@ -66,6 +66,14 @@ ${L} .app svg [fill="#93a39b"]{fill:#56665F}
 ${L} .app svg [fill="#dfe7e3"]{fill:#14201B}
 ${L} .app svg [fill="#8FE3B5"]{fill:#1A7A4F}
 ${L} .app svg [stroke="#8FE3B5"]{stroke:#1A7A4F}
+${L} .app svg [stroke="#93a39b"]{stroke:#8A9A92}
+${L} .app svg [stroke="#f0b54a"]{stroke:#9A6400}
+${L} .app svg [stroke="#dfe7e3"]{stroke:#14201B}
+${L} .app svg [stroke="#6fb7ff"]{stroke:#1F6FC4}
+${L} .app svg [fill="#6fb7ff"]{fill:#1F6FC4}
+${L} .app svg [stroke="#c49cff"]{stroke:#6E44B8}
+${L} .app svg [fill="#c49cff"]{fill:#6E44B8}
+${L} .app svg [stroke="#ef6b5e"]{stroke:#C2372B}
 ${L} .app svg [fill="#f0b54a"]{fill:#9A6400}
 ${L} .app svg [fill="#ef6b5e"]{fill:#C2372B}
 `;
