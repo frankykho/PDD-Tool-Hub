@@ -330,12 +330,35 @@ var fm=function(v,c){if(v==null)return"–";var n=function(x,d){return Math.abs(
   return c==="USD"?neg+(Math.abs(v)>=1000?"US$"+n(v/1000,2)+" M":"US$"+n(v,1)+" jt"):neg+(Math.abs(v)>=1000?"Rp"+n(v/1000,2)+" T":"Rp"+n(v,1)+" M")};
 var fyT=function(v){return v==null?"":" ("+(v>0?"+":v<0?"−":"")+nf(Math.abs(v),2)+"% YoY)"};
 var fy=function(v){return v==null?"":'<span class="'+(v>0?"up":v<0?"dn":"")+'">'+(v>0?"+":v<0?"−":"")+nf(Math.abs(v),2)+"% YoY</span>"};
-function finTextC(f){var s=f.sources[0];return["*"+f.code+(f.company?" · "+f.company:"")+" — "+f.period+"*","Pendapatan "+fm(f.revenue,f.currency)+fyT(f.revenue_yoy),"Laba bersih "+fm(f.net_profit,f.currency)+fyT(f.net_profit_yoy),f.note||"",s?"Sumber: "+s.src+" "+s.url:""].filter(Boolean).join("\n")}
+// teks salin/WhatsApp: judul tebal (format WhatsApp), pendapatan, laba bersih
+function finTextC(f){return["*"+f.code+(f.company?" · "+f.company:"")+" — "+f.period+"*","Pendapatan "+fm(f.revenue,f.currency)+fyT(f.revenue_yoy),"Laba bersih "+fm(f.net_profit,f.currency)+fyT(f.net_profit_yoy)].join("\n")}
+/* beberapa emiten sekaligus: centang baris, lalu salin / kirim gabungan (dipisah baris kosong, urut seperti tabel) */
+var finSel={};
+var finKey=function(f){return f.code+"|"+f.period};
+function finShown(){return fin.filter(function(f){return!fq||(f.code+" "+(f.company||"")).toLowerCase().indexOf(fq.toLowerCase())>=0})}
+function finPicked(){return finShown().filter(function(f){return finSel[finKey(f)]})}
+function finAllText(L){return L.map(finTextC).join("\n\n")}
+function finBar(){
+  var n=finPicked().length,t=finAllText(finPicked());
+  return'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn sm" type="button" data-finpick="today">Pilih rilis hari ini</button><button class="btn sm" type="button" data-finpick="none"'+(n?"":" disabled")+'>Batal pilih</button>'
+   +'<span class="muted small" style="margin-left:4px">'+(n?n+" emiten dipilih":"Centang beberapa emiten untuk disalin sekaligus")+"</span><span style=\"flex:1\"></span>"
+   +'<button class="btn sm pri" type="button" data-copy="'+esc(t)+'" data-what="Teks '+n+' emiten"'+(n?"":" disabled")+'>Salin '+(n||"")+' terpilih</button>'
+   +(n?'<a class="btn sm" href="https://wa.me/?text='+encodeURIComponent(t)+'" target="_blank" rel="noopener">WhatsApp '+n+" terpilih</a>":"")+"</div>"}
+function finRedraw(){var b=$("finBox");if(b)b.innerHTML=finRowsHtml()}
+document.addEventListener("change",function(e){var t=e.target;
+  if(t.dataset&&t.dataset.finsel!=null){finSel[t.dataset.finsel]=t.checked;finRedraw()}
+  if(t.id==="finAll"){finShown().forEach(function(f){finSel[finKey(f)]=t.checked});finRedraw()}});
+document.addEventListener("click",function(e){var b=e.target.closest("[data-finpick]");if(!b)return;
+  var today=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);finSel={};
+  // "hari ini" = laporan yang tercatat sejak tengah malam WIB
+  if(b.dataset.finpick==="today")finShown().forEach(function(f){if(new Date(Date.parse(f.at)+7*3600e3).toISOString().slice(0,10)===today)finSel[finKey(f)]=true});
+  finRedraw();if(b.dataset.finpick==="today"&&!finPicked().length)toast("Belum ada laporan yang rilis hari ini")});
 function finRowsHtml(){
-  var L=fin.filter(function(f){return!fq||(f.code+" "+(f.company||"")).toLowerCase().indexOf(fq.toLowerCase())>=0});
+  var L=finShown();
   if(!L.length)return'<div class="empty">'+(fin.length?"Tidak ada yang cocok.":"Belum ada laporan keuangan. Berita kinerja emiten (laba, pendapatan, kuartal) dibaca AI otomatis tiap 30 menit.")+"</div>";
-  return'<div style="overflow-x:auto"><table class="fin"><thead><tr><th>Rilis</th><th>Emiten</th><th>Periode</th><th>Pendapatan</th><th>Laba bersih</th><th>Catatan</th><th>Sumber</th><th></th></tr></thead><tbody>'
-   +L.map(function(f){return"<tr><td class=\"muted\" style=\"white-space:nowrap\">"+esc(ago(f.at))+"</td><td><b>"+esc(f.code)+'</b><div class="muted small">'+esc(f.company||"")+"</div></td><td style=\"white-space:nowrap\">"+esc(f.period)+"</td>"
+  var all=L.every(function(f){return finSel[finKey(f)]});
+  return finBar()+'<div style="overflow-x:auto"><table class="fin"><thead><tr><th><input type="checkbox" id="finAll" aria-label="Pilih semua yang tampil"'+(all?" checked":"")+'></th><th>Rilis</th><th>Emiten</th><th>Periode</th><th>Pendapatan</th><th>Laba bersih</th><th>Catatan</th><th>Sumber</th><th></th></tr></thead><tbody>'
+   +L.map(function(f){return'<tr><td><input type="checkbox" data-finsel="'+esc(finKey(f))+'" aria-label="Pilih '+esc(f.code)+'"'+(finSel[finKey(f)]?" checked":"")+"></td><td class=\"muted\" style=\"white-space:nowrap\">"+esc(ago(f.at))+"</td><td><b>"+esc(f.code)+'</b><div class="muted small">'+esc(f.company||"")+"</div></td><td style=\"white-space:nowrap\">"+esc(f.period)+"</td>"
      +'<td class="num">'+fm(f.revenue,f.currency)+fy(f.revenue_yoy)+'</td><td class="num"><b>'+fm(f.net_profit,f.currency)+"</b>"+fy(f.net_profit_yoy)+"</td>"
      +'<td class="small">'+esc(f.note||"")+'</td><td class="small">'+f.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join("<br>")+"</td>"
      +'<td style="white-space:nowrap"><button class="btn sm" type="button" data-copy="'+esc(finTextC(f))+'" data-what="Teks">Salin</button> <a class="btn sm" href="https://wa.me/?text='+encodeURIComponent(finTextC(f))+'" target="_blank" rel="noopener">WhatsApp</a></td></tr>'}).join("")
@@ -347,7 +370,7 @@ function finView(){
    +'<p class="muted small" style="margin:0">Angka dibaca AI dari berita media (miliar rupiah; T = triliun). Cek ke laporan resmi di idx.co.id sebelum dibagikan ke nasabah.</p>'
    +'<div id="finBox">'+finRowsHtml()+"</div></div>";
 }
-document.addEventListener("input",function(e){if(e.target.id==="finQ"){fq=e.target.value;$("finBox").innerHTML=finRowsHtml()}});
+document.addEventListener("input",function(e){if(e.target.id==="finQ"){fq=e.target.value;finRedraw()}});
 /** Banner di kartu tim: pratinjau gambar yang akan dikirim + pilihan gaya (tema KISI / AI khusus berita / foto media). */
 function teamBan(x){
   if(!C.canEdit)return banner(x);
