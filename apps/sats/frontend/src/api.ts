@@ -435,6 +435,8 @@ export const api = {
   analyst: (code: string) => get<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`),
   makeAnalysis: (code: string) => post<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`, {}),
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),
+  /** saham syariah: anggota ISSI / JII70 / JII */
+  sharia: () => get<{ at?: string; source?: string; codes: Record<string, string[]>; error?: string }>("/api/sharia"),
   breadth: () => get<{ rows: BreadthRow[] }>("/api/breadth"),
   indices: () => get<{ rows: IndexRow[] }>("/api/indices"),
   me: () => get<Me>("/api/me"),

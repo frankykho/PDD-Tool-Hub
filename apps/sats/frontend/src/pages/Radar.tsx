@@ -12,6 +12,7 @@ import {
 import { withRank } from "../screener/rank";
 import { useAsync } from "../useAsync";
 import { useWatchlist } from "../watchlist";
+import { SHARIA_INDEXES, isShariaIndex, shariaLabel, useSharia } from "../sharia";
 
 const SAVED_KEY = "sats.radarCriteria";
 const VALUE_OPTIONS: Array<[number, string]> = [
@@ -86,7 +87,11 @@ export default function Radar() {
   }, [c]);
 
   const ranked = useMemo(() => withRank(data.data?.rows ?? []), [data.data]);
-  const hits = useMemo(() => runRadar(ranked, c, watch.has), [ranked, c, watch.codes]);
+  const sy = useSharia();
+  const hits = useMemo(
+    () => runRadar(ranked, c, watch.has, (row, idx) => (isShariaIndex(idx) ? !!sy[row.code]?.includes(idx) : (row.indexes ?? "").split(",").includes(idx))),
+    [ranked, c, watch.codes, sy],
+  );
   const shown = showAll ? hits : hits.slice(0, 50);
   const breadth = useMemo(() => breadthAbove200(ranked), [ranked]);
   const weak = breadth != null && breadth < 40;
@@ -191,6 +196,13 @@ export default function Radar() {
                   {r.name}
                 </option>
               ))}
+              <optgroup label="Syariah">
+                {SHARIA_INDEXES.map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </div>
@@ -304,6 +316,7 @@ export default function Radar() {
                     <Star code={row.code} />
                     <div>
                       <span className="code">{row.code}</span>
+                      {sy[row.code] && <span className="sy-badge" title={`Saham syariah: anggota ${sy[row.code].join(", ")}`}>{shariaLabel(sy[row.code])}</span>}
                       <div className="dim small ellipsis" title={row.name}>
                         {row.name}
                       </div>

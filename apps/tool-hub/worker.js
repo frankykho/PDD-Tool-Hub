@@ -10,7 +10,7 @@
 //   FIREBASE_SA   (Secret, opsional) seluruh isi berkas kunci service account Firebase proyek tutorial; hanya untuk tab Tutorial.
 // Disuntikkan scripts/deploy.mjs: PROFILE (nama brand, alamat semua tool), HUB_URL, GITHUB_REPO ("pemilik/repo").
 import { profile, appUrl, title } from "../../shared/profile.js";
-import { JOBS } from "../../shared/jobs.js";
+import { JOBS, OPS_ALERTS } from "../../shared/jobs.js";
 import SHELL from "./shell.html";
 
 // cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
@@ -510,7 +510,7 @@ function shellPage(env, sess, mine, pending, fav) {
   const src = a => a.firebase || a.frame === false ? appUrl(env, a.id) + ((a.paths && a.paths[accessOf(sess.u, a)]) || a.path || '/') : '/sso?app=' + a.id + '&back=' + encodeURIComponent(appUrl(env, a.id) + (a.entry || a.path || '/'));
   const pages = a => (a.pages || []).filter(x => !x.only || x.only === accessOf(sess.u, a)).map(x => [x.label, appUrl(env, a.id) + x.path, x.share ? 1 : 0]);
   const boot = {
-    me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin', job: JOBS[sess.u.job] || '' },
+    me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin', job: JOBS[sess.u.job] || '', ops: sess.role === 'admin' || OPS_ALERTS.includes(sess.u.job) },
     pending,
     brand: { name: title(env, 'Tool Hub'), short: p.brand.short || '', logo: p.brand.logo || '', logoDark: p.brand.logoDark || '' },
     aiTitle: title(env, 'AI Workbench'),
@@ -612,6 +612,7 @@ const FEEDS = [
   { id: 'competitor', binding: 'COMPETITOR', name: 'Competitor Intelligence' },
   { id: 'edukasi', binding: 'EDUKASI', name: 'Edukasi Studio', email: true },
   { id: 'news', binding: 'NEWS', name: 'Market News' },
+  { id: 'etf', binding: 'ETF', name: 'ETF Insight' },
 ];
 /** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
 async function todayFeed(env, sess, mine) {

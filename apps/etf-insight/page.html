@@ -70,6 +70,19 @@ select{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;p
 .simf input{font:inherit;font-size:13px;border:1px solid var(--l);border-radius:8px;padding:5px 8px;background:var(--p);color:var(--t);width:140px}
 .simt{margin:0 0 10px;font-size:13px}
 .hint{font-size:12px;color:var(--warn);margin:8px 0 0}
+/* ---- ops: peringatan, kalender, tracking ---- */
+.alerts{display:grid;gap:6px;margin:0 0 14px}
+.al{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:9px 12px;background:var(--p2);border-left:4px solid var(--warn);font-size:13px}
+.al.high{border-left-color:var(--down)}.al b{display:block}.al span{color:var(--m);font-size:12px}
+.cal{list-style:none;margin:0;padding:0;max-height:360px;overflow:auto}.cal li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--grid)}.cal li:last-child{border-bottom:0}
+.cal .d{min-width:74px;font-weight:700;font-size:12.5px}.cal small{display:block;color:var(--m);font-size:11.5px}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px;margin-right:4px;background:var(--tint);color:var(--brand)}
+.tag.dividen{background:#FFF4DC;color:#8A5A00}.tag.rebalancing{background:#E7EFFF;color:#2a4fa8}
+html[data-theme="dark"] .tag.dividen{background:#3a2f15;color:#f0c66b}html[data-theme="dark"] .tag.rebalancing{background:#1d2a47;color:#9cb6f5}
+.bars{display:flex;align-items:center;gap:3px;height:70px;margin:8px 0 4px;border-bottom:1px solid var(--l);position:relative}
+.bars i{flex:1;position:relative;height:100%}.bars i b{position:absolute;left:0;right:0;border-radius:2px}
+.share{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--p2)}
+.share .qr svg{width:92px;height:92px;display:block;background:#fff;border-radius:6px}.share small{display:block;color:var(--m);font-size:11.5px}
 @media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.kpis{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media print{
   @page{size:A4;margin:10mm}
@@ -153,6 +166,7 @@ function kpis(e,share){
   const k=[["Harga pasar",nf(e.close),(e.change==null?"":`<span class="${cls(e.change)}">${pct(e.change)}</span> `)+"per "+fD(e.priceDate)+(share?"":" · 1 lot ≈ "+lot)],
     ["NAB per unit",nf(e.nav,2),navAsOf(e)]];
   if(!share||e.premium!=null)k.push(["Harga vs NAB",premTxt(e),e.premium==null?"butuh harga & NAB di tanggal yang sama":`harga ${nf(e.premiumClose)} pada ${fD(e.navDate)}`]);
+  if(!share)k.push(["Perkiraan iNAV",e.inav?nf(e.inav.value,2):"–",e.inav?`${esc(e.liveIndex)} ${pct(e.inav.move)} sejak NAB · harga ${e.premiumLive>0?"premium":"diskon"} ${nf(Math.abs(e.premiumLive),2)}%`:"butuh NAB hari bursa terakhir atau sebelumnya"]);
   k.push(["Dana kelolaan (AUM)",bn(e.aum),e.aumYm?"per "+fYm(e.aumYm):""]);
   if(share)k.push(["Modal minimal (1 lot)",lot,"100 unit × harga, belum termasuk biaya transaksi"]);
   if(!share)k.push(["Nilai transaksi / hari",rp(e.liq.avgValue20),`rata-rata ${e.liq.days} hari bursa · ${e.liq.zeroDays20} hari tanpa transaksi`]);
@@ -259,6 +273,35 @@ const chartBox=(e,share)=>`<div class="card sec"><div class="chead"><h2 style="m
   <div class="seg noprint" role="group" aria-label="Rentang waktu">${[["m3","3 bln"],["m6","6 bln"],["y1","1 thn"],["all","Semua"]].map(([k,l])=>`<button type="button" data-rng="${k}" aria-pressed="${k===range}">${l}</button>`).join("")}</div></div>
   <div class="chart" id="ch"></div><p class="note">Harga penutupan harian dari Yahoo Finance. NAB dari Bareksa${share?"":" (tidak harian sebelum ada data terbaru)"}. Harga di bursa bisa berbeda dari NAB (premium/diskon).</p></div>`;
 
+/* ---------- ops: peringatan, tracking, kalender; pembanding syariah ---------- */
+const alertBox=()=>{const A=D.alerts||[];return A.length?`<div class="alerts" role="list" aria-label="Perlu perhatian">${A.map(a=>`<div class="al ${a.level}" role="listitem"><div><b>${esc(a.title)}</b><span>${esc(a.body)}</span></div></div>`).join("")}</div>`:""};
+function trackBox(e){
+  const t=e.track||{},y1=t.y1,y3=t.y3,L=t.last||[];
+  const mx=Math.max(0.05,...L.map(x=>Math.abs(x[1])));
+  return`<div class="card"><h2>Tracking <small>NAB vs indeks ${esc(e.bench?e.bench.name:"")}</small></h2>
+    <div class="facts st"><div><small>Tracking error 1 tahun</small><b>${y1?nf(y1.te,2)+"%":"–"}</b><br><span>${y1?y1.n+" bulan · rata-rata selisih "+pct(y1.avg)+"/bln":"butuh ≥ 6 bulan data"}</span></div>
+      <div><small>Tracking error 3 tahun</small><b>${y3?nf(y3.te,2)+"%":"–"}</b><br><span>${y3?y3.n+" bulan":"riwayat belum cukup"}</span></div></div>
+    ${L.length?`<div class="bars" aria-label="Selisih return bulanan NAB dikurangi indeks, 12 bulan terakhir">${L.map(([m,d])=>`<i title="${fYm(+m.replace("-",""))}: ${pct(d)}"><b style="background:${d>=0?"var(--up)":"var(--down)"};${d>=0?`bottom:50%;height:${d/mx*50}%`:`top:50%;height:${-d/mx*50}%`}"></b></i>`).join("")}</div>
+      <p class="note">Batang = selisih return bulanan NAB − indeks (${fYm(+L[0][0].replace("-",""))} – ${fYm(+L[L.length-1][0].replace("-",""))}).</p>`:""}
+    <p class="note">Tracking error = deviasi standar selisih bulanan × √12. NAB memasukkan dividen, indeks tidak, jadi rata-rata selisih wajar sedikit positif.${e.index==="MSCI Indonesia"?" MSCI Indonesia didekati dari EIDO × kurs, jadi angkanya perkiraan.":""}</p></div>`;
+}
+function calBox(){
+  const C=(D.calendar||[]).slice(0,30);
+  return`<div class="card"><h2>Kalender ops <small>120 hari ke depan · perkiraan</small></h2>${C.length?`<ul class="cal">${C.map(x=>`<li><span class="d">${fD(x.date)}</span><div>${x.etf?`<span class="tag">${esc(x.etf)}</span>`:""}<span class="tag ${esc(x.type)}">${esc(x.type)}</span><b>${esc(x.title)}</b><small>${esc(x.note||"")}</small></div></li>`).join("")}</ul>`:'<div class="msg">Tidak ada jadwal.</div>'}
+    <p class="note">Jadwal review indeks dan dividen adalah perkiraan dari pola tahun-tahun sebelumnya; cek pengumuman resmi MSCI, BEI, dan manajer investasi.</p></div>`;
+}
+function shariaBox(){
+  const S=D.sharia;if(!S||!S.idx)return"";
+  const rows=[...D.kisi.map(k=>[`${esc(k.code)} (harga di bursa)`,k.price,1]),...S.idx.map(i=>[esc(i.name),i.ret,0])];
+  const P=[["m1","1 bln"],["m3","3 bln"],["ytd","YTD"],["y1","1 thn"],["y3","3 thn"]];
+  const E=D.peers.filter(p=>S.etfs.includes(p.code));
+  return`<div class="card sec"><h2>Pembanding indeks syariah <small>per ${fD(S.asOf)}</small></h2>
+    <div class="tblw"><table><thead><tr><th></th>${P.map(p=>`<th class="n">${p[1]}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(([l,r,k])=>`<tr class="${k?"k":""}"><td>${l}</td>${P.map(([q])=>`<td class="n ${cls(r&&r[q])}">${pct(r&&r[q])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    ${E.length?`<h2 style="margin-top:14px">ETF syariah di BEI</h2><div class="tblw"><table><thead><tr><th>Kode</th><th>Nama</th><th class="n">AUM</th><th class="n">NAB YTD</th><th class="n">NAB 1 thn</th><th class="n">Biaya/thn</th></tr></thead><tbody>${E.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.name)}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td><td class="n">${bn(p.aum)}</td><td class="n ${cls(p.ret.ytd)}">${pct(p.ret.ytd)}</td><td class="n ${cls(p.ret.y1)}">${pct(p.ret.y1)}</td><td class="n">${p.fee==null?"–":nf(p.fee,2)+"%"}</td></tr>`).join("")}</tbody></table></div>`:""}
+    <p class="note">Return harga indeks tanpa dividen: JII & IHSG dari Yahoo Finance (^JKII, ^JKSE) sampai tanggal di atas, ISSI dari TradingView (berjalan). Untuk nasabah yang ingin pembanding syariah; XKMS & XKID sendiri bukan ETF syariah.</p></div>`;
+}
+
 /* ---------- aplikasi internal ---------- */
 function renderApp(){
   const e=D.kisi.find(x=>x.code===cur)||D.kisi[0];grp=grp||e.group;
@@ -266,6 +309,7 @@ function renderApp(){
   $("root").innerHTML=`<div class="top"><h1>${B.short?esc(B.short)+" ":""}<span>ETF Insight</span></h1><div class="sp"></div>
     <span class="asof">Harga: ${fDT(D.at)} · Data NAB: ${fDT(D.navAt)}</span><button class="btn s" type="button" id="bRef">Muat ulang data</button></div>
     ${D.dbError?`<div class="msg" style="margin-bottom:12px">Data NAB/AUM dari Fund Insight belum terbaca: ${esc(D.dbError)}</div>`:""}
+    ${alertBox()}
     <div class="grid2">${D.kisi.map(k=>`<button type="button" class="card etf" data-etf="${k.code}" aria-pressed="${k.code===e.code}"><div class="c">${esc(k.code)} · ${esc(k.index)}</div><div class="n">${esc(k.name)}</div>
       <div class="r"><div><small>Harga</small><b>${nf(k.close)}</b> <span class="${cls(k.change)}" style="font-size:12px">${pct(k.change)}</span></div><div><small>NAB</small><b>${nf(k.nav,2)}</b></div><div><small>Harga vs NAB</small><b>${premTxt(k)}</b></div><div><small>AUM</small><b>${bn(k.aum)}</b></div><div><small>NAB YTD</small><b class="${cls(k.ret.ytd)}">${pct(k.ret.ytd)}</b></div></div></button>`).join("")}</div>
     ${kpis(e)}
@@ -273,8 +317,10 @@ function renderApp(){
     ${chartBox(e)}
     <div class="card sec"><h2>Kinerja <small>NAB vs harga pasar vs indeks</small></h2>${perfTable(e)}</div>
     <div class="grid2 sec">${riskBox(e)}${simBox(e)}</div>
+    <div class="grid2 sec">${trackBox(e)}${calBox()}</div>
     <div class="grid2 sec"><div class="card"><h2>Arus dana bulanan <small>perkiraan, Rp</small></h2>${flowTable(e)}</div>
       <div class="card"><h2>Fakta produk</h2>${factList(e)}</div></div>
+    ${shariaBox()}
     <div class="card sec noprint"><h2>Berita terkait <small>7 hari terakhir</small></h2><div id="news">${newsList()}</div>
       <p class="note">Judul dari CNBC Indonesia, Antara, Kontan, dan IDX Channel, disaring topik ETF, indeks (MSCI, IDX30, LQ45), IHSG, BEI, dan dana asing. Klik untuk membaca di situs media.</p></div>
     <div class="card sec"><div class="chead"><h2 style="margin:0">Pembanding ETF di BEI</h2><div class="sp"></div>
@@ -308,7 +354,7 @@ document.addEventListener("click",async ev=>{
   if(t.dataset.etf){cur=t.dataset.etf;grp=null;renderApp();return}
   if(t.dataset.rng){range=t.dataset.rng;document.querySelectorAll("[data-rng]").forEach(b=>b.setAttribute("aria-pressed",b===t));chart($("ch"),D.kisi.find(x=>x.code===(MODE==="share"?CODE:cur)),range);return}
   if(t.dataset.sort){const k=t.dataset.sort;if(k===sortK)sortD=-sortD;else{sortK=k;sortD=k==="code"||k==="name"?1:-1}peerTable();return}
-  if(t.id==="bCopy"){const u=location.origin+"/p/"+cur;try{await navigator.clipboard.writeText(u);toast("Link disalin")}catch(e){prompt("Salin link ini:",u)}return}
+  if(t.id==="bCopy"){const u=location.origin+"/p/"+(MODE==="share"?CODE:cur);try{await navigator.clipboard.writeText(u);toast("Link disalin")}catch(e){prompt("Salin link ini:",u)}return}
   if(t.id==="bRef"){t.disabled=true;t.textContent="Memuat…";await load(true);return}
   if(t.id==="bPrint")window.print();
 });
@@ -336,10 +382,19 @@ function renderShare(){
     <div class="card sec"><h2>Kinerja</h2>${perfTable(e,true)}</div>
     <div class="grid2 sec">${riskBox(e,true)}${simBox(e)}</div>
     <div class="card sec"><h2>Informasi produk</h2>${factList(e,true)}
-      <p class="buy"><b>Cara membeli:</b> ETF dibeli dan dijual di bursa seperti saham. Cari kode <b>${esc(e.code)}</b> di ${esc(app)}, lalu beli minimal 1 lot.${links?" Unduh: "+links:""}</p></div>
+      <p class="buy"><b>Cara membeli:</b> ETF dibeli dan dijual di bursa seperti saham. Cari kode <b>${esc(e.code)}</b> di ${esc(app)}, lalu beli minimal 1 lot.${links?" Unduh: "+links:""}</p>
+      <div class="share"><div class="qr" id="qr" aria-label="Kode QR"></div><div><b>${AP.download?"Pindai untuk unduh "+esc(app):"Pindai untuk membuka halaman ini"}</b><small>${esc(AP.download||location.href)}</small>
+        <div class="row noprint" style="margin-top:8px"><a class="btn" id="bWa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`${e.name} (${e.code}): kinerja, NAB, dan simulasi investasi\n${location.origin}/p/${e.code}`)}">Bagikan ke WhatsApp</a><button class="btn s" type="button" id="bCopy">Salin link</button></div></div></div></div>
     <p class="disc">${esc(disc)}<br>Data per ${fDT(D.at)} dari sumber publik (TradingView, Yahoo Finance, Bareksa) dan dapat terlambat atau berubah. ${esc(e.bench?e.bench.note:"")}.${B.company?" Disusun oleh "+esc(B.company)+(B.license?" · "+esc(B.license):"")+".":""}</p>`;
-  chart($("ch"),e,range);
-  if(new URLSearchParams(location.search).has("print"))setTimeout(()=>window.print(),600);
+  chart($("ch"),e,range);qrDraw(AP.download||location.origin+"/p/"+e.code);
+  if(new URLSearchParams(location.search).has("print"))setTimeout(()=>window.print(),900);
+}
+// QR (qrcode-generator, sama dengan Fund Insight); gagal dimuat = kotak QR disembunyikan
+function qrDraw(text){
+  const box=$("qr");if(!box)return;
+  const draw=()=>{const q=qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),z=2,N=n+z*2;let d="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+z} ${r+z}h1v1h-1z`;box.innerHTML=`<svg viewBox="0 0 ${N} ${N}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><path d="${d}" fill="#14201B"/></svg>`};
+  if(window.qrcode)return draw();
+  const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";s.onload=draw;s.onerror=()=>{box.hidden=true};document.head.appendChild(s);
 }
 
 async function load(fresh){

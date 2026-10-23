@@ -24,6 +24,7 @@ import { STRATEGIES, isStrategyId, type StrategyId } from "./strategies/types";
 import { FUND_DDL } from "./fundamentals/schema";
 import { accessEnabled, authEnabled, ensureAuthSchema, googleEnabled, handleGoogleAuth, handleHubAuth, handlePasswordAuth, hubEnabled, hubUrl, identify, loadMe, passwordEnabled, type AuthEnv, type Me } from "./auth";
 import { profile } from "../../../../shared/profile.js";
+import { shariaCached } from "../../../../shared/sharia.js";
 import { withCron } from "../../../../shared/cron.js";
 import { themeHead } from "../../../../shared/theme.js";
 import { SATS_THEME_CSS } from "./theme";
@@ -196,6 +197,15 @@ async function handle(url: URL, env: Env): Promise<Response> {
       .first<Record<string, unknown>>();
     const universe = await db.prepare("SELECT COUNT(*) AS n FROM stocks").first<{ n: number }>();
     return json({ lastRun: run, universe: universe?.n ?? 0 }, 200, 60);
+  }
+
+  // saham syariah (anggota ISSI, JII70, JII) dari scanner TradingView, cache 12 jam (shared/sharia.js)
+  if (path === "/api/sharia") {
+    try {
+      return json(await shariaCached(undefined), 200, 3600);
+    } catch (e) {
+      return json({ codes: {}, error: (e as Error).message }, 200, 300);
+    }
   }
 
   if (path === "/api/indices") {

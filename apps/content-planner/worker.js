@@ -658,7 +658,9 @@ async function fundPart(env) {
   const rows = list.map((f) => {
     const t = f.ret || {}, o = old[f.pid];
     return { pid: f.pid, name: f.name, type: f.type, risk: f.risk || "", min: f.minSubs ?? null, navDate: f.navDate,
-      w1: o ? (f.nav / o - 1) * 100 : null, m1: t.m1 ?? null, y1: t.y1 ?? null, y1x: t.y1x ?? null, ytd: t.ytd ?? null, aum: f.aum ?? null };
+      w1: o ? (f.nav / o - 1) * 100 : null, m1: t.m1 ?? null, y1: t.y1 ?? null, y1x: t.y1x ?? null, ytd: t.ytd ?? null, aum: f.aum ?? null,
+      // syariah: kategori Bareksa (Fund Insight), cadangan tebakan nama
+      sy: f.sy != null ? f.sy === 1 : /syariah|sharia|sukuk|falah/i.test(f.name) };
   });
   // aturan sama dengan peringatan di Home Fund Insight: >= 3x simpangan harian biasanya dan >= 0,1%
   const since = navDate ? addDays(navDate, -7) : "";

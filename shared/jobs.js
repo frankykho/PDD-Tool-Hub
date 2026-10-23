@@ -6,8 +6,13 @@ export const JOBS = {
   copy: "Copywriter",
   sosmed: "Social Media Specialist",
   design: "Desainer",
+  pm: "Product Marketing",
+  ops: "Ops ETF & Fund",
+  syariah: "Syariah",
   lain: "Lainnya",
 };
+// role yang mendapat peringatan ops (NAB terlambat, premium/diskon, gerak harian tidak biasa) di lonceng Tool Hub (admin hub selalu)
+export const OPS_ALERTS = ["ops"];
 // role yang boleh membuat program dan membagi tugas ke orang lain (admin Tool Hub selalu boleh)
 export const ASSIGNERS = ["partnership"];
 export const canAssign = (job, admin) => !!admin || ASSIGNERS.includes(job);

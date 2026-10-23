@@ -1,16 +1,49 @@
 import type { Fundamentals } from "../api";
 import { fmt1, fmtDate, fmtPct, fmtRp, fundHealthy } from "../format";
+import { shariaRatio } from "../sharia";
 
 const x = (v: number | null) => (v == null ? "—" : `${fmt1(v)}×`);
 const p = (v: number | null) => (v == null ? "—" : `${fmt1(v)}%`);
 
+/** Status syariah resmi (keanggotaan ISSI/JII) + indikasi rasio keuangan dari data yang tersedia. */
+function ShariaCheck({ f, sharia }: { f: Fundamentals | null; sharia: string[] }) {
+  const r = shariaRatio(f?.der ?? null, f?.industry ?? null);
+  return (
+    <div className="sy-check">
+      <h3>
+        Syariah{" "}
+        <span className={`status ${sharia.length ? "tp" : "exit"}`}>
+          {sharia.length ? `Anggota ${sharia.join(", ")}` : "Bukan anggota ISSI"}
+        </span>
+      </h3>
+      <ul className="dim small">
+        <li>
+          Utang berbasis bunga ≤ 45% aset:{" "}
+          {r.debt === "na"
+            ? "data DER tidak tersedia"
+            : r.debt === "ok"
+              ? `terpenuhi (utang ÷ aset paling tinggi ±${fmt1(r.debtMax)}% dari DER ${fmt1(f?.der ?? null)}×)`
+              : `belum bisa dipastikan (batas atas ±${fmt1(r.debtMax)}%; cek neraca: utang berbunga ÷ total aset)`}
+        </li>
+        <li>Pendapatan non-halal (mis. bunga) ≤ 10% pendapatan: tidak tersedia dari data gratis; cek laporan keuangan.</li>
+        {r.interestBiz && <li>Usaha utama berbasis bunga (bank / asuransi / pembiayaan konvensional) umumnya tidak masuk Daftar Efek Syariah.</li>}
+      </ul>
+      <p className="dim small">
+        Status resmi mengikuti Daftar Efek Syariah OJK (tercermin di indeks ISSI, dievaluasi Mei & November). Rasio di atas hanya indikasi, bukan
+        penetapan syariah.
+      </p>
+    </div>
+  );
+}
+
 /** Fundamental summary for the stock page. */
-export default function FundCard({ f }: { f: Fundamentals | null }) {
+export default function FundCard({ f, sharia = [] }: { f: Fundamentals | null; sharia?: string[] }) {
   if (!f) {
     return (
       <div className="fund-card">
         <h2>Fundamental</h2>
         <p className="dim small">Data fundamental belum tersedia untuk saham ini.</p>
+        <ShariaCheck f={null} sharia={sharia} />
       </div>
     );
   }
@@ -50,6 +83,7 @@ export default function FundCard({ f }: { f: Fundamentals | null }) {
         ))}
       </div>
       <p className="dim small">Sumber: Yahoo Finance, diperbarui mingguan. Dividen bisa termasuk dividen spesial.</p>
+      <ShariaCheck f={f} sharia={sharia} />
     </div>
   );
 }

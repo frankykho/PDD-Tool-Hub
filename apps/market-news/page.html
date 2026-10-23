@@ -30,6 +30,7 @@ a{color:var(--g)}
 .tag.makro{background:#e5edfb;color:#2552a3}.tag.pasar{background:#efe8fb;color:#6b3fb0}.tag.emiten{background:#e2f1e8;color:#1f7a4d}
 :root[data-theme="dark"] .tag.makro{background:#1c2a44;color:#9cbcf5}:root[data-theme="dark"] .tag.pasar{background:#2a2140;color:#c7a8f5}
 .tk{display:inline-block;border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-size:12px;font-weight:700}
+.tk .sy{color:var(--g);background:var(--g2);border-radius:5px;padding:0 4px;margin-left:4px;font-size:10.5px;font-weight:800;letter-spacing:.2px}
 .up{color:var(--up)}.dn{color:var(--dn)}
 /* ringkasan pasar */
 .mk h2{margin:0 0 10px;font-size:16px}
@@ -90,7 +91,7 @@ details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
 <div class="toast" id="toast" role="status"></div>
 <script>
 (function(){
-var C=window.MN||{},P=window.PROFILE||{},B=P.brand||{},$=function(id){return document.getElementById(id)};
+var C=window.MN||{},P=window.PROFILE||{},B=P.brand||{},$=function(id){return document.getElementById(id)},SY=C.sharia||{};
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
 var TEAM=C.mode==="team",CAT={makro:"Makro",pasar:"Pasar",emiten:"Emiten"};
 if(!TEAM)document.body.classList.add("pub");
@@ -123,7 +124,7 @@ function market(m){
 
 /* ---------- kartu berita ---------- */
 function banner(x){return'<div class="ban">'+(x.img?'<img src="'+esc(x.img)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(CAT[x.cat]||"Berita")+'\'">':esc(CAT[x.cat]||"Berita"))+"</div>"}
-function tks(x){return(x.tickers||[]).map(function(c){var v=x.px&&x.px[c];return'<span class="tk">'+esc(c)+(typeof v==="number"?" "+pct(v):"")+"</span>"}).join(" ")}
+function tks(x){return(x.tickers||[]).map(function(c){var v=x.px&&x.px[c],s=SY[c];return'<span class="tk">'+esc(c)+(typeof v==="number"?" "+pct(v):"")+(s?'<b class="sy" title="Saham syariah: anggota indeks '+esc(s)+'">Syariah</b>':"")+"</span>"}).join(" ")}
 function also(x){return(x.sources||[]).length?'<div class="also">Juga diberitakan: '+x.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join(" · ")+"</div>":""}
 // yang dibagikan: judul (tebal di WhatsApp), ringkasan, lalu nama media + link artikel asli (pratinjau link menampilkan foto media)
 var textOf=function(x){return"*"+(x.title||"")+"*\n\n"+(x.summary||"")+"\n\nSumber: "+(x.src?x.src+"\n":"")+x.url};

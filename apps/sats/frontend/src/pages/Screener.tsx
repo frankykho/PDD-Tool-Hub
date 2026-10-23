@@ -13,6 +13,7 @@ import Star from "../components/Star";
 import LabBadge, { LabMark } from "../components/LabBadge";
 import { useWatchlist } from "../watchlist";
 import { CANDLES, CHARTS, parseCandles, parseCharts } from "../screener/patternMeta";
+import { SHARIA_INDEXES, isShariaIndex, shariaLabel, useSharia } from "../sharia";
 
 const SAVED_KEY = "sats.screenerPresets";
 const VALUE_OPTIONS: Array<[number, string]> = [
@@ -144,12 +145,13 @@ export default function Screener() {
   // RS rank: percentile of the 6-month return among liquid stocks (>= Rp 1 M/day)
   const ranked = useMemo(() => withRank(data.data?.rows ?? []), [data.data]);
 
+  const sy = useSharia();
   const rows = useMemo(() => {
     const all = ranked;
     const out = all.filter(
       (r) =>
         (r.value_20d ?? 0) >= minValue * 1e9 &&
-        (!index || (r.indexes ?? "").split(",").includes(index)) &&
+        (!index || (isShariaIndex(index) ? !!sy[r.code]?.includes(index) : (r.indexes ?? "").split(",").includes(index))) &&
         (!watchOnly || watch.has(r.code)) &&
         (!p || p.test(r)) &&
         filters.every((f) => passes(r, f)) &&
@@ -168,7 +170,7 @@ export default function Screener() {
       return (va - vb) * m || a.code.localeCompare(b.code);
     });
     return out;
-  }, [ranked, minValue, index, p, filters, activeSort, candleSel, candleDays, chartSel, chartStatus, watchOnly, watch.codes]);
+  }, [ranked, minValue, index, p, filters, activeSort, candleSel, candleDays, chartSel, chartStatus, watchOnly, watch.codes, sy]);
 
   const total = data.data?.rows.length ?? 0;
   const shown = showAll ? rows : rows.slice(0, 100);
@@ -424,6 +426,13 @@ export default function Screener() {
                   {r.name}
                 </option>
               ))}
+              <optgroup label="Syariah">
+                {SHARIA_INDEXES.map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
           <label className="check">
@@ -543,6 +552,11 @@ export default function Screener() {
                     <td>
                       <Star code={r.code} />
                       <span className="code">{r.code}</span>
+                      {sy[r.code] && (
+                        <span className="sy-badge" title={`Saham syariah: anggota ${sy[r.code].join(", ")}`}>
+                          {shariaLabel(sy[r.code])}
+                        </span>
+                      )}
                       <div className="dim small ellipsis" title={r.name}>
                         {r.name}
                       </div>

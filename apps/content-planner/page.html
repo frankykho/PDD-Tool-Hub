@@ -220,6 +220,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <h1>Paket Konten Mingguan</h1>
     <span class="muted small" id="pkInfo"></span>
     <span class="sp"></span>
+    <div class="seg" role="group" aria-label="Fokus paket"><button id="pkAll" class="on">Semua produk</button><button id="pkSy">🕌 Syariah</button></div>
     <button class="btn" id="pkRefresh">↻ Ambil ulang data</button>
     <a class="btn" id="pkStory" target="_top" hidden>Buka Story Generator ↗</a>
   </div>
@@ -1077,15 +1078,17 @@ async function loadPk(fresh){
   catch(e){showErr("pkErr",e)}
   finally{$("pkLoading").hidden=true;$("pkRefresh").disabled=false}
 }
+// fokus paket: semua produk, atau syariah saja (RD syariah + sukuk) untuk konten Ramadan / investasi syariah
+let SY=recall("pl_pk_sy")==="1";
 function topFunds(){
-  const rows=(PK.funds&&PK.funds.rows)||[],out={};
+  const rows=((PK.funds&&PK.funds.rows)||[]).filter(r=>!SY||r.sy),out={};
   CATS.forEach(c=>{const L=rows.filter(r=>r.type===c);
     out[c]={w1:L.filter(r=>r.w1>0).sort((a,b)=>b.w1-a.w1).slice(0,3),y1:L.filter(r=>r.y1>0).sort(byY1).slice(0,3)}});
   return out;
 }
 function topBonds(){
   const rows=(PK.bonds&&PK.bonds.rows)||[],out={};
-  Object.keys(BT).forEach(t=>{out[t]=rows.filter(r=>r.type===t).sort((a,b)=>b.yield-a.yield).slice(0,3)});
+  Object.keys(BT).forEach(t=>{out[t]=SY&&t!=="Sukuk"?[]:rows.filter(r=>r.type===t).sort((a,b)=>b.yield-a.yield).slice(0,3)});
   return out;
 }
 function renderPk(){
@@ -1116,15 +1119,16 @@ function drafts(F,Bd,A){
   const al=A.filter(a=>a.k!=="internal").slice(0,6).map(a=>`• ${fmtDate(a.d)}: ${a.t}${a.country?` (${a.country})`:""}`);
   AGENDA_TXT=al.length?["📅 Agenda pekan ini:",...al].join("\n"):"";
   const legal=[B.license,"Kinerja masa lalu tidak mencerminkan kinerja masa depan."].filter(Boolean).join(" ");
-  const cap=[`📊 Rangkuman Pekan Ini${src}`,"",
-    fl.length&&"Reksa dana dengan kenaikan tertinggi sepekan:",...fl,fl.length&&"",
-    bl.length&&"Obligasi dengan yield menarik:",...bl,bl.length&&"",
+  const cap=[SY?`🕌 Pilihan Investasi Syariah Pekan Ini${src}`:`📊 Rangkuman Pekan Ini${src}`,"",
+    fl.length&&(SY?"Reksa dana syariah dengan kenaikan tertinggi sepekan:":"Reksa dana dengan kenaikan tertinggi sepekan:"),...fl,fl.length&&"",
+    bl.length&&(SY?"Sukuk dengan yield menarik:":"Obligasi dengan yield menarik:"),...bl,bl.length&&"",
+    SY&&"Reksa dana syariah dikelola sesuai prinsip syariah dan diawasi Dewan Pengawas Syariah.",SY&&"",
     al.length&&"📅 Agenda pekan depan:",...al,al.length&&"",
     P.app&&P.app.name?`Investasi mulai sekarang di aplikasi ${P.app.name}.`:"",
-    legal,B.hashtags||""].filter(x=>x!==false&&x!==undefined);
+    legal,[B.hashtags||"",SY?"#InvestasiSyariah":""].filter(Boolean).join(" ")].filter(x=>x!==false&&x!==undefined);
   $("dCap").value=cap.join("\n").replace(/\n{3,}/g,"\n\n").trim();
-  const mail=[`Rangkuman pekan ini${src}:`,"",
-    yl.length&&"Return 1 tahun tertinggi per kategori reksa dana:",...yl,yl.length&&"",
+  const mail=[SY?`Pilihan investasi syariah pekan ini${src}:`:`Rangkuman pekan ini${src}:`,"",
+    yl.length&&(SY?"Return 1 tahun tertinggi reksa dana syariah per kategori:":"Return 1 tahun tertinggi per kategori reksa dana:"),...yl,yl.length&&"",
     fl.length&&"Kenaikan tertinggi dalam sepekan:",...fl,fl.length&&"",
     bl.length&&"Obligasi dengan yield tertinggi saat ini:",...bl,bl.length&&"",
     al.length&&"Agenda ekonomi pekan depan:",...al,al.length&&"",
@@ -1138,7 +1142,7 @@ function suggest(){
     {kind:"konten",title:"Weekly Update Reksa Dana",channel:"IG Story",date:n,note:"Dibuat dari Story Generator → Weekly Update."},
     {kind:"artikel",title:"Newsletter rangkuman pekan",channel:"Email / Newsletter",date:n,note:$("dMail").value},
     {kind:"konten",title:"Rangkuman pekan (caption)",channel:"IG Feed",date:addD(n,-3)<todayIso()?n:addD(n,-3),note:$("dCap").value},
-  ];
+  ].map(s=>SY?{...s,title:s.title.replace("Weekly Update Reksa Dana","RD Highlights Syariah").replace(/^Rangkuman pekan/,"Investasi syariah pekan ini")+(/syariah/i.test(s.title)?"":" (syariah)"),note:s.note.replace("Weekly Update.","RD Highlights (halaman Syariah).")}:s);
   $("pkSug").innerHTML=S.map((s,i)=>`<label class="sug"><input type="checkbox" checked data-i="${i}"><span class="ti"><b>${ICON[s.kind]} ${esc(s.title)}</b><small class="muted">${esc(s.channel)}</small></span><input class="f" type="date" value="${s.date}" data-d="${i}" aria-label="Tanggal ${esc(s.title)}"></label>`).join("");
   $("pkSug").S=S;
 }
@@ -1157,6 +1161,8 @@ document.addEventListener("click",async e=>{
   const o=b.textContent;b.textContent="✓ Tersalin";setTimeout(()=>b.textContent=o,1500);
 });
 $("pkRefresh").onclick=()=>loadPk(true);
+const pkFocus=v=>{SY=v;store("pl_pk_sy",v?"1":"0");$("pkAll").classList.toggle("on",!v);$("pkSy").classList.toggle("on",v);if(PK)renderPk()};
+$("pkAll").onclick=()=>pkFocus(false);$("pkSy").onclick=()=>pkFocus(true);pkFocus(SY);
 
 /* =================== MULAI =================== */
 if(PL.mode==="paket"){$("vPk").hidden=false;loadPk(false)}

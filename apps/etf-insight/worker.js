@@ -2,14 +2,18 @@
 // - "/"           -> aplikasi internal (login lewat Tool Hub, hanya tampil di dalam dashboard)
 // - "/p/<KODE>"   -> halaman untuk nasabah (tanpa login), mis. /p/XKMS; tombol PDF = cetak halaman
 // - "/api/etf"    -> data (terbuka, hanya GET): ETF KISI + semua ETF di BEI sebagai pembanding
+// - "/__hub/today"-> peringatan ops & kalender 7 hari untuk beranda dan lonceng Tool Hub (service binding, shared/hubfeed.js)
 //
 // Sumber (semua publik, diambil di sisi server):
-//   TradingView scanner : harga, volume, nilai transaksi, biaya, kinerja indeks IDX30, ETF EIDO & kurs USD/IDR
-//   Yahoo Finance       : riwayat harga harian ETF KISI (sejak data tersedia)
+//   TradingView scanner : harga (berjalan), volume, nilai transaksi, biaya, IDX30 & LQ45 berjalan, ETF EIDO & kurs USD/IDR
+//   Yahoo Finance       : riwayat harga harian & dividen ETF KISI, IDX30, IHSG, indeks syariah (JII, JII70, ISSI)
 //   Fund Insight (D1)   : NAB, AUM, return NAB dari data pasar Bareksa (tabel mktsnap, hanya dibaca)
+// Ops: perkiraan iNAV (NAB terakhir × pergerakan indeks sejak tanggal NAB), tracking error dari selisih return bulanan
+// NAB vs indeks, kalender ops (review indeks MSCI & IDX30, dividen dari riwayat, laporan bulanan), dan peringatan anomali.
 // Tidak ada cron dan tidak menulis ke D1; hasil disimpan di cache 10 menit.
 import { profile, title, profileScript } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
+import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import PAGE from "./page.html";
 import { newsFor } from "../../shared/news.js";
 
@@ -66,10 +70,15 @@ const HUBSSO = (() => {
    ========================================================= */
 // ETF KISI. pid = id Bareksa di data pasar Fund Insight; bench = pembanding kinerja indeks.
 // listedAt = perkiraan tanggal tercatat (berita peluncuran); return periode yang lebih panjang dari umur ETF dikosongkan.
+// live = indeks berjalan di TradingView untuk perkiraan iNAV (MSCI Indonesia tidak tersedia gratis saat jam bursa: didekati LQ45).
 const KISI = {
-  XKMS: { pid: "4274", index: "MSCI Indonesia", bench: "msci", listed: "Nov 2020", listedAt: "2020-11-30", group: "big" },
-  XKID: { pid: "4795", index: "IDX30", bench: "idx30", listed: "Nov 2023", listedAt: "2023-11-30", group: "idx30" },
+  XKMS: { pid: "4274", index: "MSCI Indonesia", bench: "msci", listed: "Nov 2020", listedAt: "2020-11-30", group: "big", live: "LQ45", review: "msci" },
+  XKID: { pid: "4795", index: "IDX30", bench: "idx30", listed: "Nov 2023", listedAt: "2023-11-30", group: "idx30", live: "IDX30", review: "idx30" },
 };
+// Indeks dari Yahoo: IDX30 harian (tracking error XKID), IHSG, dan indeks syariah sebagai pembanding.
+// ISSI & JII70 tidak punya riwayat di Yahoo: ISSI diambil kinerjanya dari TradingView, JII70 tidak tersedia gratis.
+const IDX_Y = { idx30: "IDX30.JK", ihsg: "^JKSE", jii: "^JKII" };
+export const SHARIA_IDX = [["jii", "JII (Jakarta Islamic Index, 30 saham)"], ["issi", "ISSI (semua saham syariah)"], ["ihsg", "IHSG (pembanding)"]];
 const MONTHS = { m1: 1, m3: 3, m6: 6, y1: 12, y3: 36 };
 const young = (listedAt, end, k) => { if (!end || !MONTHS[k]) return false; const t = new Date(end + "T00:00:00Z"); t.setUTCMonth(t.getUTCMonth() - MONTHS[k]); return t.toISOString().slice(0, 10) < listedAt; };
 const trim = (ret, listedAt, end) => Object.fromEntries(Object.entries(ret || {}).map(([k, v]) => [k, young(listedAt, end, k) ? null : v]));
@@ -103,16 +112,18 @@ async function tv(market, body) {
 }
 const perfOf = (d, at) => Object.fromEntries(PK.map((k, i) => [k, num(d[at + i])]));
 
-async function yahoo(symbol, range = "1y") {
-  const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`, { headers: { "User-Agent": UA } });
+// withDiv = ikut ambil riwayat dividen (out.div = [[tanggal WIB, Rp per unit]])
+async function yahoo(symbol, range = "1y", withDiv = false) {
+  const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d${withDiv ? "&events=div" : ""}`, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error(`Yahoo ${symbol} HTTP ${r.status}`);
   const res = (await r.json()).chart?.result?.[0];
   if (!res) throw new Error(`Yahoo ${symbol}: data kosong`);
-  const q = res.indicators.quote[0], out = [];
+  const q = res.indicators.quote[0], out = [], wib = (t) => new Date((t + 7 * 3600) * 1000).toISOString().slice(0, 10);
   res.timestamp.forEach((t, i) => {
     const c = num(q.close[i]);
-    if (c != null) out.push([new Date((t + 7 * 3600) * 1000).toISOString().slice(0, 10), c, num(q.volume[i]) || 0]);   // tanggal WIB
+    if (c != null) out.push([wib(t), c, num(q.volume && q.volume[i]) || 0]);   // tanggal WIB; sebagian indeks tanpa kolom volume
   });
+  if (withDiv) out.div = Object.values(res.events?.dividends || {}).map((d) => [wib(d.date), num(d.amount)]).filter((d) => d[1]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
   return out;
 }
 
@@ -180,16 +191,116 @@ function yearsOf(series, end) {
   return out;
 }
 
+/* =========================================================
+   OPS: iNAV, TRACKING ERROR, KALENDER, PERINGATAN (fungsi murni, dicek di test.mjs)
+   ========================================================= */
+const isoD = (d) => d.toISOString().slice(0, 10);
+const addD = (iso, n) => { const t = new Date(iso + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return isoD(t); };
+/** Jumlah hari kerja (Senin–Jumat) setelah a sampai b. */
+export function weekdaysBetween(a, b) {
+  let n = 0;
+  for (let d = addD(a, 1); d <= b; d = addD(d, 1)) { const w = new Date(d + "T00:00:00Z").getUTCDay(); if (w % 6) n++; }
+  return n;
+}
+/**
+ * Perkiraan iNAV = NAB terakhir × (indeks sekarang ÷ indeks pada tanggal NAB). live = { c: penutupan/berjalan, p: penutupan kemarin }.
+ * Hanya bila tanggal NAB = hari harga terakhir atau 1 hari bursa sebelumnya (TradingView hanya memberi dua titik itu).
+ */
+export function inavOf(nav, navDate, priceDate, live) {
+  if (!nav || !navDate || !priceDate || !live || !live.c) return null;
+  const base = navDate === priceDate ? live.c : navDate === prevWeekday(priceDate) ? live.p : null;
+  if (!base) return null;
+  return { value: nav * live.c / base, move: (live.c / base - 1) * 100 };
+}
+const monthIdx = (m) => +m.slice(0, 4) * 12 + +m.slice(5, 7);
+/**
+ * Tracking error dari titik akhir bulan: deviasi standar (selisih return bulanan NAB − indeks) × √12, dalam persen per tahun.
+ * Bulan berjalan (thisMonth) tidak dihitung. Indeks = return harga (tanpa dividen), jadi selisih rata-ratanya cenderung positif.
+ */
+export function trackingOf(navPts, idx, listedAt, thisMonth) {
+  const ends = (s) => { const m = {}; for (const p of s || []) if (p[0] >= (listedAt || "")) m[p[0].slice(0, 7)] = p[1]; return m; };
+  const N = ends(navPts), I = ends(idx), ms = Object.keys(N).filter((m) => I[m] && m !== thisMonth).sort(), diffs = [];
+  for (let i = 1; i < ms.length; i++) if (monthIdx(ms[i]) - monthIdx(ms[i - 1]) === 1) diffs.push([ms[i], (N[ms[i]] / N[ms[i - 1]] - 1) - (I[ms[i]] / I[ms[i - 1]] - 1)]);
+  const te = (n) => {
+    const L = diffs.slice(-n).map((d) => d[1]);
+    if (L.length < Math.min(n, 6)) return null;
+    const mu = L.reduce((a, b) => a + b, 0) / L.length;
+    return { te: Math.sqrt(L.reduce((a, b) => a + (b - mu) ** 2, 0) / (L.length - 1)) * Math.sqrt(12) * 100, avg: mu * 100, n: L.length };
+  };
+  return { y1: te(12), y3: te(36), last: diffs.slice(-12).map(([m, d]) => [m, +(d * 100).toFixed(3)]) };
+}
+const MON = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const pad2 = (n) => String(n).padStart(2, "0");
+const bizBack = (iso) => { let d = iso; while (new Date(d + "T00:00:00Z").getUTCDay() % 6 === 0) d = addD(d, -1); return d; };
+const bizFwd = (iso) => { let d = iso; while (new Date(d + "T00:00:00Z").getUTCDay() % 6 === 0) d = addD(d, 1); return d; };
+const lastBiz = (y, m) => bizBack(isoD(new Date(Date.UTC(y, m, 0))));   // m = 1–12
+const firstBiz = (y, m) => bizFwd(`${y}-${pad2(m)}-01`);
+/**
+ * Kalender ops ETF & reksa dana dari today sampai today + days. Jadwal resmi bisa bergeser, jadi semua bertanda perkiraan.
+ * - MSCI Quarterly Index Review: pengumuman ±pertengahan Feb/Mei/Agu/Nov, berlaku penutupan hari bursa terakhir bulan itu.
+ * - IDX30: evaluasi mayor Januari & Juli, minor April & Oktober; berlaku hari bursa pertama Feb/Mei/Agu/Nov.
+ * - Dividen: bulan yang sama dengan pembagian tahun-tahun sebelumnya (riwayat Yahoo).
+ * - Awal bulan: fund fact sheet & laporan bulanan bulan sebelumnya.
+ */
+export function opsCalendar(today, divs = {}, days = 120) {
+  const end = addD(today, days), ev = [], y0 = +today.slice(0, 4);
+  for (const y of [y0, y0 + 1]) {
+    for (const m of [2, 5, 8, 11]) {
+      ev.push({ date: bizFwd(`${y}-${pad2(m)}-12`), etf: "XKMS", type: "indeks", title: `Pengumuman MSCI Quarterly Index Review ${MON[m - 1]} ${y}`, note: "Perkiraan; cek jadwal resmi di msci.com. Siapkan daftar perubahan konstituen MSCI Indonesia." });
+      ev.push({ date: lastBiz(y, m), etf: "XKMS", type: "rebalancing", title: `Rebalancing MSCI Indonesia berlaku (penutupan ${MON[m - 1]} ${y})`, note: "Portofolio XKMS disesuaikan dengan konstituen baru." });
+    }
+    for (const [m, k] of [[1, "mayor"], [4, "minor"], [7, "mayor"], [10, "minor"]]) {
+      ev.push({ date: lastBiz(y, m), etf: "XKID", type: "indeks", title: `Pengumuman evaluasi ${k} indeks IDX30 (${MON[m - 1]} ${y})`, note: "Perkiraan; cek pengumuman BEI di idx.co.id." });
+      ev.push({ date: firstBiz(y, m + 1), etf: "XKID", type: "rebalancing", title: `Konstituen baru IDX30 berlaku (evaluasi ${k})`, note: "Portofolio XKID disesuaikan dengan konstituen baru." });
+    }
+    for (let m = 1; m <= 12; m++) ev.push({ date: firstBiz(y, m), etf: "", type: "laporan", title: `Fund fact sheet & laporan bulanan ${MON[(m + 10) % 12]} ${m === 1 ? y - 1 : y}`, note: "Cek NAB akhir bulan, AUM, dan kinerja sebelum materi dibagikan." });
+  }
+  for (const [code, list] of Object.entries(divs)) {
+    const last = {};
+    for (const [d, amt] of [...(list || [])].sort((a, b) => (a[0] < b[0] ? -1 : 1))) last[d.slice(5, 7)] = [d, amt];   // satu per bulan: pembagian terakhir di bulan itu
+    for (const [mm, [d, amt]] of Object.entries(last)) for (const y of [y0, y0 + 1]) {
+      const date = `${y}-${mm}-${d.slice(8, 10)}`;
+      if (date > d) ev.push({ date: bizFwd(date), etf: code, type: "dividen", title: `Perkiraan pembagian dividen ${code}`, note: `Terakhir ${d.slice(8, 10)} ${MON[+mm - 1]} ${d.slice(0, 4)}: Rp${amt.toLocaleString("id-ID")} per unit (Yahoo Finance).` });
+    }
+  }
+  return ev.filter((e) => e.date >= today && e.date <= end).map((e) => ({ ...e, approx: true })).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+/**
+ * Peringatan ops satu ETF. level: "high" | "warn". key unik per kejadian (dipakai lonceng Tool Hub supaya tidak berulang).
+ * Ambang: NAB terlambat > 2 hari bursa; premium/diskon ≥ 1% (≥ 2% = tinggi); ≥ 5 dari 20 hari tanpa transaksi;
+ * selisih NAB vs indeks 1 bulan ≥ 1 poin; tracking error 1 tahun > 2%; arus keluar > 10% AUM dalam sebulan.
+ */
+export function alertsOf(k) {
+  const A = [], f2 = (v) => (v > 0 ? "+" : "") + v.toFixed(2).replace(".", ","), at = k.navDate || k.priceDate || "";
+  const add = (level, rule, t, body) => A.push({ code: k.code, level, rule, title: `${k.code}: ${t}`, body, key: `etf:${k.code}:${rule}:${at}` });
+  if (k.navDate && k.priceDate) { const lag = weekdaysBetween(k.navDate, k.priceDate); if (lag > 2) add("high", "nav", `NAB belum diperbarui ${lag} hari bursa`, `NAB terakhir ${k.navDate}, harga terakhir ${k.priceDate}. Cek publikasi NAB.`); }
+  if (k.premium != null && Math.abs(k.premium) >= 1) add(Math.abs(k.premium) >= 2 ? "high" : "warn", "prem", `harga ${k.premium > 0 ? "premium" : "diskon"} ${f2(k.premium)}% dari NAB`, `Pada ${k.navDate}. Cek kuotasi market maker / dealer partisipan.`);
+  if (k.premiumLive != null && Math.abs(k.premiumLive) >= 1) add("warn", "inav", `harga ${f2(k.premiumLive)}% dari perkiraan iNAV`, `Perkiraan iNAV ${k.inav ? Math.round(k.inav.value).toLocaleString("id-ID") : "–"} (indeks ${k.liveIndex}).`);
+  if (k.liq && k.liq.zeroDays20 >= 5) add("warn", "liq", `${k.liq.zeroDays20} dari ${k.liq.days} hari bursa tanpa transaksi`, "Likuiditas rendah. Cek kuotasi market maker.");
+  const an = k.bench && k.bench.atNav, td = an && an.ret && an.ret.m1 != null && k.ret && k.ret.m1 != null ? k.ret.m1 - an.ret.m1 : null;
+  if (td != null && Math.abs(td) >= 1) add("warn", "td", `selisih NAB vs indeks 1 bulan ${f2(td)} poin`, "Di luar kebiasaan (±1 poin). Cek dividen, biaya, atau rebalancing.");
+  if (k.track && k.track.y1 && k.track.y1.te > 2) add("warn", "te", `tracking error 1 tahun ${k.track.y1.te.toFixed(2).replace(".", ",")}%`, "Di atas 2% per tahun. Cek bobot portofolio vs indeks.");
+  const fl = (k.flows || []).at(-1);
+  if (fl && fl.flow != null && fl.aum && fl.flow < -0.1 * (fl.aum - fl.flow)) add("warn", "flow", `penebusan besar ${String(fl.ym).slice(4)}/${String(fl.ym).slice(0, 4)}`, `Arus keluar ±Rp${Math.round(-fl.flow).toLocaleString("id-ID")} M (> 10% AUM).`);
+  return A;
+}
+
 async function build(env) {
   const cols = ["name", "description", "close", "change", "volume", "Value.Traded", "average_volume_10d_calc", "expense_ratio", "nav_discount_premium", ...PERF];
-  const [etfs, idx, eido, fx, mk, ...charts] = await Promise.all([
+  const yk = Object.keys(IDX_Y);
+  const [etfs, idxRows, eido, fx, mk, ys, ...charts] = await Promise.all([
     tv("indonesia", { filter: [{ left: "type", operation: "equal", right: "fund" }], columns: cols, range: [0, 300] }),
-    tv("indonesia", { symbols: { tickers: ["IDX:IDX30"] }, columns: ["close", "close[1]", ...PERF] }),
+    tv("indonesia", { symbols: { tickers: ["IDX:IDX30", "IDX:LQ45", "IDX:ISSI"] }, columns: ["name", "close", "close[1]", ...PERF] }),
     yahoo("EIDO", "5y").catch(() => []),
     yahoo("IDR=X", "5y").catch(() => []),
     market(env).catch((e) => ({ at: null, f: {}, names: {}, hist: [], error: e.message })),
-    ...Object.keys(KISI).map((c) => yahoo(c + ".JK", "10y").catch(() => [])),
+    Promise.all(yk.map((k) => yahoo(IDX_Y[k], "5y").catch(() => []))),
+    ...Object.keys(KISI).map((c) => yahoo(c + ".JK", "10y", true).catch(() => [])),
   ]);
+  const Y = Object.fromEntries(yk.map((k, i) => [k, ys[i]]));
+  // baris TradingView: [name, close, close[1], ...PERF]; idx = IDX30 (urutan lama: close, close[1], PERF)
+  const tvRow = (n) => idxRows.find((r) => r.d[0] === n), live = Object.fromEntries(["IDX30", "LQ45"].map((n) => { const r = tvRow(n); return [n, r ? { c: num(r.d[1]), p: num(r.d[2]) } : null]; }));
+  const idx = tvRow("IDX30") ? [{ d: tvRow("IDX30").d.slice(1) }] : [];
   const lastDate = (code) => { const c = charts[Object.keys(KISI).indexOf(code)]; return c && c.length ? c[c.length - 1][0] : null; };
   // Pembanding indeks, dihitung sampai tanggal harga terakhir ETF supaya sebanding dengan return harga pasar.
   // IDX30: kinerja dari TradingView (berjalan, sama dengan return harga ETF dari TradingView).
@@ -225,23 +336,43 @@ async function build(env) {
     const navPts = mk.hist.filter((h) => h[k.pid]).map((h) => [h.d, h[k.pid][0]]);
     if (p.nav && p.navDate && !navPts.some((n) => n[0] === p.navDate)) navPts.push([p.navDate, p.nav]);
     const end = lastDate(code), { atNav: idxAtNav, ...bx } = bench[k.bench], an = idxAtNav(p.navDate);
-    return {
+    navPts.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    const inav = inavOf(p.nav, p.navDate, end, live[k.live]), thisMonth = isoD(new Date(Date.now() + 7 * 3600e3)).slice(0, 7);
+    const out = {
       ...p, price: trim(p.price, k.listedAt, end), ret: trim(p.ret, k.listedAt, p.navDate || end),
       bench: { ...bx, ret: trim(bx.ret, k.listedAt, bx.asOf || end), atNav: an && { ...an, ret: trim(an.ret, k.listedAt, p.navDate) } },
       index: k.index, listed: k.listed, listedAt: k.listedAt, priceDate: end,
       premium: atNav && p.nav ? (atNav[1] / p.nav - 1) * 100 : null, premiumClose: atNav ? atNav[1] : null,
+      inav, liveIndex: k.live, premiumLive: inav && p.close ? (p.close / inav.value - 1) * 100 : null,
+      track: trackingOf(navPts, k.bench === "msci" ? proxy : Y.idx30, k.listedAt, thisMonth),
+      divs: (ch.div || []).slice(-12),
       liq: { avgValue20: vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null, zeroDays20: last20.filter((c) => !c[2]).length, days: last20.length },
-      chart: { price: ch.map((c) => [c[0], c[1]]), nav: navPts.sort((a, b) => (a[0] < b[0] ? -1 : 1)) },
+      chart: { price: ch.map((c) => [c[0], c[1]]), nav: navPts },
       flows: flows(k.pid, mk.hist, mk.f[k.pid]),
     };
+    return { ...out, alerts: alertsOf(out) };
   });
-  return { at: new Date().toISOString(), navAt: mk.at, dbError: mk.error || null, groups: GROUPS, kisi, peers };
+  // Pembanding syariah: indeks JII, JII70, ISSI (dan IHSG) sampai tanggal harga terakhir ETF KISI; ETF syariah di BEI.
+  const sEnd = Object.keys(KISI).map(lastDate).filter(Boolean).sort().pop();
+  const sharia = {
+    asOf: sEnd || null,
+    idx: SHARIA_IDX.map(([key, name]) => {
+      // ISSI: kinerja berjalan dari TradingView (tanpa riwayat tahunan)
+      if (key === "issi") { const r = tvRow("ISSI"); return { key, name, asOf: r ? "berjalan" : null, ret: r ? perfOf(r.d, 3) : {}, years: {} }; }
+      const s = Y[key] || [], e = sEnd && s.length ? (s.findLast((p) => p[0] <= sEnd) || [null])[0] : null;
+      return { key, name, asOf: e, ret: e ? retAt(s, e) : {}, years: e ? yearsOf(s, e) : {} };
+    }),
+    etfs: peers.filter((p) => p.group === "sharia").map((p) => p.code),
+  };
+  const today = isoD(new Date(Date.now() + 7 * 3600e3));
+  const calendar = opsCalendar(today, Object.fromEntries(kisi.map((k) => [k.code, k.divs])));
+  return { at: new Date().toISOString(), navAt: mk.at, dbError: mk.error || null, groups: GROUPS, kisi, peers, sharia, calendar, alerts: kisi.flatMap((k) => k.alerts) };
 }
 
 let MEM = null;
 async function data(env, ctx, fresh) {
   if (!fresh && MEM && Date.now() - MEM.t < 10 * 60e3) return MEM.body;
-  const cache = caches.default, key = new Request("https://etf-insight.cache/api/etf-v2");
+  const cache = caches.default, key = new Request("https://etf-insight.cache/api/etf-v3");
   if (!fresh) { const hit = await cache.match(key); if (hit) { MEM = { t: Date.now(), body: await hit.text() }; return MEM.body; } }
   const body = JSON.stringify(await build(env));
   MEM = { t: Date.now(), body };
@@ -272,6 +403,13 @@ export default {
       }
     }
     if (path === "/api/news") return Response.json(await newsFor(ETF_NEWS_RE, 12, ETF_TOP_RE), { headers: { "cache-control": "public, max-age=1800" } });
+    // beranda & lonceng Tool Hub: peringatan ops dan kalender 7 hari ke depan
+    if (path === HUB_FEED) {
+      if (!hubFeedAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      const d = JSON.parse(await data(env, ctx, false)), today = isoD(new Date(Date.now() + 7 * 3600e3));
+      return Response.json({ date: today, at: d.at, alerts: d.alerts || [], calendar: (d.calendar || []).filter((e) => e.date <= addD(today, 7)).slice(0, 8),
+        kisi: (d.kisi || []).map(({ code, close, nav, navDate, premium, premiumLive, inav }) => ({ code, close, nav, navDate, premium, premiumLive, inav })) }, { headers: { "cache-control": "no-store" } });
+    }
     const pm = /^\/p\/([A-Za-z0-9-]{3,10})\/?$/.exec(path);
     if (pm) {
       const code = pm[1].toUpperCase();

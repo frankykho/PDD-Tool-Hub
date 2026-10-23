@@ -18,6 +18,7 @@ import { withCron } from "../../shared/cron.js";
 import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { BG_MODEL, BG_DAILY, BG_THEMES, BG_LABEL, bgTheme, bgPrompt, SCENE_RULES, imageB64 } from "./banner.js";
+import { shariaCached, shariaLabel } from "../../shared/sharia.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -295,6 +296,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const ITEM_COLS = "id,url,src,title,at,seen_at,descr,cat,theme,corp,tickers,score,lead,sources,status,ai_state,ai_title,summary,why,model,no_img,published_at,published_by,(image IS NOT NULL AND image<>'') AS has_img";
 const pub = (x) => ({ id: x.id, url: x.url, src: x.src, title: x.ai_title || x.title, at: x.at, cat: x.cat, theme: x.theme, corp: x.corp, tickers: x.tickers ? x.tickers.split(",") : [],
   summary: x.summary, why: x.why, sources: x.sources ? JSON.parse(x.sources) : [], img: x.has_img && !x.no_img ? "/img/" + x.id : "", published_at: x.published_at });
+// saham syariah (anggota ISSI/JII70/JII) -> label "Syariah" di kode saham; kosong kalau TradingView tidak terjangkau
+const syMap = (ctx) => shariaCached(ctx).then((s) => Object.fromEntries(Object.entries(s.codes).map(([c, t]) => [c, shariaLabel(t)]))).catch(() => ({}));
 function page(env, cfg, head = "", inHub = false) {
   const h = `<title>${esc(cfg.title || title(env, "Market News"))}</title>${head}${profileScript(env)}${themeHead("")}<script>${inHub ? HUBSSO.onlyInHub(env) : ""}window.MN=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Market News</title>", () => h);
@@ -386,7 +389,7 @@ export default withCron({
       if (bm) { await ensure(env); return bgImage(env, bm[1]); }
       const logo = profile(env).brand.logo ? "/logo" : "";
       // publik: hanya berita yang sudah diterbitkan, tanpa login
-      if (path === "/p" || path === "/p/") return html(page(env, { mode: "public", logo, items: await published(env), market: await market(env) }, '<meta name="viewport" content="width=device-width,initial-scale=1">'));
+      if (path === "/p" || path === "/p/") return html(page(env, { mode: "public", logo, items: await published(env), market: await market(env), sharia: await syMap(ctx) }, '<meta name="viewport" content="width=device-width,initial-scale=1">'));
       const nm = /^\/n\/([a-z0-9]+)$/.exec(path);
       if (nm) {
         await ensure(env);
@@ -395,7 +398,7 @@ export default withCron({
         const it = pub(x), og = (p, v) => v ? `<meta property="${p}" content="${esc(v)}">` : "";
         const head = '<meta name="viewport" content="width=device-width,initial-scale=1">' + og("og:type", "article") + og("og:title", it.title) + og("og:description", it.summary) + og("og:url", url.origin + path)
           + og("og:image", it.img ? url.origin + it.img : "") + og("og:site_name", title(env, "Market News")) + `<meta name="twitter:card" content="${it.img ? "summary_large_image" : "summary"}">`;
-        return html(page(env, { mode: "public", logo, items: [it], single: true, title: it.title }, head));
+        return html(page(env, { mode: "public", logo, items: [it], single: true, title: it.title, sharia: await syMap(ctx) }, head));
       }
       if (path === "/logout") return HUBSSO.logout(env);
       if (!HUBSSO.ready(env)) return HUBSSO.notReady();
@@ -404,7 +407,7 @@ export default withCron({
       const isPage = path === "/" || path === "/index.html";
       if (!me) return isPage ? HUBSSO.login(request, env) : json({ error: "Belum login atau sesi habis. Muat ulang halaman dari Tool Hub." }, 401);
       const role = me.adm ? "admin" : me.a, canEdit = role === "admin" || role === "editor", who = me.n || me.u || me.e;
-      if (isPage) return html(page(env, { mode: "team", logo, canEdit, publicUrl: url.origin + "/p", sources: SOURCES.map(({ id, name }) => ({ id, name })) }, "", true), { "content-security-policy": HUBSSO.frame(env) });
+      if (isPage) return html(page(env, { mode: "team", logo, canEdit, publicUrl: url.origin + "/p", sources: SOURCES.map(({ id, name }) => ({ id, name })), sharia: await syMap(ctx) }, "", true), { "content-security-policy": HUBSSO.frame(env) });
       await ensure(env);
 
       if (request.method === "GET") {

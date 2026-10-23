@@ -924,3 +924,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .lab-legend i.bench { background: var(--c2); }
 @media (max-width: 900px) { .lab-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px 15px 0; } .lab-body { padding: 14px 15px; } }
 @media (max-width: 520px) { .lab-num input { width: 100%; } .lab-risk .lab-num { flex: 1 1 140px; } }
+
+/* label saham syariah (anggota ISSI / JII70 / JII) */
+.sy-badge{display:inline-block;margin-left:6px;padding:0 5px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.3px;vertical-align:1px;color:#1f9d63;background:rgba(31,157,99,.14)}
+.sy-check{margin-top:12px;padding-top:10px;border-top:1px solid var(--line, rgba(127,127,127,.25))}.sy-check h3{font-size:14px;margin:0 0 6px}.sy-check ul{margin:0 0 6px;padding-left:18px}.sy-check li{margin:2px 0}

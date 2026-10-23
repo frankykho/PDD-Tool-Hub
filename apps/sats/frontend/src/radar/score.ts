@@ -155,12 +155,17 @@ export interface RadarHit {
   res: RadarResult;
 }
 
-/** Saham yang terdeteksi Radar, urut dari skor tertinggi. inWatch = kode di watchlist. */
-export function runRadar(rows: ScreenerRow[], c: Criteria, inWatch: (code: string) => boolean = () => true): RadarHit[] {
+/** Saham yang terdeteksi Radar, urut dari skor tertinggi. inWatch = kode di watchlist; inIndex = keanggotaan indeks lain (mis. syariah). */
+export function runRadar(
+  rows: ScreenerRow[],
+  c: Criteria,
+  inWatch: (code: string) => boolean = () => true,
+  inIndex: (row: ScreenerRow, index: string) => boolean = (row, index) => (row.indexes ?? "").split(",").includes(index),
+): RadarHit[] {
   const out: RadarHit[] = [];
   for (const row of rows) {
     if ((row.value_20d ?? 0) < c.minValue * 1e9) continue;
-    if (c.index && !(row.indexes ?? "").split(",").includes(c.index)) continue;
+    if (c.index && !inIndex(row, c.index)) continue;
     if (c.aboveMa200 && !((row.dist_ma200 ?? -1) > 0)) continue;
     if (c.fundOk && row.fund_ok !== 1) continue;
     if (c.watchOnly && !inWatch(row.code)) continue;

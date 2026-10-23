@@ -14,6 +14,7 @@ import { HELP } from "../help";
 import { EXIT_LABEL, fmt1, fmtDate, fmtPct, fmtPrice, fmtRp, hitsLabel, pctFrom, riskFlags, statusOf } from "../format";
 import { STRATEGIES, setStrategy, useStrategy, type StrategyId, type StrategyMeta } from "../strategy";
 import { useAsync } from "../useAsync";
+import { shariaLabel, useSharia } from "../sharia";
 
 function LevelStrip({ s, strategy }: { s: LatestRow; strategy: StrategyMeta }) {
   const items: Array<[string, number | null, "entry" | "sell" | "buy"]> = strategy.hasTargets
@@ -329,6 +330,7 @@ function IndicatorPicker({ value, onChange }: { value: string[]; onChange: (v: s
 }
 
 export default function StockDetail({ code }: { code: string }) {
+  const sy = useSharia();
   const [studies, setStudiesState] = useState<string[]>(loadStudies);
   const setStudies = (v: string[]) => {
     setStudiesState(v);
@@ -380,6 +382,11 @@ export default function StockDetail({ code }: { code: string }) {
           <Star code={s.code} />
           <h1 className="mono">{s.code}</h1>
           <span className="muted">{s.name}</span>
+          {sy[s.code] && (
+            <span className="sy-badge" title={`Anggota indeks ${sy[s.code].join(", ")} (Daftar Efek Syariah)`}>
+              Syariah · {shariaLabel(sy[s.code])}
+            </span>
+          )}
           <span className="price mono">{fmtPrice(s.close)}</span>
           <span className={`mono ${(s.change_pct ?? 0) >= 0 ? "buy" : "sell"}`}>{fmtPct(s.change_pct)}</span>
           {s.as_of_date && <span className="dim small">per {fmtDate(s.as_of_date, true)}</span>}
@@ -468,7 +475,7 @@ export default function StockDetail({ code }: { code: string }) {
           ) : (
             <p className="muted">Belum ada sinyal {strategy.short} untuk saham ini.</p>
           )}
-          <FundCard f={res.data.fundamentals ?? null} />
+          <FundCard f={res.data.fundamentals ?? null} sharia={sy[s.code] ?? []} />
           <StockTrack code={code} strategy={strategy} />
         </aside>
       </div>

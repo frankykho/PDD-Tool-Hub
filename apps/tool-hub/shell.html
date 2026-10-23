@@ -660,7 +660,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
   // Market Recap & jadwal berjam Content Planner tampil di Ritme hari ini, jadi tidak punya kartu sendiri
   var PANELS = [["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"],
-    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"]];
+    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"], ["etf", "etfBody", "etf", "research", "Ops ETF"]];
   function renderToday() {
     var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
@@ -717,7 +717,31 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     html += '<div class="subh">Agenda pasar</div>' + (ag.length ? '<div class="rows">' + ag.map(function (x) {
       return rowHtml("", x.t, [x.d === d.date ? "Hari ini" : hari(x.d), x.time ? x.time + " WIB" : "", x.k === "internal" ? "Internal" : x.country === "US" ? "Ekonomi AS" : "Ekonomi"].filter(Boolean).join(" · "));
     }).join("") + "</div>" : '<p class="muted small" style="margin:0">Tidak ada agenda hari ini sampai lusa.</p>');
+    var st = d.stale || [];
+    if (st.length) html += '<div class="subh">NAB belum diperbarui · ' + d.staleN + " produk</div>" + '<div class="rows">' + st.slice(0, 4).map(function (x) {
+      return rowHtml("warn", x.name, "NAB terakhir " + hari(x.navDate) + " · produk lain sudah " + hari(x.last));
+    }).join("") + "</div>" + (d.staleN > 4 ? '<p class="more">dan ' + (d.staleN - 4) + " produk lainnya</p>" : "");
+    // lonceng ops: gerak tidak biasa & NAB tertinggal (sekali per produk per tanggal NAB)
+    var at = d.at || new Date().toISOString();
+    NO.fund = dev.map(function (x) { return { id: "fund:dev:" + x.name + ":" + m.nav, kind: "ops", app: "fund", title: "Gerak tidak biasa: " + x.name, body: (x.chg > 0 ? "+" : "") + dec(x.chg, 2) + "% (biasanya ±" + dec(x.sdd, 2) + "%)", at: at }; })
+      .concat(st.map(function (x) { return { id: "fund:stale:" + x.pid + ":" + x.navDate, kind: "ops", app: "fund", title: "NAB belum diperbarui: " + x.name, body: "Terakhir " + hari(x.navDate), at: at }; }));
+    mergeBell();
     el.innerHTML = html + foot(d.at ? "Data diperbarui " + ago(Date.parse(d.at)) : hari(d.date), "fund", "Buka Fund Insight");
+  }
+  // ETF Insight: peringatan ops (premium/diskon, NAB terlambat, likuiditas, tracking) dan kalender 7 hari
+  function fillEtf(r) {
+    var el = $("#etfBody"); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan ETF Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, A = d.alerts || [], C = d.calendar || [];
+    var html = '<div class="subh">ETF hari ini</div><div class="rows">' + (d.kisi || []).map(function (k) {
+      var p = k.premiumLive != null ? k.premiumLive : k.premium;
+      return rowHtml(p != null && Math.abs(p) >= 1 ? "warn" : "ok", k.code, "Harga " + (k.close == null ? "–" : k.close.toLocaleString("id-ID")) + (k.inav ? " · iNAV ±" + Math.round(k.inav.value).toLocaleString("id-ID") : "") + (k.navDate ? " · NAB " + hari(k.navDate) : ""), p == null ? "" : pctHtml(p));
+    }).join("") + "</div>";
+    html += '<div class="subh">Perlu perhatian · ' + A.length + "</div>" + (A.length ? '<div class="rows">' + A.slice(0, 5).map(function (a) { return rowHtml(a.level === "high" ? "err" : "warn", a.title, a.body); }).join("") + "</div>" : '<p class="muted small" style="margin:0">Tidak ada peringatan.</p>');
+    if (C.length) html += '<div class="subh">Kalender ops 7 hari</div><div class="rows">' + C.slice(0, 4).map(function (x) { return rowHtml("", x.title, [hari(x.date), x.etf].filter(Boolean).join(" · ") + " · perkiraan"); }).join("") + "</div>";
+    NO.etf = A.map(function (a) { return { id: a.key, kind: "ops", app: "etf", title: a.title, body: a.body, at: d.at || new Date().toISOString() }; });
+    mergeBell();
+    el.innerHTML = html + foot(d.at ? "Data diperbarui " + ago(Date.parse(d.at)) : hari(d.date), "etf", "Buka ETF Insight");
   }
   var CST = { "Perlu verifikasi": "st-warn", Aktif: "st-ok", Berakhir: "st-muted", "Tidak relevan": "st-muted" };
   function fillComp(r) {
@@ -739,7 +763,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     var nf = function (x, k) { return Math.abs(x).toLocaleString("id-ID", { maximumFractionDigits: k }); };
     var fm = function (v, c) { if (v == null) return "–"; var s = v < 0 ? "−" : ""; return c === "USD" ? s + (Math.abs(v) >= 1000 ? "US$" + nf(v / 1000, 2) + " M" : "US$" + nf(v, 1) + " jt") : s + (Math.abs(v) >= 1000 ? "Rp" + nf(v / 1000, 2) + " T" : "Rp" + nf(v, 1) + " M"); };
     var yoy = function (v) { return v == null ? "" : " (" + (v > 0 ? "+" : v < 0 ? "−" : "") + nf(v, 1) + "%)"; };
-    NN = it.map(function (x) { return { id: "fin:" + x.code + ":" + x.period, kind: "fin", title: x.code + " · laporan keuangan " + x.period, body: "Laba bersih " + fm(x.net_profit, x.currency) + yoy(x.net_profit_yoy), at: x.at }; });
+    NF = it.map(function (x) { return { id: "fin:" + x.code + ":" + x.period, kind: "fin", title: x.code + " · laporan keuangan " + x.period, body: "Laba bersih " + fm(x.net_profit, x.currency) + yoy(x.net_profit_yoy), at: x.at }; });
     mergeBell();
     var html = '<div class="subh">Rilis sejak kemarin · ' + it.length + " emiten</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
       return rowHtml(x.net_profit_yoy == null ? "" : x.net_profit_yoy >= 0 ? "ok" : "err", x.code + " · " + x.period, "Pendapatan " + fm(x.revenue, x.currency) + yoy(x.revenue_yoy) + " · Laba bersih " + fm(x.net_profit, x.currency) + yoy(x.net_profit_yoy), "");
@@ -814,11 +838,13 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   /* ---------- notifikasi tugas (disimpan Content Planner, ikut /api/today) ---------- */
   var TSL = { belum: "Belum mulai", proses: "Dikerjakan", revisi: "Revisi", selesai: "Selesai" };
   function todayIso() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); }
-  var NOTIF = { unread: 0, items: [] }, NP = { unread: 0, items: [] }, NN = [];
+  var NOTIF = { unread: 0, items: [] }, NP = { unread: 0, items: [] }, NN = [], NF = [], NO = { etf: [], fund: [] };
   // lonceng = tugas Content Planner (status dibaca di server) + laporan keuangan baru dari Market News (status dibaca di browser ini)
   var FINREAD = (function () { try { return JSON.parse(localStorage.getItem("hub_fin_read") || "[]"); } catch (e) { return []; } })();
   function finSave() { try { localStorage.setItem("hub_fin_read", JSON.stringify(FINREAD.slice(-300))); } catch (e) { } }
   function mergeBell() {
+    // peringatan ops (ETF & reksa dana) hanya untuk role Ops ETF & Fund dan admin; tetap tampil di kartu beranda untuk semua
+    NN = NF.concat(H.me.ops ? NO.etf.concat(NO.fund) : []);
     var items = NP.items.concat(NN.map(function (x) { x.read_at = FINREAD.indexOf(x.id) >= 0 ? x.at : null; return x; }));
     items.sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });
     NOTIF = { unread: NP.unread + NN.filter(function (x) { return !x.read_at; }).length, items: items.slice(0, 30) };
@@ -834,14 +860,14 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     $("#bellBtn").setAttribute("aria-label", "Notifikasi" + (n ? ", " + n + " belum dibaca" : ""));
     $("#bellMenu").innerHTML = '<div class="nh"><b>Notifikasi</b>' + (n ? '<button class="link" type="button" data-nall>Tandai semua dibaca</button>' : "") + "</div>" +
       (NOTIF.items.length ? NOTIF.items.map(function (x) {
-        return '<button type="button" role="menuitem" class="ni' + (x.read_at ? " read" : "") + '" data-nid="' + esc(String(x.id)) + '" data-item="' + esc(x.item_id || "") + '"><span class="dot ' + (x.read_at ? "" : x.kind === "due" ? "warn" : x.kind === "fin" ? "ok" : "info") + '" aria-hidden="true"></span><span><b>' + esc(x.title) + "</b><small>" + esc((x.body ? x.body + " · " : "") + ago(Date.parse(x.at))) + "</small></span></button>";
+        return '<button type="button" role="menuitem" class="ni' + (x.read_at ? " read" : "") + '" data-nid="' + esc(String(x.id)) + '" data-item="' + esc(x.item_id || "") + '"><span class="dot ' + (x.read_at ? "" : x.kind === "due" || x.kind === "ops" ? "warn" : x.kind === "fin" ? "ok" : "info") + '" aria-hidden="true"></span><span><b>' + esc(x.title) + "</b><small>" + esc((x.body ? x.body + " · " : "") + ago(Date.parse(x.at))) + "</small></span></button>";
       }).join("") : '<div class="nempty">Belum ada notifikasi.' + (byId.planner ? " Tugas yang diberikan kepadamu" : "") + (byId.planner && byId.news ? " dan laporan keuangan emiten baru" : byId.news ? " Laporan keuangan emiten baru" : "") + " akan muncul di sini.</div>") +
       (byId.planner ? '<div class="nf"><button class="link" type="button" data-ntasks>Lihat semua tugas ' + icon("arrowR") + "</button></div>" : "");
   }
   function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NP = r.data.notif; mergeBell(); } }
   function bell(open) { var m = $("#bellMenu"); if (!m) return; m.classList.toggle("open", open); $("#bellBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = m.querySelector("button"); if (f) f.focus(); } }
   function markRead(body) { return fetch("/api/notif/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(function () { }); }
-  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillJobs(d.jobs, d.cron); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillEtf(d.etf); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {
@@ -1081,6 +1107,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
     if (!it) return;
     var x = NOTIF.items.filter(function (y) { return String(y.id) === it.dataset.nid; })[0];
     if (x && x.kind === "fin") { if (FINREAD.indexOf(x.id) < 0) { FINREAD.push(x.id); finSave(); } mergeBell(); bell(false); openNewsFin(); return; }
+    if (x && x.kind === "ops") { if (FINREAD.indexOf(x.id) < 0) { FINREAD.push(x.id); finSave(); } mergeBell(); bell(false); go("#" + x.app); return; }
     if (x && !x.read_at) { x.read_at = new Date().toISOString(); NP.unread = Math.max(0, NP.unread - 1); markRead({ ids: [x.id] }); }
     mergeBell(); bell(false);
     openPlanner(it.dataset.item ? "?item=" + encodeURIComponent(it.dataset.item) : "?view=tasks");

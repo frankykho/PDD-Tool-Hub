@@ -105,6 +105,25 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
 - Cek: `node apps/fund-insight/test.mjs`
 
+### Syariah
+
+- `shared/sharia.js`: daftar saham syariah dari anggota indeks **ISSI** (semua saham syariah tercatat, mengikuti Daftar Efek Syariah OJK), **JII70**, dan **JII** lewat scanner TradingView (`groups: index`), gratis tanpa akun, cache Cloudflare 12 jam. Tidak perlu unggah daftar DES.
+- SATS: `/api/sharia`; opsi indeks "Syariah" (ISSI / JII70 / JII) di Screener & Radar, label di daftar dan halaman saham, serta kartu "Syariah" di Fundamental: status anggota indeks + indikasi rasio (utang ÷ aset ≤ 45% dari batas atas DER ÷ (1 + DER); pendapatan non-halal tidak tersedia dari data gratis; catatan usaha berbasis bunga). Indikasi, bukan penetapan syariah.
+- Market News: label "Syariah" di kode saham (halaman tim & publik).
+- Fund Insight: penanda syariah dari kategori Bareksa (`category.id` 1 = Syariah; cadangan tebakan nama), tab **Syariah** (RD syariah yang dijual per jenis, pangsa syariah di pasar, syariah terbaik yang belum dijual), filter syariah di Semua RD.
+- Bond Insight: chip **Sukuk Ritel (SR/ST)** di Katalog. ETF Insight: pembanding indeks JII, ISSI, IHSG dan daftar ETF syariah di BEI.
+- Content Planner: momen Ramadan/THR/Idul Fitri/Idul Adha/Tahun Baru Islam dengan ide syariah; Paket Mingguan punya mode **🕌 Syariah** (RD syariah + sukuk, caption & email bertema syariah).
+
+### ETF Insight: ops
+
+- **Perkiraan iNAV** = NAB terakhir × pergerakan indeks berjalan sejak tanggal NAB (XKID: IDX30; XKMS: LQ45 sebagai pendekatan MSCI Indonesia) dan premium/diskon harga terhadapnya.
+- **Tracking error** 1 & 3 tahun = deviasi standar selisih return bulanan NAB − indeks × √12 (indeks: IDX30 dari Yahoo `IDX30.JK`; MSCI Indonesia dari EIDO × kurs).
+- **Kalender ops** 120 hari (perkiraan): review MSCI (Feb/Mei/Agu/Nov), evaluasi IDX30 (mayor Jan & Jul, minor Apr & Okt), perkiraan dividen dari riwayat Yahoo, fund fact sheet & laporan bulanan.
+- **Peringatan**: NAB terlambat > 2 hari bursa, premium/diskon ≥ 1%, harga vs iNAV ≥ 1%, ≥ 5/20 hari tanpa transaksi, selisih NAB vs indeks 1 bulan ≥ 1 poin, tracking error > 2%, penebusan > 10% AUM. Tampil di halaman, kartu "Ops ETF" di beranda Tool Hub (`/__hub/today`, binding `ETF`), dan lonceng untuk role **Ops ETF & Fund** & admin (bersama gerak harian tidak biasa dan NAB tertinggal dari Fund Insight).
+- Halaman nasabah `/p/<KODE>`: tombol Bagikan ke WhatsApp, salin link, dan QR (unduh aplikasi bila `app.download` diisi).
+- Role baru di `shared/jobs.js`: Product Marketing, Ops ETF & Fund, Syariah.
+- Cek: `node apps/etf-insight/test.mjs`
+
 ### Content Planner: momen, persetujuan, performa
 
 - **Kalender momen** (`shared/moments.js`, tanpa sumber luar): hari nasional, hari besar (Paskah dihitung; hari besar Islam dari kalender Hijriah tabular = perkiraan ±1 hari; Imlek/Nyepi/Waisak dari tabel), momen keuangan & pasar modal (batas laporan keuangan, musim dividen, Bulan Inklusi Keuangan, Hari Menabung), Harbolnas, dan tanggal gajian. Ramadan, THR, Idul Fitri, Idul Adha, dan Tahun Baru Islam diberi ide konten syariah. Momen tim (masa penawaran SBN, HUT perusahaan) disimpan di tabel `moments`. Tampil di sel kalender dan panel "✨ Momen"; "+ Kegiatan" membuat kegiatan berisi idenya.

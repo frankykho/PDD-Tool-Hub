@@ -119,4 +119,15 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
     await assert.rejects(() => xfund(env, "9999"), /tidak bisa dihubungi/);
   } finally { globalThis.fetch = realFetch; }
 }
+// penanda syariah dari kategori Bareksa
+{
+  const { syOf } = await import("./worker.js");
+  assert.equal(syOf({ category: { id: "1", name: "" } }), 1);
+  assert.equal(syOf({ category: { id: 2, name: "Konvensional" } }), 0);
+  assert.equal(syOf({ category: { id: "0" } }), null);
+  assert.equal(syOf({}), null);
+  const { staleNav } = await import("./worker.js");
+  assert.deepEqual(staleNav([{ pid: "1", name: "A", navDate: "2026-10-22" }, { pid: "2", name: "B", navDate: "2026-10-16" }, { pid: "3", name: "C", navDate: "2026-10-19" }, { pid: "4", name: "D", navDate: null }]).map((x) => x.name), ["B"], "tertinggal > 4 hari dari NAB terbaru");
+  assert.deepEqual(staleNav([]), []);
+}
 console.log("semua cek lolos");
