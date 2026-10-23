@@ -59,6 +59,10 @@ new Function("window", complianceScript().replace(/^<script>|<\/script>$/g, ""))
 for (const t of ["Reksa dana pasti untung", "Beli saham BBCA", "Return 8% per tahun, cashback!", "a".repeat(300)])
   assert.deepEqual(w.Compliance.check(t, { glossary: gl }), checkCopy(t, { glossary: gl }), t.slice(0, 30));
 assert.deepEqual(Object.keys(w.Compliance.PLATFORMS), Object.keys(PLATFORMS));
+// hasil bundle wrangler menyisipkan __name(...) ke dalam fungsi; browser tidak punya helper itu
+const w2 = {}, bundled = complianceScript().replace(/^<script>|<\/script>$/g, "").replace("function checkCopy(text, opts) {", "function checkCopy(text, opts) {__name(function(){}, \"x\");");
+new Function("window", bundled)(w2);
+assert.equal(w2.Compliance.check("Pasti untung", {}).issues.length > 0, true, "skrip Compliance jalan walau ada __name");
 
 /* ---------- prompt & parse ---------- */
 assert.equal(prompt("ab", { brief: "" }), null);

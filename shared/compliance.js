@@ -101,7 +101,8 @@ export function checkCopy(text, opts) {
 /** Tag <script> yang mengisi window.Compliance = { check, PLATFORMS, RULES } di browser. */
 export function complianceScript() {
   const rules = "[" + RULES.map((r) => "{" + Object.entries(r).map(([k, v]) => JSON.stringify(k) + ":" + (v instanceof RegExp ? v.toString() : JSON.stringify(v))).join(",") + "}").join(",") + "]";
-  const src = `(function(){var PLATFORMS=${JSON.stringify(PLATFORMS)};var RULES=${rules};var HASHTAG=${HASHTAG.toString()};${checkCopy.toString()}window.Compliance={check:checkCopy,PLATFORMS:PLATFORMS,RULES:RULES};})();`;
+  // __name: helper yang disisipkan wrangler (keepNames) ke dalam fungsi saat bundling; ikut terbawa oleh toString(), jadi disediakan di sini
+  const src = `(function(){var __name=function(f){return f};var PLATFORMS=${JSON.stringify(PLATFORMS)};var RULES=${rules};var HASHTAG=${HASHTAG.toString()};${checkCopy.toString()}window.Compliance={check:checkCopy,PLATFORMS:PLATFORMS,RULES:RULES};})();`;
   return `<script>${src.replace(/<\/script/gi, "<\\/script")}</script>`;
 }
 
