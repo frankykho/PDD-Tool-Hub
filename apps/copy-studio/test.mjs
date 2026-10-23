@@ -78,6 +78,17 @@ assert.match(prompt("ab", { brief: "x", type: "subject" }).user, /pemicu spam/);
 assert.match(prompt("ab", { brief: "x" }).user, /PAS \(masalah–dampak–solusi\)/);
 for (const k of ["app", "reels", "kit"]) assert.match(prompt(k, { brief: "x", topic: "x", product: { name: "X" }, tone: "edukatif" }).user, /Nada: jelas dan sabar/, k);
 assert.deepEqual(parse("reels", '{"hooks":["Satu",{"text":"Dua","pattern":"angka spesifik"},{"text":""}]}').hooks, [{ text: "Satu", pattern: "" }, { text: "Dua", pattern: "angka spesifik" }]);
+// naskah YouTube: durasi/format tidak sah -> bawaan; penanda bab dari jumlah kata (140 kata/menit), bab pertama 0:00
+assert.equal(prompt("yt", {}), null);
+assert.match(prompt("yt", { topic: "x", duration: 10, format: "qa" }).user, /±10 menit[\s\S]*tanya-jawab[\s\S]*±1400 kata/);
+assert.match(prompt("yt", { topic: "x", duration: 99, format: "?" }).user, /±8 menit[\s\S]*edukasi/);
+const w140 = Array(140).fill("kata").join(" ");
+const ytR = parse("yt", JSON.stringify({ titles: ["Judul A", { text: "Judul B", why: "kata kunci di depan" }], thumbnails: ["MULAI 10RB"], hook: Array(70).fill("a").join(" "),
+  chapters: [{ title: "Pengantar", voiceover: w140 }, { title: "Inti", voiceover: w140 }, { title: "Contoh", voiceover: w140 }], cta_mid: "Subscribe ya", outro: w140, hashtags: ["reksa dana"], tags: ["#investasi", "pemula"] }));
+assert.deepEqual(ytR.chapters.map((c) => c.start), [0, 90, 151], "0:00, lalu hook 70 + bab 140 kata = 1,5 menit, lalu + CTA tengah 2 kata");
+assert.deepEqual(ytR.titles[0], { text: "Judul A", why: "" });
+assert.deepEqual([ytR.hashtags, ytR.tags], [["#reksadana"], ["investasi", "pemula"]]);
+assert.equal(ytR.words, 70 + 140 * 3 + 2 + 140);
 // contoh hook di panduan menulis AI sendiri harus lolos cek kepatuhan
 for (const [n, e] of HOOKS) assert.equal(checkCopy(e, { platform: "ig" }).issues.filter((i) => i.level === "error").length, 0, n);
 assert.deepEqual(parse("reels", '{"hashtags":["investasi","#Reksa Dana"],"scenes":[{"time":"0-3"}]}').hashtags, ["#investasi", "#ReksaDana"]);

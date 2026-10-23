@@ -209,6 +209,23 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     <div class="card stack" id="rsOut"><div class="empty">Naskah muncul di sini.</div></div>
   </section>
 
+  <!-- ============ NASKAH YOUTUBE ============ -->
+  <section data-tab="yt" class="grid2" hidden>
+    <div class="card stack">
+      <div><h2>Naskah YouTube</h2><p class="muted small" style="margin:0">Video panjang: judul, teks thumbnail, hook, naskah per bab, CTA, deskripsi dengan penanda bab, dan tag.</p></div>
+      <div class="row">
+        <label>Durasi<select id="ytDur"><option value="3">3 menit</option><option value="5">5 menit</option><option value="8" selected>8 menit</option><option value="10">10 menit</option><option value="12">12 menit</option><option value="15">15 menit</option></select></label>
+        <label>Format<select id="ytFmt"><option value="explainer">Edukasi / penjelasan</option><option value="list">Tips / daftar</option><option value="review">Ulasan produk</option><option value="story">Studi kasus / cerita</option><option value="qa">Tanya-jawab</option></select></label>
+        <label>Nada<select id="ytTone" data-tone></select></label>
+      </div>
+      <div class="row"><label class="grow">Topik<input type="text" id="ytTopic" placeholder="Mis. Cara memilih reksa dana pertama untuk pemula"></label></div>
+      <div class="row"><label class="grow">Penonton (opsional)<input type="text" id="ytAud" placeholder="Mis. karyawan muda yang belum pernah investasi"></label></div>
+      <label class="small muted" style="font-weight:600">Bahan (opsional): tempel artikel, riset, fakta produk, atau poin yang wajib dibahas<textarea id="ytSrc" style="min-height:120px"></textarea></label>
+      <div class="row"><button class="btn pri" id="ytGo" type="button">Tulis naskah</button><span class="muted small">Naskah panjang butuh ±30–90 detik.</span></div>
+    </div>
+    <div class="card stack" id="ytOut"><div class="empty">Naskah muncul di sini.</div></div>
+  </section>
+
   <!-- ============ SUBTITLE ============ -->
   <section data-tab="sub" class="stack" hidden>
     <div class="card stack">
@@ -270,7 +287,7 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
   "use strict";
   var CS = window.CS || {}, P = window.PROFILE || {}, C = window.Compliance, $ = function (id) { return document.getElementById(id); };
   var style = CS.style || { guide: "", glossary: [] };
-  var TABS = [["cek", "Cek Caption"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
+  var TABS = [["cek", "Cek Caption"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["yt", "Naskah YouTube"],["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var tt;
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(function () { t.hidden = true; }, 2600); }
@@ -313,6 +330,9 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
     reels: ["Menulis naskah video vertikal (Reels, TikTok, Shorts): hook 3 detik pertama, adegan demi adegan (visual, voice over, teks layar), CTA, caption, dan hashtag.",
       ["Pilih <b>Platform</b> dan <b>Durasi</b>.", "Isi <b>Topik</b>, dan bila ada, <b>Penonton</b> yang dituju.", "Tempel <b>Bahan</b> (berita, artikel edukasi, fakta produk) supaya isi naskah akurat. AI hanya memakai fakta dari bahan itu.", "Klik <b>Tulis naskah</b>. Selain hook utama, ada 3 <b>hook alternatif</b> dengan pola berbeda untuk diuji. Cek perkiraan durasi bicara di bawah tabel adegan.", "<b>Salin naskah</b> / <b>Unduh .txt</b> untuk tim produksi, dan <b>Cek caption</b> sebelum unggah."],
       ["Hook yang baik menyebut masalah atau angka yang membuat orang berhenti scroll.", "Teks layar maks. ±8 kata per adegan supaya terbaca.", "Setelah video jadi, buat subtitlenya di menu Subtitle."]],
+    yt: ["Menulis naskah video YouTube yang lebih panjang (3–15 menit): pilihan judul & teks thumbnail, hook 15–30 detik, naskah ucapan lengkap per bab beserta visualnya, CTA di tengah, penutup, deskripsi dengan penanda bab (timestamp) otomatis, hashtag, tag, dan komentar sematan.",
+      ["Pilih <b>Durasi</b>, <b>Format</b> (edukasi, tips, ulasan produk, studi kasus, tanya-jawab), dan <b>Nada</b>.", "Isi <b>Topik</b> dan <b>Penonton</b>.", "Tempel <b>Bahan</b> bila ada (artikel, riset, fakta produk). AI hanya memakai fakta dari bahan itu.", "Klik <b>Tulis naskah</b> dan tunggu ±30–90 detik.", "Pilih satu judul & teks thumbnail, baca naskah per bab, lalu <b>Salin naskah</b> / <b>Unduh .txt</b> untuk talent & editor. <b>Salin deskripsi</b> sudah berisi daftar bab untuk ditempel di YouTube Studio."],
+      ["Penanda bab dihitung dari panjang naskah (±140 kata per menit); setelah video jadi, sesuaikan dengan waktu sebenarnya di hasil edit.", "Video ulasan produk & angka kinerja: cocokkan dengan fund fact sheet dan sertakan disclaimer sebelum unggah.", "Buat subtitle dari videonya di tab <b>Subtitle</b>, dan potongan pendeknya di tab <b>Naskah Reels/TikTok</b>."]],
     sub: ["Membuat subtitle otomatis dari video atau audio, lalu mengunduhnya sebagai .srt atau .vtt untuk CapCut, Premiere, atau YouTube.",
       ["Pilih berkas video/audio (maks. ±15 menit; MP4, MOV, M4A, MP3 umumnya bisa).", "Pilih <b>Bahasa</b> dan <b>Maks. karakter per baris</b> (42 cocok untuk video vertikal).", "Klik <b>Buat subtitle</b> dan tunggu sampai bar selesai (suara diproses per ±20 detik).", "Putar video di kiri; subtitle tampil di atasnya. Perbaiki teks di daftar kanan; klik waktu untuk melompat ke bagian itu.", "Klik <b>Unduh .srt</b> (atau .vtt), lalu impor ke aplikasi edit video. <b>Salin transkrip</b> untuk bahan caption."],
       ["Selalu periksa ejaan nama, kode saham, angka, dan istilah (AI bisa salah dengar).", "Rekam dengan mic yang jelas dan sedikit musik latar supaya hasilnya akurat.", "Berkas tidak disimpan di server; hanya potongan suara yang dikirim untuk ditulis."]],
@@ -542,6 +562,48 @@ video{width:100%;max-height:420px;border-radius:10px;background:#000}
       $("rsCheck").onclick = function () { toCheck(cap, plat); };
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
   };
+  /* ---------- NASKAH YOUTUBE ---------- */
+  var yt = null;
+  function ts(s) { s = Math.max(0, Math.round(s || 0)); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ":" + (m < 10 ? "0" : "") : "") + m + ":" + (x < 10 ? "0" : "") + x; }
+  function ytDesc(x) {
+    var ch = (x.chapters || []).map(function (c) { return ts(c.start) + " " + c.title; });
+    return [x.description, ch.length >= 3 ? "Bab:\n" + ch.join("\n") : "", (x.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+  }
+  function ytText(x) {
+    return ["JUDUL (pilihan):"].concat((x.titles || []).map(function (t, n) { return (n + 1) + ". " + t.text; }), ["", "TEKS THUMBNAIL: " + (x.thumbnails || []).join(" / "), "", "HOOK (0:00):", x.hook, ""],
+      (x.chapters || []).map(function (c, n) { return "BAB " + (n + 1) + " · " + ts(c.start) + " · " + c.title + (c.goal ? "\nInti: " + c.goal : "") + "\nVO:\n" + c.voiceover + (c.visual ? "\nVisual: " + c.visual : "") + (c.onscreen ? "\nTeks layar: " + c.onscreen : "") + "\n"; }),
+      ["CTA TENGAH: " + x.cta_mid, "", "PENUTUP:", x.outro, "", "DESKRIPSI:", ytDesc(x), "", "TAG: " + (x.tags || []).join(", "), "", "KOMENTAR SEMATAN: " + x.pinned, "", "CATATAN PRODUKSI: " + x.notes]).join("\n");
+  }
+  $("ytGo").onclick = function () {
+    var btn = this, topic = $("ytTopic").value.trim(), src = $("ytSrc").value.trim();
+    if (!topic && !src) return toast("Isi topik atau bahan dulu");
+    busy(btn, true, "Menulis naskah…");
+    api("/api/ai", { kind: "yt", topic: topic, source: src, duration: $("ytDur").value, format: $("ytFmt").value, audience: $("ytAud").value, tone: $("ytTone").value }).then(function (j) {
+      yt = j.result; var desc = ytDesc(yt);
+      $("ytOut").innerHTML = '<div class="row"><h2 style="flex:1">Naskah YouTube</h2><button class="btn sm" id="ytCopy" type="button">Salin naskah</button><button class="btn sm" id="ytDl" type="button">Unduh .txt</button></div>' +
+        '<p class="muted small" style="margin:0">' + yt.words + " kata diucapkan ≈ " + ts(yt.seconds) + " durasi bicara · " + (yt.chapters || []).length + " bab · Model: " + esc(j.model) + "</p>" +
+        "<h3>Judul</h3><div class=\"vars\">" + (yt.titles || []).map(function (t, n) { return '<div class="var"><div class="row"><b>' + (n + 1) + '</b><span style="flex:1"></span><button class="btn sm" data-yc="t' + n + '" type="button">Salin</button></div><div class="tx">' + esc(t.text) + "</div>" + (t.why ? '<div class="muted small">' + esc(t.why) + "</div>" : "") + "<div>" + badge(t.text, "yt_title") + "</div></div>"; }).join("") + "</div>" +
+        (yt.thumbnails && yt.thumbnails.length ? '<div class="fold"><b>Teks thumbnail</b>' + yt.thumbnails.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join(" ") + "</div>" : "") +
+        '<div class="fold"><b>Hook · 0:00</b>' + esc(yt.hook) + "</div>" +
+        "<h3>Naskah per bab</h3><div class=\"vars\">" + (yt.chapters || []).map(function (c, n) {
+          return '<div class="var"><div class="row"><span class="tag">' + ts(c.start) + "</span><b>" + esc(c.title) + "</b></div>" + (c.goal ? '<div class="muted small">Inti: ' + esc(c.goal) + "</div>" : "") +
+            '<div style="white-space:pre-wrap">' + esc(c.voiceover) + "</div>" + (c.visual ? '<div class="small"><b>Visual:</b> ' + esc(c.visual) + "</div>" : "") + (c.onscreen ? '<div class="small"><b>Teks layar:</b> ' + esc(c.onscreen) + "</div>" : "") + "</div>";
+        }).join("") + "</div>" +
+        (yt.cta_mid ? '<div class="fold"><b>CTA di tengah video</b>' + esc(yt.cta_mid) + "</div>" : "") +
+        (yt.outro ? '<div class="fold"><b>Penutup</b><span style="white-space:pre-wrap">' + esc(yt.outro) + "</span></div>" : "") +
+        '<div><div class="row"><h3 style="flex:1">Deskripsi</h3><button class="btn sm" data-yc="d" type="button">Salin deskripsi</button><button class="btn sm" data-yc="k" type="button">Cek</button></div><div class="hl">' + esc(desc) + '</div><div style="margin-top:6px">' + badge(desc, "yt_desc") + "</div></div>" +
+        (yt.tags && yt.tags.length ? '<div class="fold"><b>Tag</b>' + esc(yt.tags.join(", ")) + ' <button class="btn sm" data-yc="g" type="button">Salin tag</button></div>' : "") +
+        (yt.pinned ? '<div class="fold"><b>Komentar sematan</b>' + esc(yt.pinned) + "</div>" : "") +
+        (yt.notes ? '<div class="fold"><b>Catatan produksi</b>' + esc(yt.notes) + "</div>" : "");
+      $("ytCopy").onclick = function () { copy(ytText(yt)); };
+      $("ytDl").onclick = function () { download(new Blob([ytText(yt)], { type: "text/plain" }), "naskah-youtube-" + slug((yt.titles[0] && yt.titles[0].text) || topic) + ".txt"); };
+    }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
+  };
+  $("ytOut").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-yc]"); if (!b || !yt) return; var k = b.dataset.yc;
+    if (k === "d") copy(ytDesc(yt)); else if (k === "k") toCheck(ytDesc(yt), "yt_desc"); else if (k === "g") copy(yt.tags.join(", "));
+    else if (k[0] === "t") copy(yt.titles[+k.slice(1)].text);
+  });
   function slug(s) { return String(s || "konten").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "konten"; }
   function download(blob, name) { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 

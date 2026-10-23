@@ -192,6 +192,18 @@ function system(env, style) {
   ].filter(Boolean).join("\n\n");
 }
 
+/** Naskah YouTube: durasi (menit) yang bisa dipilih, format video, dan kecepatan bicara untuk menghitung panjang & penanda bab. */
+export const YT_DURATIONS = [3, 5, 8, 10, 12, 15];
+export const YT_FORMATS = {
+  explainer: "edukasi / penjelasan konsep",
+  list: "tips / daftar (mis. \"5 cara…\")",
+  review: "ulasan produk (fakta hanya dari bahan)",
+  story: "studi kasus / cerita",
+  qa: "tanya-jawab (menjawab pertanyaan yang sering ditanyakan penonton)",
+};
+export const YT_WPM = 140;
+const words = (s) => (String(s || "").match(/\S+/g) || []).length;
+
 /** Susun perintah untuk satu jenis tulisan. null kalau masukan tidak sah. */
 export function prompt(kind, b) {
   if (kind === "ab") {
@@ -209,6 +221,26 @@ export function prompt(kind, b) {
     if (!topic && !source) return null;
     const plat = { reels: "Instagram Reels", tiktok: "TikTok", shorts: "YouTube Shorts" }[b.platform] || "Instagram Reels";
     return { max: 3000, user: `Tulis naskah video vertikal ${plat} berdurasi ${dur} detik.\n${topic ? "Topik: " + topic + "\n" : ""}${b.audience ? "Penonton: " + str(b.audience, 200) + "\n" : ""}${toneLine(b)}${source ? "Bahan (gunakan hanya fakta dari sini, jangan menyalin kalimatnya):\n" + source + "\n" : ""}\nAturan naskah:\n- hook: kalimat 0–3 detik pertama yang membuat orang berhenti scroll; ucapan dan teks layar langsung ke inti, tanpa salam pembuka.\n- hooks: 3 hook alternatif dengan pola berbeda (text, pattern = nama pola) untuk diuji.\n- Buka rasa penasaran di awal dan jawab di akhir supaya penonton menonton sampai habis; tiap adegan menambah informasi baru.\n- scenes: 4–8 adegan; time (mis. \"0–3 dtk\"), visual (apa yang tampil/direkam), voiceover (yang diucapkan), onscreen (teks di layar, maks. 8 kata).\n- Total voiceover pas untuk ${dur} detik (±2,5 kata per detik).\n- cta: satu ajakan di akhir. caption: caption posting (maks. 600 karakter). hashtags: 3–6 tagar. notes: catatan produksi singkat (musik, b-roll, risiko yang perlu disebut).\nFormat: {"title":"","hook":"","hooks":[{"text":"","pattern":""}],"scenes":[{"time":"","visual":"","voiceover":"","onscreen":""}],"cta":"","caption":"","hashtags":[],"notes":""}` };
+  }
+  if (kind === "yt") {
+    const topic = str(b.topic, 500), source = str(b.source, 12000), dur = YT_DURATIONS.includes(Number(b.duration)) ? Number(b.duration) : 8;
+    if (!topic && !source) return null;
+    const fmt = YT_FORMATS[b.format] ? b.format : "explainer", target = dur * YT_WPM, bab = dur <= 3 ? "3–4" : dur <= 5 ? "4–5" : dur <= 10 ? "5–7" : "6–9";
+    return { max: Math.min(9000, Math.round(target * 2.5) + 2500), user: `Tulis naskah video YouTube format panjang (horizontal) berdurasi ±${dur} menit.\nFormat video: ${YT_FORMATS[fmt]}.\n${topic ? "Topik: " + topic + "\n" : ""}${b.audience ? "Penonton: " + str(b.audience, 200) + "\n" : ""}${toneLine(b)}${source ? "Bahan (gunakan hanya fakta dari sini, jangan menyalin kalimatnya):\n" + source + "\n" : ""}
+Aturan naskah:
+- titles: 3 judul (maks. 70 karakter): kata kunci yang dicari orang di depan, memancing klik tanpa clickbait yang menyesatkan; why = alasan singkat.
+- thumbnails: 3 teks thumbnail (maks. 4 kata), berbeda dari judul, terbaca di layar HP.
+- hook: ucapan 15–30 detik pertama: langsung sebut apa yang penonton dapat dan alasan menonton sampai habis; tanpa "Halo guys, balik lagi di channel…".
+- chapters: ${bab} bab; bab pertama = pengantar singkat setelah hook. title (maks. 40 karakter, jadi penanda bab di YouTube), goal (inti yang harus dipahami penonton), voiceover (naskah ucapan lengkap kata per kata, bahasa lisan yang natural), visual (b-roll, grafis, angka di layar, contoh layar aplikasi), onscreen (teks besar di layar, maks. 8 kata).
+- Setiap 2–3 menit beri pengikat perhatian (pertanyaan ke penonton, janji di bagian akhir, contoh angka) supaya penonton bertahan.
+- cta_mid: satu kalimat ajakan di tengah video (subscribe, komentar, atau buka aplikasi); sebut tempat penyisipannya di notes.
+- outro: penutup yang merangkum 3 poin utama, satu CTA, dan ajakan menonton video berikutnya.
+- Total kata yang diucapkan (hook + semua voiceover + cta_mid + outro) ±${target} kata (±${YT_WPM} kata per menit). Jangan memendekkan naskah.
+- description: deskripsi YouTube; 2 baris pertama (maks. 150 karakter) merangkum manfaat menonton dengan kata kunci, lalu paragraf singkat, CTA, dan pengingat risiko. Jangan tulis daftar bab (dibuat otomatis).
+- hashtags: 3 tagar. tags: 8–15 kata kunci pencarian tanpa #.
+- pinned: komentar yang disematkan, berupa pertanyaan yang memancing penonton berkomentar.
+- notes: catatan produksi (gaya pengambilan gambar, musik, bagian yang perlu dicek compliance, tempat cta_mid).
+Format: {"titles":[{"text":"","why":""}],"thumbnails":[""],"hook":"","chapters":[{"title":"","goal":"","voiceover":"","visual":"","onscreen":""}],"cta_mid":"","outro":"","description":"","hashtags":[],"tags":[],"pinned":"","notes":""}` };
   }
   if (kind === "kit") {
     const facts = factLines(b.product);
@@ -255,6 +287,22 @@ export function parse(kind, raw) {
     hashtags: list(j.hashtags, 10).map((h) => str(h, 40).replace(/^#?/, "#").replace(/\s+/g, "")).filter((h) => h.length > 1),
     scenes: list(j.scenes, 12).map((s) => ({ time: str(s && s.time, 30), visual: str(s && s.visual, 400), voiceover: str(s && s.voiceover, 600), onscreen: str(s && s.onscreen, 120) })),
   };
+  if (kind === "yt") {
+    const r = {
+      titles: list(j.titles, 5).map((x) => (typeof x === "string" ? { text: str(x, 120), why: "" } : { text: str(x && x.text, 120), why: str(x && x.why, 200) })).filter((x) => x.text),
+      thumbnails: list(j.thumbnails, 5).map((x) => str(typeof x === "string" ? x : x && x.text, 60)).filter(Boolean),
+      hook: str(j.hook, 1500), cta_mid: str(j.cta_mid, 400), outro: str(j.outro, 3000), description: str(j.description, 4500), pinned: str(j.pinned, 500), notes: str(j.notes, 1500),
+      chapters: list(j.chapters, 12).map((c) => ({ title: str(c && c.title, 60), goal: str(c && c.goal, 300), voiceover: str(c && c.voiceover, 8000), visual: str(c && c.visual, 1500), onscreen: str(c && c.onscreen, 150) })).filter((c) => c.title || c.voiceover),
+      hashtags: list(j.hashtags, 5).map((h) => str(h, 40).replace(/^#?/, "#").replace(/\s+/g, "")).filter((h) => h.length > 1),
+      tags: list(j.tags, 20).map((t) => str(t, 40).replace(/^#/, "")).filter(Boolean),
+    };
+    // penanda bab dari jumlah kata (bab pertama di 0:00 dan ikut memuat hook, syarat chapter YouTube)
+    let at = words(r.hook);
+    r.chapters.forEach((c, i) => { c.start = i === 0 ? 0 : Math.round(at / YT_WPM * 60); at += words(c.voiceover) + (i === Math.floor(r.chapters.length / 2) ? words(r.cta_mid) : 0); });
+    r.words = at + words(r.outro) + (r.chapters.length ? 0 : words(r.cta_mid));
+    r.seconds = Math.round(r.words / YT_WPM * 60);
+    return r;
+  }
   if (kind === "fix") return { text: str(j.text, 6000) };
   if (kind === "kit") {
     const e = j.email && typeof j.email === "object" ? j.email : {}, p = j.push && typeof j.push === "object" ? j.push : {};
