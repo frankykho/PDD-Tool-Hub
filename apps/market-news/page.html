@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Market News</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#eef3f0;--card:#fff;--line:#dde6e1;--t:#16231c;--t2:#5a6b61;--g:#1f7a4d;--g2:#e2f1e8;--up:#13854a;--dn:#c2372b;--warn:#a36200;--y:#fff6d8;--yb:#efd27c;
   --r:14px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light}
@@ -141,12 +143,18 @@ var byId=function(id){return(TEAM?items:C.items||[]).filter(function(x){return x
 var cvs={},files={},pngs={};
 /* ---------- banner KISI: template (logo, kategori, judul, tanggal, sumber) di atas latar ----------
    gaya: "tema" = latar ilustrasi AI per tema yang disetujui tim, "ai" = latar AI khusus berita ini, "foto" = foto asli media (apa adanya) */
-var BG={bgs:[],themes:[]},GAYA={tema:"Latar tema",ai:"Gambar AI",foto:"Foto media"};
+var BG={bgs:[],themes:[]},GAYA={kisi:"Template KISI",tema:"Latar tema",ai:"Gambar AI",foto:"Foto media"};
+// Template KISI: latar & logo statis (/brand/*), varian gelap / terang / acak (acak tetap sama per berita)
+var VAR={dark:"Gelap",light:"Terang",acak:"Acak"};
 var QS=new URLSearchParams(location.search);
 function themeOf(x){var ks=BG.themes.map(function(t){return t.k});return x.theme&&ks.indexOf(x.theme)>=0?x.theme:ks.indexOf(x.cat)>=0?x.cat:"umum"}
 function hashOf(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
-function styleOf(x){if(!TEAM)return QS.get("gaya")||"foto";var s=null;try{s=localStorage.getItem("mn_gaya_"+x.id)||localStorage.getItem("mn_gaya")}catch(e){}return GAYA[s]?s:"tema"}
+function styleOf(x){if(!TEAM)return QS.get("gaya")||"foto";var s=null;try{s=localStorage.getItem("mn_gaya_"+x.id)||localStorage.getItem("mn_gaya")}catch(e){}return GAYA[s]?s:"kisi"}
 function setStyle(x,s){try{localStorage.setItem("mn_gaya_"+x.id,s);localStorage.setItem("mn_gaya",s)}catch(e){}forget(x)}
+/** Pilihan varian (gelap/terang/acak) dan varian yang benar-benar dipakai (acak -> dari id berita, jadi tetap). */
+function varPick(x){var v=null;try{v=localStorage.getItem("mn_var_"+x.id)||localStorage.getItem("mn_var")}catch(e){}return VAR[v]?v:"acak"}
+function varOf(x){var v=varPick(x);return v==="acak"?(hashOf(x.id)%2?"light":"dark"):v}
+function setVar(x,v){try{localStorage.setItem("mn_var_"+x.id,v);localStorage.setItem("mn_var",v)}catch(e){}forget(x)}
 function forget(x){[cvs,files,pngs].forEach(function(o){Object.keys(o).forEach(function(k){if(k.split("|")[0]===x.id)delete o[k]})})}
 /** id latar yang dipakai (null = tanpa latar: gradasi hijau KISI). */
 function bgFor(x,s){
@@ -155,15 +163,46 @@ function bgFor(x,s){
   var th=themeOf(x),pick=function(t){return BG.bgs.filter(function(b){return!b.item_id&&b.status==="ok"&&b.theme===t})};
   var L=pick(th);if(!L.length)L=pick(x.cat);if(!L.length)L=pick("umum");
   return L.length?L[hashOf(x.id)%L.length].id:null}
-function keyOf(x){var s=styleOf(x);return x.id+"|"+s+"|"+(s==="foto"?"":bgFor(x,s)||"-")+"|"+(x.title||"")}
+function keyOf(x){var s=styleOf(x);return x.id+"|"+s+"|"+(s==="foto"?"":s==="kisi"?varOf(x):bgFor(x,s)||"-")+"|"+(x.title||"")}
 function loadImg(src){return fetch(src).then(function(r){if(!r.ok)throw Error("Gambar tidak bisa dimuat");return r.blob()}).then(function(b){return new Promise(function(ok,no){
   var u=URL.createObjectURL(b),im=new Image();im.onload=function(){URL.revokeObjectURL(u);ok(im)};im.onerror=function(){URL.revokeObjectURL(u);no(Error("Gambar tidak bisa dibaca"))};im.src=u})})}
 var logoP=null;function logoImg(){if(!logoP)logoP=C.logo?loadImg(C.logo).catch(function(){return null}):Promise.resolve(null);return logoP}
 function wrap(g,t,maxW){var w=String(t).split(/\s+/),L=[],cur="";w.forEach(function(x){var n=cur?cur+" "+x:x;if(g.measureText(n).width>maxW&&cur){L.push(cur);cur=x}else cur=n});if(cur)L.push(cur);return L}
 function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
 var FONT='Inter,"Segoe UI",Roboto,Arial,sans-serif';
+/* ---------- Template KISI 1920×1080: logo tengah atas, label kategori, judul besar, tanggal + sumber, tagline ---------- */
+var KP={},cfgP=null;
+function kisiCfg(){if(!cfgP)cfgP=fetch("/brand/banner.json").then(function(r){return r.ok?r.json():{}}).catch(function(){return{}});return cfgP}
+function kisiImg(p){if(!KP[p]){KP[p]=loadImg(p);KP[p].catch(function(){delete KP[p]})}return KP[p]}
+function fontsReady(){if(!document.fonts||!document.fonts.load)return Promise.resolve();return Promise.all(["700 100px Inter","500 34px Inter","400 40px Inter"].map(function(f){return document.fonts.load(f)})).catch(function(){})}
+function host(u){try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return""}}
+function composeKisi(x){
+  var v=varOf(x),dark=v==="dark";
+  return Promise.all([kisiImg("/brand/bg-"+v+".jpg"),kisiImg("/brand/logo-"+(dark?"white":"color")+".png").catch(function(){return null}),kisiCfg(),fontsReady()]).then(function(r){
+    var bg=r[0],logo=r[1],cf=r[2]||{},W=1920,H=1080,X=108,c=document.createElement("canvas");c.width=W;c.height=H;var g=c.getContext("2d");
+    var ink=((cf.text||{})[v])||(dark?"#f4f6f5":"#2b2b2b"),green=cf.green||"#1fb67a",F='Inter,"Segoe UI",Roboto,Arial,sans-serif';
+    var k=Math.max(W/bg.naturalWidth,H/bg.naturalHeight),bw=bg.naturalWidth*k,bh=bg.naturalHeight*k;g.drawImage(bg,(W-bw)/2,(H-bh)/2,bw,bh);
+    if(logo){var lh=74,lw=logo.naturalWidth*lh/logo.naturalHeight;g.drawImage(logo,(W-lw)/2,38,lw,lh)}
+    // label kategori: "Makro • Inflasi"
+    var lab=(CAT[x.cat]||"Berita")+(x.theme&&x.theme!==x.cat?" • "+x.theme:"");
+    g.font="500 34px "+F;g.textBaseline="middle";var tw=g.measureText(lab).width;
+    g.fillStyle=cf.pill||"#FDB241";rr(g,X,206,tw+106,58,12);g.fill();g.fillStyle="#1b1b1b";g.fillText(lab,X+53,236);
+    // judul: 104px, mengecil sampai muat 4 baris
+    var fs=104,L;g.textBaseline="alphabetic";
+    for(;fs>=72;fs-=4){g.font="700 "+fs+"px "+F;L=wrap(g,x.title||"",1700);if(L.length<=4)break}
+    if(L.length>4){L=L.slice(0,4);L[3]=L[3].replace(/\s+\S*$/,"")+"…"}
+    var lh2=Math.round(fs*1.42),y0=318+fs*.84;
+    g.fillStyle=ink;L.forEach(function(l,i){g.fillText(l,X,y0+i*lh2)});
+    // kaki kiri: tanggal — sumber
+    var d=new Date(x.published_at||x.at||Date.now()).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Jakarta"});
+    g.font="400 40px "+F;g.globalAlpha=dark?.78:.68;g.fillStyle=ink;g.fillText(d+(host(x.url)||x.src?" — Sumber: "+(host(x.url)||x.src):""),X,1010);g.globalAlpha=1;
+    // kaki kanan: tagline, bagian akhirnya hijau
+    var tag=cf.tagline||"",acc=cf.accent&&tag.slice(-cf.accent.length)===cf.accent?cf.accent:"";
+    if(tag){g.font="500 40px "+F;g.textAlign="right";g.fillStyle=green;g.fillText(acc,1810,1018);var aw=g.measureText(acc).width;g.fillStyle=ink;g.fillText(tag.slice(0,tag.length-acc.length),1810-aw,1018);g.textAlign="left"}
+    return c})}
 function compose(x){
   var s=styleOf(x);
+  if(s==="kisi")return composeKisi(x);
   if(s==="foto")return x.img?loadImg(x.img).then(function(im){var c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}):Promise.reject(Error("Berita ini tidak punya foto"));
   var bid=bgFor(x,s);
   return Promise.all([bid?loadImg("/bg/"+bid).catch(function(){return null}):null,logoImg()]).then(function(r){
@@ -317,6 +356,7 @@ function teamBan(x){
   return'<div style="display:grid;gap:6px;align-self:start"><div class="ban"><img data-ban="'+esc(x.id)+'" alt="Pratinjau banner"></div>'
    +'<div style="display:flex;gap:4px;flex-wrap:wrap">'+Object.keys(GAYA).map(function(k){return'<button class="chip'+(s===k?" on":"")+'" type="button" data-gaya="'+esc(x.id)+'|'+k+'">'+GAYA[k]+"</button>"}).join("")
    +(s==="ai"?'<button class="btn sm" type="button" data-genbg="'+esc(x.id)+'">'+(own?"Buat ulang":"Buat gambar AI")+"</button>":"")+"</div>"
+   +(s==="kisi"?'<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><span class="muted small">Warna:</span>'+Object.keys(VAR).map(function(k){return'<button class="chip'+(varPick(x)===k?" on":"")+'" type="button" data-var="'+esc(x.id)+'|'+k+'">'+VAR[k]+(k==="acak"&&varPick(x)==="acak"?" ("+VAR[varOf(x)].toLowerCase()+")":"")+"</button>"}).join("")+"</div>":"")
    +(note?'<div class="muted small">'+note+"</div>":"")
    +(s!=="foto"?'<div class="muted small">Judul di banner mengikuti judul yang sudah disimpan.</div>':"")+"</div>"}
 function fillBans(){document.querySelectorAll("img[data-ban]").forEach(function(im){var x=byId(im.dataset.ban);if(!x)return;
@@ -359,6 +399,7 @@ document.addEventListener("click",function(e){
   if(d.copyimg){var ci=byId(d.copyimg);if(ci)copyImg(ci,t);return}
   if(d.dl){var di=byId(d.dl);if(!di)return;t.disabled=true;fileOf(di).then(function(fl){var a=document.createElement("a"),u=URL.createObjectURL(fl);a.href=u;a.download=d.fn||"banner.jpg";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}).catch(function(x){toast(x.message)}).then(function(){t.disabled=false});return}
   if(d.gaya){var gp=d.gaya.split("|"),gx=byId(gp[0]);if(gx){setStyle(gx,gp[1]);renderTeam()}return}
+  if(d.var){var vp=d.var.split("|"),vx=byId(vp[0]);if(vx){setVar(vx,vp[1]);renderTeam()}return}
   if(d.genbg){var gi=byId(d.genbg);t.disabled=true;t.textContent="Membuat gambar… (±10 dtk)";
     api("/api/bg/gen",{method:"POST",body:JSON.stringify({item:d.genbg})}).then(function(j){BG.bgs=BG.bgs.filter(function(b){return b.item_id!==d.genbg}).concat([j.bg]);if(gi)forget(gi);renderTeam();toast("Gambar AI siap. Cek dulu sebelum dikirim.")}).catch(function(x){toast(x.message,6000);t.disabled=false;t.textContent="Buat gambar AI"});return}
   if(d.bgnew){t.disabled=true;t.textContent="Membuat… (±10 dtk)";
