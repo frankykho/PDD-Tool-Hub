@@ -158,7 +158,7 @@
   .ask-row button:disabled{ opacity:.6; }
   .ask-out{ font-size:13px; line-height:1.55; margin-top:8px; }
   .ask-out .ans{ background:var(--brand-emerald-soft); border-radius:10px; padding:9px 11px; }
-  .ask-out .tl{ display:block; width:100%; text-align:left; margin-top:6px; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px; font:inherit; font-size:12.5px; font-weight:700; color:var(--brand-green); cursor:pointer; }
+  .ask-out .tl{ display:block; width:100%; text-align:left; margin-top:6px; border:1px solid var(--line); background:var(--paper); border-radius:10px; padding:8px 10px; font:inherit; font-size:12.5px; font-weight:700; color:var(--brand-green); cursor:pointer; }
   .help-note{ font-size:11px; color:var(--sub); margin:8px 0 0; }
   .faq details{ border:1px solid var(--line); border-radius:12px; padding:9px 12px; background:var(--paper); margin-bottom:6px; font-size:13px; }
   .faq summary{ font-weight:700; cursor:pointer; }
@@ -168,17 +168,19 @@
   .slide-app{ margin:10px 0 0; }
   .fb{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--bg); font-size:12.5px; font-weight:700; }
   .fb span{ flex:1 1 100%; }
-  .fb button{ background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .fb button{ background:var(--paper); color:var(--ink); border:1px solid var(--line); }
   .fb textarea{ flex:1 1 100%; border:1px solid var(--line); border-radius:10px; padding:8px; font:inherit; font-size:12.5px; min-height:56px; resize:vertical; }
   .fb .thx{ font-weight:600; color:var(--brand-green); }
   .hub-only{ display:none; }
   .in-hub .hub-only{ display:inline-flex; }
   .kn-bg{ position:fixed; inset:0; background:rgba(10,16,13,.6); z-index:50; display:flex; align-items:center; justify-content:center; padding:16px; }
-  .kn{ background:#fff; border-radius:16px; padding:16px; max-width:340px; width:100%; display:flex; flex-direction:column; gap:8px; font-size:13px; }
+  .kn{ background:var(--paper); color:var(--ink); border-radius:16px; padding:16px; max-width:340px; width:100%; display:flex; flex-direction:column; gap:8px; font-size:13px; }
   .kn h3{ margin:0 0 4px; font-size:15px; }
-  .kn button{ border:1px solid var(--line); background:#fff; border-radius:12px; padding:11px; font:inherit; font-weight:700; cursor:pointer; text-align:left; }
+  .kn button{ border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:12px; padding:11px; font:inherit; font-weight:700; cursor:pointer; text-align:left; }
   .kn button.pri{ background:var(--brand-green); color:#fff; border-color:var(--brand-green); text-align:center; }
   .kn small{ color:var(--sub); }
+  /* tema gelap (di dalam Tool Hub): hijau gelap untuk tombol berteks putih, sama dengan tombol lain di tema gelap */
+  html[data-theme="dark"] .btn-app,html[data-theme="dark"] .ask-row button,html[data-theme="dark"] .fb-send,html[data-theme="dark"] .kn button.pri{ background:#1F7A4C; border-color:#1F7A4C; color:#fff; }
 
   .disclaimer{
     margin:6px 18px 22px 18px; padding:12px 14px;

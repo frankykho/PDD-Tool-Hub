@@ -43,6 +43,9 @@ ${L} .preset-tab[aria-selected="true"],${L} .preset-tab.active{background:#E6F0E
 ${L} .preset-card{background:#fff}
 ${L} .tv-chart{background:#fff}
 ${L} .tv-fullscreen{background:rgba(255,255,255,.92)}
+${L} .info-pop{background:#fff;border-color:var(--bd);color:var(--tx);box-shadow:0 12px 32px rgba(20,40,30,.18)}
+${L} .tv-wrap,${L} .tv-chart{background:#fff}
+${L} .sk-line{background:linear-gradient(90deg,var(--s2) 0%,#E1E9E4 50%,var(--s2) 100%);background-size:200% 100%}
 @media(max-width:640px){
   ${L} .nav{background:rgba(255,255,255,.96);border-top-color:var(--bd);box-shadow:0 -10px 28px rgba(20,40,30,.1)}
   ${L} .nav a[aria-current="page"],${L} .nav-more.active>summary{background:#E3F0E8}
