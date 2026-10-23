@@ -188,6 +188,7 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { hubSignIn, hubEmail } from "./hub-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { compressImage, blobToBase64 } from "./image-utils.js";
+import { annotate } from "./annotate.js";
 
 const MAX_STEPS = 15;
 const MAX_STEP_CHARS = 600;
@@ -330,7 +331,8 @@ function addStepField(){
     statusEl.textContent = 'Menyiapkan gambar...';
     card._processing = true;
     try{
-      const blob = await compressImage(file);
+      // tandai (kotak, panah, nomor) & sensor data pribadi dulu, lalu dikecilkan
+      const blob = await compressImage(await annotate(file));
       clearImage();
       card._blob = blob;
       card._previewUrl = URL.createObjectURL(blob);

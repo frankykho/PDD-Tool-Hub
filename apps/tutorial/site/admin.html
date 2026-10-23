@@ -266,6 +266,22 @@
 
   <div id="pending-list"></div>
 
+  <div class="manage-section" id="stats-section">
+    <div class="manage-section-head">
+      <div>
+        <h2>Statistik, Masukan &amp; FAQ</h2>
+        <p class="sub">Tutorial yang paling sering dibuka, yang dinilai kurang membantu, pertanyaan ke asisten (termasuk yang belum ada tutorialnya), dan FAQ di halaman utama.</p>
+      </div>
+      <button id="btn-stats" class="btn-export">↻ Muat statistik</button>
+    </div>
+    <div id="stats-status" class="import-status"></div>
+    <div id="stats-box"></div>
+    <h3 style="margin:18px 0 6px;">FAQ di halaman utama</h3>
+    <div id="faq-edit"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button id="btn-faq-add" class="btn-logout">+ Tambah pertanyaan</button><button id="btn-faq-save" class="btn-add-cat">Simpan FAQ</button></div>
+    <div id="faq-status" class="import-status"></div>
+  </div>
+
   <div class="manage-section">
     <div class="manage-section-head">
       <div>
@@ -315,8 +331,9 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { hubSignIn } from "./hub-auth.js";
+import { hubSignIn, hubApiToken } from "./hub-auth.js";
 import { compressImage, blobToBase64, extForMime } from "./image-utils.js";
+import { annotate } from "./annotate.js";
 import { commitImages, hasToken, setToken, clearToken, testConnection, isGithubImage } from "./github-store.js";
 import { GITHUB } from "./github-config.js";
 
@@ -588,12 +605,54 @@ imgModal.addEventListener('click', () => {
 // Gambar yang diupload admin: dikecilkan (maks 1080px, WebP) lalu disimpan ke repo GitHub
 async function uploadImageToGithub(file){
   if(!hasToken()) throw new Error('Izin menyimpan gambar belum ada. Muat ulang halaman ini dari Tool Hub.');
-  const blob = await compressImage(file);
+  const blob = await compressImage(await annotate(file));
   const [url] = await commitImages([{ base64: await blobToBase64(blob), ext: extForMime(blob.type) }], 'Gambar tutorial (edit admin)');
   return { url, previewUrl: URL.createObjectURL(blob) };
 }
 
 let latestCategoryDocs = [];
+
+/* ---------- statistik, masukan & FAQ (API worker tutorial, izin admin 8 jam dari Tool Hub) ---------- */
+const escS = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const adminApi = (path, body) => fetch(path, { method: body ? 'POST' : 'GET', headers: { 'x-hub-admin': hubApiToken, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined })
+  .then(r => r.json().catch(() => ({})).then(j => { if(!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
+function topicName(key){
+  const [c, t] = String(key || '').split('/'), cat = latestCategoryDocs.find(d => d.id === c);
+  const top = cat && (cat.data ? cat.data() : cat).items?.find(x => x.id === t);
+  return top ? `${top.title}` : key;
+}
+async function loadStats(){
+  const st = document.getElementById('stats-status'), box = document.getElementById('stats-box');
+  st.textContent = 'Memuat…';
+  try{
+    const d = await adminApi('/api/stats');
+    const T = d.topics || [], low = T.filter(x => x.up + x.down >= 3).map(x => ({ ...x, pct: x.up / (x.up + x.down) * 100 })).filter(x => x.pct < 70).sort((a, b) => a.pct - b.pct);
+    const tbl = (head, rows) => `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${head.map(h => `<th style="text-align:left;border-bottom:1px solid #e4ece7;padding:6px">${h}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${head.length}" style="padding:6px;color:#5f7268">Belum ada data.</td></tr>`}</table></div>`;
+    const td = (v) => `<td style="border-bottom:1px solid #f0f4f1;padding:6px;vertical-align:top">${v}</td>`;
+    box.innerHTML = `<h3 style="margin:10px 0 6px;">Paling sering dibuka</h3>` + tbl(['Tutorial', 'Dibuka', '👍', '👎', 'Membantu'], T.slice(0, 15).map(x => `<tr>${td(escS(topicName(x.topic)))}${td(x.views)}${td(x.up)}${td(x.down)}${td(x.up + x.down ? Math.round(x.up / (x.up + x.down) * 100) + '%' : '–')}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Perlu diperbaiki (dinilai membantu &lt; 70%, min. 3 penilaian)</h3>` + tbl(['Tutorial', 'Membantu', 'Penilaian'], low.map(x => `<tr>${td(escS(topicName(x.topic)))}${td(Math.round(x.pct) + '%')}${td(x.up + x.down)}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Masukan "kurang membantu"</h3>` + tbl(['Waktu', 'Tutorial', 'Masukan'], (d.notes || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(topicName(x.topic)))}${td(escS(x.text))}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Pertanyaan ke asisten</h3>` + tbl(['Waktu', 'Pertanyaan', 'Ketemu?'], (d.asks || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(x.q))}${td(x.found ? '✓ ' + escS(String(x.topics || '').split(',').filter(Boolean).map(topicName).join(', ')) : '<b style="color:#b3261e">belum ada tutorial</b>')}</tr>`));
+    st.textContent = 'Pertanyaan bertanda "belum ada tutorial" bisa dijadikan topik baru atau FAQ.';
+  }catch(e){ st.textContent = '✗ ' + e.message; }
+}
+let FAQ = [];
+function renderFaq(){
+  document.getElementById('faq-edit').innerHTML = FAQ.map((x, i) => `<div style="border:1px solid #e4ece7;border-radius:10px;padding:8px;margin-bottom:6px;display:grid;gap:6px">
+    <input data-fq="${i}" value="${escS(x.q)}" placeholder="Pertanyaan" maxlength="200" style="padding:8px;border:1px solid #e4ece7;border-radius:8px;font:inherit">
+    <textarea data-fa="${i}" placeholder="Jawaban" maxlength="1500" style="padding:8px;border:1px solid #e4ece7;border-radius:8px;font:inherit;min-height:60px">${escS(x.a)}</textarea>
+    <button data-fdel="${i}" class="btn-logout" style="justify-self:start">Hapus</button></div>`).join('') || '<p class="sub">Belum ada FAQ.</p>';
+}
+document.getElementById('faq-edit').addEventListener('input', (e) => { const t = e.target; if(t.dataset.fq) FAQ[+t.dataset.fq].q = t.value; if(t.dataset.fa) FAQ[+t.dataset.fa].a = t.value; });
+document.getElementById('faq-edit').addEventListener('click', (e) => { const b = e.target.closest('[data-fdel]'); if(b){ FAQ.splice(+b.dataset.fdel, 1); renderFaq(); } });
+document.getElementById('btn-faq-add').onclick = () => { FAQ.push({ q: '', a: '' }); renderFaq(); };
+document.getElementById('btn-faq-save').onclick = async () => {
+  const st = document.getElementById('faq-status'); st.textContent = 'Menyimpan…';
+  try{ const r = await adminApi('/api/faq', { items: FAQ }); st.textContent = `✓ ${r.n} pertanyaan tersimpan dan tayang di halaman utama.`; }catch(e){ st.textContent = '✗ ' + e.message; }
+};
+document.getElementById('btn-stats').onclick = loadStats;
+fetch('/api/faq').then(r => r.ok ? r.json() : []).then(L => { FAQ = Array.isArray(L) ? L : []; renderFaq(); }).catch(() => renderFaq());
+setTimeout(() => { if(hubApiToken) loadStats(); }, 2500);
 
 function listenCategories(){
   const q = query(collection(db, 'categories'), orderBy('order'));

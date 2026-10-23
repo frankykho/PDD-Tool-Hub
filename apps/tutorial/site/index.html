@@ -148,6 +148,38 @@
     font-size:13px; font-weight:800; border:1px dashed var(--brand-green);
   }
 
+  /* ============ TANYA ASISTEN, FAQ, BUKA APLIKASI, MEMBANTU? ============ */
+  .help{ margin:4px 18px 10px 18px; display:flex; flex-direction:column; gap:10px; }
+  .help-card{ border:1px solid var(--line); border-radius:16px; padding:12px 14px; background:var(--paper); }
+  .help-card b{ font-size:13.5px; }
+  .ask-row{ display:flex; gap:6px; margin-top:8px; }
+  .ask-row input{ flex:1; min-width:0; border:1px solid var(--line); border-radius:10px; padding:9px 10px; font:inherit; font-size:13px; }
+  .ask-row button,.fb button,.fb-send{ border:none; background:var(--brand-green); color:#fff; font-weight:700; font-size:12.5px; padding:8px 12px; border-radius:10px; cursor:pointer; font-family:inherit; }
+  .ask-row button:disabled{ opacity:.6; }
+  .ask-out{ font-size:13px; line-height:1.55; margin-top:8px; }
+  .ask-out .ans{ background:var(--brand-emerald-soft); border-radius:10px; padding:9px 11px; }
+  .ask-out .tl{ display:block; width:100%; text-align:left; margin-top:6px; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px; font:inherit; font-size:12.5px; font-weight:700; color:var(--brand-green); cursor:pointer; }
+  .help-note{ font-size:11px; color:var(--sub); margin:8px 0 0; }
+  .faq details{ border:1px solid var(--line); border-radius:12px; padding:9px 12px; background:var(--paper); margin-bottom:6px; font-size:13px; }
+  .faq summary{ font-weight:700; cursor:pointer; }
+  .faq p{ margin:6px 0 0; color:var(--sub); line-height:1.55; white-space:pre-line; }
+  .btn-app{ display:block; text-align:center; text-decoration:none; margin:0 18px 12px 18px; padding:11px; border-radius:14px; background:var(--brand-green); color:#fff; font-size:13px; font-weight:800; }
+  .btn-app[hidden],.faq[hidden]{ display:none; }
+  .slide-app{ margin:10px 0 0; }
+  .fb{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--bg); font-size:12.5px; font-weight:700; }
+  .fb span{ flex:1 1 100%; }
+  .fb button{ background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .fb textarea{ flex:1 1 100%; border:1px solid var(--line); border-radius:10px; padding:8px; font:inherit; font-size:12.5px; min-height:56px; resize:vertical; }
+  .fb .thx{ font-weight:600; color:var(--brand-green); }
+  .hub-only{ display:none; }
+  .in-hub .hub-only{ display:inline-flex; }
+  .kn-bg{ position:fixed; inset:0; background:rgba(10,16,13,.6); z-index:50; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .kn{ background:#fff; border-radius:16px; padding:16px; max-width:340px; width:100%; display:flex; flex-direction:column; gap:8px; font-size:13px; }
+  .kn h3{ margin:0 0 4px; font-size:15px; }
+  .kn button{ border:1px solid var(--line); background:#fff; border-radius:12px; padding:11px; font:inherit; font-weight:700; cursor:pointer; text-align:left; }
+  .kn button.pri{ background:var(--brand-green); color:#fff; border-color:var(--brand-green); text-align:center; }
+  .kn small{ color:var(--sub); }
+
   .disclaimer{
     margin:6px 18px 22px 18px; padding:12px 14px;
     font-size:11px; line-height:1.55; color:var(--sub);
@@ -304,6 +336,16 @@
       <div class="list" id="menu-list" aria-live="polite">
         <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       </div>
+      <div class="help live-only">
+        <div class="help-card">
+          <b>Masih bingung? Tanya asisten</b>
+          <form class="ask-row" id="ask-form"><input id="ask-q" maxlength="300" placeholder="Mis. bagaimana cara top up?" aria-label="Pertanyaan untuk asisten" autocomplete="off"><button id="ask-btn">Tanya</button></form>
+          <div class="ask-out" id="ask-out" aria-live="polite"></div>
+          <p class="help-note">Jawaban disusun AI dari isi tutorial di sini. Jangan tulis PIN, password, OTP, atau data pribadi.</p>
+        </div>
+        <div class="faq" id="faq-box" hidden><div class="list-label" style="margin-bottom:6px">Pertanyaan yang sering ditanyakan</div><div id="faq-list"></div></div>
+      </div>
+      <a class="btn-app" id="btn-app" hidden target="_blank" rel="noopener">Buka aplikasi</a>
       <div class="disclaimer">
         <p>Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.</p>
         <p>Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan untuk membeli atau menjual produk investasi tertentu.</p>
@@ -331,6 +373,7 @@
           <h2 class="tut-heading-title" id="tut-title" tabindex="-1">Judul Tutorial</h2>
           <div class="tut-heading-sub" id="tut-step-label" aria-live="polite"></div>
         </div>
+        <button class="share-btn live-only hub-only" id="btn-konten" aria-label="Jadikan konten: carousel, story, atau teks WhatsApp" title="Khusus tim: jadikan konten">Konten</button>
         <button class="share-btn live-only" id="btn-share" aria-label="Bagikan link tutorial ini">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
           Bagikan
@@ -364,6 +407,8 @@
 const PROFILE = window.PROFILE || {};
 const APP_NAME = (PROFILE.app && PROFILE.app.name) || '';
 const HUB_URL = String((PROFILE.urls && PROFILE.urls.hub) || '').replace(/\/+$/, '');
+// tombol "Buka aplikasi": toko aplikasi sesuai perangkat, selain itu link unduh dari profil
+const APP_LINK = (() => { const a = PROFILE.app || {}, ua = navigator.userAgent; return (/iPhone|iPad|iPod/i.test(ua) && a.ios) || (/Android/i.test(ua) && a.android) || a.download || a.android || a.ios || ''; })();
 {
   const b = PROFILE.brand || {}, strip = (t) => String(t || '').trim().replace(/\.+$/, '');
   const line = [strip(b.company), strip(b.license)].filter(Boolean).join('. ');
@@ -608,11 +653,13 @@ $('btn-submenu-back').addEventListener('click', () => goUp(''));
 
 /* ========================= LEVEL 3: SLIDE ========================= */
 function openTutorial(topic){
+  const fresh = currentTutorial !== topic && (!currentTutorial || currentTutorial.id !== topic.id);
   currentTutorial = topic;
   currentIndex = -1;
   $('tut-title').textContent = topic.title;
   buildSlides();
   buildProgress();
+  if(fresh) post('/api/view', { t: topicKey() });
 }
 function closeTutorial(){ goUp(buildHash(currentCategory.id)); }
 
@@ -635,6 +682,8 @@ function buildSlides(){
       : `<h3 class="slide-title">${esc(s.title)}</h3><p class="slide-desc">${formatDesc(s.desc)}</p>`;
     const endNote = i === total - 1
       ? `<p class="slide-end-note">Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Materi ini bersifat edukasi, bukan ajakan membeli atau menjual.</p>`
+        + (APP_LINK ? `<a class="btn-app slide-app" href="${esc(APP_LINK)}" target="_blank" rel="noopener">Buka aplikasi${APP_NAME ? ' ' + esc(APP_NAME) : ''}</a>` : '')
+        + `<div class="fb live-only" data-fb><span>Apakah tutorial ini membantu?</span><button type="button" data-v="up">👍 Ya</button><button type="button" data-v="down">👎 Tidak</button></div>`
       : '';
     el.innerHTML = `
       <div class="slide-image-wrap${img ? ' has-image' : ''}">
@@ -723,6 +772,14 @@ $('zone-next').addEventListener('click', () => {
   if(currentIndex < (currentTutorial.slides || []).length - 1) goToSlide(currentIndex + 1);
 });
 $('zone-prev').addEventListener('click', prev);
+// zona ketuk menutupi tepi slide: ketukan di atas tombol Membantu? / Buka aplikasi diteruskan ke tombolnya
+['zone-prev', 'zone-next'].forEach(id => $(id).addEventListener('click', (e) => {
+  const t = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.closest && el.closest('[data-fb] button, [data-fb] textarea, .slide-app'));
+  if(!t) return;
+  e.stopImmediatePropagation();
+  const el = t.closest('[data-fb] button, [data-fb] textarea, .slide-app');
+  if(el.tagName === 'TEXTAREA') el.focus(); else el.click();
+}, true));
 $('btn-back').addEventListener('click', closeTutorial);
 
 document.addEventListener('keydown', (e) => {
@@ -826,6 +883,131 @@ $('btn-share').addEventListener('click', async () => {
   }catch(_){
     prompt('Salin link ini:', url);
   }
+});
+
+/* ========================= STATISTIK, MEMBANTU?, BUKA APLIKASI ========================= */
+// API kecil di worker tutorial (D1); file offline hasil export tidak memanggilnya
+function post(path, body){
+  if(IS_STATIC) return Promise.resolve(null);
+  return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json().catch(() => ({})).then(j => { if(!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
+}
+function topicKey(){ return currentCategory && currentTutorial ? `${currentCategory.id}/${currentTutorial.id}` : ''; }
+slidesTrack.addEventListener('click', (e) => {
+  const fb = e.target.closest('[data-fb]'); if(!fb) return;
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.v === 'up'){ post('/api/fb', { t: topicKey(), v: 'up' }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih! Senang bisa membantu.</span>'; return; }
+  if(b.dataset.v === 'down'){
+    fb.innerHTML = '<span>Apa yang kurang jelas? (opsional)</span><textarea maxlength="300" placeholder="Mis. tombolnya tidak ketemu, langkah 3 berbeda di aplikasi saya. Jangan tulis data pribadi."></textarea><button type="button" class="fb-send" data-send="1">Kirim</button>';
+    fb.querySelector('textarea').focus(); return;
+  }
+  if(b.dataset.send){ post('/api/fb', { t: topicKey(), v: 'down', note: fb.querySelector('textarea').value }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih, masukanmu dipakai untuk memperbaiki tutorial ini.</span>'; }
+});
+
+/* ========================= TANYA ASISTEN & FAQ ========================= */
+const STOP = new Set(['cara','bagaimana','gimana','apa','apakah','yang','dan','atau','di','ke','dari','untuk','saya','aku','bisa','tidak','dengan','ini','itu','kok','mau','ingin','tolong','kenapa','mengapa','kalau','jika','sudah','belum','ada','nya']);
+const words = (s) => normalize(s).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w));
+/** Potongan tutorial yang paling cocok dengan pertanyaan (judul bobot 3, isi langkah bobot 1), maks. 4. */
+function retrieve(q){
+  const W = words(q); if(!W.length) return [];
+  const out = [];
+  CATEGORIES.forEach(c => (c.items || []).forEach(t => {
+    const title = words(t.title + ' ' + c.title), body = words((t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
+    let sc = 0; W.forEach(w => { if(title.some(x => x.startsWith(w) || w.startsWith(x))) sc += 3; if(body.some(x => x.startsWith(w))) sc += 1; });
+    if(sc) out.push({ sc, c, t });
+  }));
+  return out.sort((a, b) => b.sc - a.sc).slice(0, 4).map(({ c, t }) => ({
+    t: `${c.id}/${t.id}`, title: t.title, cat: c,
+    text: (t.slides || []).map((s, i) => `${i + 1}. ${[s.title, slideText(s)].filter(Boolean).join(': ')}`).join('\n').replace(/\*\*/g, '').slice(0, 1500),
+  }));
+}
+const CONTACT = PROFILE.contact || {};
+const CS_LINK = CONTACT.whatsapp ? 'https://wa.me/' + String(CONTACT.whatsapp).replace(/[^\d]/g, '').replace(/^0/, '62') : '';
+$('ask-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('ask-q').value.trim(), out = $('ask-out'); if(q.length < 4) return;
+  const ctx = retrieve(q), btn = $('ask-btn');
+  btn.disabled = true; out.innerHTML = '<div class="ans">Mencari jawaban…</div>';
+  try{
+    const r = await post('/api/ask', { q, ctx: ctx.map(({ t, title, text }) => ({ t, title, text })) });
+    const links = (r.topics || []).map(t => ctx.find(x => x.t === t)).filter(Boolean);
+    const none = !r.found || !r.answer;
+    out.innerHTML = `<div class="ans">${none ? 'Belum ada tutorial untuk pertanyaan ini.' + (CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : '') : esc(r.answer).replace(/\n/g, '<br>')}</div>`
+      + links.map(x => `<button type="button" class="tl" data-go="${esc(x.t)}">📄 ${esc(x.title)}</button>`).join('');
+  }catch(err){ out.innerHTML = `<div class="ans">${esc(err.message || 'Asisten belum bisa menjawab.')}</div>`; }
+  finally{ btn.disabled = false; }
+});
+$('ask-out').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go]'); if(!b) return;
+  const [c, t] = b.dataset.go.split('/'); navigate(buildHash(c, t, 1));
+});
+if(!IS_STATIC) fetch('/api/faq').then(r => r.ok ? r.json() : []).then(L => {
+  if(!Array.isArray(L) || !L.length) return;
+  $('faq-list').innerHTML = L.map(x => `<details><summary>${esc(x.q)}</summary><p>${esc(x.a)}</p></details>`).join('');
+  $('faq-box').hidden = false;
+}).catch(() => {});
+if(APP_LINK){ const a = $('btn-app'); a.href = APP_LINK; a.textContent = `Buka aplikasi${APP_NAME ? ' ' + APP_NAME : ''}`; a.hidden = false; }
+
+/* ========================= JADIKAN KONTEN (khusus tim, di dalam Tool Hub) ========================= */
+if(window.parent !== window) document.documentElement.classList.add('in-hub');
+const KW = { feed: [1080, 1350, 'Carousel feed 4:5'], story: [1080, 1920, 'Story 9:16'] };
+function loadImg(src){ return new Promise(ok => { if(!src){ ok(null); return; } const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; }); }
+function wrapLines(ctx, text, maxW){
+  const out = []; String(text || '').replace(/\*\*/g, '').split('\n').forEach(par => {
+    let line = ''; par.split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if(ctx.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t; }); out.push(line);
+  }); return out;
+}
+async function slidePng(kind, page){
+  const [W, H] = KW[kind], cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'), pad = 72, green = '#1a5c3a';
+  x.fillStyle = '#f4f8f5'; x.fillRect(0, 0, W, H);
+  x.fillStyle = green; x.fillRect(0, 0, W, 150);
+  x.fillStyle = '#fff'; x.font = 'bold 40px Segoe UI, Arial, sans-serif'; x.textBaseline = 'middle';
+  x.fillText(APP_NAME ? `Tutorial ${APP_NAME}` : 'Tutorial', pad, 75);
+  if(page.tag){ x.font = 'bold 34px Segoe UI, Arial, sans-serif'; x.textAlign = 'right'; x.fillText(page.tag, W - pad, 75); x.textAlign = 'left'; }
+  x.textBaseline = 'alphabetic';
+  let y = 230;
+  x.fillStyle = '#14201a'; x.font = `bold ${page.big ? 76 : 50}px Segoe UI, Arial, sans-serif`;
+  wrapLines(x, page.title, W - pad * 2).slice(0, 4).forEach(l => { x.fillText(l, pad, y); y += page.big ? 92 : 64; });
+  const textH = page.text ? 260 : 0, imgTop = y + 20, imgBot = H - 120 - textH;
+  if(page.img && imgBot - imgTop > 200){
+    const s = Math.min((W - pad * 2) / page.img.width, (imgBot - imgTop) / page.img.height), w = page.img.width * s, h = page.img.height * s, ix = (W - w) / 2;
+    x.save(); x.shadowColor = 'rgba(0,0,0,.18)'; x.shadowBlur = 30; x.fillStyle = '#fff'; x.fillRect(ix, imgTop, w, h); x.restore();
+    x.drawImage(page.img, ix, imgTop, w, h); y = imgTop + h + 60;
+  }
+  if(page.text){ x.fillStyle = '#14201a'; x.font = '38px Segoe UI, Arial, sans-serif'; wrapLines(x, page.text, W - pad * 2).slice(0, 6).forEach(l => { x.fillText(l, pad, y); y += 50; }); }
+  x.fillStyle = '#5f7268'; x.font = '24px Segoe UI, Arial, sans-serif';
+  wrapLines(x, page.foot || 'Semua investasi memiliki risiko. Materi edukasi penggunaan aplikasi, bukan ajakan membeli atau menjual.', W - pad * 2).slice(0, 2).forEach((l, i) => x.fillText(l, pad, H - 70 + i * 30));
+  return new Promise(ok => { try{ cv.toBlob(b => ok(b), 'image/png'); }catch(e){ ok(null); } });
+}
+function saveBlob(b, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+const slugify = (s) => normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'tutorial';
+async function makeImages(kind){
+  const T = currentTutorial, S = T.slides || [], n = S.length;
+  const pages = [{ title: T.title, text: `Panduan ${n} langkah${APP_NAME ? ' di aplikasi ' + APP_NAME : ''}. Geser untuk mulai →`, big: true, tag: currentCategory.title }];
+  for(let i = 0; i < n; i++) pages.push({ title: S[i].title || `Langkah ${i + 1}`, text: slideText(S[i]), img: await loadImg(safeUrl(S[i].image)), tag: `${i + 1}/${n}` });
+  pages.push({ title: APP_NAME ? `Coba sekarang di ${APP_NAME}` : 'Coba sekarang', text: (APP_LINK ? 'Unduh / buka aplikasi lewat link di bio. ' : '') + 'Simpan postingan ini supaya mudah dicari lagi.', big: true });
+  let ok = 0;
+  for(let i = 0; i < pages.length; i++){ const b = await slidePng(kind, pages[i]); if(b){ saveBlob(b, `${slugify(T.title)}-${kind}-${String(i + 1).padStart(2, '0')}.png`); ok++; await new Promise(r => setTimeout(r, 300)); } }
+  showToast(ok ? `${ok} gambar diunduh` : 'Gambar gagal dibuat');
+}
+function waText(){
+  const T = currentTutorial, url = location.origin + location.pathname + buildHash(currentCategory.id, T.id, 1);
+  return [`*Cara ${T.title}*${APP_NAME ? ' di ' + APP_NAME : ''}`, '', ...(T.slides || []).map((s, i) => `${i + 1}. ${[s.title, slideText(s)].filter(Boolean).join(': ').replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/\n+/g, ' ')}`), '', `Panduan bergambar: ${url}`].join('\n');
+}
+$('btn-konten').addEventListener('click', () => {
+  if(!currentTutorial) return;
+  const bg = document.createElement('div'); bg.className = 'kn-bg';
+  bg.innerHTML = `<div class="kn" role="dialog" aria-modal="true" aria-label="Jadikan konten"><h3>Jadikan konten</h3><small>${esc(currentTutorial.title)} · ${(currentTutorial.slides || []).length} langkah</small>
+    <button type="button" data-k="feed">🖼️ Carousel feed 4:5 (PNG)</button><button type="button" data-k="story">📱 Story 9:16 (PNG)</button><button type="button" data-k="wa">💬 Salin teks WhatsApp</button>
+    <small>Gambar = sampul + tiap langkah + penutup. Cek ulang isi & sensor data pribadi sebelum diunggah.</small><button type="button" class="pri" data-k="x">Tutup</button></div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-k]'); if(e.target === bg || (b && b.dataset.k === 'x')){ bg.remove(); return; } if(!b) return;
+    if(b.dataset.k === 'wa'){ const t = waText(); try{ await navigator.clipboard.writeText(t); showToast('Teks WhatsApp disalin'); }catch(_){ prompt('Salin teks ini:', t); } return; }
+    b.disabled = true; const o = b.textContent; b.textContent = 'Menyiapkan gambar…';
+    await makeImages(b.dataset.k); b.disabled = false; b.textContent = o;
+  });
 });
 
 /* ========================= MUAT DATA ========================= */

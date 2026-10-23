@@ -1,5 +1,7 @@
 // Tutorial: Worker dengan static assets. Hanya isi folder site/ yang tersaji (worker.js, firestore.rules, README tidak).
 // Gambar tutorial disimpan admin ke site/images/ lewat Tool Hub (commit ke repo), lalu tayang setelah deploy otomatis.
+// DB = statistik dibuka & "Membantu?", catatan, pertanyaan ke asisten, FAQ. AI = asisten tanya-jawab (Workers AI / Gemini).
+// Secret: SSO_SECRET (verifikasi izin admin dari Tool Hub), GEMINI_API_KEY (opsional).
 {
   "name": "tutorial",
   "main": "worker.js",
@@ -7,7 +9,10 @@
   "assets": {
     "directory": "./site",
     "binding": "ASSETS",
-    // halaman & skrip lewat worker (untuk window.PROFILE); gambar langsung dari aset tanpa memakai kuota worker
+    // halaman, skrip & /api lewat worker (untuk window.PROFILE); gambar langsung dari aset tanpa memakai kuota worker
     "run_worker_first": ["/*", "!/images/*"]
-  }
+  },
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "tutorial-db", "database_id": "auto" }],
+  "vars": { "TUTOR_AI_DAILY": "150" }
 }

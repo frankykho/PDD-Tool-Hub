@@ -105,6 +105,14 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
 - Cek: `node apps/fund-insight/test.mjs`
 
+### Tutorial: masukan, asisten, konten
+
+- Worker tutorial sekarang punya D1 `tutorial-db` dan binding AI (tanpa aturan Firestore baru): `POST /api/view` (hitung dibuka per topik), `POST /api/fb` (**Membantu? Ya/Tidak** di langkah terakhir, + catatan bila tidak), `GET /api/faq`, `POST /api/ask` (**Tanya asisten**: browser memilih ≤ 4 tutorial yang cocok, AI menjawab hanya dari isinya dan menautkan topiknya; batas 15 pertanyaan/pengunjung/hari dan `TUTOR_AI_DAILY` per hari). Pengunjung hanya disimpan sebagai hash (IP + tanggal + SSO_SECRET), dihapus setelah 2 hari.
+- Admin (`admin.html`): bagian **Statistik, Masukan & FAQ** (paling sering dibuka, dinilai kurang membantu, masukan, pertanyaan yang belum ada tutorialnya) dan editor FAQ. Endpoint admin memakai izin 8 jam dari Tool Hub (header `x-hub-admin`, HMAC SSO_SECRET yang sama dengan `/gh`), jadi secret `SSO_SECRET` juga harus terpasang di worker `tutorial`.
+- `site/annotate.js`: **editor anotasi screenshot** (kotak, panah, nomor langkah, sensor kotak-kotak untuk data pribadi) sebelum gambar dikecilkan, di form usulan dan saat admin mengganti gambar.
+- Halaman tutorial: tombol **Buka aplikasi** (App Store/Play sesuai perangkat, atau `app.download`), dan di dalam Tool Hub tombol **Konten**: carousel 4:5 / story 9:16 PNG (sampul + tiap langkah + penutup) dan teks WhatsApp bernomor. Semua fitur baru disembunyikan di file offline hasil Export HTML.
+- Cek: `node apps/tutorial/test.mjs`
+
 ### Partnership & Product Marketing
 
 - Fund Insight tab **Manajer Investasi**: pilih MI → produk yang kita jual (rating, return, peringkat return 1 tahun di jenisnya se-pasar dengan dana kelolaan ≥ Rp 10 M), produk MI yang belum dijual, komposisi produk MI di pasar, pangsa dana kelolaan; tombol Salin ringkasan (email/rapat) dan PDF.
