@@ -1,7 +1,8 @@
 // Content Planner: kalender konten tim + paket konten mingguan. Secret: SSO_SECRET
 // Tanpa cron (batas paket gratis 5 cron per akun sudah terpakai): paket mingguan disusun saat halaman dibuka.
 // DB = rencana konten (milik tool ini). FUND_DB = database Fund Insight (hanya dibaca): NAB & agenda.
-// FUND / BOND = service binding (worker tidak bisa memanggil worker lain di akun yang sama lewat alamat workers.dev).
+// FUND / BOND / COPY = service binding (worker tidak bisa memanggil worker lain di akun yang sama lewat alamat workers.dev).
+// COPY = Copy Studio: glosarium tim untuk cek caption; harus sudah di-deploy lebih dulu (urutan di scripts/deploy.mjs).
 {
   "name": "content-planner",
   "main": "worker.js",
@@ -12,6 +13,7 @@
   ],
   "services": [
     { "binding": "FUND", "service": "fund-insight" },
-    { "binding": "BOND", "service": "bond-insight" }
+    { "binding": "BOND", "service": "bond-insight" },
+    { "binding": "COPY", "service": "copy-studio" }
   ]
 }

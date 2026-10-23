@@ -132,6 +132,36 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 @media (max-width:900px){.pk{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr}.sug{flex-wrap:wrap}.sug .ti{flex-basis:100%}}
 
+/* ---------- Momen, persetujuan, performa ---------- */
+.mom{display:block;width:100%;text-align:left;font-size:11px;line-height:1.25;padding:2px 5px;border-radius:6px;background:var(--bg);color:var(--t2);border:1px dashed var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.mom.agama,.mom.nasional{color:var(--s3-t)} .mom.keuangan,.mom.pasar{color:var(--g)} .mom.tim{color:var(--s2-t);border-style:solid}
+.list .mom{font-size:12.5px;padding:6px 10px;margin-bottom:6px}
+.moms{margin-bottom:14px}
+.moms h2{font-size:15px;margin:0}
+.mrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.mrow:last-of-type{border-bottom:0}
+.mrow .d{min-width:92px;font-weight:600;font-size:13px}
+.mrow .ti{flex:1;min-width:0}
+.mrow .ti small{display:block;color:var(--t2)}
+.ap{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px}
+.chk-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:4px;font-size:12.5px}
+.chk-list li{padding:5px 8px;border-radius:8px}
+.chk-list .error{background:var(--s5);color:var(--s5-t)} .chk-list .warn{background:var(--s2);color:var(--s2-t)} .chk-list .info{background:var(--s3);color:var(--s3-t)} .chk-list .ok{background:var(--s4);color:var(--s4-t)}
+.coms{display:grid;gap:6px;margin-bottom:8px;max-height:220px;overflow:auto}
+.com{font-size:12.5px;background:var(--bg);border-radius:8px;padding:6px 9px}
+.com.disetujui{background:var(--s4)} .com.revisi{background:var(--s5)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi small{display:block;color:var(--t2);font-size:12px}
+.kpi b{font-size:20px;font-variant-numeric:tabular-nums}
+.perf{display:grid;gap:14px}
+.perf h2{font-size:15px;margin:0 0 8px}
+.scroll{overflow-x:auto}
+.perf tr[data-id]{cursor:pointer}
+.perf tr[data-id]:hover td{background:var(--bg)}
+.lrow{display:flex;gap:8px;align-items:center;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.lrow code{font-size:12px;word-break:break-all}
+
 /* ---------- Laporan (cetak / PDF) ---------- */
 #printArea{display:none}
 @media print{
@@ -165,7 +195,8 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <button class="btn sm" id="next" aria-label="Berikutnya">›</button>
     <button class="btn sm" id="today">Hari ini</button></span>
     <span class="sp"></span>
-    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button></div>
+    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button><button id="vPerf">📈 Performa</button></div>
+    <button class="btn" id="momBtn" aria-expanded="false">✨ Momen</button>
     <button class="btn" id="repBtn">⬇ Laporan</button>
     <button class="btn pri" id="addBtn">+ Kegiatan</button>
   </div>
@@ -177,6 +208,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <span class="sp"></span>
     <div class="stats" id="stats" style="margin:0"></div>
   </div>
+  <div class="card moms" id="momBox" hidden></div>
   <div id="calErr"></div>
   <div id="calBox"></div>
   <p class="muted small" id="calHelp" style="margin-top:10px">Klik tanggal untuk menambah kegiatan, klik kegiatan untuk mengubah. Kegiatan bisa digeser ke tanggal lain (tarik &amp; lepas).</p>
@@ -248,7 +280,44 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     </div>
     <div class="fld"><label for="iNote" id="lNote">Catatan / ide</label><textarea class="f" id="iNote" rows="3" maxlength="4000"></textarea></div>
     <div class="fld" id="gLink"><label for="iProg">Bagian dari program</label><select class="f" id="iProg"></select></div>
-    <div class="grp">
+    <div class="grp" id="gCopy">
+      <span class="lbl">Caption / naskah &amp; persetujuan</span>
+      <div class="fld"><label for="iCopy">Caption / naskah final</label><textarea class="f" id="iCopy" rows="5" maxlength="6000" placeholder="Teks yang akan tayang. Dicek otomatis: batas karakter kanal, janji untung, ajakan beli saham, S&amp;K, izin OJK, glosarium tim."></textarea></div>
+      <div id="iChk"></div>
+      <div class="grid2">
+        <div class="fld"><label for="iAppr">Penyetuju</label><input class="f" id="iAppr" maxlength="60" list="people" autocomplete="off" placeholder="Kosong = tanpa persetujuan"></div>
+        <div class="fld"><span class="lbl">Status persetujuan</span><div id="iApSt" class="small" style="padding-top:4px"></div></div>
+      </div>
+      <div class="grp" id="iDec" style="background:var(--bg)" hidden>
+        <span class="lbl">Keputusanmu sebagai penyetuju</span>
+        <label class="chk small"><input type="checkbox" id="iDecChk"> Caption sudah saya cek: tidak menjanjikan untung, angka bersumber, ada S&amp;K / disclaimer bila perlu.</label>
+        <div class="fld"><label for="iDecNote">Catatan (wajib untuk revisi)</label><input class="f" id="iDecNote" maxlength="1000"></div>
+        <div class="acts" style="margin:0 0 10px"><button type="button" class="btn pri sm" id="iApprove">✓ Setujui</button><button type="button" class="btn sm" id="iRevise">↩ Minta revisi</button><span class="muted small" id="iDecMsg"></span></div>
+      </div>
+      <div id="iComBox" hidden>
+        <span class="lbl">Komentar &amp; riwayat persetujuan</span>
+        <div class="coms" id="iComs" style="margin-top:6px"></div>
+        <div class="acts" style="margin:0 0 10px"><input class="f" id="iComTx" maxlength="2000" placeholder="Tulis komentar…" style="flex:1;min-width:180px"><button type="button" class="btn sm" id="iComSend">Kirim</button></div>
+      </div>
+    </div>
+    <div class="grp" id="gMet">
+      <span class="lbl">Performa setelah terbit</span>
+      <div class="grid3">
+        <div class="fld"><label for="mViews">Views / tayangan</label><input class="f" id="mViews" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mReach">Jangkauan</label><input class="f" id="mReach" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mLikes">Suka</label><input class="f" id="mLikes" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mComments">Komentar</label><input class="f" id="mComments" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mSaves">Simpan</label><input class="f" id="mSaves" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mShares">Bagikan</label><input class="f" id="mShares" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mFollows">Pengikut baru</label><input class="f" id="mFollows" inputmode="numeric" maxlength="15"></div>
+      </div>
+      <p class="muted small" id="mInfo" style="margin:0 0 8px"></p>
+      <span class="lbl">Link pelacak klik</span>
+      <div id="lkList"></div>
+      <div class="acts" id="lkAddRow" style="margin:6px 0 10px"><input class="f" id="lkTarget" maxlength="500" placeholder="Link tujuan: halaman produk, unduh aplikasi, …" style="flex:1;min-width:180px"><label class="chk small" style="margin:0"><input type="checkbox" id="lkUtm" checked> + UTM</label><button type="button" class="btn sm" id="lkAdd">+ Buat link</button></div>
+      <p class="muted small" id="lkNote" style="margin:0 0 10px">Simpan kegiatan dulu untuk membuat link pelacak.</p>
+    </div>
+    <div class="grp" id="gRes">
       <span class="lbl">Hasil (untuk laporan)</span>
       <div class="grid2">
         <div class="fld"><label for="iRes" id="lRes">Angka hasil</label><input class="f" id="iRes" inputmode="numeric" maxlength="15"></div>
@@ -375,7 +444,7 @@ async function loadProgs(){try{PROGS=await api("/api/programs")}catch(e){PROGS=[
 const progName=id=>{const p=PROGS.find(x=>x.id===id);return p?p.title:""};
 
 /* =================== KALENDER =================== */
-let cur=todayIso().slice(0,8)+"01",view="month",items=[],range={from:"",to:""};
+let cur=todayIso().slice(0,8)+"01",view="month",items=[],range={from:"",to:""},MOMS=[];
 function fillSelects(){
   $("fKind").insertAdjacentHTML("beforeend",Object.keys(K).map(k=>`<option value="${k}">${ICON[k]} ${esc(K[k].label)}</option>`).join("")+'<option value="desain">🎨 Butuh visual</option>');
   const st=[...new Set(Object.values(K).flatMap(k=>k.statuses))];
@@ -385,7 +454,7 @@ function fillSelects(){
   $("iRole").innerHTML=opts(PL.eduRoles);$("iDst").innerHTML=opts(PL.designStatuses,DSL);
   $("tJob").innerHTML=Object.keys(PL.roles).filter(k=>k!=="partnership").map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
   const v=recall("pl_view");
-  view=v==="list"||v==="month"||v==="design"||v==="tasks"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
+  view=v==="list"||v==="month"||v==="design"||v==="tasks"||v==="perf"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
   if(view==="month"&&matchMedia("(max-width:640px)").matches)view="list";
 }
 function fillPeople(){
@@ -409,34 +478,37 @@ async function loadCal(){
   if(view==="tasks")return loadTasksView();
   if(view==="design"){range={from:cur,to:monthEnd(cur)};}
   else{const dow=(D(cur).getUTCDay()+6)%7,last=monthEnd(cur),ldow=(D(last).getUTCDay()+6)%7;range={from:addD(cur,-dow),to:addD(last,6-ldow)};}
+  const momP=view==="month"||view==="list"?api(`/api/moments?from=${range.from}&to=${range.to}`).catch(()=>[]):Promise.resolve([]);
   try{items=await api(`/api/items?from=${range.from}&to=${range.to}${view==="design"?"&design=1":""}`);showErr("calErr");}
   catch(e){items=[];showErr("calErr",e);}
+  MOMS=await momP;
   fillPeople();renderCal();
 }
 const kindOf=i=>K[i.kind]?i.kind:"konten";
 function chip(i){
-  const des=i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"";
+  const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
   return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
-  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");
-  $("fSt").hidden=view==="design";$("calHelp").hidden=view==="design";
-  ["fKind","fSt","fOw"].forEach(id=>$(id).hidden=view==="tasks"||(id==="fSt"&&view==="design"));$("calHelp").hidden=view!=="month"&&view!=="list";
+  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");
+  ["fKind","fSt","fOw"].forEach(id=>$(id).hidden=view==="tasks"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design"));$("calHelp").hidden=view!=="month"&&view!=="list";
   if(view==="tasks")return renderTasksView();
   const list=shown(),mStart=cur,mEnd=monthEnd(cur),t=todayIso();
   if(view==="design")return renderBoard(list,t);
+  if(view==="perf")return renderPerf(list.filter(i=>i.date>=mStart&&i.date<=mEnd));
+  const momBy={};MOMS.forEach((m,n)=>(momBy[m.date]=momBy[m.date]||[]).push(n));
   const inMonth=list.filter(i=>i.date>=mStart&&i.date<=mEnd);
   $("stats").innerHTML=Object.keys(K).map(k=>{const n=inMonth.filter(i=>kindOf(i)===k).length;return n?`<span class="stat">${ICON[k]} ${n}</span>`:""}).join("")+
     (inMonth.some(i=>i.d_need)?`<span class="stat">🎨 ${inMonth.filter(i=>i.d_need&&i.d_status!=="selesai").length} visual belum selesai</span>`:"")+`<span class="stat muted">${inMonth.length} kegiatan bulan ini</span>`;
   const by={};list.forEach(i=>(by[i.date]=by[i.date]||[]).push(i));
   if(view==="list"){
-    const days=Object.keys(by).filter(d=>d>=mStart&&d<=mEnd).sort();
-    $("calBox").innerHTML=`<div class="list card">${days.length?days.map(d=>`<div class="lday${d===t?" today":""}">${fmtDate(d,true)}</div>${by[d].map(chip).join("")}`).join(""):`<div class="empty muted">Belum ada kegiatan di bulan ini. Klik “+ Kegiatan” untuk menambah.</div>`}</div>`;
+    const days=[...new Set([...Object.keys(by),...Object.keys(momBy).filter(d=>momBy[d].some(n=>!MOMS[n].payday))])].filter(d=>d>=mStart&&d<=mEnd).sort();
+    $("calBox").innerHTML=`<div class="list card">${days.length?days.map(d=>`<div class="lday${d===t?" today":""}">${fmtDate(d,true)}</div>${(momBy[d]||[]).filter(n=>!MOMS[n].payday).map(momChip).join("")}${(by[d]||[]).map(chip).join("")}`).join(""):`<div class="empty muted">Belum ada kegiatan di bulan ini. Klik “+ Kegiatan” untuk menambah.</div>`}</div>`;
   }else{
     let h=["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(x=>`<div class="dow">${x}</div>`).join("");
     for(let d=range.from;d<=range.to;d=addD(d,1)){
       const L=by[d]||[],out=d<mStart||d>mEnd;
-      h+=`<div class="day${out?" out":""}${d===t?" today":""}" data-date="${d}" tabindex="0" aria-label="${fmtDate(d,true)}, ${L.length} kegiatan"><span class="dn">${D(d).getUTCDate()}</span><span class="add" aria-hidden="true">+</span>${L.slice(0,4).map(chip).join("")}${L.length>4?`<span class="more">+${L.length-4} lagi</span>`:""}</div>`;
+      h+=`<div class="day${out?" out":""}${d===t?" today":""}" data-date="${d}" tabindex="0" aria-label="${fmtDate(d,true)}, ${L.length} kegiatan"><span class="dn">${D(d).getUTCDate()}</span><span class="add" aria-hidden="true">+</span>${out?"":(momBy[d]||[]).slice(0,2).map(momChip).join("")}${L.slice(0,4).map(chip).join("")}${L.length>4?`<span class="more">+${L.length-4} lagi</span>`:""}</div>`;
     }
     $("calBox").innerHTML=`<div class="cal">${h}</div>`;
   }
@@ -449,10 +521,121 @@ function renderBoard(list,t){
     return `<div class="col"><h3><span>${DSL[s]}</span><span class="muted">${C.length}</span></h3>${C.map(i=>{const due=i.d_due||i.date,late=s!=="selesai"&&due<t;
       return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b>${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small>${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain">${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
 }
+/* ---------- Momen ---------- */
+const MT=PL.momentTypes||{};
+const momChip=n=>{const m=MOMS[n];return `<button type="button" class="mom ${esc(m.type)}" data-mom="${n}" title="${esc(m.name)}${m.idea?" · "+esc(m.idea):""}${m.approx?" (tanggal perkiraan)":""}">✨ ${esc(m.name)}</button>`};
+// kegiatan baru dari momen: judul & catatan terisi ide kontennya
+const fromMoment=m=>openForm(null,m.date<todayIso()?todayIso():m.date,{title:m.name,note:`Momen: ${m.name}${m.approx?" (tanggal perkiraan, cek ketetapan pemerintah)":""}\nIde: ${m.idea||""}`});
+let MOMP=[];
+async function loadMoments(){
+  const box=$("momBox"),from=todayIso(),to=addD(from,60);
+  box.innerHTML='<p class="muted small" style="margin:0">⏳ Memuat momen…</p>';
+  try{MOMP=await api(`/api/moments?from=${from}&to=${to}`)}catch(e){box.innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  renderMoments();
+}
+function renderMoments(){
+  const pay=recall("pl_pay")==="1",L=MOMP.map((m,n)=>[m,n]).filter(([m])=>pay||!m.payday);
+  $("momBox").innerHTML=`<div class="bar" style="margin:0 0 6px"><h2>✨ Momen 60 hari ke depan</h2><span class="sp"></span><label class="chk small" style="margin:0"><input type="checkbox" id="momPay"${pay?" checked":""}> Tanggal gajian</label></div>`+
+    (L.length?L.map(([m,n])=>`<div class="mrow"><span class="d">${fmtDate(m.date)}</span><div class="ti"><b>${esc(m.name)}</b><span class="tag">${esc(MT[m.type]||m.type)}</span>${m.approx?'<span class="tag" title="Kalender Hijriah perkiraan, bisa bergeser ±1 hari">perkiraan</span>':""}${m.syariah?'<span class="tag">syariah</span>':""}${m.idea?`<small>${esc(m.idea)}</small>`:""}${m.created_by?`<small>Ditambahkan ${esc(m.created_by)}</small>`:""}</div><button type="button" class="btn sm" data-mp="${n}">+ Kegiatan</button>${m.id&&(PL.me.adm||m.created_email===PL.me.email)?`<button type="button" class="btn sm danger" data-mdel="${esc(m.id)}" aria-label="Hapus momen ${esc(m.name)}">✕</button>`:""}</div>`).join(""):'<p class="muted small">Tidak ada momen.</p>')+
+    `<form id="momAdd" class="grid3" style="margin-top:12px;align-items:end"><div class="fld" style="margin:0"><label for="maDate">Momen tim: tanggal</label><input class="f" type="date" id="maDate" required></div><div class="fld" style="margin:0"><label for="maName">Nama</label><input class="f" id="maName" maxlength="100" required placeholder="mis. Masa penawaran SR025"></div><div class="fld" style="margin:0"><label for="maIdea">Ide konten</label><input class="f" id="maIdea" maxlength="300"></div><div class="acts" style="grid-column:1/-1;margin:0"><button class="btn sm pri">+ Tambah momen tim</button><span class="muted small" id="maMsg"></span></div></form>`+
+    `<p class="muted small" style="margin:10px 0 0">Hari besar Islam memakai kalender Hijriah perkiraan dan bisa bergeser ±1 hari dari ketetapan pemerintah. Tambahkan momen tim seperti masa penawaran SBN ritel, HUT perusahaan, atau jadwal program.</p>`;
+}
+$("momBtn").onclick=()=>{const b=$("momBox");b.hidden=!b.hidden;$("momBtn").setAttribute("aria-expanded",String(!b.hidden));if(!b.hidden)loadMoments()};
+$("momBox").addEventListener("change",e=>{if(e.target.id==="momPay"){store("pl_pay",e.target.checked?"1":"0");renderMoments()}});
+$("momBox").addEventListener("click",async e=>{
+  const a=e.target.closest("[data-mp]");if(a){fromMoment(MOMP[+a.dataset.mp]);return}
+  const d=e.target.closest("[data-mdel]");if(d&&confirm("Hapus momen ini?")){try{await api("/api/moments/delete",{id:d.dataset.mdel});await loadMoments();loadCal()}catch(err){showErr("calErr",err)}}
+});
+$("momBox").addEventListener("submit",async e=>{
+  e.preventDefault();
+  try{await api("/api/moments",{date:$("maDate").value,name:$("maName").value,idea:$("maIdea").value});await loadMoments();loadCal()}catch(err){$("maMsg").textContent="✗ "+err.message}
+});
+
+/* ---------- Performa konten ---------- */
+const MK=[["mViews","m_views","Views"],["mReach","m_reach","Jangkauan"],["mLikes","m_likes","Suka"],["mComments","m_comments","Komentar"],["mSaves","m_saves","Simpan"],["mShares","m_shares","Bagikan"],["mFollows","m_follows","Pengikut baru"]];
+const hasM=i=>MK.some(([,k])=>i[k]!=null);
+const inter=i=>(+i.m_likes||0)+(+i.m_comments||0)+(+i.m_saves||0)+(+i.m_shares||0);
+// ER = interaksi ÷ jangkauan, hanya dari konten yang jangkauannya tercatat
+const erOf=L=>{const R=L.filter(i=>+i.m_reach>0),r=R.reduce((a,i)=>a+ +i.m_reach,0);return r?R.reduce((a,i)=>a+inter(i),0)/r*100:null};
+function renderPerf(month){
+  const L=month.filter(i=>kindOf(i)==="konten"&&(i.status==="terbit"||hasM(i))),sum=k=>L.reduce((a,i)=>a+(+i[k]||0),0);
+  const miss=L.filter(i=>!hasM(i));
+  $("stats").innerHTML=`<span class="stat">${L.length} konten terbit</span>${miss.length?`<span class="stat c2">${miss.length} belum ada angka</span>`:""}`;
+  const ch={};L.forEach(i=>(ch[i.channel]=ch[i.channel]||[]).push(i));
+  const kpi=(l,v)=>`<div class="kpi"><small>${l}</small><b>${v}</b></div>`,pct2=x=>x==null?"–":num(x)+"%";
+  const rows=[...L].sort((a,b)=>(+b.m_reach||+b.m_views||0)-(+a.m_reach||+a.m_views||0));
+  $("calBox").innerHTML=`<div class="perf"><div class="kpis">${kpi("Konten terbit",int(L.length))}${kpi("Views",int(sum("m_views")))}${kpi("Jangkauan",int(sum("m_reach")))}${kpi("Interaksi",int(L.reduce((a,i)=>a+inter(i),0)))}${kpi("Engagement rate",pct2(erOf(L)))}${kpi("Klik link",int(sum("clicks")))}${kpi("Pengikut baru",int(sum("m_follows")))}</div>`+
+    `<div class="card"><h2>Per kanal</h2><div class="scroll"><table class="t"><thead><tr><th>Kanal</th><th class="n">Konten</th><th class="n">Views</th><th class="n">Jangkauan</th><th class="n">Interaksi</th><th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${Object.keys(ch).sort((a,b)=>ch[b].length-ch[a].length).map(k=>{const C=ch[k],s=f=>C.reduce((a,i)=>a+(+f(i)||0),0);return `<tr><td>${esc(k)}</td><td class="n">${C.length}</td><td class="n">${int(s(i=>i.m_views))}</td><td class="n">${int(s(i=>i.m_reach))}</td><td class="n">${int(s(inter))}</td><td class="n">${pct2(erOf(C))}</td><td class="n">${int(s(i=>i.clicks))}</td></tr>`}).join("")||'<tr><td colspan="7" class="muted">Belum ada konten terbit bulan ini.</td></tr>'}</tbody></table></div></div>`+
+    `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,6).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td>${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,6).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="11" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan) ÷ jangkauan.</p></div>`+
+    `<div class="card"><h2>Impor angka dari Meta Business Suite</h2><p class="muted small" style="margin:0 0 8px">Di Meta Business Suite: Insights → Konten → Ekspor data (CSV). Baris dicocokkan dengan kegiatan lewat link postingan (kolom Permalink), jadi isi <b>Link postingan</b> di setiap konten.</p>`+
+    `<div class="acts"><input type="file" id="csvF" accept=".csv,text/csv"><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
+    `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), gulir sampai postingan yang ingin diambil terlihat, lalu klik bookmark-nya. Suka, komentar, dan views tiap postingan (maks. 60) dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Bisa juga dari satu halaman postingan.</p>`+
+    `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div></div>`;
+  $("bmLink").href="javascript:"+encodeURIComponent("("+plBookmark.toString()+")("+JSON.stringify(location.origin)+")");
+}
+// Kode tombol bookmark. Dijalankan di tab Instagram, membuka jendela /ig-sync di Planner, lalu mengirim angka per postingan lewat postMessage.
+function plBookmark(W){
+  var L=location,d=document,seen={},list=[];
+  if(!/(^|\.)instagram\.com$/.test(L.hostname)){alert("Buka profil Instagram akun sendiri dulu, lalu klik tombol ini.");return}
+  var one=L.pathname.match(/\/(p|reels?|tv)\/([\w-]+)/);
+  if(one)list.push({k:one[1]==="p"?"p":"reel",c:one[2]});
+  else [].forEach.call(d.querySelectorAll('main a[href*="/p/"],main a[href*="/reel/"]'),function(a){var m=a.getAttribute("href").match(/\/(p|reel)\/([\w-]+)/);if(m&&!seen[m[2]]){seen[m[2]]=1;list.push({k:m[1],c:m[2]})}});
+  list=list.slice(0,60);
+  if(!list.length){alert("Belum ada postingan yang tampil. Gulir sedikit sampai postingan terlihat, lalu klik tombol ini lagi.");return}
+  var w=window.open(W+"/ig-sync?n="+list.length,"planner_ig","width=540,height=760");
+  if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk instagram.com, lalu klik tombol lagi.");return}
+  var go=false;
+  window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source)});
+  function run(t){var i=0;(function next(){
+    if(i>=list.length){t.postMessage({pl:"done"},W);return}
+    var x=list[i++];
+    fetch("/p/"+x.c+"/?__a=1&__d=dis",{credentials:"include",headers:{"x-ig-app-id":"936619743392459"}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null}).then(function(j){
+      var it=j&&j.items&&j.items[0],o={link:"https://www.instagram.com/"+x.k+"/"+x.c+"/"};
+      if(it){o.date=it.taken_at?new Date(it.taken_at*1000+7*3600e3).toISOString().slice(0,10):"";o.title=((it.caption&&it.caption.text)||"").split("\n")[0].slice(0,160);
+        o.type=it.media_type===8?"carousel":(it.media_type===2||it.product_type==="clips")?"reel":"foto";
+        o.m_likes=it.like_count>=0?it.like_count:"";o.m_comments=it.comment_count!=null?it.comment_count:"";var v=it.play_count||it.ig_play_count||it.view_count;o.m_views=v!=null?v:""}
+      t.postMessage({pl:"row",n:list.length,row:o,ok:!!it},W);setTimeout(next,it?600:200);
+    })})()}
+}
+/** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
+function parseCsv(text){
+  text=String(text).replace(/^﻿/,"");
+  const first=text.split(/\r?\n/,1)[0],d=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?";":",",rows=[];
+  let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;else if(c===d){row.push(f);f=""}
+    else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);f="";if(row.some(x=>x!==""))rows.push(row);row=[]}
+    else f+=c}
+  row.push(f);if(row.some(x=>x!==""))rows.push(row);
+  return rows;
+}
+// kolom ekspor Meta (Inggris / Indonesia) -> isian Planner
+const CSVMAP=[["link",/permalink|tautan permanen|^link|^url/i],["date",/publish time|waktu (publikasi|dipublikasikan)|tanggal (publikasi|dipublikasikan)/i],["title",/^description|deskripsi|keterangan|caption|^judul|^title/i],["type",/post type|jenis (postingan|konten)/i],
+  ["m_views",/^views$|^tayangan|^plays|diputar/i],["m_reach",/^reach|jangkauan/i],["m_likes",/^likes|^suka|^reactions|^reaksi/i],["m_comments",/^comments|^komentar/i],["m_saves",/^saves|^simpan|disimpan/i],["m_shares",/^shares|^bagikan|dibagikan/i],["m_follows",/^follows|^ikuti|mengikuti/i]];
+const csvDate=s=>{s=String(s||"").trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=s.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/);if(!m)return "";const a=+m[1],b=+m[2],[mo,da]=a>12?[b,a]:[a,b];return `${m[3]}-${String(mo).padStart(2,"0")}-${String(da).padStart(2,"0")}`};
+function metaRows(text){
+  const R=parseCsv(text);if(R.length<2)return [];
+  const H=R[0].map(h=>h.trim()),col={},used=new Set();
+  CSVMAP.forEach(([k,re])=>{const i=H.findIndex((h,j)=>re.test(h)&&!used.has(j));if(i>=0){col[k]=i;used.add(i)}});
+  if(col.m_views==null){const i=H.findIndex((h,j)=>/impressions|impresi/i.test(h)&&!used.has(j));if(i>=0)col.m_views=i}
+  return R.slice(1).map(r=>{const o={};for(const k in col)o[k]=String(r[col[k]]||"").trim();o.date=csvDate(o.date);for(const k in o)if(k.startsWith("m_"))o[k]=o[k].replace(/[^\d]/g,"");return o}).filter(o=>o.link);
+}
+async function importCsv(){
+  const f=$("csvF").files[0],msg=$("csvMsg");if(!f){msg.textContent="Pilih berkas CSV dulu.";return}
+  const rows=metaRows(await f.text());
+  if(!rows.length){msg.textContent="✗ Tidak ada baris dengan kolom Permalink. Pastikan berkas dari Meta Business Suite → Insights → Konten → Ekspor.";return}
+  $("csvGo").disabled=true;msg.textContent=`⏳ Mengimpor ${rows.length} baris…`;
+  try{const r=await api("/api/metrics/import",{rows:rows.slice(0,1000),create:$("csvNew").checked});await loadCal();
+    $("csvMsg").innerHTML=`✓ ${r.matched} konten diperbarui${r.created?`, ${r.created} kegiatan baru dibuat`:""}${r.unmatched?`. ${r.unmatched} postingan belum ada di kalender${r.sample&&r.sample.length?`: ${r.sample.map(esc).join(", ")}`:""}. Centang “Buat kegiatan…” untuk menambahkannya.`:"."}`}
+  catch(e){$("csvMsg").textContent="✗ "+e.message}
+  finally{const b=$("csvGo");if(b)b.disabled=false}
+}
+
 /* ---------- Tugas: untukku & dariku (Partnership: bisa melihat semua tugas tim) ---------- */
-const TV={all:false,list:[]};
+const TV={all:false,list:[],ap:[]};
 async function loadTasksView(){
-  try{TV.list=await api("/api/tasks?"+(TV.all?"all=1":"mine=1"));showErr("calErr")}catch(e){TV.list=[];showErr("calErr",e)}
+  try{[TV.list,TV.ap]=await Promise.all([api("/api/tasks?"+(TV.all?"all=1":"mine=1")),api("/api/approvals").catch(()=>[])]);showErr("calErr")}catch(e){TV.list=[];TV.ap=[];showErr("calErr",e)}
   renderCal();
 }
 const canEditTask=t=>PL.me.adm||t.who===PL.me.email||t.by_email===PL.me.email;
@@ -468,7 +651,8 @@ function renderTasksView(){
   const forMe=L.filter(x=>x.who===me),other=L.filter(x=>x.who!==me&&(TV.all||x.by_email===me));
   $("stats").innerHTML=`<span class="stat">${open.filter(x=>x.who===me).length} tugas untukmu belum selesai</span><span class="stat c5">${open.filter(x=>x.due<t).length} lewat tenggat</span>`;
   const col=(title,list,mineCol,empty)=>`<div class="col"><h3><span>${title}</span><span class="muted">${list.length}</span></h3>${list.length?list.map(x=>taskRow(x,mineCol)).join(""):`<p class="muted small" style="margin:4px">${empty}</p>`}</div>`;
-  $("calBox").innerHTML=`<div class="tasks">${col("Untukmu",forMe,true,"Belum ada tugas untukmu.")}`+
+  const apCol=TV.ap.length?`<div class="col"><h3><span>Menunggu persetujuanmu</span><span class="muted">${TV.ap.length}</span></h3>${TV.ap.map(x=>`<div class="trow"><div class="ti"><b>${ICON[x.kind]||""} ${esc(x.title)}</b><small>${esc(x.channel)} · tayang ${fmtDate(x.date)}${x.owner?" · "+esc(x.owner):""}</small>${x.approval_note?`<small>${esc(x.approval_note)}</small>`:""}</div><button type="button" class="btn sm" data-open="${esc(x.id)}">Periksa</button></div>`).join("")}</div>`:"";
+  $("calBox").innerHTML=`<div class="tasks">${apCol}${col("Untukmu",forMe,true,"Belum ada tugas untukmu.")}`+
     (PL.me.assign||other.length?col(TV.all?"Tugas tim lainnya":"Kamu berikan",other,false,PL.me.assign?"Buka sebuah program, lalu beri tugas di bagian Tugas tim.":"Tidak ada."):"")+"</div>"+
     (PL.me.assign?`<label class="chk small" style="margin-top:10px"><input type="checkbox" id="tAll"${TV.all?" checked":""}> Tampilkan semua tugas tim</label>`:"")+
     `<p class="muted small" style="margin-top:8px">Tugas yang sudah selesai tetap tampil 30 hari. Klik nama program untuk membuka rinciannya.</p>`;
@@ -485,10 +669,79 @@ function setKind(k){
   $("iSt").innerHTML=opts(cfg.statuses,STL);$("iSt").value=cfg.statuses.includes(st)?st:cfg.statuses[0];
   $("gEdu").hidden=k!=="edukasi";$("lOw").textContent=k==="edukasi"?"Narasumber / penanggung jawab":k==="program"?"PIC program":"Penanggung jawab";
   const pr=k==="program";$("gProg").hidden=!pr;$("gBiz").hidden=!pr;$("gTask").hidden=!pr;$("gLink").hidden=pr;$("lNeed").hidden=pr;$("gDes").hidden=pr||!$("iNeed").checked;
+  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten";
+  showMet();renderChk();
 }
+// isian performa hanya untuk konten yang sudah terbit (atau yang angkanya sudah ada)
+const showMet=()=>{$("gMet").hidden=!(PL.copyKinds||[]).includes(fKind)||($("iSt").value!=="terbit"&&!MK.some(([id])=>$(id).value!==""))};
+/* ---------- caption: cek kepatuhan & persetujuan ---------- */
+const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
+// kanal -> aturan panjang di shared/compliance.js
+const platOf=()=>{const c=$("iCh").value;return fKind==="artikel"?"artikel":/^IG/.test(c)?"ig":c==="TikTok"?"tiktok":c==="YouTube"?"yt_desc":/^WA/.test(c)?"wa":"ig"};
+function renderChk(){
+  const box=$("iChk"),t=$("iCopy").value;
+  if(!window.Compliance||!t.trim()||$("gCopy").hidden){box.innerHTML="";return}
+  const r=Compliance.check(t,{platform:platOf(),glossary:PL.glossary||[],allow:PL.allow||[]}),L=r.issues.filter(i=>i.level!=="info"||i.id==="risiko");
+  box.innerHTML=`<p class="muted small" style="margin:0 0 4px">${int(r.len)}${r.max<1e5?" / "+int(r.max):""} karakter · ${r.tags} hashtag</p><ul class="chk-list">${L.length?L.slice(0,8).map(i=>`<li class="${i.level}">${esc(i.msg)}${i.match?` <i>“${esc(i.match)}”</i>`:""}</li>`).join(""):'<li class="ok">Lolos cek otomatis.</li>'}</ul>`;
+}
+function renderAp(){
+  const it=editing,name=$("iAppr").value.trim(),em=emailOf(name),ap=it&&it.approver_email&&it.approver_email===em?it.approval||"":"";
+  $("iApSt").innerHTML=!name?'<span class="muted">Tanpa persetujuan</span>':!em?'<span class="late">Pilih nama dari daftar anggota.</span>':!ap?'<span class="muted">Ubah status ke Review lalu Simpan untuk meminta persetujuan.</span>':
+    `<span class="ap ${ap==="disetujui"?"c4":ap==="revisi"?"c5":"c2"}">${esc(PL.approval[ap]||ap)}</span>${ap==="disetujui"&&it.approved_by?` <span class="muted">oleh ${esc(it.approved_by)}, ${when(it.approved_at)}</span>`:""}${it.approval_note?`<div class="muted" style="margin-top:4px">${esc(it.approval_note)}</div>`:""}`;
+  $("iDec").hidden=!(it&&it.approval==="menunggu"&&(it.approver_email===PL.me.email||PL.me.adm));
+}
+async function loadComs(){
+  const it=editing;$("iComBox").hidden=!it;$("iComs").innerHTML="";if(!it)return;
+  let L=[];try{L=await api("/api/comments?item="+encodeURIComponent(it.id))}catch(e){}
+  if(editing!==it)return;
+  $("iComs").innerHTML=L.length?L.map(c=>`<div class="com ${esc(c.kind)}"><b>${esc(c.by_name)}</b> <span class="muted">${c.kind==="disetujui"?"menyetujui · ":c.kind==="revisi"?"meminta revisi · ":""}${when(c.at)}</span>${c.text?`<div>${esc(c.text)}</div>`:""}</div>`).join(""):'<p class="muted small" style="margin:0">Belum ada komentar.</p>';
+}
+async function loadLinks(){
+  const it=editing;$("lkList").innerHTML="";$("lkAddRow").hidden=!it;$("lkNote").hidden=!!it;if(!it)return;
+  let L=[];try{L=await api("/api/links?item="+encodeURIComponent(it.id))}catch(e){}
+  if(editing!==it)return;
+  $("lkList").innerHTML=L.map(l=>{const u=location.origin+"/go/"+l.code;return `<div class="lrow"><code>${esc(u)}</code><span class="sp"></span><b>${int(l.clicks)}</b> klik<button type="button" class="btn sm" data-lcopy="${esc(u)}">Salin</button></div>`}).join("");
+}
+function copyText(t){
+  const ok=()=>{$("lkNote").hidden=false;$("lkNote").textContent="✓ Link tersalin."};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+  function fb(){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){}a.remove()}
+}
+function renderMInfo(){
+  const it=editing,o={};MK.forEach(([id,k])=>{const v=$(id).value.replace(/[.\s]/g,"");o[k]=v===""?null:+v});
+  const e=o.m_reach>0?inter(o)/o.m_reach*100:null;
+  $("mInfo").textContent=[e==null?"":"ER "+num(e)+"%",it&&it.clicks?int(it.clicks)+" klik link":"",it&&it.m_at?"diperbarui "+when(it.m_at)+(it.m_src==="csv"?" dari CSV":""):""].filter(Boolean).join(" · ");
+}
+$("iCopy").addEventListener("input",renderChk);$("iCh").addEventListener("change",renderChk);$("iAppr").addEventListener("input",renderAp);$("iSt").addEventListener("change",showMet);
+MK.forEach(([id])=>$(id).addEventListener("input",renderMInfo));
+async function decideNow(action){
+  if(!editing)return;
+  if($("iCopy").value!==(editing.copy||"")||$("iTitle").value!==editing.title){$("iDecMsg").textContent="Simpan dulu perubahan sebelum memutuskan.";return}
+  $("iApprove").disabled=$("iRevise").disabled=true;
+  try{await api("/api/approval",{id:editing.id,action,note:$("iDecNote").value,checked:$("iDecChk").checked});
+    editing=await api("/api/items?id="+encodeURIComponent(editing.id));$("iSt").value=editing.status;$("iDecNote").value="";$("iDecChk").checked=false;
+    renderAp();loadComs();loadCal();$("iDecMsg").textContent=action==="setujui"?"✓ Disetujui":"✓ Revisi diminta"}
+  catch(e){$("iDecMsg").textContent="✗ "+(e.message||e)}
+  finally{$("iApprove").disabled=$("iRevise").disabled=false}
+}
+$("iApprove").onclick=()=>decideNow("setujui");$("iRevise").onclick=()=>decideNow("revisi");
+$("iComSend").onclick=async()=>{
+  if(!editing||!$("iComTx").value.trim())return;$("iComSend").disabled=true;
+  try{await api("/api/comments",{item_id:editing.id,text:$("iComTx").value});$("iComTx").value="";await loadComs()}catch(e){showErr("dlgErr",e)}
+  finally{$("iComSend").disabled=false}
+};
+$("iComTx").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("iComSend").click()}});
+$("lkAdd").onclick=async()=>{
+  if(!editing)return;$("lkAdd").disabled=true;
+  try{const r=await api("/api/links",{item_id:editing.id,target:$("lkTarget").value,utm:$("lkUtm").checked});$("lkTarget").value="";await loadLinks();copyText(location.origin+"/go/"+r.code)}
+  catch(e){showErr("dlgErr",e)}
+  finally{$("lkAdd").disabled=false}
+};
+$("lkList").addEventListener("click",e=>{const b=e.target.closest("[data-lcopy]");if(b)copyText(b.dataset.lcopy)});
 $("iKind").addEventListener("click",e=>{const b=e.target.closest("[data-k]");if(b)setKind(b.dataset.k)});
 $("iNeed").onchange=()=>{$("gDes").hidden=!$("iNeed").checked;if($("iNeed").checked&&!$("iDue").value)$("iDue").value=addD($("iDate").value||todayIso(),-2)};
-function openForm(it,date){
+// preset (opsional) = {title, note} untuk kegiatan baru, mis. dari kalender momen
+function openForm(it,date,preset){
   editing=it||null;const v=(k,d="")=>it&&it[k]!=null?it[k]:d;
   $("dlgTitle").textContent=it?"Ubah kegiatan":"Kegiatan baru";
   $("iCh").value="";$("iSt").value="";setKind(it?kindOf(it):($("fKind").value&&K[$("fKind").value]?$("fKind").value:KIND_OF_ROLE[PL.me.role]||"konten"));
@@ -507,8 +760,11 @@ function openForm(it,date){
   $("iProg").innerHTML='<option value="">Bukan bagian program</option>'+act.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");$("iProg").value=pid;
   const ro=kindOf(it||{kind:fKind})==="program"&&it&&!PL.me.assign;
   $("iSave").hidden=!!ro;
-  renderTaskBox();
-  const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
+  $("iCopy").value=v("copy");$("iAppr").value=it?(v("approver")||nameOf(it.approver_email||"")):"";
+  MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
+  $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkTarget").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
+  if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
+  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();
   $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
@@ -556,7 +812,8 @@ const formData=()=>({id:editing&&editing.id,kind:fKind,title:$("iTitle").value,d
   owner:$("iOw").value,owner_email:emailOf($("iOw").value),link:$("iLink").value,note:$("iNote").value,result_num:$("iRes").value,result_note:$("iResN").value,
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
   program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
-  reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value});
+  reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
+  copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value]))});
 $("form").addEventListener("submit",async e=>{
   e.preventDefault();$("iSave").disabled=true;
   try{
@@ -581,8 +838,11 @@ $("calBox").addEventListener("click",e=>{
   if(e.target.closest("select"))return;
   const pg=e.target.closest("[data-prog]");if(pg){openItem(pg.dataset.prog);return}
   if(e.target.closest("#tAll")){TV.all=e.target.closest("#tAll").checked;loadTasksView();return}
+  const op=e.target.closest("[data-open]");if(op){openItem(op.dataset.open);return}
   if(view==="tasks")return;
-  const c=e.target.closest(".chip,.task");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
+  if(e.target.closest("#csvGo")){importCsv();return}
+  const mo=e.target.closest("[data-mom]");if(mo){fromMoment(MOMS[+mo.dataset.mom]);return}
+  const c=e.target.closest(".chip,.task,tr[data-id]");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
   const d=e.target.closest(".day");if(d)openForm(null,d.dataset.date);
 });
 $("calBox").addEventListener("change",e=>{
@@ -607,8 +867,8 @@ const shift=n=>{const d=D(cur);d.setUTCMonth(d.getUTCMonth()+n);cur=iso(d).slice
 $("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
 $("today").onclick=()=>{cur=todayIso().slice(0,8)+"01";loadCal()};
 $("addBtn").onclick=()=>openForm(null);
-function setView(v){const reload=(v==="design")!==(view==="design")||v==="tasks"||view==="tasks";view=v;store("pl_view",v);reload?loadCal():renderCal()}
-$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");$("vTasks").onclick=()=>setView("tasks");
+function setView(v){const reload=(v==="design")!==(view==="design")||v==="tasks"||view==="tasks"||view==="perf";view=v;store("pl_view",v);reload?loadCal():renderCal()}
+$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");$("vTasks").onclick=()=>setView("tasks");$("vPerf").onclick=()=>setView("perf");
 ["fKind","fSt"].forEach(id=>$(id).onchange=renderCal);
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 

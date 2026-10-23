@@ -186,4 +186,126 @@ assert.equal(new Set(due.map((n) => n.key)).size, 4);
 assert.deepEqual(itemNotifs(null, { kind: "konten", title: "X", date: "2026-10-21", owner_email: "a@a.test" }, "i", "a@a.test", "A"), [], "tidak memberi tahu diri sendiri");
 assert.equal(taskNotifs({ who: "d@a.test", status: "belum", due: "x", brief: "", title: "T" }, { who: "d@a.test", status: "belum", due: "y", brief: "", title: "T", item_id: "p", by_email: "p@a.test" }, { title: "P" }, "p@a.test", "Pia", true)[0].title, "Tugas diperbarui: T");
 
+/* ---------- persetujuan konten ---------- */
+const { approvalStep, postKey, cleanMetricRow, utmUrl, channelOf, BOT_UA } = await import("./worker.js");
+const K = { kind: "konten", title: "T", date: "2026-11-01", approver_email: "ap@a.test", approver: "Ap", copy: "c" };
+assert.deepEqual(approvalStep(null, { ...K, approver_email: "" }).cols.approval, "", "tanpa penyetuju = tanpa persetujuan");
+let s = approvalStep(null, { ...K, status: "draf" }, "me@a.test", "Me");
+assert.equal(s.cols.approval, ""); assert.equal(s.notifs.length, 0);
+s = approvalStep({ ...K, status: "draf", approval: "" }, { ...K, status: "review" }, "me@a.test", "Me");
+assert.equal(s.cols.approval, "menunggu"); assert.equal(s.notifs[0].email, "ap@a.test"); assert.match(s.notifs[0].title, /^Minta persetujuan/);
+assert.match(approvalStep({ ...K, status: "review", approval: "menunggu" }, { ...K, status: "terbit" }).error, /perlu disetujui Ap/, "belum disetujui tidak boleh terbit");
+const ok = { ...K, status: "review", approval: "disetujui", approved_by: "Ap", approved_at: "2026-10-01T00:00:00Z" };
+s = approvalStep(ok, { ...K, status: "terbit" });
+assert.equal(s.cols.approval, "disetujui"); assert.equal(s.cols.approved_by, "Ap");
+s = approvalStep(ok, { ...K, status: "review", copy: "caption baru" }, "me@a.test", "Me");
+assert.equal(s.cols.approval, "menunggu", "caption diubah setelah disetujui -> menunggu lagi");
+assert.match(s.notifs[0].title, /^Cek ulang/); assert.equal(s.cols.approved_by, "");
+assert.equal(approvalStep({ ...ok, status: "terbit" }, { ...K, status: "terbit", copy: "ralat" }).cols.approval, "disetujui", "sudah terbit: ralat tidak memblokir");
+assert.equal(approvalStep({ ...K, status: "review", approval: "menunggu" }, { ...K, status: "draf" }).cols.approval, "", "kembali ke draf membatalkan permintaan");
+assert.equal(approvalStep(ok, { ...K, approver_email: "lain@a.test", status: "review" }, "me@a.test").cols.approval, "menunggu", "penyetuju baru mulai lagi");
+assert.equal(approvalStep(null, { ...K, kind: "edukasi", status: "selesai" }).cols.approval, "", "edukasi tanpa persetujuan");
+
+// alur lewat API: Cici minta persetujuan Pia -> Pia meminta revisi -> Cici ubah -> Pia setujui -> terbit
+const CI = await cookie({ e: "cici@acme.test", n: "Cici", j: "copy" });
+const base = { kind: "konten", title: "Reels RDPU", date: plus(3), channel: "IG Reels", status: "review", copy: "Mulai dari Rp10 ribu.", approver: "Pia", approver_email: "pia@acme.test", owner: "Cici", owner_email: "cici@acme.test" };
+r = await call("/api/items", { ck: CI, body: base });
+assert.equal(r.status, 200);
+const cid = r.j.id;
+let it = (await call("/api/items?id=" + cid, { ck: CI })).j;
+assert.equal(it.approval, "menunggu");
+assert.ok((await today("?email=pia@acme.test")).notif.items.some((n) => n.title === "Minta persetujuan: Reels RDPU"));
+assert.equal((await call("/api/approvals", { ck: PART })).j[0].id, cid);
+assert.equal((await call("/api/approval", { ck: CI, body: { id: cid, action: "setujui", checked: true } })).status, 400, "bukan penyetuju");
+assert.equal((await call("/api/approval", { ck: PART, body: { id: cid, action: "setujui" } })).status, 400, "wajib centang cek kepatuhan");
+assert.equal((await call("/api/approval", { ck: PART, body: { id: cid, action: "revisi" } })).status, 400, "revisi wajib catatan");
+assert.equal((await call("/api/approval", { ck: PART, body: { id: cid, action: "revisi", note: "Tambah S&K" } })).status, 200);
+it = (await call("/api/items?id=" + cid, { ck: CI })).j;
+assert.deepEqual([it.approval, it.status, it.approval_note], ["revisi", "draf", "Tambah S&K"]);
+assert.ok((await today("?email=cici@acme.test")).notif.items.some((n) => n.title === "Perlu revisi: Reels RDPU"));
+assert.equal((await call("/api/items", { ck: CI, body: { ...it, status: "terbit" } })).status, 400, "revisi belum disetujui tidak bisa terbit");
+await call("/api/items", { ck: CI, body: { ...it, copy: it.copy + " S&K berlaku.", status: "review" } });
+assert.equal((await call("/api/approval", { ck: PART, body: { id: cid, action: "setujui", checked: true, note: "OK" } })).status, 200);
+it = (await call("/api/items?id=" + cid, { ck: CI })).j;
+assert.deepEqual([it.approval, it.approved_by], ["disetujui", "Pia"]);
+assert.equal((await call("/api/items", { ck: CI, body: { ...it, status: "terbit" } })).status, 200, "sudah disetujui -> boleh terbit");
+await call("/api/comments", { ck: DES, body: { item_id: cid, text: "Visual siap" } });
+const C = (await call("/api/comments?item=" + cid, { ck: CI })).j;
+assert.deepEqual(C.map((c) => c.kind), ["revisi", "disetujui", "komentar"]);
+assert.ok((await today("?email=cici@acme.test")).notif.items.some((n) => n.title === "Komentar: Reels RDPU"));
+assert.equal((await call("/api/comments", { ck: DES, body: { item_id: cid, text: " " } })).status, 400);
+
+/* ---------- link pelacak ---------- */
+assert.equal(utmUrl("https://acme.test/p?x=1", { channel: "IG Reels", title: "Reels RDPU!" }, "abc123"), "https://acme.test/p?x=1&utm_source=instagram&utm_medium=social&utm_campaign=reels-rdpu&utm_content=abc123");
+assert.match(utmUrl("https://acme.test/?utm_source=wa", { channel: "Website", title: "a" }, "k"), /utm_source=wa&utm_medium=social/, "UTM yang sudah ada tidak ditimpa");
+assert.equal((await call("/api/links", { ck: CI, body: { item_id: cid, target: "javascript:alert(1)" } })).status, 400);
+r = await call("/api/links", { ck: CI, body: { item_id: cid, target: "acme.test/app", utm: true } });
+assert.equal(r.status, 200); assert.match(r.j.code, /^[a-z0-9]{6}$/);
+const code = r.j.code;
+const hit = (ua) => planner.fetch(new Request(BASE + "/go/" + code, { headers: { "user-agent": ua } }), env, { waitUntil: (p) => p });
+let g = await hit("Mozilla/5.0 (iPhone)");
+assert.equal(g.status, 302); assert.match(g.headers.get("location"), /^https:\/\/acme\.test\/app\?utm_source=instagram/);
+await hit("WhatsApp/2.23"); await hit("facebookexternalhit/1.1"); await hit("Mozilla/5.0 Chrome");
+await new Promise((res) => setTimeout(res, 20));
+assert.equal((await call("/api/links?item=" + cid, { ck: CI })).j[0].clicks, 2, "pratinjau chat tidak dihitung");
+assert.equal((await call("/api/items?id=" + cid, { ck: CI })).j.clicks, 2);
+assert.equal((await planner.fetch(new Request(BASE + "/go/zzzzzz"), env, { waitUntil() {} })).status, 404);
+assert.ok(BOT_UA.test("TelegramBot (like TwitterBot)") && !BOT_UA.test("Mozilla/5.0 (Linux; Android 14)"));
+
+/* ---------- angka performa: impor CSV ---------- */
+assert.equal(postKey("https://www.instagram.com/reel/C9xYz_1/?igsh=abc"), "ig:C9xYz_1");
+assert.equal(postKey("https://instagram.com/akunku/p/C9xYz_1"), "ig:C9xYz_1");
+assert.equal(postKey("https://www.tiktok.com/@kisi/video/7312345678901234567?lang=id"), "tt:7312345678901234567");
+assert.equal(postKey("https://youtu.be/AbCdEf12345"), "yt:AbCdEf12345");
+assert.equal(postKey("https://www.Acme.test/Blog/a/?utm=1"), "acme.test/blog/a");
+assert.equal(postKey(""), "");
+assert.equal(channelOf("Reel IG", "https://www.instagram.com/reel/x"), "IG Reels");
+assert.equal(channelOf("IG carousel", "https://www.instagram.com/p/x"), "IG Feed");
+assert.equal(cleanMetricRow({ link: "https://www.instagram.com/p/X1/", m_views: "" }), null, "tanpa angka dilewati");
+assert.deepEqual(cleanMetricRow({ link: "https://www.instagram.com/p/X1/", date: "2026-10-01", m_reach: "1.234", m_likes: "56" }).m_reach, 1234);
+await call("/api/items", { ck: CI, body: { ...it, link: "https://www.instagram.com/reel/RR1/" } });
+r = await call("/api/metrics/import", { ck: CI, body: { rows: [
+  { link: "https://www.instagram.com/reel/RR1/?igsh=1", date: plus(3), m_views: "5000", m_reach: "3200", m_likes: "210", m_comments: "12", m_saves: "40", m_shares: "9" },
+  { link: "https://www.instagram.com/p/NEW1/", date: plus(1), title: "Tips  DCA", type: "IG carousel", m_reach: "900", m_likes: "30" },
+] } });
+assert.deepEqual([r.j.matched, r.j.created, r.j.unmatched], [1, 0, 1]);
+it = (await call("/api/items?id=" + cid, { ck: CI })).j;
+assert.deepEqual([it.m_views, it.m_reach, it.m_src, it.result_num], [5000, 3200, "csv", 3200]);
+r = await call("/api/metrics/import", { ck: CI, body: { create: true, rows: [{ link: "https://www.instagram.com/p/NEW1/", date: plus(1), title: "Tips  DCA", type: "IG carousel", m_reach: "900", m_likes: "30" }] } });
+assert.equal(r.j.created, 1);
+const L = (await call(`/api/items?from=${plus(0)}&to=${plus(5)}`, { ck: CI })).j.find((i) => i.link === "https://www.instagram.com/p/NEW1/");
+assert.deepEqual([L.title, L.channel, L.status, L.m_reach, L.kind], ["Tips DCA", "IG Feed", "terbit", 900, "konten"]);
+assert.equal((await call("/api/metrics/import", { ck: CI, body: { rows: [{ link: "x" }] } })).status, 400);
+// isi manual lewat form: sumber "manual", hasil laporan ikut jangkauan
+await call("/api/items", { ck: CI, body: { ...L, m_reach: "1000" } });
+const L2 = (await call("/api/items?id=" + L.id, { ck: CI })).j;
+assert.deepEqual([L2.m_reach, L2.m_src, L2.result_num], [1000, "manual", 1000]);
+
+// jendela bookmarklet Instagram: perlu login, skripnya sah
+assert.equal((await planner.fetch(new Request(BASE + "/ig-sync?n=3"), env)).status, 303);
+const sync = await planner.fetch(new Request(BASE + "/ig-sync?n=3", { headers: { cookie: CI } }), env);
+const sh = await sync.text();
+assert.match(sh, /Angka Instagram/); assert.equal(sync.headers.get("content-security-policy"), "frame-ancestors 'none'");
+for (const [, code] of sh.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
+assert.ok(/instagram\\\.com\$/.test(sh), "hanya menerima pesan dari instagram.com");
+
+/* ---------- kalender momen ---------- */
+r = await call("/api/moments?from=2026-12-20&to=2026-12-31", { ck: CI });
+assert.ok(r.j.some((m) => m.name === "Hari Ibu" && m.date === "2026-12-22"));
+assert.ok(r.j.some((m) => m.name === "Tanggal gajian" && m.payday));
+assert.equal((await call("/api/moments", { ck: CI, body: { date: "2026-12-24", name: "" } })).status, 400);
+r = await call("/api/moments", { ck: CI, body: { date: "2026-12-24", name: "Masa penawaran SR025", idea: "Edukasi sukuk ritel" } });
+const mid = r.j.id;
+const tm = (await call("/api/moments?from=2026-12-20&to=2026-12-31", { ck: CI })).j.find((m) => m.id === mid);
+assert.deepEqual([tm.type, tm.created_by], ["tim", "Cici"]);
+assert.equal((await call("/api/moments/delete", { ck: DES, body: { id: mid } })).status, 400, "bukan pembuatnya");
+assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).status, 200);
+const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
+assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");
+assert.equal(hijriToIso(1447, 10, 1), "2026-03-20", "Idul Fitri 1447 H (perkiraan)");
+const m26 = momentsOf(2026);
+assert.ok(m26.find((m) => m.name === "Idul Adha").date === "2026-05-27" && m26.find((m) => m.name === "Idul Adha").approx);
+assert.equal(m26.filter((m) => m.payday).length, 12);
+assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
+
 console.log("semua cek lolos");

@@ -25,6 +25,7 @@ export const PLATFORMS = {
   inapp_body: { label: "Banner in-app: isi", max: 100, short: true },
   email_subject: { label: "Email: subject", max: 45, short: true },
   email_pre: { label: "Email: preheader", max: 90, short: true },
+  artikel: { label: "Artikel / email", max: 100000 },
 };
 
 /** Aturan teks. long = hanya untuk teks panjang (bukan platform short). */
@@ -81,8 +82,8 @@ export function checkCopy(text, opts) {
     const re = new RegExp("(^|[^\\p{L}\\p{N}])(" + bad.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=$|[^\\p{L}\\p{N}])", "giu");
     let m;
     while ((m = re.exec(t))) {
-      // kata yang sudah persis sama dengan bentuk benar (beda huruf besar/kecil saja) tidak ditandai
-      if (g.good && m[2] === g.good) continue;
+      // kata yang sudah persis sama dengan bentuk benar, dan tagar (#reksadana: tagar memang tanpa spasi), tidak ditandai
+      if ((g.good && m[2] === g.good) || m[1] === "#") continue;
       add("warn", "glosarium", g.good ? `Tulis "${g.good}", bukan "${m[2]}".` + (g.note ? " " + g.note : "") : `Hindari kata "${m[2]}".` + (g.note ? " " + g.note : ""), m[2], m.index + m[1].length);
     }
   }

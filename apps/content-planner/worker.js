@@ -10,6 +10,13 @@
 // - "/__hub/item" (POST) -> kegiatan dari tool lain (Content Insight: konsep konten); "/__hub/members" (GET) -> daftar anggota
 // - "/api/weekly"  -> data paket mingguan (disusun saat diminta, cache 10 menit)
 // - "/__hub/today" -> ringkasan hari ini + tugas & notifikasi untuk beranda Tool Hub (service binding, lihat shared/hubfeed.js)
+// - "/api/approval" (POST) -> penyetuju menyetujui / meminta revisi konten; "/api/approvals" (GET) -> menunggu persetujuanku
+// - "/api/comments" -> komentar & riwayat persetujuan per kegiatan (GET ?item=, POST)
+// - "/api/moments"  -> kalender momen (shared/moments.js) + momen tim (GET ?from=&to=, POST, POST /api/moments/delete)
+// - "/api/links"    -> link pelacak klik per konten (GET ?item=, POST); "/go/<kode>" (publik) -> hitung klik lalu alihkan
+// - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
+// Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
+// disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
 // Notifikasi (tabel notifs) dibuat saat seseorang ditugaskan, saat status tugasnya berubah, dan saat tenggat dekat
 // (pengingat tenggat dibuat ketika beranda Tool Hub meminta ringkasan, jadi tidak perlu cron).
 // Semua halaman & data hanya untuk yang login lewat Tool Hub. Semua yang punya akses boleh menambah & mengubah;
@@ -20,11 +27,13 @@
 //   Fund Insight (D1 FUND_DB, hanya dibaca): NAB seminggu lalu (return 1 minggu), agenda yang ditambahkan tim
 //   Bond Insight (service binding BOND): obligasi (/data/bonds.json) dan riwayat yield (/data/history.json)
 //   Story Generator (GitHub): agenda makro (data/macro.js + public/calendar.json), sama seperti agenda di Fund Insight
-import { title, profileScript, appUrl } from "../../shared/profile.js";
+import { title, profileScript, appUrl, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
 import { JOBS, canAssign } from "../../shared/jobs.js";
+import { complianceScript } from "../../shared/compliance.js";
+import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -100,9 +109,18 @@ const COLS = {
   d_need: "INTEGER", d_who: "TEXT", d_name: "TEXT", d_due: "TEXT", d_status: "TEXT", d_link: "TEXT", d_brief: "TEXT",
   program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT",
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
+  // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
+  copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
+  m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
 };
-const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k))];
+// kolom persetujuan & asal angka hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
+const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src"];
+const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
+/** Kegiatan yang punya caption, persetujuan, dan angka performa. */
+export const COPY_KINDS = ["konten", "artikel"];
+export const METRICS = ["m_views", "m_reach", "m_likes", "m_comments", "m_saves", "m_shares", "m_follows"];
+export const APPROVAL = { menunggu: "Menunggu persetujuan", disetujui: "Disetujui", revisi: "Perlu revisi" };
 let ready = false;
 async function ensure(env) {
   if (ready) return;
@@ -111,6 +129,9 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, name TEXT, role TEXT, seen_at TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, item_id TEXT NOT NULL, title TEXT NOT NULL, job TEXT, who TEXT, who_name TEXT, due TEXT, status TEXT, brief TEXT, link TEXT, by_email TEXT, by_name TEXT, created_at TEXT, updated_at TEXT, done_at TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS notifs (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, at TEXT, kind TEXT, title TEXT, body TEXT, item_id TEXT, by_name TEXT, nkey TEXT UNIQUE, read_at TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL, at TEXT, by_name TEXT, by_email TEXT, kind TEXT, text TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, date TEXT NOT NULL, name TEXT NOT NULL, idea TEXT, created_by TEXT, created_email TEXT, created_at TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, item_id TEXT, target TEXT NOT NULL, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT)"),
   ]);
   const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
   const uhave = new Set((await env.DB.prepare("PRAGMA table_info(users)").all()).results.map((c) => c.name));
@@ -119,7 +140,9 @@ async function ensure(env) {
   if (!uhave.has("active")) add.push(env.DB.prepare("ALTER TABLE users ADD COLUMN active INTEGER"));
   add.push(env.DB.prepare("CREATE INDEX IF NOT EXISTS items_date ON items (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS items_design ON items (d_need, d_status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS items_program ON items (program_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_who ON tasks (who, status)"),
-    env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"));
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS comments_item ON comments (item_id, id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS links_item ON links (item_id)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS moments_date ON moments (date)"));
   await env.DB.batch(add);
   ready = true;
 }
@@ -140,13 +163,22 @@ export function cleanItem(b) {
     note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
     d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
     program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
+    copy: "", approver: "", approver_email: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
   };
+  if (COPY_KINDS.includes(kind)) {
+    it.copy = s(b.copy, 6000);
+    it.approver_email = EMAIL.test(s(b.approver_email, 120)) ? s(b.approver_email, 120).toLowerCase() : "";
+    it.approver = it.approver_email ? s(b.approver, 60) : "";
+    for (const k of METRICS) it[k] = numOf(b[k]);
+  }
   if (!ISO.test(it.date) || isNaN(Date.parse(it.date))) return { error: "Tanggal belum diisi." };
   if (!it.title) return { error: "Judul belum diisi." };
   if (!K.channels.includes(it.channel)) it.channel = "Lainnya";
   if (!K.statuses.includes(it.status)) it.status = K.statuses[0];
   const n = Math.round(Number(String(b.result_num ?? "").replace(/[.\s]/g, "").replace(",", ".")));
   it.result_num = String(b.result_num ?? "").trim() !== "" && n >= 0 && n < 1e12 ? n : null;
+  // konten sosmed: angka hasil di laporan = jangkauan (atau views) dari angka performa
+  if (kind === "konten" && (it.m_reach ?? it.m_views) != null) it.result_num = it.m_reach ?? it.m_views;
   if (kind === "edukasi") {
     it.time = /^\d{2}:\d{2}$/.test(s(b.time, 5)) ? s(b.time, 5) : "";
     it.place = s(b.place, 160); it.audience = s(b.audience, 160);
@@ -168,10 +200,12 @@ export function cleanItem(b) {
   }
   return it;
 }
+// total klik link pelacak per kegiatan
+const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) AS clicks";
 async function listItems(env, from, to) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
-  return (await env.DB.prepare("SELECT * FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at").bind(from, to).all()).results;
+  return (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at`).bind(from, to).all()).results;
 }
 /** Tugas desain: semua yang belum selesai (tanggal berapa pun) + yang selesai dengan tenggat di rentang itu. */
 async function designItems(env, from, to) {
@@ -187,17 +221,205 @@ async function saveItem(env, me, b) {
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
   if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(await jobOf(env, me), me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh Partnership atau admin." };
+  const ap = approvalStep(prev, it, meE, by);
+  if (ap.error) return ap;
+  const mChanged = METRICS.some((k) => (it[k] ?? null) !== ((prev && prev[k]) ?? null));
+  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
   let id = prev ? prev.id : "";
   if (prev) {
-    const r = await env.DB.prepare(`UPDATE items SET ${EDIT.map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, by, now, id).run();
+    const r = await env.DB.prepare(`UPDATE items SET ${[...EDIT, ...SERVER_COLS].map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, ...svals, by, now, id).run();
     if (!r.meta.changes) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
   } else {
     id = crypto.randomUUID();
-    const cols = ["id", ...EDIT, "created_by", "created_email", "created_at", "updated_by", "updated_at"];
-    await env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(id, ...vals, by, meE, now, by, now).run();
+    const cols = ["id", ...EDIT, ...SERVER_COLS, "created_by", "created_email", "created_at", "updated_by", "updated_at"];
+    await env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(id, ...vals, ...svals, by, meE, now, by, now).run();
   }
-  await notify(env, itemNotifs(prev, it, id, meE, by)).catch((e) => console.error("notify:", e.message));
+  await notify(env, [...itemNotifs(prev, it, id, meE, by), ...ap.notifs.map((n) => ({ ...n, item_id: id }))]).catch((e) => console.error("notify:", e.message));
   return { id };
+}
+/**
+ * Status persetujuan setelah kegiatan disimpan. Fungsi murni.
+ * - penyetuju baru -> mulai dari awal; status Review -> menunggu persetujuan (penyetuju dapat notifikasi)
+ * - caption/judul diubah setelah disetujui (sebelum terbit) -> menunggu lagi
+ * - pindah ke Terbit hanya bila sudah disetujui; kembali ke Ide/Draf -> permintaan yang menunggu dibatalkan
+ * Hasil: { cols: {approval, approval_note, approved_by, approved_at}, notifs } atau { error }.
+ */
+export function approvalStep(prev, it, meE, by) {
+  const P = prev || {}, none = { cols: { approval: "", approval_note: "", approved_by: "", approved_at: "" }, notifs: [] };
+  if (!COPY_KINDS.includes(it.kind) || !it.approver_email) return none;
+  const was = P.approver_email === it.approver_email ? P.approval || "" : "", published = P.status === "terbit";
+  let a = was, note = P.approver_email === it.approver_email ? P.approval_note || "" : "";
+  const changed = was === "disetujui" && !published && ((P.copy || "") !== (it.copy || "") || (P.title || "") !== (it.title || ""));
+  if (changed) a = "menunggu";
+  if (it.status === "review" && (a === "" || a === "revisi")) a = "menunggu";
+  if ((it.status === "ide" || it.status === "draf") && a === "menunggu") a = "";
+  if (!published && it.status === "terbit" && a !== "disetujui")
+    return { error: `Konten ini perlu disetujui ${it.approver || it.approver_email} sebelum berstatus Terbit. Ubah status ke Review untuk meminta persetujuan.` };
+  const notifs = [];
+  if (a === "menunggu" && was !== "menunggu") {
+    note = changed ? "Diubah setelah disetujui" : "";
+    if (it.approver_email !== meE) notifs.push({ email: it.approver_email, kind: "approval", title: (changed ? "Cek ulang: " : "Minta persetujuan: ") + it.title, body: `${(KINDS[it.kind] || {}).label || "Konten"} · tayang ${tgl(it.date)} · dari ${by}`, by });
+  }
+  const ok = a === "disetujui";
+  return { cols: { approval: a, approval_note: a ? note : "", approved_by: ok ? P.approved_by || "" : "", approved_at: ok ? P.approved_at || "" : "" }, notifs };
+}
+/** Penyetuju memutuskan: { id, action: "setujui" | "revisi", note, checked }. */
+async function decide(env, me, b) {
+  await ensure(env);
+  const it = await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id || "")).first();
+  if (!it) return { error: "Kegiatan ini sudah dihapus." };
+  const meE = lower(me.e), by = who(me), now = new Date().toISOString(), note = String(b.note ?? "").trim().slice(0, 1000);
+  if (it.approver_email !== meE && !me.adm) return { error: "Hanya penyetuju konten ini yang bisa memutuskan." };
+  let st;
+  if (b.action === "setujui") {
+    if (it.approval !== "menunggu") return { error: "Konten ini tidak sedang menunggu persetujuan." };
+    if (b.checked !== true) return { error: "Centang dulu bahwa caption sudah dicek kepatuhannya." };
+    st = env.DB.prepare("UPDATE items SET approval='disetujui', approval_note=?, approved_by=?, approved_at=? WHERE id=?").bind(note, by, now, it.id);
+  } else if (b.action === "revisi") {
+    if (!note) return { error: "Tulis catatan revisinya." };
+    if (it.approval !== "menunggu" && it.approval !== "disetujui") return { error: "Konten ini tidak sedang menunggu persetujuan." };
+    st = env.DB.prepare("UPDATE items SET approval='revisi', approval_note=?, approved_by='', approved_at='', status = CASE WHEN status = 'review' THEN 'draf' ELSE status END WHERE id=?").bind(note, it.id);
+  } else return { error: "Aksi tidak dikenal." };
+  const ok = b.action === "setujui";
+  await env.DB.batch([st, env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(it.id, now, by, meE, ok ? "disetujui" : "revisi", note)]);
+  const to = it.owner_email || it.created_email;
+  if (to && to !== meE) await notify(env, [{ email: to, kind: "approval", title: (ok ? "Disetujui: " : "Perlu revisi: ") + it.title, body: (note ? note.slice(0, 120) + " · " : "") + "oleh " + by, item_id: it.id, by }]).catch((e) => console.error("notify:", e.message));
+  return { ok: true };
+}
+async function listComments(env, item) {
+  await ensure(env);
+  return (await env.DB.prepare("SELECT id, at, by_name, by_email, kind, text FROM comments WHERE item_id=? ORDER BY id LIMIT 200").bind(String(item || "")).all()).results;
+}
+/** Komentar baru -> notifikasi ke penanggung jawab, penyetuju, dan pembuat (selain penulis komentar). */
+async function addComment(env, me, b) {
+  await ensure(env);
+  const text = String(b.text ?? "").trim().slice(0, 2000), meE = lower(me.e), by = who(me);
+  if (!text) return { error: "Komentar masih kosong." };
+  const it = await env.DB.prepare("SELECT id, title, owner_email, approver_email, created_email FROM items WHERE id=?").bind(String(b.item_id || "")).first();
+  if (!it) return { error: "Kegiatan ini sudah dihapus." };
+  await env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, 'komentar', ?)").bind(it.id, new Date().toISOString(), by, meE, text).run();
+  const to = [...new Set([it.owner_email, it.approver_email, it.created_email].filter((e) => e && e !== meE))];
+  await notify(env, to.map((email) => ({ email, kind: "comment", title: "Komentar: " + it.title, body: `${by}: ${text.slice(0, 120)}`, item_id: it.id, by }))).catch((e) => console.error("notify:", e.message));
+  return { ok: true };
+}
+async function myApprovals(env, me) {
+  await ensure(env);
+  return (await env.DB.prepare("SELECT id, kind, title, date, channel, status, owner, approval_note FROM items WHERE approver_email=? AND approval='menunggu' ORDER BY date LIMIT 50").bind(lower(me.e)).all()).results;
+}
+
+/* =========================================================
+   MOMEN, LINK PELACAK, ANGKA PERFORMA
+   ========================================================= */
+async function moments(env, from, to) {
+  if (!ISO.test(from) || !ISO.test(to)) return [];
+  await ensure(env);
+  const team = (await env.DB.prepare("SELECT id, date, name, idea, created_by, created_email FROM moments WHERE date BETWEEN ? AND ? ORDER BY date LIMIT 300").bind(from, to).all()).results.map((m) => ({ ...m, type: "tim" }));
+  return [...momentsBetween(from, to), ...team].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+async function saveMoment(env, me, b) {
+  await ensure(env);
+  const date = String(b.date || "").slice(0, 10), name = String(b.name ?? "").trim().slice(0, 100), idea = String(b.idea ?? "").trim().slice(0, 300);
+  if (!ISO.test(date) || isNaN(Date.parse(date))) return { error: "Tanggal momen belum diisi." };
+  if (!name) return { error: "Nama momen belum diisi." };
+  const id = crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO moments (id, date, name, idea, created_by, created_email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(id, date, name, idea, who(me), lower(me.e), new Date().toISOString()).run();
+  return { id };
+}
+async function deleteMoment(env, me, id) {
+  await ensure(env);
+  const m = await env.DB.prepare("SELECT created_email FROM moments WHERE id=?").bind(String(id || "")).first();
+  if (!m) return { ok: true };
+  if (!me.adm && m.created_email !== lower(me.e)) return { error: "Hanya pembuat momen ini atau admin yang bisa menghapusnya." };
+  await env.DB.prepare("DELETE FROM moments WHERE id=?").bind(String(id)).run();
+  return { ok: true };
+}
+
+const SOURCE = [[/^IG|instagram/i, "instagram"], [/tiktok/i, "tiktok"], [/youtube/i, "youtube"], [/^WA|whatsapp/i, "whatsapp"], [/email|newsletter/i, "email"], [/website|blog/i, "website"]];
+const slug = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+/** Tambah UTM (yang belum ada) ke link tujuan: sumber dari kanal, medium social/email, kampanye dari judul, content = kode link. */
+export function utmUrl(target, it, code) {
+  const u = new URL(target), src = (SOURCE.find(([re]) => re.test(it.channel || "")) || [, "lainnya"])[1];
+  const set = (k, v) => { if (!u.searchParams.has(k) && v) u.searchParams.set(k, v); };
+  set("utm_source", src); set("utm_medium", src === "email" ? "email" : "social"); set("utm_campaign", slug(it.title)); set("utm_content", code);
+  return u.toString();
+}
+const CODE_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
+const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => CODE_CHARS[x % CODE_CHARS.length]).join("");
+async function saveLink(env, me, b) {
+  await ensure(env);
+  const it = await env.DB.prepare("SELECT id, title, channel FROM items WHERE id=?").bind(String(b.item_id || "")).first();
+  if (!it) return { error: "Simpan kegiatannya dulu, lalu buat link pelacak." };
+  let target = cleanUrl(b.target);
+  try { const u = new URL(target); if (!/^https?:$/.test(u.protocol)) throw 0; } catch { return { error: "Link tujuan tidak sah." }; }
+  for (let i = 0; i < 4; i++) {
+    const code = newCode(), final = b.utm ? utmUrl(target, it, code) : target;
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO links (code, item_id, target, clicks, created_by, created_email, created_at) VALUES (?, ?, ?, 0, ?, ?, ?)").bind(code, it.id, final, who(me), lower(me.e), new Date().toISOString()).run();
+    if (r.meta.changes) return { code, target: final };
+  }
+  return { error: "Gagal membuat kode link. Coba lagi." };
+}
+async function listLinks(env, item) {
+  await ensure(env);
+  return (await env.DB.prepare("SELECT code, target, clicks, created_by, created_at FROM links WHERE item_id=? ORDER BY created_at").bind(String(item || "")).all()).results;
+}
+// pratinjau link di aplikasi chat & mesin pencari tidak dihitung sebagai klik
+export const BOT_UA = /bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|linkedin|skype|embedly|vkshare|pinterest|google-?inspect|headless/i;
+async function go(env, ctx, request, code) {
+  await ensure(env);
+  const r = await env.DB.prepare("SELECT target FROM links WHERE code=?").bind(code).first();
+  if (!r) return new Response("Link tidak ditemukan.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+  if (!BOT_UA.test(request.headers.get("user-agent") || "") && request.method === "GET")
+    ctx.waitUntil(env.DB.prepare("UPDATE links SET clicks = clicks + 1 WHERE code=?").bind(code).run().catch(() => {}));
+  return new Response(null, { status: 302, headers: { location: r.target, "cache-control": "no-store", "x-robots-tag": "noindex" } });
+}
+
+/** Kunci pencocokan link postingan: kode postingan IG/TikTok/YouTube, selain itu URL tanpa skema, query, dan garis miring akhir. */
+export function postKey(url) {
+  const u = String(url || "").trim();
+  if (!u) return "";
+  let m = u.match(/instagram\.com\/(?:[^/?#]+\/)?(?:p|reels?|tv)\/([A-Za-z0-9_-]+)/i);
+  if (m) return "ig:" + m[1];
+  if ((m = u.match(/tiktok\.com\/.*?\/video\/(\d+)/i))) return "tt:" + m[1];
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i))) return "yt:" + m[1];
+  return u.toLowerCase().replace(/^https?:\/\/(?:www\.|m\.)?/, "").replace(/[?#].*$/, "").replace(/\/+$/, "");
+}
+/** Jenis postingan di CSV Meta -> kanal Planner. */
+export const channelOf = (type, link) => /tiktok\.com/i.test(link) ? "TikTok" : /youtu/i.test(link) ? "YouTube" : /reel/i.test(type) || /\/reels?\//i.test(link) ? "IG Reels" : /stor|cerita/i.test(type) ? "IG Story" : /instagram\.com/i.test(link) ? "IG Feed" : "Lainnya";
+/** Satu baris CSV (sudah dipetakan di browser) -> baris yang sah, atau null. */
+export function cleanMetricRow(r) {
+  if (!r || typeof r !== "object") return null;
+  const link = cleanUrl(r.link), key = postKey(link);
+  if (!key) return null;
+  const date = ISO.test(String(r.date || "").slice(0, 10)) ? String(r.date).slice(0, 10) : "";
+  const out = { key, link, date, title: String(r.title ?? "").replace(/\s+/g, " ").trim().slice(0, 160), type: String(r.type ?? "").slice(0, 40) };
+  for (const k of METRICS) out[k] = numOf(r[k]);
+  return METRICS.some((k) => out[k] != null) ? out : null;
+}
+/** Impor angka performa: { rows: [{link, date, title, type, m_views, ...}], create }. Baris yang cocok (lewat link) diperbarui;
+ *  create = buat kegiatan Terbit untuk postingan yang belum ada di kalender. */
+async function importMetrics(env, me, b) {
+  await ensure(env);
+  const rows = new Map();
+  for (const r of (Array.isArray(b.rows) ? b.rows : []).slice(0, 1000)) { const c = cleanMetricRow(r); if (c) rows.set(c.key, c); }
+  if (!rows.size) return { error: "Tidak ada baris dengan link postingan dan angka performa." };
+  const have = new Map();
+  for (const i of (await env.DB.prepare("SELECT id, link FROM items WHERE kind = 'konten' AND COALESCE(link, '') <> ''").all()).results) have.set(postKey(i.link), i.id);
+  const now = new Date().toISOString(), by = who(me), meE = lower(me.e), st = [], unmatched = [];
+  let matched = 0, created = 0;
+  for (const r of rows.values()) {
+    const res = r.m_reach ?? r.m_views, id = have.get(r.key);
+    if (id) {
+      matched++;
+      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=?").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num) WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, id));
+    } else if (b.create && r.date) {
+      created++;
+      const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
+      st.push(env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(crypto.randomUUID(), "konten", r.date, r.title || "Postingan " + tgl(r.date), channelOf(r.type, r.link), "terbit", by, meE, r.link, 0,
+        ...METRICS.map((k) => r[k]), now, "csv", res, by, meE, now, by, now));
+    } else unmatched.push(r.link);
+  }
+  for (let i = 0; i < st.length; i += 50) await env.DB.batch(st.slice(i, i + 50));
+  return { matched, created, unmatched: unmatched.length, sample: unmatched.slice(0, 8) };
 }
 /** Notifikasi dari perubahan kegiatan: penanggung jawab baru, desainer baru, dan status visual yang berubah. Fungsi murni. */
 export function itemNotifs(prev, it, id, meE, by) {
@@ -503,12 +725,44 @@ async function weeklyCached(env, ctx, fresh) {
 /* =========================================================
    HALAMAN
    ========================================================= */
+// Jendela kecil yang dibuka tombol bookmark "Angka IG ke Planner" di Instagram: menerima angka per postingan dari tab Instagram
+// (postMessage, hanya dari instagram.com), lalu menyimpannya lewat /api/metrics/import setelah tim menekan Simpan.
+const IG_SYNC = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Angka Instagram ke Content Planner</title>
+<style>body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#edf3ef;color:#17251d}.w{padding:18px}h1{font-size:17px;margin:0 0 6px}.prog{height:8px;border-radius:8px;background:#dfe8e2;overflow:hidden;margin:8px 0 12px}.prog i{display:block;height:100%;width:0;background:#1f7a4d}
+table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden}th,td{padding:5px 7px;border-bottom:1px solid #dfe8e2;text-align:left}td.n,th.n{text-align:right}.box{max-height:46vh;overflow:auto;margin-bottom:12px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 14px;background:#1f7a4d;color:#fff;cursor:pointer}button:disabled{opacity:.5}label{display:flex;gap:8px;align-items:center;margin:0 0 12px;font-size:13px}.m{color:#5b6d62;font-size:12.5px}</style></head>
+<body><div class="w"><h1>📈 Angka Instagram → Content Planner</h1><p class="m" id="st">Menunggu data dari tab Instagram…</p><div class="prog"><i id="bar"></i></div>
+<div class="box"><table><thead><tr><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th></tr></thead><tbody id="rows"></tbody></table></div>
+<label><input type="checkbox" id="cr"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button id="save" disabled>Simpan ke Planner</button><p class="m" id="msg"></p>
+<p class="m">Hanya angka publik (suka, komentar, views). Jangkauan dan simpan diisi dari CSV Meta Business Suite atau manual.</p></div>
+<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],n=+new URLSearchParams(location.search).get("n")||0,got=0;
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+if(!window.opener){$("st").textContent="Buka jendela ini lewat tombol bookmark di halaman Instagram.";return}
+addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?instagram\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
+if(m.pl==="row"&&m.row){got++;if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
+$("rows").insertAdjacentHTML("beforeend","<tr><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td><td class=n>"+esc(m.row.m_likes)+"</td><td class=n>"+esc(m.row.m_comments)+"</td><td class=n>"+esc(m.row.m_views)+"</td></tr>")}
+if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca (login Instagram dulu)":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length}});
+window.opener.postMessage({pl:"ready"},"*");
+$("save").onclick=function(){$("save").disabled=true;$("msg").textContent="Menyimpan…";
+fetch("/api/metrics/import",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({rows:rows,create:$("cr").checked})}).then(function(r){return r.json()}).then(function(j){
+if(j.error)throw new Error(j.error);$("msg").textContent="✓ "+j.matched+" konten diperbarui"+(j.created?", "+j.created+" kegiatan baru":"")+(j.unmatched?". "+j.unmatched+" postingan belum ada di kalender (centang kotak di atas untuk menambahkannya).":".")}).catch(function(e){$("msg").textContent="✗ "+e.message;$("save").disabled=false})}})();</script></body></html>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+/** Glosarium tim dari Copy Studio (service binding COPY) untuk cek caption; kosong kalau Copy Studio belum ada. */
+async function glossary(env) {
+  if (!env.COPY) return [];
+  try {
+    const r = await env.COPY.fetch("https://copy-studio/__hub/style", { headers: { "x-hub-key": env.SSO_SECRET } });
+    const s = r.ok ? await r.json() : {};
+    return Array.isArray(s.glossary) ? s.glossary.slice(0, 300) : [];
+  } catch { return []; }
+}
 async function page(env, me, mode) {
-  const job = await jobOf(env, me);
+  const [job, gl] = await Promise.all([jobOf(env, me), mode === "kalender" ? glossary(env) : []]);
+  const etf = (profile(env).tools || {}).etf || {};
   const cfg = { mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm) },
-    kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story") };
-  const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+    kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
+    copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}) };
+  const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
@@ -531,12 +785,16 @@ export default {
       const b = await request.json().catch(() => ({})), r = path === "/__hub/users" ? await syncUsers(env, b.users) : await readNotifs(env, b);
       return json(r, r.error ? 400 : 200);
     }
+    // link pelacak: publik, tanpa login
+    const gm = /^\/go\/([a-z0-9]{6})$/.exec(path);
+    if (gm) return go(env, ctx, request, gm[1]);
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
     const tk = await HUBSSO.ticket(request, env, (p) => seen(env, p)); if (tk) return tk;
     const me = await HUBSSO.user(request, env);
     const isPage = path === "/" || path === "/index.html" || path === "/paket";
-    if (!me) return isPage ? HUBSSO.login(request, env) : json({ error: "Belum login atau sesi habis. Muat ulang halaman dari Tool Hub." }, 401);
+    if (!me) return isPage || path === "/ig-sync" ? HUBSSO.login(request, env) : json({ error: "Belum login atau sesi habis. Muat ulang halaman dari Tool Hub." }, 401);
+    if (path === "/ig-sync") return new Response(IG_SYNC, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": "frame-ancestors 'none'", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
     if (isPage) {
       return new Response(await page(env, me, path === "/paket" ? "paket" : "kalender"), {
         headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" },
@@ -547,7 +805,7 @@ export default {
         const from = url.searchParams.get("from") || "", to = url.searchParams.get("to") || "";
         if (path === "/api/items" && url.searchParams.get("id")) {
           await ensure(env);
-          const it = await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(url.searchParams.get("id")).first();
+          const it = await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE id=?`).bind(url.searchParams.get("id")).first();
           return it ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
         }
         if (path === "/api/items") return json(await (url.searchParams.has("design") ? designItems(env, from, to) : listItems(env, from, to)));
@@ -555,6 +813,10 @@ export default {
         if (path === "/api/tasks") return json(await listTasks(env, me, { item: url.searchParams.get("item") || "", all: url.searchParams.has("all") }));
         if (path === "/api/programs") return json(await programs(env));
         if (path === "/api/program-report") return json(await programReport(env, from, to, url.searchParams.get("id") || ""));
+        if (path === "/api/approvals") return json(await myApprovals(env, me));
+        if (path === "/api/comments") return json(await listComments(env, url.searchParams.get("item")));
+        if (path === "/api/moments") return json(await moments(env, from, to));
+        if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
       }
       if (path === "/api/weekly" && request.method === "GET") {
         return new Response(await weeklyCached(env, ctx, url.searchParams.has("refresh")), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -566,6 +828,9 @@ export default {
         if (path === "/api/tasks") { const r = await saveTask(env, me, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
+        const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
+          "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b) }[path];
+        if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {
           const list = Array.isArray(b.items) ? b.items.slice(0, 20) : [], ids = [];
