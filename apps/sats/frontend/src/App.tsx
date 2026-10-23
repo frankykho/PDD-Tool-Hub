@@ -6,6 +6,7 @@ import TrackRecord from "./pages/TrackRecord";
 import StaleBanner from "./components/StaleBanner";
 import Screener from "./pages/Screener";
 import Radar from "./pages/Radar";
+import Warrant from "./pages/Warrant";
 // Strategy Lab memuat mesin SATS & backtest: diunduh terpisah saat menu Backtest dibuka
 const StrategyLab = lazy(() => import("./pages/StrategyLab"));
 import Today from "./pages/Today";
@@ -18,7 +19,7 @@ import { api, fetchMe, type Me } from "./api";
 import { loadWatchlist } from "./watchlist";
 
 /** Hash routes: #/  and  #/saham/BBCA  (works on any static host, no server rewrites). */
-type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "radar" } | { page: "backtest" } | { page: "admin" } | { page: "stock"; code: string };
+type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "radar" } | { page: "backtest" } | { page: "warrant" } | { page: "admin" } | { page: "stock"; code: string };
 
 function parseRoute(hash: string): Route {
   const m = hash.match(/^#\/saham\/([A-Za-z0-9]{2,6})/);
@@ -30,6 +31,7 @@ function parseRoute(hash: string): Route {
   if (hash.startsWith("#/screener")) return { page: "screener" };
   if (hash.startsWith("#/radar")) return { page: "radar" };
   if (hash.startsWith("#/backtest")) return { page: "backtest" };
+  if (hash.startsWith("#/waran")) return { page: "warrant" };
   if (hash.startsWith("#/admin")) return { page: "admin" };
   return { page: "dashboard" };
 }
@@ -115,6 +117,8 @@ export default function App() {
       <Screener />
     ) : route.page === "radar" ? (
       <Radar />
+    ) : route.page === "warrant" ? (
+      <Warrant />
     ) : route.page === "backtest" ? (
       <Suspense fallback={<main className="page"><Loading what="Strategy Lab" /></main>}>
         <StrategyLab />

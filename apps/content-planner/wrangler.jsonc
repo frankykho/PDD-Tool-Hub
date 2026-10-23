@@ -14,6 +14,7 @@
   "services": [
     { "binding": "FUND", "service": "fund-insight" },
     { "binding": "BOND", "service": "bond-insight" },
-    { "binding": "COPY", "service": "copy-studio" }
+    { "binding": "COPY", "service": "copy-studio" },
+    { "binding": "COMPETITOR", "service": "competitor-intel" }
   ]
 }

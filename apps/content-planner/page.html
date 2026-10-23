@@ -945,7 +945,7 @@ async function progData(){
     return {...p,done,late,cpl:per(p.cost,p.leads),cpa:per(p.cost,p.accounts),used:p.budget&&p.cost!=null?p.cost/p.budget*100:null};
   });
   const per=id?perOf(P[0]):from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from:id?P[0].date:from,to:id?(P[0].end_date||P[0].date):to,per,P};
+  return {from:id?P[0].date:from,to:id?(P[0].end_date||P[0].date):to,per,P,bench:r.bench||[]};
 }
 // angka utama satu program: [judul, nilai, keterangan]
 const pk=p=>[["Peserta",int(p.result_num),"jangkauan "+int(p.reach)],["Leads",int(p.leads),"akun baru "+int(p.accounts)],["Nilai transaksi / AUM",rp(p.aum),"dari program ini"],
@@ -956,6 +956,9 @@ const pk=p=>[["Peserta",int(p.result_num),"jangkauan "+int(p.reach)],["Leads",in
 const PCOLS={
   items:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:""),0,1.3],["Jenis",i=>(K[kindOf(i)]||{}).label||"",0,1.5],["Kegiatan",i=>i.title,0,2.6],["Kanal",i=>i.channel||"–",0,1.2],["PIC",i=>i.owner||"–",0,1.3],["Status",i=>STL[i.status]||i.status||"–",0,1],["Hasil",i=>int(i.result_num),1,1],["Link",i=>i.link||"–",0,.8]],
   tasks:[["Tugas",x=>x.title,0,2.6],["Role",x=>PL.roles[x.job]||"–",0,1.7],["Orang",x=>x.who_name||x.who,0,1.5],["Tenggat",x=>fmtShort(x.due),0,1.2],["Status",x=>DSL[x.status]||x.status||"–",0,1.1],["Selesai",x=>x.done_at?fmtShort(x.done_at.slice(0,10)):"–",0,1.2],["Hasil",x=>x.link||"–",0,.8]],
+  // promo reksa dana kompetitor di periode yang sama (Competitor Intelligence)
+  bench:[["Kompetitor",x=>x.platform||x.manager||"–",0,1.6],["Promo",x=>x.title,0,2.8],["Reward maks.",x=>x.reward_max||"–",0,1.5],["Min. beli",x=>x.min_rp?rp(x.min_rp):"–",1,1.2],
+    ["Reward ÷ min.",x=>x.reward_rp&&x.min_rp?num(x.reward_rp/x.min_rp*100,2)+"%":"–",1,1.1],["Masa tahan",x=>x.lockin||x.holding_period||"–",0,1.5],["Periode",x=>[x.s,x.e].filter(Boolean).map(fmtShort).join(" – ")||"–",0,1.8],["Status",x=>x.status||"–",0,1.1]],
   rekap:[["Program",p=>p.title,0,2.4],["Partner",p=>p.partner||"–",0,1.6],["Periode",perOf,0,2],["Status",p=>STL[p.status]||p.status,0,1],["Peserta",p=>int(p.result_num),1,1],["Leads",p=>int(p.leads),1,.9],["Akun baru",p=>int(p.accounts),1,1],["Nilai transaksi",p=>rp(p.aum),1,1.7],["Biaya",p=>rp(p.cost),1,1.5],["Biaya/akun",p=>p.cpa!=null?rp(Math.round(p.cpa)):"–",1,1.4]],
 };
 const progInfo=p=>[["Partner",p.partner||"–"],["Jenis",p.channel||"–"],["Periode",perOf(p)],["Status",STL[p.status]||p.status],["PIC",p.owner||"–"],["Tujuan",p.goal||"–"],["Target",p.target||"–"],["Catatan hasil",p.result_note||"–"]];
@@ -973,6 +976,7 @@ async function progPdf(){
       R.P.map(p=>`<h2 style="font-size:16px;margin-top:24px">🤝 ${esc(p.title)}</h2><table><tbody>${progInfo(p).map(r=>`<tr><th style="width:16%">${r[0]}</th><td>${esc(r[1])}</td></tr>`).join("")}</tbody></table>`+
         `<div class="kpis">${pk(p).map(k=>`<div class="kpi">${esc(k[0])}<b>${esc(k[1])}</b>${esc(k[2])}</div>`).join("")}</div>`+
         tbl(`Kegiatan terkait (${p.items.length})`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.")+tbl(`Tugas tim (${p.tasks.length})`,PCOLS.tasks,p.tasks,"Belum ada tugas.")).join("")+
+      tbl(`Benchmark: promo reksa dana kompetitor di periode yang sama (${R.bench.length})`,PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini.")+
       `<div class="foot">Dibuat dari Content Planner, ${new Date().toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"})}.</div>`;
     printNow();
   }catch(e){showErr("repErr",e)}
@@ -1003,6 +1007,7 @@ async function progPpt(){
       pages("Kegiatan terkait · "+p.title,`${p.items.length} kegiatan`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.");
       pages("Tugas tim · "+p.title,`${p.done} dari ${p.tasks.length} selesai`,PCOLS.tasks,p.tasks,"Belum ada tugas.");
     }
+    pages("Benchmark promo reksa dana kompetitor","Dari Competitor Intelligence · promo yang berjalan di periode yang sama",PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini.");
     await pp.writeFile({fileName:`Laporan-Program-${R.from}_${R.to}.pptx`});
     $("repMsg").textContent="✓ PPT diunduh.";
   }catch(e){showErr("repErr",e);$("repMsg").textContent=""}

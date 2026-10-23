@@ -7,5 +7,11 @@
   "compatibility_date": "2026-09-22",
   "ai": { "binding": "AI" },
   "d1_databases": [{ "binding": "DB", "database_name": "copy-db", "database_id": "auto" }],
+  // data produk untuk Paket Produk (hanya dibaca): Fund Insight /api/funds, Bond Insight /data/bonds.json, ETF Insight /api/etf
+  "services": [
+    { "binding": "FUND", "service": "fund-insight" },
+    { "binding": "BOND", "service": "bond-insight" },
+    { "binding": "ETF", "service": "etf-insight" }
+  ],
   "vars": { "COPY_AI_DAILY": "60", "COPY_STT_DAILY": "360" }
 }

@@ -163,6 +163,24 @@ export function prompt(kind, b) {
     const plat = { reels: "Instagram Reels", tiktok: "TikTok", shorts: "YouTube Shorts" }[b.platform] || "Instagram Reels";
     return { max: 2500, user: `Tulis naskah video vertikal ${plat} berdurasi ${dur} detik.\n${topic ? "Topik: " + topic + "\n" : ""}${b.audience ? "Penonton: " + str(b.audience, 200) + "\n" : ""}${source ? "Bahan (gunakan hanya fakta dari sini, jangan menyalin kalimatnya):\n" + source + "\n" : ""}\nAturan naskah:\n- hook: kalimat 0–3 detik pertama yang membuat orang berhenti scroll.\n- scenes: 4–8 adegan; time (mis. \"0–3 dtk\"), visual (apa yang tampil/direkam), voiceover (yang diucapkan), onscreen (teks di layar, maks. 8 kata).\n- Total voiceover pas untuk ${dur} detik (±2,5 kata per detik).\n- cta: satu ajakan di akhir. caption: caption posting (maks. 600 karakter). hashtags: 3–6 tagar. notes: catatan produksi singkat (musik, b-roll, risiko yang perlu disebut).\nFormat: {"title":"","hook":"","scenes":[{"time":"","visual":"","voiceover":"","onscreen":""}],"cta":"","caption":"","hashtags":[],"notes":""}` };
   }
+  if (kind === "kit") {
+    const facts = factLines(b.product);
+    if (!facts) return null;
+    const co = b.mode === "comarketing" && str(b.partner, 120);
+    return { max: 3500, user: `Susun paket konten ${co ? `co-marketing bersama ${co} (manajer investasi / mitra produk)` : "promosi produk"} dari fakta berikut. Gunakan HANYA angka dan fakta ini, sebut tanggal datanya, dan jangan menambah klaim.\n${facts}\n${b.audience ? "Target pembaca: " + str(b.audience, 200) + "\n" : ""}${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}${co ? `Sebut ${co} sebagai manajer investasi/mitra secara netral; ajakan bertindak tetap ke aplikasi kita.\n` : ""}
+Isi:
+- headline: judul kampanye (maks. 60 karakter). key_message: pesan utama 1 kalimat.
+- feed: caption Instagram feed (maks. 900 karakter) dengan 3–5 hashtag di akhir.
+- story: 3–5 frame Instagram Story; tiap frame teks pendek (maks. 120 karakter).
+- wa: pesan WhatsApp broadcast/Channel (maks. 700 karakter).
+- email: subject (maks. 45 karakter), preheader (maks. 90 karakter), body (3–6 paragraf pendek).
+- push: notifikasi aplikasi, title (maks. 40 karakter) dan body (maks. 110 karakter).
+- faq: 4–6 tanya-jawab singkat untuk tim CS/sales (biaya, risiko, cara beli, minimal pembelian bila ada di fakta).
+- visual_brief: brief untuk desainer (komposisi, teks utama, data yang ditonjolkan).
+- notes: hal yang perlu dicek compliance sebelum terbit.
+Sertakan "Kinerja masa lalu tidak mencerminkan kinerja masa depan." bila menyebut return, dan pengingat risiko.
+Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{"subject":"","preheader":"","body":""},"push":{"title":"","body":""},"faq":[{"q":"","a":""}],"visual_brief":"","notes":""}` };
+  }
   if (kind === "fix") {
     const text = str(b.text, 5000);
     if (!text) return null;
@@ -189,7 +207,62 @@ export function parse(kind, raw) {
     scenes: list(j.scenes, 12).map((s) => ({ time: str(s && s.time, 30), visual: str(s && s.visual, 400), voiceover: str(s && s.voiceover, 600), onscreen: str(s && s.onscreen, 120) })),
   };
   if (kind === "fix") return { text: str(j.text, 6000) };
+  if (kind === "kit") {
+    const e = j.email && typeof j.email === "object" ? j.email : {}, p = j.push && typeof j.push === "object" ? j.push : {};
+    return {
+      headline: str(j.headline, 120), key_message: str(j.key_message, 300), feed: str(j.feed, 2200), wa: str(j.wa, 1500),
+      story: list(j.story, 6).map((s) => str(typeof s === "string" ? s : s && (s.text || s.frame), 200)).filter(Boolean),
+      email: { subject: str(e.subject, 80), preheader: str(e.preheader, 150), body: str(e.body, 4000) },
+      push: { title: str(p.title, 80), body: str(p.body, 200) },
+      faq: list(j.faq, 8).map((x) => ({ q: str(x && x.q, 200), a: str(x && x.a, 600) })).filter((x) => x.q && x.a),
+      visual_brief: str(j.visual_brief, 1000), notes: str(j.notes, 1000),
+    };
+  }
   return {};
+}
+
+/** Fakta produk (dari daftar /api/products yang dipilih di browser) -> baris teks untuk prompt. null kalau kosong. */
+const FACT_LABEL = { kind: "Jenis produk", name: "Nama", code: "Kode", im: "Manajer investasi", issuer: "Penerbit", type: "Kategori", risk: "Tingkat risiko", index: "Indeks acuan",
+  nav: "NAB per unit", navDate: "Tanggal NAB", price: "Harga di bursa", aum: "Dana kelolaan (Rp)", min: "Minimal pembelian (Rp)", coupon: "Kupon (% per tahun)", yield: "Yield (%)",
+  rating: "Peringkat", maturity: "Jatuh tempo", couponType: "Jenis kupon", fee: "Biaya per tahun (%)", sy: "Syariah", asOf: "Data per" };
+export function factLines(p) {
+  if (!p || typeof p !== "object" || !str(p.name, 200)) return null;
+  const L = [];
+  for (const [k, label] of Object.entries(FACT_LABEL)) {
+    const v = p[k];
+    if (v == null || v === "" || v === false) continue;
+    L.push(`- ${label}: ${k === "sy" ? "ya" : str(v, 200)}`);
+  }
+  const R = { m1: "1 bulan", ytd: "YTD", y1: "1 tahun", y3: "3 tahun" };
+  for (const [k, label] of Object.entries(R)) if (p.ret && typeof p.ret[k] === "number" && isFinite(p.ret[k])) L.push(`- Return ${label}: ${p.ret[k].toFixed(2)}%`);
+  return L.join("\n").slice(0, 3000);
+}
+
+/* =========================================================
+   DATA PRODUK (Paket Produk): dibaca dari tool lain lewat service binding, cache 10 menit
+   ========================================================= */
+const getJ = async (svc, url) => { if (!svc) throw new Error("binding belum dipasang"); const r = await svc.fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
+const nr = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+export async function products(env) {
+  const [f, b, e] = await Promise.allSettled([getJ(env.FUND, "https://fund-insight/api/funds"), getJ(env.BOND, "https://bond-insight/data/bonds.json"), getJ(env.ETF, "https://etf-insight/api/etf")]);
+  const rd = f.status === "fulfilled" ? (f.value.funds || []).filter((x) => x && x.name && x.nav).map((x) => ({
+    kind: "Reksa dana", id: String(x.pid), name: x.name, im: x.im || "", type: x.type || "", risk: x.risk || "", sy: x.sy != null ? x.sy === 1 : /syariah|sharia|sukuk|falah/i.test(x.name),
+    nav: nr(x.nav), navDate: x.navDate || "", aum: nr(x.aum), min: nr(x.minSubs), ret: { m1: nr(x.ret && x.ret.m1), ytd: nr(x.ret && x.ret.ytd), y1: nr(x.ret && x.ret.y1), y3: nr(x.ret && x.ret.y3) } })) : [];
+  const bond = b.status === "fulfilled" ? (b.value.bonds || []).filter((x) => x && x.code).map((x) => ({
+    kind: "Obligasi", id: x.code, code: x.code, name: x.name || x.code, issuer: x.issuer || "", type: { Government: "Obligasi negara", Corporate: "Obligasi korporasi", Sukuk: "Sukuk" }[x.type] || x.type || "",
+    sy: x.type === "Sukuk", coupon: nr(x.coupon), yield: nr(x.yield), rating: x.rating || "", maturity: x.maturity || "", min: nr(x.min), couponType: x.couponType || "", asOf: (b.value.meta && b.value.meta.date) || "" })) : [];
+  const etf = e.status === "fulfilled" ? (e.value.kisi || []).map((x) => ({
+    kind: "ETF", id: x.code, code: x.code, name: x.name || x.code, im: x.im || "", index: x.index || "", price: nr(x.close), nav: nr(x.nav), navDate: x.navDate || "", aum: x.aum != null ? x.aum * 1e9 : null,
+    fee: nr(x.fee), min: x.close ? Math.round(x.close * 100) : null, ret: { m1: nr(x.ret && x.ret.m1), ytd: nr(x.ret && x.ret.ytd), y1: nr(x.ret && x.ret.y1), y3: nr(x.ret && x.ret.y3) } })) : [];
+  const err = (r, n) => (r.status === "rejected" ? `${n}: ${(r.reason && r.reason.message) || r.reason}` : null);
+  return { at: new Date().toISOString(), rd, bond, etf, errors: [err(f, "Reksa dana"), err(b, "Obligasi"), err(e, "ETF")].filter(Boolean) };
+}
+async function productsCached(env, ctx) {
+  const cache = typeof caches !== "undefined" && caches.default, key = new Request("https://copy-studio.cache/products-v1");
+  if (cache) { const hit = await cache.match(key); if (hit) return hit.json(); }
+  const v = await products(env);
+  if (cache && !v.errors.length) ctx.waitUntil(cache.put(key, new Response(JSON.stringify(v), { headers: { "content-type": "application/json", "cache-control": "public, max-age=600" } })));
+  return v;
 }
 
 /** Satu potongan audio -> [{start, end, text}] (detik, relatif terhadap awal potongan). */
@@ -214,7 +287,7 @@ function page(env, cfg) {
 const allowCodes = (env) => { const t = profile(env).tools || {}; return [...Object.keys((t.etf && t.etf.facts) || {}), ...(((t.copy && t.copy.allow) || []))].map((c) => String(c).toUpperCase()); };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
     try {
       if (path === "/__hub/style") return hubFeedAllowed(request, env) ? json(await getStyle(env)) : new Response("forbidden", { status: 403 });
@@ -231,6 +304,7 @@ export default {
           brand: { hashtags: p.brand.hashtags, license: p.brand.license, disclaimer: p.brand.disclaimer, app: p.app.name } }), { "content-security-policy": HUBSSO.frame(env) });
       }
       if (request.method === "GET" && path === "/api/style") return json(await getStyle(env));
+      if (request.method === "GET" && path === "/api/products") return json(await productsCached(env, ctx));
       if (request.method === "POST") {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
         if (path === "/api/style") {

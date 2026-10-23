@@ -105,6 +105,14 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - `/r/<kode>` = proposal dari sales. Di Bandingkan, tombol **Kirim ke nasabah** (perlu login) menyimpan produk pilihan, nama, tujuan, dan catatan ke `meta` (`prop:<kode>`). Nasabah melihat perbandingan dengan data terbaru.
 - Cek: `node apps/fund-insight/test.mjs`
 
+### Partnership & Product Marketing
+
+- Fund Insight tab **Manajer Investasi**: pilih MI → produk yang kita jual (rating, return, peringkat return 1 tahun di jenisnya se-pasar dengan dana kelolaan ≥ Rp 10 M), produk MI yang belum dijual, komposisi produk MI di pasar, pangsa dana kelolaan; tombol Salin ringkasan (email/rapat) dan PDF.
+- Copy Studio tab **Paket Produk**: pilih reksa dana / obligasi / ETF (data `GET /api/products` dari Fund, Bond, ETF Insight lewat service binding, cache 10 menit), mode peluncuran atau **co-marketing dengan MI**; AI menulis headline, caption feed, frame story, WhatsApp, email (subject/preheader/isi), push notif, FAQ untuk CS, brief visual, dan catatan compliance hanya dari fakta produk. Tiap teks dicek `shared/compliance.js`.
+- Competitor Intelligence: kategori **Derivatif/SW** (waran terstruktur, derivatif, futures). `GET /__hub/benchmark?from=&to=&cat=` dipakai laporan program Content Planner (service binding `COMPETITOR`): tabel **Benchmark promo reksa dana kompetitor** di PDF & PPT laporan program.
+- SATS menu **Waran**: kalkulator waran terstruktur (call, gaya Eropa, tunai): status ITM/ATM/OTM, titik impas, premium, gearing, nilai intrinsik & waktu, sisa hari, skenario nilai saat jatuh tempo; harga saham induk otomatis dari data SATS (`#/waran?u=KODE`, link dari halaman saham). Hitungan di `frontend/src/warrant.ts`, cek `npx tsx src/test-warrant.ts`.
+- SATS Radar: tombol **Bahan konten edukasi** menyalin 5 hasil teratas beserta alasannya dalam bahasa informasi + disclaimer, untuk ditulis ulang di Copy Studio.
+
 ### Syariah
 
 - `shared/sharia.js`: daftar saham syariah dari anggota indeks **ISSI** (semua saham syariah tercatat, mengikuti Daftar Efek Syariah OJK), **JII70**, dan **JII** lewat scanner TradingView (`groups: index`), gratis tanpa akun, cache Cloudflare 12 jam. Tidak perlu unggah daftar DES.

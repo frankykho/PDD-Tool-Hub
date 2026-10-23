@@ -291,4 +291,22 @@ assert.deepEqual(st2(), ["enrich", "pending", null]);
 db.exec("UPDATE ci_programs SET ai_state = 'done' WHERE id LIKE 'v2%'");
 await ciMigrate(env);
 assert.deepEqual(st2(), ["done", "done", "done"], "hanya sekali");
+// kategori Derivatif/SW
+{
+  const { ciCat } = await import("./worker.js");
+  assert.equal(ciCat("Promo Waran Terstruktur: cashback biaya transaksi SW", ""), "Derivatif/SW");
+  assert.equal(ciCat("Diskon biaya transaksi saham", ""), "Saham");
+  assert.equal(ciCat("Program spesial", "Beli structured warrant atas saham BBCA dan dapatkan voucher"), "Derivatif/SW");
+}
+// benchmark untuk laporan program Content Planner
+{
+  const { hubBenchmark, default: ciw } = await import("./worker.js");
+  db.prepare("UPDATE ci_programs SET category='Reksa dana', reward_rp=50000, min_rp=1000000, trx_start='2026-10-01', end_date='2026-10-31', status='Aktif' WHERE id=?").run(noUrl);
+  const b = await hubBenchmark(env, "2026-10-15", "2026-11-15", "Reksa dana");
+  assert.ok(b.items.some((x) => x.id === noUrl && x.reward_rp === 50000));
+  assert.deepEqual((await hubBenchmark(env, "2027-01-01", "2027-01-31", "Reksa dana")).items.filter((x) => x.id === noUrl), [], "di luar periode");
+  assert.deepEqual((await hubBenchmark(env, "x", "y", "")).items, []);
+  const r = await ciw.fetch(new Request("https://ci.test/__hub/benchmark?from=2026-10-15&to=2026-11-15"), env, { waitUntil() {} });
+  assert.equal(r.status, 403, "tanpa kunci hub ditolak");
+}
 console.log("semua cek lolos");

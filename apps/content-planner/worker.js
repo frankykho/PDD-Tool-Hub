@@ -567,7 +567,14 @@ async function programReport(env, from, to, id) {
     env.DB.prepare(`SELECT * FROM items WHERE program_id IN (${ph}) ORDER BY date, time`).bind(...ids),
     env.DB.prepare(`SELECT * FROM tasks WHERE item_id IN (${ph}) ORDER BY due, created_at`).bind(...ids),
   ]);
-  return { programs: P.map((p) => ({ ...p, items: items.results.filter((i) => i.program_id === p.id), tasks: tasks.results.filter((t) => t.item_id === p.id) })) };
+  // benchmark: promo reksa dana kompetitor yang berjalan di periode program (Competitor Intelligence, service binding COMPETITOR)
+  const bFrom = ISO.test(from) && !id ? from : P.map((p) => p.date).sort()[0], bTo = ISO.test(to) && !id ? to : P.map((p) => p.end_date || p.date).sort().pop();
+  let bench = [];
+  if (env.COMPETITOR) try {
+    const r = await env.COMPETITOR.fetch(`https://competitor-intel/__hub/benchmark?from=${bFrom}&to=${bTo}&cat=${encodeURIComponent("Reksa dana")}`, { headers: { "x-hub-key": env.SSO_SECRET } });
+    if (r.ok) bench = ((await r.json()).items || []).slice(0, 20);
+  } catch (e) { console.error("benchmark:", e.message); }
+  return { programs: P.map((p) => ({ ...p, items: items.results.filter((i) => i.program_id === p.id), tasks: tasks.results.filter((t) => t.item_id === p.id) })), bench };
 }
 
 /** Simpan notifikasi. key (opsional) mencegah notifikasi yang sama dibuat dua kali (pengingat tenggat). */

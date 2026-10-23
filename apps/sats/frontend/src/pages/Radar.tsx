@@ -93,6 +93,27 @@ export default function Radar() {
     [ranked, c, watch.codes, sy],
   );
   const shown = showAll ? hits : hits.slice(0, 50);
+  // bahan konten edukasi: 5 hasil teratas + alasannya, dengan bahasa informasi (bukan ajakan beli) & disclaimer
+  const [copied, setCopied] = useState(false);
+  const copyContent = () => {
+    const asOf = data.data ? fmtDate(data.data.asOf, true) : "";
+    const lines = [
+      `Saham yang sedang ramai dibicarakan pasar${asOf ? ` (data per ${asOf})` : ""}`,
+      "Bahan konten edukasi: cara membaca momentum, volume, dan likuiditas. Bukan rekomendasi beli/jual.",
+      "",
+      ...hits.slice(0, 5).flatMap(({ row, res }, i) => [
+        `${i + 1}. ${row.code} · ${row.name}${sy[row.code] ? " (saham syariah)" : ""}`,
+        ...res.reasons.filter((x) => x.tone === "good").slice(0, 3).map((x) => `   - ${x.text}`),
+        ...res.reasons.filter((x) => x.tone === "warn").slice(0, 1).map((x) => `   - Perlu diperhatikan: ${x.text}`),
+      ]),
+      "",
+      "Ide konten: jelaskan arti tiap indikator (momentum, volume di atas rata-rata, likuiditas) memakai contoh di atas, tanpa target harga atau ajakan transaksi.",
+      "Disclaimer: Informasi ini untuk edukasi, bukan rekomendasi untuk membeli atau menjual efek. Investasi saham mengandung risiko.",
+    ];
+    const t = lines.join("\n");
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1800); };
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(done, () => window.prompt("Salin bahan konten:", t));
+  };
   const breadth = useMemo(() => breadthAbove200(ranked), [ranked]);
   const weak = breadth != null && breadth < 40;
   const lowHint =
@@ -131,6 +152,9 @@ export default function Radar() {
             {data.data && <> · data per {fmtDate(data.data.asOf, true)}</>} · setiap hasil disertai alasan mengapa terdeteksi
           </p>
         </div>
+        <button type="button" className="btn" disabled={!hits.length} onClick={copyContent} title="Bahan konten edukasi (bukan rekomendasi) dari 5 hasil teratas, untuk ditulis ulang di Copy Studio">
+          {copied ? "✓ Tersalin" : "📋 Bahan konten edukasi"}
+        </button>
       </div>
 
       <section className="card pad radar-crit">

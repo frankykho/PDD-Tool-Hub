@@ -74,6 +74,25 @@ assert.deepEqual(segments({ text: "Halo semua", transcription_info: { duration: 
 assert.deepEqual(segments(null), []);
 assert.deepEqual(cleanStyle({ guide: " g ", glossary: [{ bad: "A" }, { bad: "a", good: "dup" }, { bad: "" }, null] }), { guide: "g", glossary: [{ bad: "A", good: "", note: "" }] });
 
+/* ---------- paket produk ---------- */
+const { factLines, products } = await import("./worker.js");
+assert.equal(factLines({}), null);
+const fl = factLines({ kind: "Reksa dana", name: "RD Pasar Uang A", im: "MI X", sy: true, min: 10000, ret: { y1: 5.123, m1: null } });
+assert.match(fl, /- Nama: RD Pasar Uang A/); assert.match(fl, /- Syariah: ya/); assert.match(fl, /Return 1 tahun: 5\.12%/); assert.ok(!/1 bulan/.test(fl));
+assert.equal(prompt("kit", { product: {} }), null);
+assert.match(prompt("kit", { product: { name: "XKMS" }, mode: "comarketing", partner: "MI Y" }).user, /co-marketing bersama MI Y/);
+assert.doesNotMatch(prompt("kit", { product: { name: "XKMS" }, mode: "launch", partner: "MI Y" }).user, /co-marketing/);
+const kit = parse("kit", JSON.stringify({ headline: "H", feed: "F", story: ["a", { text: "b" }, ""], email: { subject: "S" }, push: { title: "T", body: "B" }, faq: [{ q: "Q", a: "A" }, { q: "x" }] }));
+assert.deepEqual(kit.story, ["a", "b"]); assert.equal(kit.email.subject, "S"); assert.equal(kit.faq.length, 1); assert.equal(kit.wa, "");
+const svc = (body, ok = true) => ({ fetch: async () => (ok ? Response.json(body) : new Response("x", { status: 500 })) });
+const P = await products({
+  FUND: svc({ funds: [{ pid: 7, name: "RD Syariah B", nav: 1200, im: "MI Z", sy: 1, ret: { y1: 4 }, minSubs: 100000 }, { pid: 8, name: "Tanpa NAB" }] }),
+  BOND: svc({ meta: { date: "2026-10-22" }, bonds: [{ code: "SR021", name: "Sukuk Ritel", type: "Sukuk", coupon: 6.4, yield: 6.2, min: 1e6 }] }),
+  ETF: svc({}, false),
+});
+assert.deepEqual([P.rd.length, P.rd[0].id, P.rd[0].sy, P.bond[0].type, P.bond[0].sy, P.etf.length], [1, "7", true, "Sukuk", true, 0]);
+assert.match(P.errors.join(), /ETF/);
+
 /* ---------- worker ---------- */
 function d1() {
   const db = new DatabaseSync(":memory:");

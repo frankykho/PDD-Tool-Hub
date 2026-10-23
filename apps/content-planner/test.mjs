@@ -159,6 +159,15 @@ assert.deepEqual(rp.tasks.map((x) => [x.title, x.status]), [["Visual banner acar
 rep = (await call("/api/program-report?id=" + P, { ck: COPY })).j;
 assert.equal(rep.programs.length, 1);
 assert.deepEqual((await call(`/api/program-report?from=${plus(40)}&to=${plus(50)}`, { ck: COPY })).j.programs, []);
+// benchmark promo reksa dana kompetitor (Competitor Intelligence lewat service binding)
+let benchUrl = "";
+env.COMPETITOR = { fetch: async (u, init) => { benchUrl = String(u); assert.equal(init.headers["x-hub-key"], SECRET); return Response.json({ items: [{ title: "Cashback RD", platform: "Sekuritas X", reward_rp: 50000, min_rp: 1e6 }] }); } };
+rep = (await call("/api/program-report?id=" + P, { ck: COPY })).j;
+assert.equal(rep.bench[0].title, "Cashback RD");
+assert.match(benchUrl, /\/__hub\/benchmark\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}&cat=Reksa%20dana/);
+env.COMPETITOR = { fetch: async () => { throw new Error("mati"); } };
+assert.deepEqual((await call("/api/program-report?id=" + P, { ck: COPY })).j.bench, [], "Competitor mati: laporan tetap jalan");
+delete env.COMPETITOR;
 
 /* ---------- hapus program: tugas ikut terhapus, kegiatan terkait dilepas ---------- */
 assert.equal((await call("/api/items/delete", { ck: PART, body: { id: P } })).status, 200);

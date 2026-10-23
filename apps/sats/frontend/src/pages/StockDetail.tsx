@@ -476,6 +476,9 @@ export default function StockDetail({ code }: { code: string }) {
             <p className="muted">Belum ada sinyal {strategy.short} untuk saham ini.</p>
           )}
           <FundCard f={res.data.fundamentals ?? null} sharia={sy[s.code] ?? []} />
+          <p className="dim small">
+            <a href={`#/waran?u=${s.code}`}>Hitung waran terstruktur atas {s.code} →</a>
+          </p>
           <StockTrack code={code} strategy={strategy} />
         </aside>
       </div>
