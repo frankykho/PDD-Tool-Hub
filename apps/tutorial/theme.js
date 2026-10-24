@@ -14,7 +14,7 @@ ${D} .img-modal{background:rgba(0,0,0,.9)}
 ${D} .green-head{background:linear-gradient(155deg,#14432c,#1a5c3a 70%)}
 ${D} .state-note button,${D} .nav-next{background:#1F7A4C;color:#fff}
 ${D} .search-box input{background:var(--bg);color:var(--ink)}
-${D} .row:hover{border-color:#2F5E47}
+${D} .row:hover,${D} .pop:hover{border-color:#2F5E47}
 ${D} .row-chevron{color:#5D7066}
 ${D} .skeleton{background:linear-gradient(90deg,#16201B 25%,#1C2822 50%,#16201B 75%);background-size:200% 100%}
 ${D} .slide-image-wrap{background:linear-gradient(160deg,#121C17,#16201B)}

@@ -243,7 +243,7 @@
     max-width:100%; max-height:100%; width:auto; height:auto;
     object-fit:contain; display:block; border-radius:20px; cursor:zoom-in;
   }
-  @media (max-width: 480px){
+  @media (max-width: 899px){
     .slide-image-wrap.has-image{
       aspect-ratio:auto; flex:1 1 auto; min-height:90px;
       background:none; border:none;
@@ -312,7 +312,112 @@
 
   ::-webkit-scrollbar{ width:0; height:0; }
 
+  /* ============ PALING SERING DIBUKA ============ */
+  .popular{ padding:16px 0 0; }
+  .popular .list-label{ margin:0 20px 8px; font-weight:700; }
+  .pop-list{ display:flex; gap:8px; overflow-x:auto; padding:0 18px 2px; scroll-snap-type:x proximity; }
+  .pop{
+    flex:0 0 auto; width:200px; scroll-snap-align:start; text-align:left; cursor:pointer;
+    border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--paper); color:inherit; font:inherit;
+  }
+  .pop:hover{ border-color:#c7ddce; }
+  .pop b{ display:block; font-size:13px; line-height:1.35; }
+  .pop small{ display:block; margin-top:3px; font-size:11.5px; color:var(--sub); }
+  .popular[hidden]{ display:none; }
+
+  /* ============ DAFTAR LANGKAH (HP: lembar dari bawah; laptop: kolom kanan) ============ */
+  .share-btn svg{ flex:0 0 auto; }
+  @media (max-width: 420px){ .share-btn .btn-label{ display:none; } .share-btn{ padding:7px 9px; } }
+  .steps{
+    position:absolute; left:0; right:0; bottom:0; z-index:30; max-height:72%;
+    display:flex; flex-direction:column; background:var(--paper);
+    border-radius:20px 20px 0 0; box-shadow:0 -12px 40px rgba(10,30,20,.25);
+    transform:translateY(105%); transition:transform .28s cubic-bezier(.22,.61,.36,1); visibility:hidden;
+  }
+  .steps.open{ transform:none; visibility:visible; }
+  .steps-bg{ position:absolute; inset:0; z-index:29; background:rgba(10,20,15,.45); opacity:0; pointer-events:none; transition:opacity .2s ease; }
+  .steps-bg.open{ opacity:1; pointer-events:auto; }
+  .steps-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px 6px 20px; font-size:14px; }
+  .steps-list{ list-style:none; margin:0; padding:4px 12px 16px; overflow-y:auto; }
+  .step{ border-radius:14px; }
+  .step-btn{ display:flex; align-items:flex-start; gap:10px; width:100%; padding:10px; border:none; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; border-radius:12px; }
+  .step-btn:hover{ background:var(--bg); }
+  .step-n{ flex:0 0 26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:var(--bg); color:var(--sub); border:1px solid var(--line); }
+  .step-t{ font-size:13.5px; font-weight:700; line-height:1.4; padding-top:3px; }
+  .step.done .step-n{ background:var(--brand-emerald-soft); color:var(--brand-green); border-color:transparent; }
+  .step.active{ background:var(--brand-emerald-soft); }
+  .step.active .step-n{ background:var(--brand-emerald); color:#0f2e1e; border-color:transparent; }
+  .step-body{ display:none; padding:0 12px 12px 46px; }
+  .step-body .slide-desc{ font-size:14px; }
+
+  /* ============ LAPTOP & TABLET: tanpa bingkai HP ============ */
+  @media (min-width: 700px){
+    body{ display:block; padding:20px; }
+    #phone{
+      max-width:1200px; margin:0 auto;
+      height:calc(100vh - 40px); height:calc(100svh - 40px); max-height:none; min-height:560px;
+      border:1px solid var(--line); border-radius:24px; box-shadow:0 12px 40px rgba(20,67,44,.10);
+    }
+    .menu-header{ padding:40px 44px 46px; }
+    .menu-title{ font-size:32px; }
+    .menu-desc{ max-width:560px; font-size:14px; }
+    .search-box{ max-width:560px; }
+    .search-box input{ padding:13px 16px 13px 40px; font-size:15px; }
+    .menu-body{ padding:6px 26px 24px; }
+    .menu-body .list, #submenu-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+    .menu-body .list{ padding:16px 0 10px; }
+    .menu-body .list .list-label, .menu-body .list .state-note{ grid-column:1 / -1; }
+    .popular .list-label{ margin-left:2px; }
+    .pop-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); padding:0; overflow:visible; }
+    .pop{ width:auto; }
+    .menu-side .help, .menu-side .btn-app, .menu-side .disclaimer{ margin-left:0; margin-right:0; }
+    .submenu-topbar{ padding:24px 32px 34px; }
+    .submenu-heading-title{ font-size:22px; }
+    #submenu-list{ padding:16px 32px 24px; }
+  }
+  @media (min-width: 1000px){
+    .menu-body{ display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:28px; align-items:start; padding:6px 32px 24px; }
+    .menu-side{ position:sticky; top:16px; padding-top:16px; }
+  }
+  @media (min-width: 900px){
+    #tut-screen{
+      display:grid; grid-template-columns:minmax(0,1fr) 380px;
+      grid-template-rows:auto auto minmax(0,1fr) auto;
+      grid-template-areas:"top top" "prog prog" "view steps" "view nav";
+    }
+    .tut-topbar{ grid-area:top; padding:18px 24px 10px 18px; }
+    .tut-heading-title{ font-size:19px; }
+    .tut-heading-sub{ font-size:12.5px; }
+    .progress-row{ grid-area:prog; padding:0 24px 16px; }
+    /* latar membulat di lapisan sendiri: border-radius + overflow:hidden pada viewport yang isinya digeser (transform) bisa gagal digambar */
+    .slides-viewport{ grid-area:view; margin:0 0 24px 24px; }
+    .slides-viewport::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:20px; background:var(--bg); }
+    .slide{ padding:22px; align-items:center; justify-content:center; overflow:hidden; }
+    .slide-image-wrap{ width:100%; height:100%; aspect-ratio:auto; margin:0; flex:1 1 auto; }
+    .slide-image-wrap.has-image{ background:none; border:none; }
+    .slide-text{ display:none; }
+    .steps{ grid-area:steps; position:static; transform:none; visibility:visible; max-height:none; min-height:0; border-radius:0; box-shadow:none; background:transparent; transition:none; }
+    .steps-head{ padding:2px 24px 6px 20px; }
+    .steps-list{ padding:0 18px 8px 10px; }
+    .step.active .step-body{ display:block; }
+    .steps-bg, #btn-steps, #steps-close{ display:none !important; }
+    .tut-nav{ grid-area:nav; padding:12px 24px 24px 20px; }
+    .tap-zone{ width:18%; display:flex; align-items:center; }
+    .tap-zone.left{ justify-content:flex-start; padding-left:14px; }
+    .tap-zone.right{ justify-content:flex-end; padding-right:14px; }
+    .tap-zone::after{
+      width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:var(--paper); color:var(--ink); box-shadow:0 4px 16px rgba(10,30,20,.18);
+      font-size:26px; line-height:1; opacity:0; transition:opacity .15s ease;
+    }
+    .tap-zone.left::after{ content:"‹"; }
+    .tap-zone.right::after{ content:"›"; }
+    .slides-viewport:hover .tap-zone::after{ opacity:.9; }
+    .slides-viewport.at-start .tap-zone.left, .slides-viewport.at-end .tap-zone.right{ display:none; }
+  }
+
   @media (prefers-reduced-motion: reduce){
+    .steps, .steps-bg{ transition:none !important; }
     .screen, .slides-track, .progress-seg > i, .row, .toast{ transition:none !important; }
     .skeleton{ animation:none; }
   }
@@ -335,9 +440,17 @@
           <input type="search" id="search-input" placeholder="Cari tutorial, misalnya: top up" autocomplete="off">
         </div>
       </header>
-      <div class="list" id="menu-list" aria-live="polite">
-        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      <div class="menu-body">
+      <div class="menu-main">
+        <div class="popular" id="popular" hidden>
+          <div class="list-label">Paling sering dibuka</div>
+          <div class="pop-list" id="pop-list"></div>
+        </div>
+        <div class="list" id="menu-list" aria-live="polite">
+          <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+        </div>
       </div>
+      <aside class="menu-side">
       <div class="help live-only">
         <div class="help-card">
           <b>Masih bingung? Tanya asisten</b>
@@ -352,6 +465,8 @@
         <p>Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.</p>
         <p>Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan untuk membeli atau menjual produk investasi tertentu.</p>
         <p id="brand-license" hidden></p>
+      </div>
+      </aside>
       </div>
     </section>
 
@@ -375,10 +490,14 @@
           <h2 class="tut-heading-title" id="tut-title" tabindex="-1">Judul Tutorial</h2>
           <div class="tut-heading-sub" id="tut-step-label" aria-live="polite"></div>
         </div>
+        <button class="share-btn" id="btn-steps" aria-controls="steps" aria-expanded="false" aria-label="Daftar langkah" title="Lompat ke langkah tertentu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
+          <span class="btn-label">Langkah</span>
+        </button>
         <button class="share-btn live-only hub-only" id="btn-konten" aria-label="Jadikan konten: carousel, story, atau teks WhatsApp" title="Khusus tim: jadikan konten">Konten</button>
         <button class="share-btn live-only" id="btn-share" aria-label="Bagikan link tutorial ini">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
-          Bagikan
+          <span class="btn-label">Bagikan</span>
         </button>
       </div>
       <div class="progress-row" id="progress-row" aria-hidden="true"></div>
@@ -388,6 +507,12 @@
         <div class="tap-zone right" id="zone-next" aria-hidden="true"></div>
         <div class="slides-track" id="slides-track"></div>
       </div>
+
+      <div class="steps-bg" id="steps-bg"></div>
+      <aside class="steps" id="steps" aria-labelledby="steps-h">
+        <div class="steps-head"><b id="steps-h">Daftar langkah</b><button type="button" class="icon-btn" id="steps-close" aria-label="Tutup daftar langkah">×</button></div>
+        <ol class="steps-list" id="steps-list"></ol>
+      </aside>
 
       <div class="tut-nav">
         <button class="nav-btn nav-prev" id="btn-prev">Kembali</button>
@@ -438,6 +563,7 @@ if(IS_STATIC) document.documentElement.classList.add('is-static');
 
 let CATEGORIES = [];
 let dataLoaded = false;
+let POP = []; // urutan topik paling sering dibuka ("idKategori/idTopik"), dari /api/popular
 
 /* ========================= UTIL KEAMANAN =========================
    Semua teks dari database di-escape sebelum masuk HTML, karena isi
@@ -579,8 +705,23 @@ function rowHtml({ icon, tint, title, sub }){
     <div class="row-chevron" aria-hidden="true">›</div>`;
 }
 
+/** "Paling sering dibuka": maks. 6 topik yang masih ada; disembunyikan saat mencari atau bila datanya belum cukup. */
+function renderPopular(){
+  const L = POP.map(k => {
+    const [c, t] = k.split('/'), cat = CATEGORIES.find(x => x.id === c), tp = cat && cat.items.find(x => x.id === t);
+    return tp ? { cat, tp } : null;
+  }).filter(Boolean).slice(0, 6);
+  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><b>${esc(tp.title)}</b><small>${esc(cat.title)} · ${(tp.slides || []).length} langkah</small></button>`).join('');
+  $('popular').hidden = L.length < 2 || !!searchInput.value.trim();
+}
+$('pop-list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go]'); if(!b) return;
+  const [c, t] = b.dataset.go.split('/'); navigate(buildHash(c, t, 1));
+});
+
 function renderMenu(){
   const q = normalize(searchInput.value.trim());
+  renderPopular();
   menuList.innerHTML = '';
 
   if(!q){
@@ -660,10 +801,45 @@ function openTutorial(topic){
   currentIndex = -1;
   $('tut-title').textContent = topic.title;
   buildSlides();
+  buildSteps();
   buildProgress();
   if(fresh) post('/api/view', { t: topicKey() });
 }
 function closeTutorial(){ goUp(buildHash(currentCategory.id)); }
+
+/** Penutup di langkah terakhir: disclaimer, Buka aplikasi, Membantu?. */
+function endHtml(){
+  return `<p class="slide-end-note">Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Materi ini bersifat edukasi, bukan ajakan membeli atau menjual.</p>`
+    + (APP_LINK ? `<a class="btn-app slide-app" href="${esc(APP_LINK)}" target="_blank" rel="noopener">Buka aplikasi${APP_NAME ? ' ' + esc(APP_NAME) : ''}</a>` : '')
+    + `<div class="fb live-only" data-fb><span>Apakah tutorial ini membantu?</span><button type="button" data-v="up">👍 Ya</button><button type="button" data-v="down">👎 Tidak</button></div>`;
+}
+/** Judul singkat satu langkah untuk daftar langkah: judulnya, atau kalimat pertama teksnya. */
+function stepTitle(s, i){
+  const t = String(s.title || slideText(s) || '').replace(/\*\*/g, '').split(/\n|(?<=[.!?])\s/)[0].trim();
+  return t ? (t.length > 72 ? t.slice(0, 70) + '…' : t) : `Langkah ${i + 1}`;
+}
+/* Daftar langkah: di HP lembar dari bawah (tombol "Langkah"), di laptop kolom kanan berisi teks langkah yang sedang dibuka. */
+const stepsBox = $('steps'), stepsList = $('steps-list'), stepsBg = $('steps-bg');
+function buildSteps(){
+  const slides = currentTutorial.slides || [];
+  stepsList.innerHTML = slides.map((s, i) => {
+    const body = s.text !== undefined ? `<p class="slide-desc">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc">${formatDesc(s.desc)}</p>` : '');
+    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t">${esc(stepTitle(s, i))}</span></button>`
+      + `<div class="step-body">${body}${i === slides.length - 1 ? endHtml() : ''}</div></li>`;
+  }).join('');
+}
+function openSteps(open){
+  stepsBox.classList.toggle('open', open); stepsBg.classList.toggle('open', open);
+  $('btn-steps').setAttribute('aria-expanded', open);
+  if(open){ const a = stepsList.querySelector('.step.active .step-btn'); if(a){ a.scrollIntoView({ block:'nearest' }); a.focus({ preventScroll:true }); } }
+}
+$('btn-steps').addEventListener('click', () => openSteps(!stepsBox.classList.contains('open')));
+$('steps-close').addEventListener('click', () => { openSteps(false); $('btn-steps').focus(); });
+stepsBg.addEventListener('click', () => openSteps(false));
+stepsList.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-step]'); if(!b) return;
+  goToSlide(+b.dataset.step); openSteps(false);
+});
 
 function buildSlides(){
   const slides = currentTutorial.slides || [];
@@ -682,16 +858,9 @@ function buildSlides(){
     const textHtml = s.text !== undefined
       ? `<p class="slide-desc">${formatDesc(s.text)}</p>`
       : `<h3 class="slide-title">${esc(s.title)}</h3><p class="slide-desc">${formatDesc(s.desc)}</p>`;
-    const endNote = i === total - 1
-      ? `<p class="slide-end-note">Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Materi ini bersifat edukasi, bukan ajakan membeli atau menjual.</p>`
-        + (APP_LINK ? `<a class="btn-app slide-app" href="${esc(APP_LINK)}" target="_blank" rel="noopener">Buka aplikasi${APP_NAME ? ' ' + esc(APP_NAME) : ''}</a>` : '')
-        + `<div class="fb live-only" data-fb><span>Apakah tutorial ini membantu?</span><button type="button" data-v="up">👍 Ya</button><button type="button" data-v="down">👎 Tidak</button></div>`
-      : '';
+    const endNote = i === total - 1 ? endHtml() : '';
     el.innerHTML = `
-      <div class="slide-image-wrap${img ? ' has-image' : ''}">
-        <div class="slide-step-tag" aria-hidden="true">${i + 1} / ${total}</div>
-        ${imgHtml}
-      </div>
+      <div class="slide-image-wrap${img ? ' has-image' : ''}">${imgHtml}</div>
       <div class="slide-text">${textHtml}${endNote}</div>`;
     slidesTrack.appendChild(el);
     const imgEl = el.querySelector('img[data-zoom]');
@@ -746,12 +915,21 @@ function goToSlide(index, animate = true){
   [...slidesTrack.children].forEach((slide, i) => {
     slide.inert = i !== currentIndex;
     if(i === currentIndex) slide.scrollTop = 0;
-    // muat duluan gambar langkah berikutnya biar tidak nunggu saat digeser
-    if(Math.abs(i - currentIndex) === 1){
+    // muat gambar langkah ini dan tetangganya (juga saat lompat lewat daftar langkah)
+    if(Math.abs(i - currentIndex) <= 1){
       const im = slide.querySelector('img[loading="lazy"]');
       if(im) im.loading = 'eager';
     }
   });
+  [...stepsList.children].forEach((li, i) => {
+    li.classList.toggle('done', i < currentIndex);
+    li.classList.toggle('active', i === currentIndex);
+    li.querySelector('.step-btn').setAttribute('aria-current', i === currentIndex ? 'step' : 'false');
+  });
+  const act = stepsList.children[currentIndex];
+  if(act && stepsBox.offsetParent && getComputedStyle(stepsBox).position === 'static') act.scrollIntoView({ block:'nearest', behavior: animate ? 'smooth' : 'auto' });
+  viewport.classList.toggle('at-start', currentIndex === 0);
+  viewport.classList.toggle('at-end', currentIndex === max);
   $('tut-step-label').textContent = `Langkah ${currentIndex + 1} dari ${total}`;
   btnPrev.disabled = currentIndex === 0;
   btnNext.textContent = currentIndex === max ? 'Selesai' : 'Lanjut';
@@ -789,6 +967,7 @@ document.addEventListener('keydown', (e) => {
     if(e.key === 'Escape') closeLightbox();
     return;
   }
+  if(stepsBox.classList.contains('open') && e.key === 'Escape'){ openSteps(false); $('btn-steps').focus(); return; }
   if(e.target.matches('input, textarea')) return;
   if(tutScreen.dataset.pos === 'current'){
     if(e.key === 'ArrowRight') { e.preventDefault(); if(currentIndex < currentTutorial.slides.length - 1) goToSlide(currentIndex + 1); }
@@ -895,7 +1074,8 @@ function post(path, body){
     .then(r => r.json().catch(() => ({})).then(j => { if(!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
 }
 function topicKey(){ return currentCategory && currentTutorial ? `${currentCategory.id}/${currentTutorial.id}` : ''; }
-slidesTrack.addEventListener('click', (e) => {
+// "Membantu?" ada di slide (HP) dan di daftar langkah (laptop)
+document.addEventListener('click', (e) => {
   const fb = e.target.closest('[data-fb]'); if(!fb) return;
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.v === 'up'){ post('/api/fb', { t: topicKey(), v: 'up' }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih! Senang bisa membantu.</span>'; return; }
@@ -948,6 +1128,7 @@ if(!IS_STATIC) fetch('/api/faq').then(r => r.ok ? r.json() : []).then(L => {
   $('faq-list').innerHTML = L.map(x => `<details><summary>${esc(x.q)}</summary><p>${esc(x.a)}</p></details>`).join('');
   $('faq-box').hidden = false;
 }).catch(() => {});
+if(!IS_STATIC) fetch('/api/popular').then(r => r.ok ? r.json() : []).then(L => { POP = Array.isArray(L) ? L.filter(x => typeof x === 'string') : []; if(dataLoaded) renderPopular(); }).catch(() => {});
 if(APP_LINK){ const a = $('btn-app'); a.href = APP_LINK; a.textContent = `Buka aplikasi${APP_NAME ? ' ' + APP_NAME : ''}`; a.hidden = false; }
 
 /* ========================= JADIKAN KONTEN (khusus tim, di dalam Tool Hub) ========================= */

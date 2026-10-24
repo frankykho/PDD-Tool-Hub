@@ -4,6 +4,7 @@
 // - POST /api/view {t}            hitung dibuka per topik (t = "<idKategori>/<idTopik>"; sekali per pengunjung per hari)
 // - POST /api/fb {t, v, note}     "Membantu?" ya/tidak (+ catatan singkat bila tidak; sekali per pengunjung per hari)
 // - GET  /api/faq                 FAQ yang diisi admin
+// - GET  /api/popular             urutan topik paling sering dibuka (tanpa angka), untuk "Paling sering dibuka" di beranda
 // - POST /api/ask {q, ctx}        tanya asisten: AI menjawab hanya dari potongan tutorial yang dipilih browser (ctx)
 // - GET  /api/stats, POST /api/faq  khusus admin: header x-hub-admin = izin 8 jam dari Tool Hub (HMAC SSO_SECRET, sama dengan /gh)
 // Pengunjung tidak disimpan: hanya hash (IP + tanggal + SSO_SECRET) untuk mencegah hitungan ganda, dihapus setelah 2 hari.
@@ -87,6 +88,9 @@ async function api(request, env, url) {
   if (!env.DB) return json({ error: "Database tutorial belum dipasang." }, 503);
   await ensure(env);
   if (request.method === "GET" && path === "/api/faq") return json((await env.DB.prepare("SELECT q, a FROM faq ORDER BY ord, id").all()).results);
+  // "Paling sering dibuka" di beranda: urutan topik saja (tanpa angka), halaman memetakan ke judul & melewati topik yang sudah dihapus
+  if (request.method === "GET" && path === "/api/popular")
+    return Response.json((await env.DB.prepare("SELECT topic FROM stats WHERE views > 0 ORDER BY views DESC LIMIT 12").all()).results.map((r) => r.topic), { headers: { "cache-control": "public, max-age=600" } });
   const admin = await adminOf(env, request.headers.get("x-hub-admin"));
   if (path === "/api/stats" && request.method === "GET") {
     if (!admin) return json({ error: "Khusus admin. Muat ulang halaman admin dari Tool Hub." }, 401);

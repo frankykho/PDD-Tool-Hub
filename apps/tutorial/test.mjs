@@ -55,6 +55,8 @@ assert.equal((await call("/api/stats")).status, 401);
 let s = (await call("/api/stats", null, { headers: { "x-hub-admin": ADM } })).j;
 assert.deepEqual(s.topics.map((x) => [x.topic, x.views, x.up, x.down]), [["dana/topup", 2, 1, 1]]);
 assert.deepEqual(s.notes.map((x) => x.text), ["Langkah 3 beda"]);
+// "Paling sering dibuka": publik, hanya urutan topik (tanpa angka)
+assert.deepEqual((await call("/api/popular")).j, ["dana/topup"]);
 const raw = JSON.stringify(env.DB.db.prepare("SELECT * FROM seen").all());
 assert.ok(!raw.includes("1.1.1.1"), "IP tidak disimpan apa adanya");
 
