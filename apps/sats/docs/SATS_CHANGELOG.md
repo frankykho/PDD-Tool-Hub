@@ -280,3 +280,9 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 - Cron worker satu ekspresi `17 10,12 * * 1-5` (17:17 & 19:17 WIB) memicu `sats-eod.yml`; jadwal GitHub di workflow tetap sebagai cadangan.
 - Perintah D1 manual (dari `apps/sats/worker`, setelah `node scripts/deploy.mjs --resolve sats` di root):
   `npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --file=../database/schema.sql`.
+
+## 2026-10-26 — Preset "Breakout 20 hari + RS ≥ 70, volume tenang"
+- Grup "✓ Teruji BEI", id `breakout_rs70`: close di atas high 20 hari hari ini, harga > MA50, RS (persentil kenaikan 6 bulan) ≥ 70, volume < 1,5× rata-rata 20 hari. Ikut diuji Lab Uji tiap minggu seperti preset lain.
+- Asal: uji 22 sinyal alternatif tanpa filter high 52 minggu (904 saham, Okt 2023–Okt 2026, metode Lab Uji). Excess 20 hari +7,9%, win rate 51%, positif 3 tahun; stabil bila RS 50–90, breakout 10–40 hari, volume < 2×.
+- Catatan: keunggulan terutama di saham Rp1–10 M/hari (+11,8%); saham ≥ Rp10 M/hari hanya +1,1%. Simulasi portofolio (mesin Strategy Lab, 10 posisi, slippage 0,25–1%) lebih baik dari preset 52M (CAGR ±45–72% vs ±13–25%, MDD ±−45% vs ±−60%), tetapi laba bergantung pada ±10 trade terbaik.
+- Tidak berguna di BEI pada uji yang sama: EMA9/21 cross, Supertrend, MACD cross, RSI tembus 60, pullback MA20, RSI2 oversold, squeeze lalu breakout. Bandarmology broker summary (pilot 30 saham, 2 tahun) juga tidak memberi keunggulan.
