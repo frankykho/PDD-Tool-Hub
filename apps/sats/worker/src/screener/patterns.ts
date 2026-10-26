@@ -15,7 +15,7 @@ export type CandleId =
 export type ChartId =
   | "double_bottom" | "double_top" | "asc_triangle" | "bull_flag"
   | "cup_handle" | "inv_hs" | "hs_top" | "falling_wedge" | "rising_wedge" | "sym_triangle" | "channel_up"
-  | "rounding_bottom" | "wyckoff_accum" | "new_uptrend" | "channel_down" | "desc_triangle" | "bear_flag";
+  | "rounding_bottom" | "wyckoff_accum" | "new_uptrend" | "channel_down" | "desc_triangle" | "bear_flag" | "vcp";
 
 /** Candle patterns completed at bar i (empty when none). */
 export function candlesAt(bars: SatsInputBar[], i: number): CandleId[] {
@@ -443,6 +443,44 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
       }
       if (spring && crossedUp(hi)) out.push("wyckoff_accum:breakout");
       else if (spring && c(i) > lo && c(i) <= hi) out.push("wyckoff_accum:forming");
+    }
+  }
+
+  // ---- VCP (Minervini), swing-based: in an uptrend (close > MA50 > MA200, ≤ 25% below the 52-week high) a base starts at
+  // its highest high of the last 120 bars; every pullback from a swing high to the next low is shallower than the one before
+  // (e.g. 22% -> 11% -> 5%) with lows that hold (≥ the previous low − 2%), at least 2 of them, the first 8–40% deep, the last ≤ 12%, no new high above the base, volume
+  // drying up (10-bar average < 50-bar average). Pivot = high of the last contraction: breakout = close above it.
+  if (i >= 260) {
+    const avg = (to: number, len: number) => {
+      let sum = 0;
+      for (let k = to - len + 1; k <= to; k += 1) sum += c(k);
+      return sum / len;
+    };
+    const ma50 = avg(i, 50);
+    const k0 = argMaxHigh(bars, i - 120, i - 15);
+    const top = bars[k0].high;
+    if (c(i) > ma50 && ma50 > avg(i, 200) && c(i) >= maxHigh(bars, i - 250, i) * 0.75 && maxHigh(bars, k0 + 1, i) <= top * 1.02) {
+      const highs = [k0, ...pivots(bars, k0 + 1, i, "high").filter((k) => k > k0 + 2)];
+      const depths: number[] = [];
+      const lows: number[] = [];
+      for (let j = 0; j < highs.length; j += 1) {
+        const end = j + 1 < highs.length ? highs[j + 1] : i;
+        lows.push(minLow(bars, highs[j], end));
+        depths.push(1 - lows[j] / bars[highs[j]].high);
+      }
+      const lastLow = lows[lows.length - 1];
+      // shallower each time, and the lows hold (equal or higher, 2% tolerance)
+      let tighter = depths.length >= 2;
+      for (let j = 1; j < depths.length && tighter; j += 1) if (depths[j] >= depths[j - 1] || lows[j] < lows[j - 1] * 0.98) tighter = false;
+      let v10 = 0;
+      let v50 = 0;
+      for (let k = i - 9; k <= i; k += 1) v10 += bars[k].volume ?? 0;
+      for (let k = i - 49; k <= i; k += 1) v50 += bars[k].volume ?? 0;
+      const pivot = bars[highs[highs.length - 1]].high;
+      if (tighter && depths[0] >= 0.08 && depths[0] <= 0.4 && depths[depths.length - 1] <= 0.12 && v10 / 10 < v50 / 50) {
+        if (crossedUp(pivot)) out.push("vcp:breakout");
+        else if (c(i) <= pivot && c(i) >= lastLow) out.push("vcp:forming");
+      }
     }
   }
 

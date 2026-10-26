@@ -42,14 +42,9 @@ const candle = (m: PatternMeta): Item => ({
     return c ? (c.days === 0 ? "breakout" : "forming") : null;
   },
 });
-const VCP: Item = {
-  id: "vcp", name: "VCP", bias: "bull", labId: "preset:vcp",
-  help: "Volatility contraction pattern (Minervini): dalam tren naik, rentang koreksi makin sempit dan volume mengering. Belum ada titik breakout; dipakai sebagai daftar pantau.",
-  match: (r) => (r.vcp === 1 ? "forming" : null),
-};
 
 const GROUPS: Array<{ id: string; label: string; tone: string; desc: string; items: Item[] }> = [
-  { id: "breakout", label: "Breakout", tone: "buy", desc: "pola lanjutan tren naik", items: [chart("bull_flag"), chart("asc_triangle"), chart("cup_handle"), chart("channel_up"), VCP] },
+  { id: "breakout", label: "Breakout", tone: "buy", desc: "pola lanjutan tren naik", items: [chart("bull_flag"), chart("asc_triangle"), chart("cup_handle"), chart("channel_up"), chart("vcp")] },
   { id: "reversal", label: "Pembalikan", tone: "sell", desc: "dasar (naik) & puncak (waspada)", items: [chart("double_bottom"), chart("inv_hs"), chart("rounding_bottom"), chart("channel_down"), chart("double_top"), chart("hs_top")] },
   { id: "consol", label: "Konsolidasi", tone: "accent", desc: "segitiga & baji", items: [chart("falling_wedge"), chart("sym_triangle"), chart("rising_wedge")] },
   { id: "down", label: "Lanjutan turun", tone: "sell", desc: "pola waspada saat tren turun", items: [chart("bear_flag"), chart("desc_triangle")] },
@@ -113,7 +108,7 @@ function PatternCard({ item, hits, lab }: { item: Item; hits: Hit[]; lab: Map<st
             <span className={`pill small ${bull ? "buy" : "sell"}`}>{bull ? "NAIK" : "WASPADA"}</span>
           </h3>
           <div className="muted small">
-            {hits.length} saham{item.id !== "vcp" && <> · <b className={brk ? (bull ? "buy" : "sell") : ""}>{brk} {hot}</b></>}
+            {hits.length} saham{<> · <b className={brk ? (bull ? "buy" : "sell") : ""}>{brk} {hot}</b></>}
           </div>
         </div>
         <Verdict row={lab?.get(item.labId)} />
@@ -126,7 +121,7 @@ function PatternCard({ item, hits, lab }: { item: Item; hits: Hit[]; lab: Map<st
       </div>
       {top ? (
         <>
-          <div className="dim small">{item.id === "vcp" ? "Teratas" : top.status === "breakout" ? `Teratas (${hot})` : `Teratas (${warm})`}</div>
+          <div className="dim small">{top.status === "breakout" ? `Teratas (${hot})` : `Teratas (${warm})`}</div>
           <button type="button" className="pat-top" onClick={() => openStock(top.r.code)}>
             <b className="mono">{top.r.code}</b>
             <span className="pat-name">{top.r.name}</span>

@@ -81,6 +81,10 @@ export const CHARTS: PatternMeta[] = [
     help: "60 hari lalu masih di bawah MA200, kini di atas MA50 & MA200 dengan puncak dan lembah makin tinggi. Terbentuk = harga ≤ 5% di bawah puncak terakhir; breakout = tutup di atasnya.",
   },
   {
+    id: "vcp", name: "VCP", bias: "bull",
+    help: "Volatility contraction pattern (Minervini): dalam tren naik (harga > MA50 > MA200, ≤ 25% di bawah high 52 minggu), setiap koreksi dari puncak ayunan lebih dangkal dari sebelumnya (mis. 27% → 20% → 12%) dengan lembah yang bertahan, minimal 2 kali, koreksi terakhir ≤ 12%, volume mengering. Breakout = tutup di atas puncak koreksi terakhir (pivot).",
+  },
+  {
     id: "channel_down", name: "Channel turun · breakout", bias: "bull",
     help: "Harga turun di saluran sejajar (puncak dan lembah sama-sama turun, lebar ≥ 6%) dalam 60 hari. Terbentuk = harga menekan garis atas (≤ 3%); breakout = tutup di atas garis atas: tren turun mungkin berakhir.",
   },

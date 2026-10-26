@@ -311,3 +311,7 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 - 3 pola chart baru: channel turun · breakout (naik), descending triangle (waspada), bear flag (waspada). Lab Uji ikut menguji mulai Sabtu.
 - Status "terbentuk" dilonggarkan (Lab Uji hanya memakai breakout, jadi vonis tidak berubah): tren naik baru ≤ 5% di bawah puncak terakhir, channel naik di separuh atas saluran, gagang cup & handle 0–15%.
 - Contoh 23 Okt 2026 (saham ≥ Rp1 M/hari): 258 pola di 199 saham (chart 71, candle 187); sebelumnya 64.
+
+## 2026-10-26 (6) — VCP berbasis ayunan
+- `chartPatterns` mendeteksi `vcp` (forming / breakout): tren naik (close > MA50 > MA200, ≤ 25% di bawah high 52 minggu), basis mulai dari high tertinggi 120 hari terakhir, setiap koreksi puncak→lembah ayunan lebih dangkal dari sebelumnya dengan lembah bertahan (≥ lembah sebelumnya − 2%), ≥ 2 koreksi, pertama 8–40%, terakhir ≤ 12%, volume 10 hari < 50 hari. Pivot = high koreksi terakhir.
+- Menggantikan VCP lama (3 jendela tetap 15 hari) di halaman Pola dan preset Screener "VCP". Contoh: HATM 27% → 19,7% → 11,9%, breakout 12 Okt 2026.

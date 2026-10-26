@@ -244,10 +244,10 @@ export const PRESETS: Preset[] = [
     id: "vcp",
     group: "Volatilitas",
     name: "VCP (volatilitas mengetat)",
-    rule: "Tren naik · 3 rentang 15 hari makin sempit, terakhir ≤ 10% · volume menyusut",
+    rule: "Tren naik · ≥ 2 koreksi ayunan makin dangkal (terakhir ≤ 12%) dengan lembah bertahan · volume menyusut",
     help:
-      "Volatility Contraction Pattern ala Mark Minervini, versi sederhana: koreksi yang makin kecil dengan volume mengering, tanda penjual habis sebelum breakout. Versi otomatis ini lebih kasar dari penilaian visual.",
-    test: (r) => r.vcp === 1,
+      "Volatility Contraction Pattern ala Mark Minervini: setiap koreksi dari puncak ayunan lebih dangkal dari sebelumnya (mis. 27% → 20% → 12%) dengan volume mengering, tanda penjual habis sebelum breakout. Sama dengan kartu VCP di halaman Pola (terbentuk atau breakout).",
+    test: (r) => (r.chart_patterns ?? "").split(",").some((x) => x.startsWith("vcp:")),
     sort: { key: "dist_high52", dir: "desc" },
     columns: ["dist_high52", "atr_pct", "vol_ratio", "dist_ma50"],
   },
