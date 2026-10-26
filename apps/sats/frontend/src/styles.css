@@ -928,3 +928,36 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 /* label saham syariah (anggota ISSI / JII70 / JII) */
 .sy-badge{display:inline-block;margin-left:6px;padding:0 5px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.3px;vertical-align:1px;color:#1f9d63;background:rgba(31,157,99,.14)}
 .sy-check{margin-top:12px;padding-top:10px;border-top:1px solid var(--line, rgba(127,127,127,.25))}.sy-check h3{font-size:14px;margin:0 0 6px}.sy-check ul{margin:0 0 6px;padding-left:18px}.sy-check li{margin:2px 0}
+
+/* ── Pola Chart (#/pola) */
+.pat-note { border-color: rgba(227, 179, 65, 0.45); }
+.pat-note p { margin: 0; line-height: 1.6; }
+.pat-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 18px; }
+.pat-group { display: flex; flex-direction: column; gap: 12px; }
+.pat-group h2 { font-size: 16px; margin: 6px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pat-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 6px; border: 1px solid currentColor; }
+.pat-tag.buy { color: var(--buy); }
+.pat-tag.sell { color: var(--sell); }
+.pat-tag.accent { color: var(--ac); }
+.pat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.pat-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pat-card.pat-empty { opacity: 0.6; }
+.pat-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.pat-head h3 { margin: 0 0 2px; font-size: 16px; }
+.pat-head .lab-badge { margin-top: 0; white-space: nowrap; }
+.pat-dots { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 10px; }
+.pat-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bd2); }
+.pat-dot.b-buy { background: var(--buy); }
+.pat-dot.b-sell { background: var(--sell); }
+.pat-top { display: flex; align-items: baseline; gap: 10px; width: 100%; min-width: 0; background: var(--bg); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.pat-top:hover { border-color: var(--bd2); }
+.pat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mu); font-size: 13px; }
+.pat-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--ac); font: inherit; font-size: 13px; cursor: pointer; }
+.table.compact th, .table.compact td { padding: 6px 8px; font-size: 12.5px; }
+@media (max-width: 640px) { .pat-grid { grid-template-columns: 1fr; } }
+/* bottom nav on phones: 8–9 items, keep labels inside their slot */
+@media (max-width: 640px) {
+  .nav > a, .nav-more > summary { min-width: 0; font-size: 10.5px; padding: 6px 2px; }
+  .nav > a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}

@@ -10,7 +10,7 @@ export default function Header({
   me,
   pendingCount = 0,
 }: {
-  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "radar" | "backtest" | "warrant" | "admin";
+  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "patterns" | "radar" | "backtest" | "warrant" | "admin";
   me?: Me;
   pendingCount?: number;
 }) {
@@ -94,6 +94,10 @@ export default function Header({
         <a href="#/screener" aria-current={active === "screener" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg>
           <span>Screener</span>
+        </a>
+        <a href="#/pola" aria-current={active === "patterns" ? "page" : undefined} title="Pemindai pola chart">
+          <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 4-7 5 6" /><path d="M3 21h18" /></svg>
+          <span>Pola</span>
         </a>
         <a href="#/radar" aria-current={active === "radar" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 12l6-6" /></svg>

@@ -48,6 +48,46 @@ export const CHARTS: PatternMeta[] = [
     id: "double_top", name: "Double top (M) — waspada", bias: "bear",
     help: "Dua puncak setara (±3%) dengan lembah ≥ 7% di antaranya. 'Breakout' = harga tutup jebol ke bawah lembah tengah: tanda pelemahan.",
   },
+  {
+    id: "cup_handle", name: "Cup & handle", bias: "bull",
+    help: "Mangkuk berbentuk U (dalam 12–35%, 30–120 hari, dua bibir setara ±5%), lalu 'gagang' 5–25 hari yang turun 3–15% di separuh atas mangkuk. Breakout = tutup di atas bibir kanan.",
+  },
+  {
+    id: "channel_up", name: "Channel breakout", bias: "bull",
+    help: "Harga bergerak di saluran sejajar (datar atau naik, lebar ≥ 6%) dari 3–4 puncak dan lembah terakhir dalam 60 hari. Breakout = tutup di atas garis atas saluran.",
+  },
+  {
+    id: "inv_hs", name: "Inverse head & shoulders", bias: "bull",
+    help: "Tiga lembah: tengah (kepala) ≥ 3% lebih rendah dari dua bahu yang setara (±5%), setelah turun ≥ 10%. Breakout = tutup di atas garis leher (neckline).",
+  },
+  {
+    id: "rounding_bottom", name: "Rounding bottom", bias: "bull",
+    help: "Dasar membulat 100 hari (kurva parabola cocok ≥ 70%), titik terendah di tengah, ≥ 15% di bawah bibir kiri; harga sudah pulih ke 40% teratas. Breakout = tutup di atas bibir kiri.",
+  },
+  {
+    id: "falling_wedge", name: "Falling wedge", bias: "bull",
+    help: "Garis puncak dan lembah sama-sama turun tapi menyempit (puncak turun lebih cepat): tekanan jual melemah. Breakout = tutup di atas garis atas.",
+  },
+  {
+    id: "sym_triangle", name: "Symmetrical triangle", bias: "bull",
+    help: "Puncak makin rendah dan lembah makin tinggi (menyempit) dalam 60 hari. Arah belum pasti; 'breakout' di sini = tutup di atas garis atas.",
+  },
+  {
+    id: "wyckoff_accum", name: "Wyckoff accumulation", bias: "bull",
+    help: "Setelah turun ≥ 20%, harga mendatar 40 hari (rentang 6–25%) dan sempat 'spring' (jebol ke bawah lalu kembali masuk) dalam 30 hari. Breakout = tutup di atas batas atas rentang.",
+  },
+  {
+    id: "new_uptrend", name: "Tren naik baru", bias: "bull",
+    help: "60 hari lalu masih di bawah MA200, kini di atas MA50 & MA200 dengan puncak dan lembah makin tinggi. Sinyal = tutup di atas puncak terakhir.",
+  },
+  {
+    id: "hs_top", name: "Head & shoulders — waspada", bias: "bear",
+    help: "Tiga puncak: tengah (kepala) ≥ 3% lebih tinggi dari dua bahu yang setara (±5%), setelah naik ≥ 10%. 'Breakout' = tutup jebol ke bawah garis leher: tanda pembalikan turun.",
+  },
+  {
+    id: "rising_wedge", name: "Rising wedge — waspada", bias: "bear",
+    help: "Garis puncak dan lembah sama-sama naik tapi menyempit (lembah naik lebih cepat): kenaikan kehabisan tenaga. 'Breakout' = tutup jebol ke bawah garis bawah.",
+  },
 ];
 
 export const patternMeta = (id: string) => CANDLES.find((p) => p.id === id) ?? CHARTS.find((p) => p.id === id);

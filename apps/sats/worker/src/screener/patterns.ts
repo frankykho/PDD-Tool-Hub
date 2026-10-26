@@ -12,7 +12,10 @@ export type CandleId =
   | "three_black" | "bear_marubozu" | "tweezer_top" | "gravestone_doji"
   | "doji";
 
-export type ChartId = "double_bottom" | "double_top" | "asc_triangle" | "bull_flag";
+export type ChartId =
+  | "double_bottom" | "double_top" | "asc_triangle" | "bull_flag"
+  | "cup_handle" | "inv_hs" | "hs_top" | "falling_wedge" | "rising_wedge" | "sym_triangle" | "channel_up"
+  | "rounding_bottom" | "wyckoff_accum" | "new_uptrend";
 
 /** Candle patterns completed at bar i (empty when none). */
 export function candlesAt(bars: SatsInputBar[], i: number): CandleId[] {
@@ -118,6 +121,30 @@ const minLow = (bars: SatsInputBar[], a: number, b: number) => {
   for (let k = a; k <= b; k += 1) m = Math.min(m, bars[k].low);
   return m;
 };
+const argMinLow = (bars: SatsInputBar[], a: number, b: number) => {
+  let m = a;
+  for (let k = a + 1; k <= b; k += 1) if (bars[k].low < bars[m].low) m = k;
+  return m;
+};
+const argMaxHigh = (bars: SatsInputBar[], a: number, b: number) => {
+  let m = a;
+  for (let k = a + 1; k <= b; k += 1) if (bars[k].high > bars[m].high) m = k;
+  return m;
+};
+
+/** Least-squares line through (x, y) points. */
+function fitLine(pts: Array<[number, number]>): { m: number; b: number } {
+  const n = pts.length;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const [x, y] of pts) { sx += x; sy += y; sxx += x * x; sxy += x * y; }
+  const d = n * sxx - sx * sx;
+  const m = d === 0 ? 0 : (n * sxy - sx * sy) / d;
+  return { m, b: (sy - m * sx) / n };
+}
+const lineAt = (f: { m: number; b: number }, x: number) => f.m * x + f.b;
+
+/** Line through two points, value at x. */
+const line2 = (x1: number, y1: number, x2: number, y2: number, x: number) => y1 + ((y2 - y1) * (x - x1)) / (x2 - x1);
 
 /**
  * "id:status" (status = forming | breakout) for chart patterns present at the last bar.
@@ -208,6 +235,179 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
         if (c(i) > flagHigh && c(i - 1) <= flagHigh) out.push("bull_flag:breakout");
         else out.push("bull_flag:forming");
       }
+    }
+  }
+
+  // ---- Cup & handle (O'Neil): rims ±5% apart 30–120 bars, U-shaped cup 12–35% deep (bottom in the middle 60%,
+  // ≥ 15% of the cup near the bottom = not a V), then a handle 5–25 bars long that pulls back 3–15% and stays in the
+  // upper half of the cup. Breakout = close above the right rim.
+  if (i >= 150) {
+    const highs = pivots(bars, i - 145, i, "high", 5);
+    const R = highs.filter((k) => k >= i - 25).at(-1);
+    if (R != null) {
+      const rimR = bars[R].high;
+      for (const L of highs.filter((k) => R - k >= 30 && R - k <= 120).reverse()) {
+        const rimL = bars[L].high;
+        if (Math.abs(rimL - rimR) / rimL > 0.05) continue;
+        const top = Math.max(rimL, rimR);
+        if (maxHigh(bars, L + 1, R - 1) > top * 1.02) continue;
+        const kb = argMinLow(bars, L, R);
+        const bottom = bars[kb].low;
+        const depth = 1 - bottom / top;
+        const pos = (kb - L) / (R - L);
+        if (depth < 0.12 || depth > 0.35 || pos < 0.2 || pos > 0.8) continue;
+        let nearBottom = 0;
+        for (let k = L; k <= R; k += 1) if (c(k) <= bottom + (top - bottom) / 3) nearBottom += 1;
+        if (nearBottom < 0.15 * (R - L)) continue;
+        const handleLow = minLow(bars, R + 1, i);
+        const pull = 1 - handleLow / rimR;
+        if (pull >= 0.03 && pull <= 0.15 && handleLow >= bottom + (top - bottom) / 2) {
+          if (crossedUp(rimR)) out.push("cup_handle:breakout");
+          else if (c(i) <= rimR) out.push("cup_handle:forming");
+        }
+        break;
+      }
+    }
+  }
+
+  // ---- Head & shoulders top / inverse: 3 consecutive pivots, head ≥ 3% beyond both shoulders, shoulders within 5%,
+  // 5–40 bars apart, after a ≥ 10% move into the pattern. Trigger = neckline through the two troughs (peaks).
+  if (i >= 120) {
+    const hs = (kind: "high" | "low") => {
+      const piv = pivots(bars, i - 80, i, kind);
+      if (piv.length < 3) return null;
+      const [p1, p2, p3] = piv.slice(-3);
+      if (p2 - p1 < 5 || p2 - p1 > 40 || p3 - p2 < 5 || p3 - p2 > 40 || i - p3 > 25) return null;
+      const v = (k: number) => (kind === "high" ? bars[k].high : bars[k].low);
+      const [s1, hd, s2] = [v(p1), v(p2), v(p3)];
+      if (Math.abs(s1 - s2) / s1 > 0.05) return null;
+      if (kind === "high" ? hd < Math.max(s1, s2) * 1.03 : hd > Math.min(s1, s2) / 1.03) return null;
+      const before = c(Math.max(0, p1 - 30));
+      if (kind === "high" ? s1 < before * 1.1 : s1 > before / 1.1) return null;
+      const t1 = kind === "high" ? argMinLow(bars, p1, p2) : argMaxHigh(bars, p1, p2);
+      const t2 = kind === "high" ? argMinLow(bars, p2, p3) : argMaxHigh(bars, p2, p3);
+      const tv = (k: number) => (kind === "high" ? bars[k].low : bars[k].high);
+      return { neck: line2(t1, tv(t1), t2, tv(t2), i), s2 };
+    };
+    const top = hs("high");
+    if (top) {
+      if (crossedDown(top.neck)) out.push("hs_top:breakout");
+      else if (c(i) > top.neck && c(i) < top.s2 * 1.02) out.push("hs_top:forming");
+    }
+    const inv = hs("low");
+    if (inv) {
+      if (crossedUp(inv.neck)) out.push("inv_hs:breakout");
+      else if (c(i) < inv.neck && c(i) > inv.s2 / 1.02) out.push("inv_hs:forming");
+    }
+  }
+
+  // ---- Wedges, symmetrical triangle, channel: trendlines fitted through the last 3–4 pivot highs and lows of the
+  // last 60 bars. Slopes in % of price per bar. Converging = the gap at the last bar is < 70% of the gap at the start.
+  if (i >= 90) {
+    const ph = pivots(bars, i - 60, i, "high").slice(-4);
+    const pl = pivots(bars, i - 60, i, "low").slice(-4);
+    if (ph.length >= 3 && pl.length >= 3) {
+      const up = fitLine(ph.map((k) => [k, bars[k].high]));
+      const lo = fitLine(pl.map((k) => [k, bars[k].low]));
+      const start = Math.min(ph[0], pl[0]);
+      const sh = (up.m / c(i)) * 100;
+      const sl = (lo.m / c(i)) * 100;
+      const gap0 = lineAt(up, start) - lineAt(lo, start);
+      const gapI = lineAt(up, i) - lineAt(lo, i);
+      const upperI = lineAt(up, i);
+      const lowerI = lineAt(lo, i);
+      const converging = gap0 > 0 && gapI > 0 && gapI < 0.7 * gap0;
+      const inside = c(i) <= upperI && c(i) >= lowerI;
+      if (converging && sh < -0.05 && sl < 0 && sh < sl) {
+        if (crossedUp(upperI)) out.push("falling_wedge:breakout");
+        else if (inside) out.push("falling_wedge:forming");
+      }
+      if (converging && sl > 0.05 && sh > 0 && sl > sh) {
+        if (crossedDown(lowerI)) out.push("rising_wedge:breakout");
+        else if (inside) out.push("rising_wedge:forming");
+      }
+      if (converging && sh < -0.05 && sl > 0.05) {
+        if (crossedUp(upperI)) out.push("sym_triangle:breakout");
+        else if (inside) out.push("sym_triangle:forming");
+      }
+      // channel: parallel lines (slopes within 0.05 %/bar), flat or rising, at least 6% wide
+      const parallel = Math.abs(sh - sl) <= 0.05 && sl > -0.05 && gapI >= c(i) * 0.06 && gap0 > 0;
+      if (parallel && !converging) {
+        if (crossedUp(upperI)) out.push("channel_up:breakout");
+        else if (c(i) <= upperI && c(i) >= upperI * 0.97) out.push("channel_up:forming");
+      }
+    }
+  }
+
+  // ---- Rounding bottom (saucer): parabola fitted to the last 100 closes opens upward (R² ≥ 0.7), lowest point in the
+  // middle 40%, ≥ 15% below the left rim, price back in the upper 40%. Breakout = close above the left rim high.
+  if (i >= 110) {
+    const s = i - 100;
+    let sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
+    const N = i - s + 1;
+    for (let k = s; k <= i; k += 1) {
+      const x = (k - s) / (N - 1);
+      const y = c(k);
+      sx += x; sx2 += x * x; sx3 += x ** 3; sx4 += x ** 4; sy += y; sxy += x * y; sx2y += x * x * y;
+    }
+    // normal equations for y = a x² + b x + d (Cramer's rule)
+    const det3 = (m: number[][]) =>
+      m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const M = [[sx4, sx3, sx2], [sx3, sx2, sx], [sx2, sx, N]];
+    const D = det3(M);
+    if (D !== 0) {
+      const a = det3([[sx2y, sx3, sx2], [sxy, sx2, sx], [sy, sx, N]]) / D;
+      const b = det3([[sx4, sx2y, sx2], [sx3, sxy, sx], [sx2, sy, N]]) / D;
+      const d = det3([[sx4, sx3, sx2y], [sx3, sx2, sxy], [sx2, sx, sy]]) / D;
+      const mean = sy / N;
+      let ssRes = 0, ssTot = 0;
+      for (let k = s; k <= i; k += 1) {
+        const x = (k - s) / (N - 1);
+        ssRes += (c(k) - (a * x * x + b * x + d)) ** 2;
+        ssTot += (c(k) - mean) ** 2;
+      }
+      const vertex = a > 0 ? -b / (2 * a) : -1;
+      const rim = maxHigh(bars, s, s + 10);
+      const low = minLow(bars, s, i);
+      if (a > 0 && ssTot > 0 && 1 - ssRes / ssTot >= 0.7 && vertex >= 0.3 && vertex <= 0.7 && low <= rim / 1.15 && c(i) >= low + 0.6 * (rim - low)) {
+        if (crossedUp(rim)) out.push("rounding_bottom:breakout");
+        else if (c(i) <= rim) out.push("rounding_bottom:forming");
+      }
+    }
+  }
+
+  // ---- Wyckoff accumulation: after a ≥ 20% decline, a 40-bar trading range (6–25% wide); a "spring" (low below the
+  // range, close back inside) in the last 30 bars. Breakout (sign of strength) = close above the range high.
+  if (i >= 130) {
+    const hi = maxHigh(bars, i - 45, i - 6);
+    const lo = minLow(bars, i - 45, i - 6);
+    const width = hi / lo - 1;
+    const priorHigh = maxHigh(bars, i - 125, i - 46);
+    if (width >= 0.06 && width <= 0.25 && priorHigh >= hi * 1.25) {
+      let spring = false;
+      for (let k = i - 30; k <= i && !spring; k += 1) {
+        if (bars[k].low < lo * 0.99) for (let j = k; j <= Math.min(i, k + 3); j += 1) if (c(j) > lo) spring = true;
+      }
+      if (spring && crossedUp(hi)) out.push("wyckoff_accum:breakout");
+      else if (spring && c(i) > lo && c(i) <= hi) out.push("wyckoff_accum:forming");
+    }
+  }
+
+  // ---- New uptrend: below MA200 60 bars ago, now above MA50 and MA200 with higher highs and higher lows (last two
+  // pivots); signal = close above the latest pivot high. Breakout only.
+  if (i >= 260) {
+    const avg = (to: number, len: number) => {
+      let sum = 0;
+      for (let k = to - len + 1; k <= to; k += 1) sum += c(k);
+      return sum / len;
+    };
+    const wasDown = c(i - 60) < avg(i - 60, 200);
+    const ph = pivots(bars, i - 50, i, "high");
+    const pl = pivots(bars, i - 50, i, "low");
+    if (wasDown && c(i) > avg(i, 50) && c(i) > avg(i, 200) && ph.length >= 2 && pl.length >= 2) {
+      const [h1, h2] = ph.slice(-2).map((k) => bars[k].high);
+      const [l1, l2] = pl.slice(-2).map((k) => bars[k].low);
+      if (h2 > h1 && l2 > l1 && crossedUp(h2)) out.push("new_uptrend:breakout");
     }
   }
   return out.length ? out.join(",") : null;
