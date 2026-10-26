@@ -956,8 +956,60 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .link-btn { background: none; border: 0; padding: 0; color: var(--ac); font: inherit; font-size: 13px; cursor: pointer; }
 .table.compact th, .table.compact td { padding: 6px 8px; font-size: 12.5px; }
 @media (max-width: 640px) { .pat-grid { grid-template-columns: 1fr; } }
-/* bottom nav on phones: 8–9 items, keep labels inside their slot */
+/* nav on phones: 9–10 items -> scroll sideways instead of squeezing the labels */
 @media (max-width: 640px) {
-  .nav > a, .nav-more > summary { min-width: 0; font-size: 10.5px; padding: 6px 2px; }
-  .nav > a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .nav { overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav > a, .nav-more > summary { flex: 0 0 auto; min-width: 58px; font-size: 10.5px; padding: 6px 4px; }
+  .nav-more { flex: 0 0 auto; }
+  /* the bar scrolls (clips overflow), so the admin menu is pinned to the viewport instead */
+  .nav-more-menu { position: fixed; top: auto; left: auto; right: 8px; bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+
+/* ── Pemegang Saham (#/pemegang) */
+:root { --own-ind: #64b9ff; --own-corp: #e3b341; --own-inst: #58e0a1; --own-gov: #c58cff; --own-cust: #7d8a84; --own-oth: #8a939e; }
+.own-cat { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; vertical-align: 1px; white-space: nowrap; }
+.own-perorangan { color: var(--own-ind); } .own-korporasi { color: var(--own-corp); } .own-institusi { color: var(--own-inst); }
+.own-pemerintah { color: var(--own-gov); } .own-kustodian { color: var(--own-cust); } .own-lainnya { color: var(--own-oth); }
+.own-perorangan-fill { fill: var(--own-ind); } .own-korporasi-fill { fill: var(--own-corp); } .own-institusi-fill { fill: var(--own-inst); }
+.own-pemerintah-fill { fill: var(--own-gov); } .own-kustodian-fill { fill: var(--own-cust); } .own-lainnya-fill { fill: var(--own-oth); }
+.own-perorangan-stroke { stroke: var(--own-ind); } .own-korporasi-stroke { stroke: var(--own-corp); } .own-institusi-stroke { stroke: var(--own-inst); }
+.own-pemerintah-stroke { stroke: var(--own-gov); } .own-kustodian-stroke { stroke: var(--own-cust); } .own-lainnya-stroke { stroke: var(--own-oth); }
+.own-perorangan-bg { background: var(--own-ind); } .own-korporasi-bg { background: var(--own-corp); } .own-institusi-bg { background: var(--own-inst); }
+.own-pemerintah-bg { background: var(--own-gov); } .own-kustodian-bg { background: var(--own-cust); }
+.own-search { position: relative; }
+.own-search input { width: 100%; height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--bd); background: var(--s1); color: var(--tx); font: inherit; font-size: 15px; }
+.own-search input:focus { outline: none; border-color: var(--ac); }
+.own-results { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; max-height: 420px; overflow: auto; display: flex; flex-direction: column; padding: 6px; background: var(--s1); border: 1px solid var(--bd); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4); }
+.own-results button { text-align: left; background: none; border: 0; color: var(--tx); font: inherit; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.own-results button:hover { background: var(--s2); }
+.pad-s { padding: 8px 10px; }
+.card.own-head { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.own-head h2 { font-size: 20px; }
+.own-meta { margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.own-stats { display: flex; gap: 22px; }
+.own-stats div { display: flex; flex-direction: column; gap: 2px; }
+.own-stats b { font-family: var(--mono); font-size: 18px; }
+.own-warn { flex-basis: 100%; margin: 0; color: var(--own-cust); }
+.own-toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.own-net { padding: 8px 12px 14px; }
+.own-net svg { width: 100%; height: auto; display: block; }
+.own-edge { fill: none; }
+.own-node { cursor: pointer; }
+.own-stock { fill: var(--s2); stroke: var(--ac); stroke-width: 1.5; }
+.own-code { font: 700 11.5px var(--mono); fill: var(--tx); }
+.own-pct { font: 9.5px var(--mono); fill: var(--mu); }
+.own-label { font: 11.5px var(--font); fill: var(--mu); }
+.own-node:hover .own-label { fill: var(--tx); }
+.own-center-label { font: 600 14px var(--display); fill: var(--tx); }
+.own-label, .own-center-label, .own-pct { paint-order: stroke; stroke: var(--s1); stroke-width: 4px; stroke-linejoin: round; }
+.table td.wrap { white-space: normal; min-width: 180px; }
+.own-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 4px 6px 0; color: var(--mu); }
+.own-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; }
+.own-kpi-date { font-size: 22px; }
+@media (max-width: 640px) {
+  .own-grid { grid-template-columns: 1fr; }
+  /* the network keeps a readable size and scrolls sideways */
+  .own-net { overflow-x: auto; }
+  .own-net svg { min-width: 820px; }
 }

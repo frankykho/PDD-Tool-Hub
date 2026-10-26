@@ -390,6 +390,34 @@ export interface TrackParams {
   code?: string;
 }
 
+/** Pemegang saham ≥ 1% (bulanan, /api/owners/*). */
+export type OwnerCat = "perorangan" | "korporasi" | "institusi" | "pemerintah" | "kustodian" | "lainnya";
+export interface OwnersMonths { asOf: string | null; prev: string | null; months: string[]; empty?: boolean }
+export interface OwnerHit { hkey: string; name: string; cat: OwnerCat; n: number }
+export interface OwnerRow {
+  code?: string; // holder view
+  stock_name?: string | null;
+  hkey: string;
+  name: string;
+  cat: OwnerCat;
+  type: string | null;
+  local: number; // 1 = lokal, 0 = asing
+  domicile: string | null;
+  shares: number;
+  pct: number;
+  before: number | null; // % bulan lalu (null = belum ≥ 1%)
+  close?: number | null;
+  value?: number | null; // lembar × harga terakhir
+  n_stocks?: number; // stock view: jumlah saham milik pemegang ini
+}
+export interface NetworkRow { code: string; hkey: string; name: string; cat: OwnerCat; pct: number; n_stocks: number }
+export interface OwnerChange { code: string; hkey: string; name: string; cat: OwnerCat; pct: number; before: number; delta: number }
+export interface OwnersSummary extends OwnersMonths {
+  counts: { rows: number; holders: number; stocks: number } | null;
+  top: Array<{ hkey: string; name: string; cat: OwnerCat; local: number; n: number; pct_sum: number; codes: string }>;
+  changes: OwnerChange[];
+}
+
 export interface BreadthRow {
   date: string;
   n: number; // liquid stocks counted that day
@@ -439,6 +467,11 @@ export const api = {
   analyst: (code: string) => get<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`),
   makeAnalysis: (code: string) => post<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`, {}),
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),
+  ownersSummary: () => get<OwnersSummary>("/api/owners/summary"),
+  ownersSearch: (q: string) => get<OwnersMonths & { holders: OwnerHit[]; stocks: Array<{ code: string; name: string }> }>(`/api/owners/search?q=${encodeURIComponent(q)}`),
+  ownersHolder: (key: string) => get<OwnersMonths & { key: string; rows: OwnerRow[]; exited: Array<{ code: string; before: number }> }>(`/api/owners/holder?key=${encodeURIComponent(key)}`),
+  ownersStock: (code: string) => get<OwnersMonths & { code: string; stock: { code: string; name: string } | null; rows: OwnerRow[]; exited: Array<{ hkey: string; name: string; cat: OwnerCat; before: number }> }>(`/api/owners/stock?code=${encodeURIComponent(code)}`),
+  ownersNetwork: (key: string) => get<OwnersMonths & { key: string; rows: NetworkRow[] }>(`/api/owners/network?key=${encodeURIComponent(key)}`),
   /** saham syariah: anggota ISSI / JII70 / JII */
   sharia: () => get<{ at?: string; source?: string; codes: Record<string, string[]>; error?: string }>("/api/sharia"),
   breadth: () => get<{ rows: BreadthRow[] }>("/api/breadth"),

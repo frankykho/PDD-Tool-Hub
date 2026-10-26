@@ -10,7 +10,7 @@ export default function Header({
   me,
   pendingCount = 0,
 }: {
-  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "patterns" | "radar" | "backtest" | "warrant" | "admin";
+  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "patterns" | "owners" | "radar" | "backtest" | "warrant" | "admin";
   me?: Me;
   pendingCount?: number;
 }) {
@@ -98,6 +98,10 @@ export default function Header({
         <a href="#/pola" aria-current={active === "patterns" ? "page" : undefined} title="Pemindai pola chart">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 4-7 5 6" /><path d="M3 21h18" /></svg>
           <span>Pola</span>
+        </a>
+        <a href="#/pemegang" aria-current={active === "owners" ? "page" : undefined} title="Pemegang saham ≥ 1% dan jaringannya">
+          <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="18" r="2.5" /><circle cx="19" cy="18" r="2.5" /><path d="M11 7.2L6.3 15.8M13 7.2l4.7 8.6M7.5 18h9" /></svg>
+          <span>Pemegang</span>
         </a>
         <a href="#/radar" aria-current={active === "radar" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 12l6-6" /></svg>

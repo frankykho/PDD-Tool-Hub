@@ -1,4 +1,5 @@
 import AnalystCard from "../components/AnalystCard";
+import OwnersCard from "../components/OwnersCard";
 import { api, type LatestRow, type StockResponse, type TrackTrade } from "../api";
 import { ErrorBox, FilterBadge, Loading, RiskFlags, StatusPill } from "../components/Bits";
 import { useState } from "react";
@@ -484,6 +485,7 @@ export default function StockDetail({ code }: { code: string }) {
       </div>
 
       <AnalystCard code={code} />
+      <OwnersCard code={code} />
 
       <section className="card">
         <div className="card-head">

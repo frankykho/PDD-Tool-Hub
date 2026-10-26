@@ -4,6 +4,7 @@ const L = 'html[data-theme="light"]';
 
 export const SATS_THEME_CSS = `
 ${L}{color-scheme:light;--bg:#F3F6F4;--s1:#fff;--s2:#EEF3F0;--bd:#D9E2DD;--bd2:#C3D0C8;--tx:#14201B;--mu:#56665F;--dim:#6E7E76;--buy:#14905C;--sell:#D23F4B;--ac:#4A7F12;--c1:#5E9A1E;--c2:#1F6FC4;--ac-ink:#fff}
+${L}{--own-ind:#1F6FC4;--own-corp:#A86A00;--own-inst:#14905C;--own-gov:#7B3FC4;--own-cust:#76837D;--own-oth:#6E7E76}
 ${L} body{background:radial-gradient(900px 440px at 12% -12%,rgba(30,138,90,.07),transparent 64%),var(--bg)}
 ${L} ::selection{background:rgba(74,127,18,.2)}
 ${L} a:hover{color:#3A6A0C}
