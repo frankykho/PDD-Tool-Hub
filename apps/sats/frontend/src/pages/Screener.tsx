@@ -146,10 +146,15 @@ export default function Screener() {
   const ranked = useMemo(() => withRank(data.data?.rows ?? []), [data.data]);
 
   const sy = useSharia();
+  // Saham tanpa transaksi di hari bursa terakhir (suspensi / tidak ada yang beli-jual) memakai data lama: sinyal
+  // "hari ini" (breakout, cross) sebenarnya basi dan sahamnya belum tentu bisa dibeli. Disembunyikan dari hasil.
+  const asOf = data.data?.asOf;
+  const stale = useMemo(() => ranked.filter((r) => asOf && r.as_of_date < asOf).length, [ranked, asOf]);
   const rows = useMemo(() => {
     const all = ranked;
     const out = all.filter(
       (r) =>
+        (!asOf || r.as_of_date >= asOf) &&
         (r.value_20d ?? 0) >= minValue * 1e9 &&
         (!index || (isShariaIndex(index) ? !!sy[r.code]?.includes(index) : (r.indexes ?? "").split(",").includes(index))) &&
         (!watchOnly || watch.has(r.code)) &&
@@ -170,7 +175,7 @@ export default function Screener() {
       return (va - vb) * m || a.code.localeCompare(b.code);
     });
     return out;
-  }, [ranked, minValue, index, p, filters, activeSort, candleSel, candleDays, chartSel, chartStatus, watchOnly, watch.codes, sy]);
+  }, [ranked, asOf, minValue, index, p, filters, activeSort, candleSel, candleDays, chartSel, chartStatus, watchOnly, watch.codes, sy]);
 
   const total = data.data?.rows.length ?? 0;
   const shown = showAll ? rows : rows.slice(0, 100);
@@ -512,6 +517,11 @@ export default function Screener() {
         <div className="card-head">
           <h2>
             {fmtNum(rows.length)} saham <span className="muted small">dari {fmtNum(total)}</span>
+            {stale > 0 && (
+              <span className="muted small" title="Tidak ada transaksi di hari bursa terakhir (mis. suspensi), jadi datanya sudah lama">
+                {" "}· {fmtNum(stale)} disembunyikan (tidak ditransaksikan {fmtDate(asOf as string, true)})
+              </span>
+            )}
           </h2>
           <span className="muted small">Klik judul kolom untuk mengurutkan</span>
         </div>

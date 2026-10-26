@@ -86,6 +86,7 @@ export default function Today() {
 
   const s = sum.data;
   const rows = scr.data.rows;
+  const asOf = scr.data.asOf;
   const liquid = rows.filter((r) => (r.value_20d ?? 0) >= LIQUID);
   const pctOf = (f: (r: ScreenerRow) => boolean) => (liquid.length ? (liquid.filter(f).length / liquid.length) * 100 : null);
   const aboveMa200 = pctOf((r) => (r.dist_ma200 ?? -1) > 0);
@@ -105,7 +106,7 @@ export default function Today() {
   const top = presetById("high52_rs80");
   const near52 = top
     ? withRsRank(rows)
-        .filter((r) => (r.value_20d ?? 0) >= LIQUID && top.test(r))
+        .filter((r) => r.as_of_date >= asOf && (r.value_20d ?? 0) >= LIQUID && top.test(r)) // tanpa saham suspensi
         .sort((a, b) => (b.rs_rank ?? 0) - (a.rs_rank ?? 0))
     : [];
   const levelHits = hits.data?.rows ?? [];
