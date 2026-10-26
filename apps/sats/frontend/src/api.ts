@@ -400,6 +400,10 @@ export interface BreadthRow {
   hi52: number;
   lo52: number;
   ihsg: number | null;
+  idx30_n?: number | null; // IDX30 members with data that day
+  idx30_above60?: number | null; // ... of which closing above SMA60
+  k100_n?: number | null; // same for KOMPAS100
+  k100_above60?: number | null;
 }
 
 type LabSlot = "5" | "10" | "20" | "60" | "S"; // S = max 60 days with stop loss −8% or close < MA50

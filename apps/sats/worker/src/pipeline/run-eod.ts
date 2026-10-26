@@ -170,17 +170,39 @@ let marketInfo: MarketInfo | null = null;
 const ihsgClose = new Map<string, number>();
 
 /** Per-date market breadth counters, summed over all stocks. */
-interface Breadth { n: number; above200: number; above50: number; up: number; down: number; hi52: number; lo52: number }
+interface Breadth {
+  n: number; above200: number; above50: number; up: number; down: number; hi52: number; lo52: number;
+  idx30: number; idx30Up: number; k100: number; k100Up: number;
+}
 const breadth = new Map<string, Breadth>();
+const emptyBreadth = (): Breadth => ({ n: 0, above200: 0, above50: 0, up: 0, down: 0, hi52: 0, lo52: 0, idx30: 0, idx30Up: 0, k100: 0, k100Up: 0 });
 
-function addBreadth(bars: SatsInputBar[], values: Array<number | null>): void {
+/** Index members, for the "% above SMA60" breadth (all members, no liquidity filter). */
+interface IndexSets { idx30: Set<string>; k100: Set<string> }
+
+function addBreadth(code: string, bars: SatsInputBar[], values: Array<number | null>, sets: IndexSets): void {
   const close = bars.map((x) => x.close);
   const ma200 = sma(close, 200);
   const ma50 = sma(close, 50);
+  // KOMPAS100 / IDX30 breadth: % of members closing above SMA60. Test Okt 2023–Okt 2026: with KOMPAS100 >= 50% liquid
+  // stocks averaged +2,4% over 20 days vs −1,4% below it; breakout + RS signals +12,8% vs +3,0% (IDX30: similar, a bit weaker).
+  const in30 = sets.idx30.has(code), in100 = sets.k100.has(code);
+  if (in30 || in100) {
+    const ma60 = sma(close, 60);
+    for (let k = Math.max(1, bars.length - BREADTH_DAYS); k < bars.length; k += 1) {
+      if (Number.isNaN(ma60[k])) continue;
+      const d = wib(bars[k].time);
+      const b0 = breadth.get(d) ?? emptyBreadth();
+      const up = close[k] > ma60[k] ? 1 : 0;
+      if (in30) { b0.idx30 += 1; b0.idx30Up += up; }
+      if (in100) { b0.k100 += 1; b0.k100Up += up; }
+      breadth.set(d, b0);
+    }
+  }
   for (let k = Math.max(1, bars.length - BREADTH_DAYS); k < bars.length; k += 1) {
     if ((values[k] ?? 0) < BREADTH_MIN_VALUE || Number.isNaN(ma200[k])) continue;
     const d = wib(bars[k].time);
-    const b0 = breadth.get(d) ?? { n: 0, above200: 0, above50: 0, up: 0, down: 0, hi52: 0, lo52: 0 };
+    const b0 = breadth.get(d) ?? emptyBreadth();
     const c = close[k];
     const win = close.slice(Math.max(0, k - 251), k); // previous ≈ 52 weeks
     b0.n += 1;
@@ -233,12 +255,23 @@ async function loadIhsgFilter(): Promise<((time: number) => boolean | null) | nu
 
 const BREADTH_DDL =
   "CREATE TABLE IF NOT EXISTS breadth_daily (date TEXT PRIMARY KEY, n INTEGER NOT NULL, above200 INTEGER NOT NULL, " +
-  "above50 INTEGER NOT NULL, up INTEGER NOT NULL, down INTEGER NOT NULL, hi52 INTEGER NOT NULL, lo52 INTEGER NOT NULL, ihsg REAL);";
+  "above50 INTEGER NOT NULL, up INTEGER NOT NULL, down INTEGER NOT NULL, hi52 INTEGER NOT NULL, lo52 INTEGER NOT NULL, ihsg REAL, " +
+  "idx30_n INTEGER, idx30_above60 INTEGER, k100_n INTEGER, k100_above60 INTEGER);";
 
 // ---------- index membership (worker/src/pipeline/indices/<INDEX>.txt)
+const INDEX_DIR = typeof __dirname !== "undefined" ? join(__dirname, "indices") : join(process.cwd(), "src/pipeline/indices");
+function parseIndexCodes(text: string): string[] {
+  const body = text.split(/\r?\n/).filter((l) => !l.trim().startsWith("#")).join(" ");
+  return [...new Set(body.toUpperCase().split(/[^A-Z0-9]+/).filter((c) => /^[A-Z][A-Z0-9]{2,5}$/.test(c)))];
+}
+/** Members of one index file, e.g. IDX30 (empty when the file is missing). */
+function indexCodes(name: string): Set<string> {
+  const f = join(INDEX_DIR, `${name}.txt`);
+  return new Set(existsSync(f) ? parseIndexCodes(readFileSync(f, "utf8")) : []);
+}
+
 function buildIndexSql(universeCodes: Set<string>, stamp: string): string[] {
-  const dir =
-    typeof __dirname !== "undefined" ? join(__dirname, "indices") : join(process.cwd(), "src/pipeline/indices");
+  const dir = INDEX_DIR;
   if (!existsSync(dir)) return [];
   const sql: string[] = [];
   const seen: string[] = [];
@@ -246,8 +279,7 @@ function buildIndexSql(universeCodes: Set<string>, stamp: string): string[] {
     const indexCode = file.replace(/\.txt$/i, "").toUpperCase().replace(/[^A-Z0-9-]/g, "");
     const text = readFileSync(join(dir, file), "utf8");
     const meta = (key: string) => text.match(new RegExp(`^#\\s*${key}\\s*:\\s*(.+)$`, "mi"))?.[1].trim() ?? null;
-    const body = text.split(/\r?\n/).filter((l) => !l.trim().startsWith("#")).join(" ");
-    const parsed = [...new Set(body.toUpperCase().split(/[^A-Z0-9]+/).filter((c) => /^[A-Z][A-Z0-9]{2,5}$/.test(c)))];
+    const parsed = parseIndexCodes(text);
     const unknown = parsed.filter((c) => !universeCodes.has(c));
     const codes = parsed.filter((c) => universeCodes.has(c));
     if (codes.length === 0) {
@@ -279,6 +311,7 @@ async function main() {
   if (limit > 0) list = list.slice(0, limit);
   const strategies = (onlyStrategies && onlyStrategies.length ? onlyStrategies : STRATEGIES.map((s) => s.id)) as StrategyId[];
 
+  const indexSets: IndexSets = { idx30: indexCodes("IDX30"), k100: indexCodes("KOMPAS100") };
   const indexSql = buildIndexSql(new Set((universe as Array<{ code: string }>).map((s) => s.code)), started);
   if (INDICES_ONLY) {
     mkdirSync(outDir, { recursive: true });
@@ -309,7 +342,7 @@ async function main() {
         const all = runAllStrategies(bars, ihsg);
         const values = bars.map((_, k) => value20(bars, k));
         const mask = ihsg ? satsFilterMask(bars, ihsg) : null;
-        addBreadth(bars, values);
+        addBreadth(code, bars, values, indexSets);
         const out: StockOutput = { code, sql: [], latestRows: 0, tradeRows: 0, asOf: wib(bars[bars.length - 1].time) };
         // Screener metrics (one row per stock)
         const tech = computeTech(bars, values[bars.length - 1], wib);
@@ -391,12 +424,14 @@ async function main() {
   sql.push(...indexSql);
   // Market breadth history: only from full-universe runs (a subset would give wrong percentages).
   if (!onlyCodes && !(limit > 0)) {
-    sql.push(BREADTH_DDL, "DELETE FROM breadth_daily;");
+    // DROP + CREATE: the table is rebuilt in full anyway, and this adds new columns to an older table
+    sql.push("DROP TABLE IF EXISTS breadth_daily;", BREADTH_DDL);
     for (const [d, x] of [...breadth].sort((a, b2) => a[0].localeCompare(b2[0]))) {
       if (x.n < 20) continue; // holiday / thin day
       sql.push(
-        `INSERT INTO breadth_daily (date, n, above200, above50, up, down, hi52, lo52, ihsg) VALUES (` +
-          [q(d), x.n, x.above200, x.above50, x.up, x.down, x.hi52, x.lo52, n(ihsgClose.get(d) ?? null, 2)].join(", ") + `);`,
+        `INSERT INTO breadth_daily (date, n, above200, above50, up, down, hi52, lo52, ihsg, idx30_n, idx30_above60, k100_n, k100_above60) VALUES (` +
+          [q(d), x.n, x.above200, x.above50, x.up, x.down, x.hi52, x.lo52, n(ihsgClose.get(d) ?? null, 2),
+            x.idx30 || "NULL", x.idx30 ? x.idx30Up : "NULL", x.k100 || "NULL", x.k100 ? x.k100Up : "NULL"].join(", ") + `);`,
       );
     }
   }

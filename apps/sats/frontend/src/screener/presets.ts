@@ -61,7 +61,7 @@ export const PRESETS: Preset[] = [
     name: "Breakout 20 hari + RS ≥ 70, volume tenang",
     rule: "Tutup di atas high 20 hari hari ini · harga > MA50 · kenaikan 6 bulan masuk 30% terbaik · volume < 1,5× rata-rata",
     help:
-      "Alternatif yang lebih dekat dari filter 52 minggu. Uji 3 tahun (Okt 2023–Okt 2026, saham ≥ Rp1 M/hari): win rate 20 hari ±51% dan ±7,9% lebih baik dari pasar, positif 3 tahun berturut-turut. Kuncinya RS: breakout tanpa RS jauh lebih lemah, breakout dengan lonjakan volume ≥ 2× juga. Keunggulannya terutama di saham bernilai transaksi Rp1–10 M/hari; di saham besar (≥ Rp10 M/hari) hanya ±1%. Hasilnya bertumpu pada sedikit saham yang naik besar, jadi pakai stop loss (mis. −8% atau tutup di bawah MA50) dan posisi kecil.",
+      "Alternatif yang lebih dekat dari filter 52 minggu. Uji 3 tahun (Okt 2023–Okt 2026, saham ≥ Rp1 M/hari): win rate 20 hari ±51% dan ±7,9% lebih baik dari pasar, positif 3 tahun berturut-turut. Kuncinya RS: breakout tanpa RS jauh lebih lemah, breakout dengan lonjakan volume ≥ 2× juga. Keunggulannya terutama di saham bernilai transaksi Rp1–10 M/hari; di saham besar (≥ Rp10 M/hari) hanya ±1%. Hasilnya bertumpu pada sedikit saham yang naik besar, jadi pakai stop loss (mis. −8% atau tutup di bawah MA50) dan posisi kecil. Jauh lebih bagus saat pasar sehat (breadth KOMPAS100 ≥ 50% di atas SMA60): rata-rata +12,8% dalam 20 hari, dibanding +3,0% saat breadth < 50%.",
     test: (r) => r.breakout20_days === 0 && gt(r.dist_ma50, 0) && (r.rs_rank ?? 0) >= 70 && lt(r.vol_ratio, 1.5),
     sort: { key: "rs_rank", dir: "desc" },
     columns: ["rs_rank", "vol_ratio", "chg20", "value_20d"],

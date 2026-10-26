@@ -11,6 +11,7 @@ import { useAsync } from "../useAsync";
 import PatternBadges from "../components/PatternBadges";
 import Star from "../components/Star";
 import LabBadge, { LabMark } from "../components/LabBadge";
+import { MarketHealthLine } from "../components/MarketHealth";
 import { useWatchlist } from "../watchlist";
 import { CANDLES, CHARTS, parseCandles, parseCharts } from "../screener/patternMeta";
 import { SHARIA_INDEXES, isShariaIndex, shariaLabel, useSharia } from "../sharia";
@@ -116,6 +117,7 @@ export default function Screener() {
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const data = useAsync(() => api.screener(), []);
   const indices = useAsync(() => api.indices(), []);
+  const breadth = useAsync(() => api.breadth(), []);
 
   useEffect(() => {
     const q = new URLSearchParams();
@@ -240,6 +242,7 @@ export default function Screener() {
             Penyaring teknikal harian {data.data && <>· data per {fmtDate(data.data.asOf, true)}</>} · pilih preset, tambah filter
             sendiri, lalu klik saham untuk detail
           </p>
+          <MarketHealthLine rows={breadth.data?.rows} />
         </div>
       </div>
 

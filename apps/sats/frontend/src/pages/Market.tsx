@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type BreadthRow, type ScreenerRow } from "../api";
 import { ErrorBox, Loading } from "../components/Bits";
 import { WithInfo } from "../components/Info";
+import { BREADTH_INFO, breadthPct, healthOf } from "../components/MarketHealth";
 import Star from "../components/Star";
 import { fmt1, fmtDate, fmtNum, fmtPct, fmtPrice, fmtRp } from "../format";
 import { openStock } from "../nav";
@@ -121,6 +122,8 @@ function BreadthSection({ rows }: { rows: BreadthRow[] }) {
   const pct = (a: number, r: BreadthRow) => (r.n ? (a / r.n) * 100 : null);
   const above200 = data.map((r) => pct(r.above200, r));
   const above50 = data.map((r) => pct(r.above50, r));
+  const k100 = data.map((r) => breadthPct(r, "k100"));
+  const idx30 = data.map((r) => breadthPct(r, "idx30"));
   const labels = data.map((r) => fmtDate(r.date));
   const i = hover ?? data.length - 1;
   const cur = data[i];
@@ -148,6 +151,17 @@ function BreadthSection({ rows }: { rows: BreadthRow[] }) {
             <span><i className="dot" style={{ background: "var(--c2)" }} /> &gt; MA50 <b className="mono">{fmt1(pct(cur.above50, cur))}%</b></span>
             <span>naik/turun <b className="mono"><span className="buy">{cur.up}</span> / <span className="sell">{cur.down}</span></b></span>
             <span>high/low 52 mg <b className="mono"><span className="buy">{cur.hi52}</span> / <span className="sell">{cur.lo52}</span></b></span>
+            {k100[i] != null && (
+              <span>
+                <WithInfo info={BREADTH_INFO}>KOMPAS100 &gt; SMA60</WithInfo>{" "}
+                <b className={`mono ${healthOf(k100[i] ?? 0).tone}`}>{fmt1(k100[i])}%</b>
+              </span>
+            )}
+            {idx30[i] != null && (
+              <span>
+                IDX30 &gt; SMA60 <b className={`mono ${healthOf(idx30[i] ?? 0).tone}`}>{fmt1(idx30[i])}%</b>
+              </span>
+            )}
             <span>IHSG <b className="mono">{fmtNum(cur.ihsg)}</b></span>
             <span className="dim">{cur.n} saham likuid</span>
           </div>
@@ -175,6 +189,31 @@ function BreadthSection({ rows }: { rows: BreadthRow[] }) {
         onHover={setHover}
         xLabels={labels}
       />
+      {(k100.some((v) => v != null) || idx30.some((v) => v != null)) && (
+        <>
+          <div className="dim small lc-title">
+            <WithInfo info={BREADTH_INFO}>
+              Breadth indeks: % anggota di atas SMA60 (≥ 50% = pasar sehat) ·{" "}
+              <i className="dot" style={{ background: "var(--c1)" }} /> KOMPAS100 <i className="dot" style={{ background: "var(--c2)" }} /> IDX30
+            </WithInfo>
+          </div>
+          <LineChart
+            series={[
+              { name: "KOMPAS100 > SMA60", color: "var(--c1)", values: k100 },
+              { name: "IDX30 > SMA60", color: "var(--c2)", values: idx30, dashed: true },
+            ]}
+            height={130}
+            yMin={0}
+            yMax={100}
+            yTicks={[0, 50, 100]}
+            refLine={50}
+            yFmt={(v) => `${v}%`}
+            hover={hover}
+            onHover={setHover}
+            xLabels={labels}
+          />
+        </>
+      )}
       <div className="dim small lc-title">IHSG</div>
       <LineChart
         series={[{ name: "IHSG", color: "var(--mu)", values: data.map((r) => r.ihsg) }]}

@@ -11,6 +11,7 @@ import { useAsync } from "../useAsync";
 import { useWatchlist } from "../watchlist";
 import { setStrategy } from "../strategy";
 import LabBadge from "../components/LabBadge";
+import { BREADTH_INFO, BREADTH_LABEL, healthOf, lastBreadth } from "../components/MarketHealth";
 import { presetById, withRsRank } from "../screener/presets";
 
 const gradeRank = (r: Parameters<typeof gradeOf>[0]) => { const g = gradeOf(r); return g === "A+" ? 2 : g === "A" ? 1 : 0; };
@@ -78,6 +79,7 @@ export default function Today() {
   const satsBuy = useAsync(() => api.signals("SATS", "BUY", 2), []);
   const hits = useAsync(() => api.events("SATS"), []);
   const scr = useAsync(() => api.screener(), []);
+  const breadth = useAsync(() => api.breadth(), []);
   const watch = useWatchlist();
 
   const err = sum.error ?? scr.error ?? mainBuy.error;
@@ -87,6 +89,7 @@ export default function Today() {
   const s = sum.data;
   const rows = scr.data.rows;
   const asOf = scr.data.asOf;
+  const mkt = lastBreadth(breadth.data?.rows);
   const liquid = rows.filter((r) => (r.value_20d ?? 0) >= LIQUID);
   const pctOf = (f: (r: ScreenerRow) => boolean) => (liquid.length ? (liquid.filter(f).length / liquid.length) * 100 : null);
   const aboveMa200 = pctOf((r) => (r.dist_ma200 ?? -1) > 0);
@@ -122,7 +125,7 @@ export default function Today() {
         </div>
       </div>
 
-      <section className="kpis">
+      <section className="kpis kpis-5">
         <a className="card kpi kpi-button" href="#/pasar">
           <div className="kpi-label">IHSG vs MA200</div>
           <div className={`kpi-value ${s.market ? (s.market.above ? "buy" : "sell") : ""}`}>
@@ -142,6 +145,17 @@ export default function Today() {
             {aboveMa200 == null ? "—" : `${fmt1(aboveMa200)}%`}
           </div>
           <div className="kpi-sub">dari {fmtNum(liquid.length)} saham likuid · <span className="accent">grafik →</span></div>
+        </a>
+        <a className="card kpi kpi-button" href="#/pasar">
+          <div className="kpi-label">
+            <WithInfo info={BREADTH_INFO}>Breadth {mkt ? BREADTH_LABEL[mkt.ix] : "KOMPAS100"} (&gt; SMA60)</WithInfo>
+          </div>
+          <div className={`kpi-value ${mkt ? healthOf(mkt.pct).tone : ""}`}>{mkt ? `${fmt1(mkt.pct)}%` : "—"}</div>
+          <div className="kpi-sub">
+            {mkt
+              ? `${healthOf(mkt.pct).label.toLowerCase()} · ${healthOf(mkt.pct).hint}${mkt.ix === "k100" && mkt.idx30 != null ? ` · IDX30 ${fmt1(mkt.idx30)}%` : ""}`
+              : "muncul setelah EOD sore berikutnya"}
+          </div>
         </a>
         <div className="card kpi">
           <div className="kpi-label">Saham naik hari ini</div>

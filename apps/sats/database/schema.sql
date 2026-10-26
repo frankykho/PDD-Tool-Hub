@@ -148,7 +148,9 @@ CREATE TABLE IF NOT EXISTS watchlist (email TEXT NOT NULL, code TEXT NOT NULL, a
 -- Market breadth history (liquid stocks, value_20d >= Rp 1 M), rebuilt by every full EOD run
 CREATE TABLE IF NOT EXISTS breadth_daily (
   date TEXT PRIMARY KEY, n INTEGER NOT NULL, above200 INTEGER NOT NULL, above50 INTEGER NOT NULL,
-  up INTEGER NOT NULL, down INTEGER NOT NULL, hi52 INTEGER NOT NULL, lo52 INTEGER NOT NULL, ihsg REAL
+  up INTEGER NOT NULL, down INTEGER NOT NULL, hi52 INTEGER NOT NULL, lo52 INTEGER NOT NULL, ihsg REAL,
+  idx30_n INTEGER, idx30_above60 INTEGER, -- IDX30 members with data / closing above SMA60
+  k100_n INTEGER, k100_above60 INTEGER -- same for KOMPAS100
 );
 
 -- Laboratorium uji (rebuilt weekly by run-lab.ts; DROP + CREATE there, this is only for fresh databases)

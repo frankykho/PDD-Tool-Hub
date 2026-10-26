@@ -225,7 +225,8 @@ async function handle(url: URL, env: Env): Promise<Response> {
 
   if (path === "/api/breadth") {
     const { results } = await db
-      .prepare("SELECT date, n, above200, above50, up, down, hi52, lo52, ihsg FROM breadth_daily ORDER BY date")
+      // SELECT *: idx30_n / idx30_above60 exist only after the first EOD run that rebuilds the table
+      .prepare("SELECT * FROM breadth_daily ORDER BY date")
       .all()
       .catch(() => ({ results: [] as unknown[] })); // table appears after the first full EOD run
     return json({ rows: results });
