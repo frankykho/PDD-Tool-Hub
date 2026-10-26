@@ -1013,3 +1013,18 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
   .own-net { overflow-x: auto; }
   .own-net svg { min-width: 820px; }
 }
+
+/* ── Frequency Analyzer */
+.flow-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; padding: 12px 18px 16px; }
+.flow-read { margin-bottom: 6px; color: var(--mu); }
+.flow-bars { width: 100%; height: auto; display: block; }
+.flow-bar { fill: var(--bd2); }
+.flow-spike { fill: var(--ac); }
+.flow-levels { display: flex; flex-direction: column; gap: 3px; }
+.flow-level { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: center; gap: 6px; }
+.flow-level .mono { text-align: center; }
+.flow-l, .flow-r { display: flex; height: 10px; }
+.flow-l { justify-content: flex-end; }
+.flow-l i { background: var(--sell); border-radius: 2px 0 0 2px; }
+.flow-r i { background: var(--buy); border-radius: 0 2px 2px 0; }
+@media (max-width: 760px) { .flow-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,84 @@
+name: Frekuensi & HAKA/HAKI (harian)
+
+# Done summary IPOT hanya berisi hari bursa berjalan, jadi dikumpulkan tiap hari setelah pasar tutup (lihat run-flow.ts).
+on:
+  schedule:
+    # 16:45 WIB, cadangan 18:30 WIB (jadwal GitHub bisa molor; run kedua dilewati bila hari ini sudah tersimpan)
+    - cron: "45 9 * * 1-5"
+    - cron: "30 11 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: d1-writer
+  cancel-in-progress: false
+
+jobs:
+  flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/sats/worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/sats/worker/package-lock.json
+
+      - name: Install root (untuk scripts/deploy.mjs)
+        working-directory: .
+        run: npm ci
+
+      - name: Install
+        run: npm ci
+
+      - name: Tests
+        run: |
+          npx tsx src/flow/test-flow.ts
+          npx tsx src/flow/test-flow-api.ts
+
+      - name: Config D1 (ID database sats-db dicari menurut nama -> wrangler.deploy.json)
+        working-directory: .
+        run: node scripts/deploy.mjs --resolve sats
+
+      - name: Sudah tersimpan hari ini? / data hari terakhir
+        id: state
+        run: |
+          TODAY=$(TZ=Asia/Jakarta date +%F)
+          Q() { npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "$1" 2>/dev/null \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const r=JSON.parse(s)[0].results[0]||{};console.log(Object.values(r).join(","))}catch{console.log("")}})' || true; }
+          N=$(Q "SELECT COUNT(*) AS n FROM flow_daily WHERE date = '$TODAY'")
+          LAST=$(Q "SELECT freq, lot FROM flow_daily WHERE code = 'BBCA' ORDER BY date DESC LIMIT 1")
+          echo "Hari ini $TODAY: ${N:-0} baris · BBCA terakhir: ${LAST:-(belum ada)}"
+          echo "done=$([ "${N:-0}" -gt 300 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "last=$LAST" >> "$GITHUB_OUTPUT"
+
+      - name: Kumpulkan (done summary IPOT)
+        if: steps.state.outputs.done != '1'
+        run: |
+          if [ -n "${{ steps.state.outputs.last }}" ]; then
+            npx tsx src/pipeline/run-flow.ts --last "${{ steps.state.outputs.last }}"
+          else
+            npx tsx src/pipeline/run-flow.ts
+          fi
+
+      - name: Write to D1
+        if: steps.state.outputs.done != '1'
+        run: |
+          if [ -s out/flow.sql ]; then
+            npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --file=out/flow.sql
+          else
+            echo "Tidak ada data baru."
+          fi
+
+      - name: Verify
+        run: npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --command "SELECT date, COUNT(*) AS saham FROM flow_daily GROUP BY date ORDER BY date DESC LIMIT 5" || echo "Tabel belum ada (belum ada data)."

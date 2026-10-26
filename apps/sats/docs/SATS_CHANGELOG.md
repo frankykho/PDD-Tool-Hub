@@ -315,3 +315,9 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 ## 2026-10-26 (6) — VCP berbasis ayunan
 - `chartPatterns` mendeteksi `vcp` (forming / breakout): tren naik (close > MA50 > MA200, ≤ 25% di bawah high 52 minggu), basis mulai dari high tertinggi 120 hari terakhir, setiap koreksi puncak→lembah ayunan lebih dangkal dari sebelumnya dengan lembah bertahan (≥ lembah sebelumnya − 2%), ≥ 2 koreksi, pertama 8–40%, terakhir ≤ 12%, volume 10 hari < 50 hari. Pivot = high koreksi terakhir.
 - Menggantikan VCP lama (3 jendela tetap 15 hari) di halaman Pola dan preset Screener "VCP". Contoh: HATM 27% → 19,7% → 11,9%, breakout 12 Okt 2026.
+
+## 2026-10-26 (7) — Frequency Analyzer & HAKA/HAKI
+- Pengumpul harian `pipeline/run-flow.ts` (workflow `sats-flow.yml`, 16:45 WIB + cadangan 18:30): done summary IPOT per saham (hanya hari berjalan) -> `flow_daily` (frekuensi, lot, lot & frekuensi HAKA/HAKI, VWAP) dan `flow_latest` (level harga hari terakhir). Dilewati bila hari ini sudah tersimpan atau data BBCA sama persis dengan hari terakhir (libur bursa).
+- API `src/flowApi.ts`: `/api/flow/today` (lot/transaksi, rasio vs median 20 hari, spike ≥ 2× dengan ≥ 10 hari pembanding, % HAKA, sideways = perubahan 20 hari ±8% & Bollinger ≤ 15%), `/api/flow/stock`. Test: `src/flow/test-flow.ts`, `src/flow/test-flow-api.ts`.
+- Halaman **Frekuensi** (#/frekuensi) dan kartu Frequency Analyzer di detail saham (batang lot/transaksi harian, HAKA/HAKI per harga). Belum teruji sebagai sinyal: uji Lab setelah ±3 bulan data.
+- Hasil Lab Uji lokal pola baru (excess 10 hari): VCP ayunan +0,3% (netral; dengan stop loss +3,0%), descending triangle −1,2% (teruji sebagai peringatan), channel turun · breakout −1,0% (kalah dari pasar), bear flag −1,7% (data kurang).

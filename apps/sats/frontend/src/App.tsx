@@ -8,6 +8,7 @@ import Screener from "./pages/Screener";
 import Radar from "./pages/Radar";
 import Patterns from "./pages/Patterns";
 import Owners from "./pages/Owners";
+import Flow from "./pages/Flow";
 import Warrant from "./pages/Warrant";
 // Strategy Lab memuat mesin SATS & backtest: diunduh terpisah saat menu Backtest dibuka
 const StrategyLab = lazy(() => import("./pages/StrategyLab"));
@@ -21,7 +22,7 @@ import { api, fetchMe, type Me } from "./api";
 import { loadWatchlist } from "./watchlist";
 
 /** Hash routes: #/  and  #/saham/BBCA  (works on any static host, no server rewrites). */
-type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "patterns" } | { page: "owners" } | { page: "radar" } | { page: "backtest" } | { page: "warrant" } | { page: "admin" } | { page: "stock"; code: string };
+type Route = { page: "dashboard" } | { page: "today" } | { page: "market" } | { page: "lab" } | { page: "track" } | { page: "screener" } | { page: "patterns" } | { page: "owners" } | { page: "flow" } | { page: "radar" } | { page: "backtest" } | { page: "warrant" } | { page: "admin" } | { page: "stock"; code: string };
 
 function parseRoute(hash: string): Route {
   const m = hash.match(/^#\/saham\/([A-Za-z0-9]{2,6})/);
@@ -33,6 +34,7 @@ function parseRoute(hash: string): Route {
   if (hash.startsWith("#/screener")) return { page: "screener" };
   if (hash.startsWith("#/pola")) return { page: "patterns" };
   if (hash.startsWith("#/pemegang")) return { page: "owners" };
+  if (hash.startsWith("#/frekuensi")) return { page: "flow" };
   if (hash.startsWith("#/radar")) return { page: "radar" };
   if (hash.startsWith("#/backtest")) return { page: "backtest" };
   if (hash.startsWith("#/waran")) return { page: "warrant" };
@@ -123,6 +125,8 @@ export default function App() {
       <Patterns />
     ) : route.page === "owners" ? (
       <Owners />
+    ) : route.page === "flow" ? (
+      <Flow />
     ) : route.page === "radar" ? (
       <Radar />
     ) : route.page === "warrant" ? (

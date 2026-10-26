@@ -390,6 +390,40 @@ export interface TrackParams {
   code?: string;
 }
 
+/** Frequency Analyzer & HAKA/HAKI (harian, /api/flow/*). */
+export interface FlowDay {
+  date: string;
+  code: string;
+  freq: number;
+  lot: number;
+  b_lot: number; // lot di offer (HAKA)
+  s_lot: number; // lot di bid (HAKI)
+  b_freq: number;
+  s_freq: number;
+  vwap: number | null;
+  avg_lot: number | null; // lot per transaksi
+  base_avg_lot: number | null; // median 20 hari sebelumnya
+  base_days: number;
+  ratio: number | null; // avg_lot / base_avg_lot
+  spike: boolean;
+  haka: number | null; // 0..1
+}
+export interface FlowToday {
+  date: string | null;
+  days?: number;
+  spike?: number;
+  empty?: boolean;
+  rows: Array<FlowDay & { name: string | null; close: number | null; chg1: number | null; chg20: number | null; bb_width: number | null; value_20d: number | null; sideways: boolean | null }>;
+}
+export interface FlowStock {
+  date: string | null;
+  empty?: boolean;
+  code?: string;
+  spike?: number;
+  series?: FlowDay[];
+  levels?: { date: string; rows: number[][] } | null; // [harga, lot HAKA, lot HAKI, frek HAKA, frek HAKI]
+}
+
 /** Pemegang saham ≥ 1% (bulanan, /api/owners/*). */
 export type OwnerCat = "perorangan" | "korporasi" | "institusi" | "pemerintah" | "kustodian" | "lainnya";
 export interface OwnersMonths { asOf: string | null; prev: string | null; months: string[]; empty?: boolean }
@@ -468,6 +502,8 @@ export const api = {
   makeAnalysis: (code: string) => post<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`, {}),
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),
   ownersSummary: () => get<OwnersSummary>("/api/owners/summary"),
+  flowToday: () => get<FlowToday>("/api/flow/today"),
+  flowStock: (code: string) => get<FlowStock>(`/api/flow/stock?code=${encodeURIComponent(code)}`),
   ownersSearch: (q: string) => get<OwnersMonths & { holders: OwnerHit[]; stocks: Array<{ code: string; name: string }> }>(`/api/owners/search?q=${encodeURIComponent(q)}`),
   ownersHolder: (key: string) => get<OwnersMonths & { key: string; rows: OwnerRow[]; exited: Array<{ code: string; before: number }> }>(`/api/owners/holder?key=${encodeURIComponent(key)}`),
   ownersStock: (code: string) => get<OwnersMonths & { code: string; stock: { code: string; name: string } | null; rows: OwnerRow[]; exited: Array<{ hkey: string; name: string; cat: OwnerCat; before: number }> }>(`/api/owners/stock?code=${encodeURIComponent(code)}`),
