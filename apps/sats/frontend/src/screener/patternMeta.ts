@@ -50,11 +50,11 @@ export const CHARTS: PatternMeta[] = [
   },
   {
     id: "cup_handle", name: "Cup & handle", bias: "bull",
-    help: "Mangkuk berbentuk U (dalam 12–35%, 30–120 hari, dua bibir setara ±5%), lalu 'gagang' 5–25 hari yang turun 3–15% di separuh atas mangkuk. Breakout = tutup di atas bibir kanan.",
+    help: "Mangkuk berbentuk U (dalam 12–35%, 30–120 hari, dua bibir setara ±5%), lalu 'gagang' 5–25 hari yang turun 0–15% di separuh atas mangkuk. Breakout = tutup di atas bibir kanan.",
   },
   {
     id: "channel_up", name: "Channel breakout", bias: "bull",
-    help: "Harga bergerak di saluran sejajar (datar atau naik, lebar ≥ 6%) dari 3–4 puncak dan lembah terakhir dalam 60 hari. Breakout = tutup di atas garis atas saluran.",
+    help: "Harga bergerak di saluran sejajar (datar atau naik, lebar ≥ 6%) dari 3–4 puncak dan lembah terakhir dalam 60 hari. Terbentuk = harga di separuh atas saluran; breakout = tutup di atas garis atas saluran.",
   },
   {
     id: "inv_hs", name: "Inverse head & shoulders", bias: "bull",
@@ -78,7 +78,19 @@ export const CHARTS: PatternMeta[] = [
   },
   {
     id: "new_uptrend", name: "Tren naik baru", bias: "bull",
-    help: "60 hari lalu masih di bawah MA200, kini di atas MA50 & MA200 dengan puncak dan lembah makin tinggi. Sinyal = tutup di atas puncak terakhir.",
+    help: "60 hari lalu masih di bawah MA200, kini di atas MA50 & MA200 dengan puncak dan lembah makin tinggi. Terbentuk = harga ≤ 5% di bawah puncak terakhir; breakout = tutup di atasnya.",
+  },
+  {
+    id: "channel_down", name: "Channel turun · breakout", bias: "bull",
+    help: "Harga turun di saluran sejajar (puncak dan lembah sama-sama turun, lebar ≥ 6%) dalam 60 hari. Terbentuk = harga menekan garis atas (≤ 3%); breakout = tutup di atas garis atas: tren turun mungkin berakhir.",
+  },
+  {
+    id: "desc_triangle", name: "Descending triangle — waspada", bias: "bear",
+    help: "Support datar (≥ 2 lembah setara ±2%) dengan puncak yang makin rendah, dalam 60 hari. 'Breakout' = tutup jebol ke bawah support.",
+  },
+  {
+    id: "bear_flag", name: "Bear flag — waspada", bias: "bear",
+    help: "Turun tajam ≥ 15% dalam ≤ 10 hari, lalu pantulan lemah 10–50% dengan volume lebih kecil. 'Breakout' = tutup di bawah low bendera: penurunan berlanjut.",
   },
   {
     id: "hs_top", name: "Head & shoulders — waspada", bias: "bear",

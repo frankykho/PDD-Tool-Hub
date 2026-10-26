@@ -305,3 +305,9 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 - API `src/owners.ts`: `/api/owners/summary` (pemegang di saham terbanyak tanpa kustodian; perubahan terbesar vs bulan lalu, ganti nama dengan porsi sama tidak dihitung), `/search`, `/holder`, `/stock`, `/network`. Test: `src/ownership/test-holders.ts`, `src/ownership/test-owners.ts` (D1 ditiru node:sqlite).
 - Halaman: cari nama/kode, ringkasan, tampilan pemegang (grafik jaringan radial: saham miliknya + pemegang ≥ 1% lain di saham itu, klik untuk pindah; tabel porsi, perubahan, lembar, nilai), tampilan saham (semua pemegang ≥ 1% + yang keluar). Kartu "Pemegang saham ≥ 1%" di detail saham. Menu HP kini bisa digeser ke samping (10 menu).
 - Uji KSEI kepemilikan per tipe investor 2023–2026 (45 bulan): perubahan porsi ritel / institusi lokal / reksa dana / asing tidak memprediksi return bulan berikutnya (|t| < 2), jadi halaman ini informasi, bukan sinyal.
+
+## 2026-10-26 (5) — Halaman Pola lebih lengkap
+- Pola candle (10 naik, 10 waspada) tampil di halaman Pola bila muncul hari ini atau kemarin; kartu candle yang tidak muncul disembunyikan.
+- 3 pola chart baru: channel turun · breakout (naik), descending triangle (waspada), bear flag (waspada). Lab Uji ikut menguji mulai Sabtu.
+- Status "terbentuk" dilonggarkan (Lab Uji hanya memakai breakout, jadi vonis tidak berubah): tren naik baru ≤ 5% di bawah puncak terakhir, channel naik di separuh atas saluran, gagang cup & handle 0–15%.
+- Contoh 23 Okt 2026 (saham ≥ Rp1 M/hari): 258 pola di 199 saham (chart 71, candle 187); sebelumnya 64.

@@ -15,7 +15,7 @@ export type CandleId =
 export type ChartId =
   | "double_bottom" | "double_top" | "asc_triangle" | "bull_flag"
   | "cup_handle" | "inv_hs" | "hs_top" | "falling_wedge" | "rising_wedge" | "sym_triangle" | "channel_up"
-  | "rounding_bottom" | "wyckoff_accum" | "new_uptrend";
+  | "rounding_bottom" | "wyckoff_accum" | "new_uptrend" | "channel_down" | "desc_triangle" | "bear_flag";
 
 /** Candle patterns completed at bar i (empty when none). */
 export function candlesAt(bars: SatsInputBar[], i: number): CandleId[] {
@@ -238,6 +238,52 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
     }
   }
 
+  // ---- Descending triangle (warning): ≥ 2 pivot lows at the same level (±2%) + falling pivot highs, within 60 bars.
+  // "Breakout" = close below the support.
+  {
+    const highs = pivots(bars, i - 60, i, "high");
+    const lows = pivots(bars, i - 60, i, "low");
+    if (highs.length >= 2 && lows.length >= 2) {
+      const ls = lows.slice(-3).map((k) => bars[k].low);
+      const sup = Math.min(...ls);
+      const flat = Math.max(...ls) <= sup * 1.02;
+      const hA = bars[highs[highs.length - 2]].high;
+      const hB = bars[highs[highs.length - 1]].high;
+      if (flat && hB <= hA / 1.03 && hB > sup * 1.03) {
+        if (crossedDown(sup * 0.995)) out.push("desc_triangle:breakout");
+        else if (c(i) >= sup && c(i) <= sup * 1.05) out.push("desc_triangle:forming");
+      }
+    }
+  }
+
+  // ---- Bear flag (warning): drop ≥ 15% in ≤ 10 bars ending 3–15 bars ago, then a bounce of 10–50% on lower volume.
+  // "Breakout" = close below the flag low.
+  {
+    let best: { bottom: number; start: number } | null = null;
+    for (let t = i - 15; t <= i - 3; t += 1) {
+      for (let s = t - 10; s < t; s += 1) {
+        if (c(t) / c(s) - 1 <= -0.15 && (!best || c(t) < c(best.bottom))) best = { bottom: t, start: s };
+      }
+    }
+    if (best && c(best.bottom) <= minLow(bars, best.bottom, i) * 1.02) {
+      const t = best.bottom;
+      const poleHigh = c(best.start);
+      const flagHigh = maxHigh(bars, t + 1, i);
+      const bounce = (flagHigh - c(t)) / (poleHigh - c(t));
+      let vPole = 0;
+      let vFlag = 0;
+      for (let k = best.start + 1; k <= t; k += 1) vPole += bars[k].volume ?? 0;
+      for (let k = t + 1; k <= i; k += 1) vFlag += bars[k].volume ?? 0;
+      vPole /= t - best.start;
+      vFlag /= i - t;
+      const flagLow = minLow(bars, t + 1, i - 1);
+      if (bounce >= 0.1 && bounce <= 0.5 && vFlag < vPole) {
+        if (c(i) < flagLow && c(i - 1) >= flagLow) out.push("bear_flag:breakout");
+        else out.push("bear_flag:forming");
+      }
+    }
+  }
+
   // ---- Cup & handle (O'Neil): rims ±5% apart 30–120 bars, U-shaped cup 12–35% deep (bottom in the middle 60%,
   // ≥ 15% of the cup near the bottom = not a V), then a handle 5–25 bars long that pulls back 3–15% and stays in the
   // upper half of the cup. Breakout = close above the right rim.
@@ -261,7 +307,8 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
         if (nearBottom < 0.15 * (R - L)) continue;
         const handleLow = minLow(bars, R + 1, i);
         const pull = 1 - handleLow / rimR;
-        if (pull >= 0.03 && pull <= 0.15 && handleLow >= bottom + (top - bottom) / 2) {
+        // handle 0–15% deep (0 = the handle has only just started; breakout still needs the close above the rim)
+        if (pull <= 0.15 && handleLow >= bottom + (top - bottom) / 2) {
           if (crossedUp(rimR)) out.push("cup_handle:breakout");
           else if (c(i) <= rimR) out.push("cup_handle:forming");
         }
@@ -334,7 +381,13 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
       const parallel = Math.abs(sh - sl) <= 0.05 && sl > -0.05 && gapI >= c(i) * 0.06 && gap0 > 0;
       if (parallel && !converging) {
         if (crossedUp(upperI)) out.push("channel_up:breakout");
-        else if (c(i) <= upperI && c(i) >= upperI * 0.97) out.push("channel_up:forming");
+        else if (c(i) <= upperI && c(i) >= (upperI + lowerI) / 2) out.push("channel_up:forming"); // upper half of the channel
+      }
+      // falling channel (both lines down, parallel): a close above the upper line ends the downtrend
+      const fallingChannel = Math.abs(sh - sl) <= 0.05 && sh < -0.05 && sl < -0.05 && gapI >= c(i) * 0.06 && gap0 > 0;
+      if (fallingChannel && !converging) {
+        if (crossedUp(upperI)) out.push("channel_down:breakout");
+        else if (c(i) <= upperI && c(i) >= upperI * 0.97) out.push("channel_down:forming"); // pressing on the upper line
       }
     }
   }
@@ -394,7 +447,7 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
   }
 
   // ---- New uptrend: below MA200 60 bars ago, now above MA50 and MA200 with higher highs and higher lows (last two
-  // pivots); signal = close above the latest pivot high. Breakout only.
+  // pivots); breakout = close above the latest pivot high, forming = within 5% below it.
   if (i >= 260) {
     const avg = (to: number, len: number) => {
       let sum = 0;
@@ -407,7 +460,10 @@ export function chartPatterns(bars: SatsInputBar[]): string | null {
     if (wasDown && c(i) > avg(i, 50) && c(i) > avg(i, 200) && ph.length >= 2 && pl.length >= 2) {
       const [h1, h2] = ph.slice(-2).map((k) => bars[k].high);
       const [l1, l2] = pl.slice(-2).map((k) => bars[k].low);
-      if (h2 > h1 && l2 > l1 && crossedUp(h2)) out.push("new_uptrend:breakout");
+      if (h2 > h1 && l2 > l1) {
+        if (crossedUp(h2)) out.push("new_uptrend:breakout");
+        else if (c(i) <= h2 && c(i) >= h2 * 0.95) out.push("new_uptrend:forming"); // structure in place, within 5% of the last high
+      }
     }
   }
   return out.length ? out.join(",") : null;
