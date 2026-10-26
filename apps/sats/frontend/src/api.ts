@@ -396,10 +396,10 @@ export interface FlowDay {
   code: string;
   freq: number;
   lot: number;
-  b_lot: number; // lot di offer (HAKA)
-  s_lot: number; // lot di bid (HAKI)
-  b_freq: number;
-  s_freq: number;
+  b_lot: number | null; // lot di offer (HAKA), hanya dari IPOT
+  s_lot: number | null; // lot di bid (HAKI)
+  b_freq: number | null;
+  s_freq: number | null;
   vwap: number | null;
   avg_lot: number | null; // lot per transaksi
   base_avg_lot: number | null; // median 20 hari sebelumnya
@@ -407,6 +407,8 @@ export interface FlowDay {
   ratio: number | null; // avg_lot / base_avg_lot
   spike: boolean;
   haka: number | null; // 0..1
+  source: "idx" | "ipot"; // BEI Ringkasan Saham (diunggah) atau done summary IPOT
+  foreign_net: number | null; // lot beli − jual asing (hanya dari BEI)
 }
 export interface FlowToday {
   date: string | null;
@@ -503,6 +505,7 @@ export const api = {
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),
   ownersSummary: () => get<OwnersSummary>("/api/owners/summary"),
   flowToday: () => get<FlowToday>("/api/flow/today"),
+  flowUpload: (date: string, rows: unknown[]) => post<{ ok: boolean; date: string; rows: number }>("/api/flow/upload", { date, rows }),
   flowStock: (code: string) => get<FlowStock>(`/api/flow/stock?code=${encodeURIComponent(code)}`),
   ownersSearch: (q: string) => get<OwnersMonths & { holders: OwnerHit[]; stocks: Array<{ code: string; name: string }> }>(`/api/owners/search?q=${encodeURIComponent(q)}`),
   ownersHolder: (key: string) => get<OwnersMonths & { key: string; rows: OwnerRow[]; exited: Array<{ code: string; before: number }> }>(`/api/owners/holder?key=${encodeURIComponent(key)}`),

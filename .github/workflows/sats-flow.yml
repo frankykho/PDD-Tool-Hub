@@ -45,6 +45,7 @@ jobs:
         run: |
           npx tsx src/flow/test-flow.ts
           npx tsx src/flow/test-flow-api.ts
+          npx tsx src/flow/test-xlsx.ts
 
       - name: Config D1 (ID database sats-db dicari menurut nama -> wrangler.deploy.json)
         working-directory: .

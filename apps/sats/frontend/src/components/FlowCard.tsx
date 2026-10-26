@@ -32,6 +32,8 @@ export default function FlowCard({ code }: { code: string }) {
               <span className="dim">{fmtDate(cur.date, true)}</span> · lot/trx <b className="mono">{fmt1(cur.avg_lot)}</b>
               {cur.ratio != null && <> · <b className={`mono ${cur.spike ? "accent" : ""}`}>{fmt1(cur.ratio)}×</b> biasa</>}
               {" "}· frek <span className="mono">{fmtNum(cur.freq)}</span> · HAKA <span className="mono">{cur.haka == null ? "—" : `${Math.round(cur.haka * 100)}%`}</span>
+              {cur.foreign_net != null && <> · asing <span className={`mono ${cur.foreign_net >= 0 ? "buy" : "sell"}`}>{fmtNum(cur.foreign_net)} lot</span></>}
+              <span className="dim"> · {cur.source === "idx" ? "BEI" : "IPOT"}</span>
             </div>
           )}
           <svg viewBox={`0 0 ${W} ${H}`} className="flow-bars" role="img" aria-label="Lot per transaksi harian" onMouseLeave={() => setHover(null)}>

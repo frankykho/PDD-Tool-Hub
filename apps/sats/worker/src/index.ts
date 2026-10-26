@@ -17,6 +17,7 @@
  *   GET /api/breadth                           market breadth history (liquid stocks, ≈ 1 year)
  *   GET /api/owners/*                          shareholders ≥ 1% (monthly, src/owners.ts)
  *   GET /api/flow/*                            Frequency Analyzer & HAKA/HAKI (daily, src/flowApi.ts)
+ *   POST /api/flow/upload                      BEI "Ringkasan Saham" rows for one date (admin)
  *   GET /api/screener                          technical metrics of every stock + SATS state + index membership
  *   GET /api/history/:code                     ±6 years of daily Yahoo data, passed through (Strategy Lab parses it in the browser)
  *   GET/POST /api/analyst/:code                AI analysis of one stock (src/analyst.ts)
@@ -32,7 +33,7 @@ import { themeHead } from "../../../../shared/theme.js";
 import { SATS_THEME_CSS } from "./theme";
 import { analystRoute, type AnalystEnv } from "./analyst";
 import { ownersRoute } from "./owners";
-import { flowRoute } from "./flowApi";
+import { flowRoute, flowUpload } from "./flowApi";
 
 interface Env extends AuthEnv, AnalystEnv {
   screener_db: D1Database;
@@ -675,6 +676,12 @@ export default withCron({
         if (url.pathname.replace(/\/+$/, "") === "/api/watchlist") return await watchlist(request, env, email);
         // Track Record (all stocks) and Lab Uji are admin-only; a single stock's history stays visible on its detail page
         const p = url.pathname.replace(/\/+$/, "");
+        // BEI "Ringkasan Saham" upload for the Frequency Analyzer (admin)
+        if (p === "/api/flow/upload") {
+          if (!me.isAdmin) return json({ error: "admin only" }, 403, 0);
+          if (request.method !== "POST") return json({ error: "method not allowed" }, 405, 0);
+          return await flowUpload(request, env.screener_db, json, email);
+        }
         if (!me.isAdmin && (p === "/api/lab" || p === "/api/track/compare" || (p === "/api/track" && !url.searchParams.get("code")))) {
           return json({ error: "admin only" }, 403, 0);
         }

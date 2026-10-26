@@ -321,3 +321,9 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 - API `src/flowApi.ts`: `/api/flow/today` (lot/transaksi, rasio vs median 20 hari, spike ≥ 2× dengan ≥ 10 hari pembanding, % HAKA, sideways = perubahan 20 hari ±8% & Bollinger ≤ 15%), `/api/flow/stock`. Test: `src/flow/test-flow.ts`, `src/flow/test-flow-api.ts`.
 - Halaman **Frekuensi** (#/frekuensi) dan kartu Frequency Analyzer di detail saham (batang lot/transaksi harian, HAKA/HAKI per harga). Belum teruji sebagai sinyal: uji Lab setelah ±3 bulan data.
 - Hasil Lab Uji lokal pola baru (excess 10 hari): VCP ayunan +0,3% (netral; dengan stop loss +3,0%), descending triangle −1,2% (teruji sebagai peringatan), channel turun · breakout −1,0% (kalah dari pasar), bear flag −1,7% (data kurang).
+
+## 2026-10-26 (8) — Unggah Ringkasan Saham BEI (Frequency Analyzer)
+- Admin bisa mengunggah file .xlsx "Ringkasan Saham" BEI (idx.co.id > Data Pasar > Ringkasan Perdagangan > Ringkasan Saham) di halaman Frekuensi, satu atau banyak tanggal sekaligus. File dibaca di browser (`frontend/src/flow/xlsx.ts`, tanpa library; kolom dicari menurut judul, `flow/idxSummary.ts`), lalu `POST /api/flow/upload` -> tabel `idx_daily` (volume, nilai, frekuensi, non-reguler, beli/jual asing).
+- Frequency Analyzer memakai BEI (papan reguler = total − non-reguler) bila ada untuk tanggal itu, selain itu IPOT; HAKA/HAKI tetap dari IPOT. Kolom/keterangan baru: net asing (lot) dan sumber data. Dengan unggahan tanggal lalu, histori (dan uji Lab) tidak perlu menunggu 3 bulan.
+- Sumber BEI lewat unduhan browser biasa: tidak ada pengambilan otomatis yang menembus proteksi idx.co.id.
+- Test: `src/flow/test-xlsx.ts` (membuat .xlsx sungguhan), `src/flow/test-flow-api.ts` (unggah, validasi, penggabungan sumber).

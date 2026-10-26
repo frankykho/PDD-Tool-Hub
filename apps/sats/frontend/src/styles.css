@@ -1028,3 +1028,6 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .flow-l i { background: var(--sell); border-radius: 2px 0 0 2px; }
 .flow-r i { background: var(--buy); border-radius: 0 2px 2px 0; }
 @media (max-width: 760px) { .flow-grid { grid-template-columns: 1fr; } }
+.idx-up { position: relative; cursor: pointer; align-self: flex-start; }
+.idx-up input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.idx-log { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }

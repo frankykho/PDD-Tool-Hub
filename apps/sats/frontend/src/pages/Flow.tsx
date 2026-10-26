@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { api } from "../api";
 import { ErrorBox, Loading } from "../components/Bits";
 import { WithInfo } from "../components/Info";
+import IdxUpload from "../components/IdxUpload";
 import Star from "../components/Star";
 import { fmt1, fmtDate, fmtNum, fmtPct, fmtPrice, fmtRp } from "../format";
 import { openStock } from "../nav";
@@ -21,7 +22,10 @@ export const FLOW_INFO =
   "HAKI = di harga bid (penjual agresif). Data dikumpulkan tiap hari setelah pasar tutup sejak Okt 2026; belum diuji di Lab Uji (perlu ±3 bulan data).";
 
 export default function Flow() {
-  const data = useAsync(() => api.flowToday(), []);
+  const [reload, setReload] = useState(0);
+  const data = useAsync(() => api.flowToday(), [reload]);
+  const me = useAsync(() => api.me(), []);
+  const admin = !!me.data?.isAdmin;
   const [view, setView] = useState<View>("spike_side");
   const [minValue, setMinValue] = useState(1);
   const [hakaOnly, setHakaOnly] = useState(false);
@@ -51,8 +55,9 @@ export default function Flow() {
         </div>
       </div>
 
+      {admin && <IdxUpload onDone={() => setReload((x) => x + 1)} />}
       {d.empty ? (
-        <section className="card pad"><p>Belum ada data. Pengumpulan berjalan tiap hari bursa setelah pasar tutup (±16.45 WIB).</p></section>
+        <section className="card pad"><p>Belum ada data. Pengumpulan berjalan tiap hari bursa setelah pasar tutup (±16.45 WIB){admin ? ", atau unggah Ringkasan Saham BEI di atas" : ""}.</p></section>
       ) : (
         <>
           {warming && (
@@ -95,6 +100,7 @@ export default function Flow() {
                     <th className="num">Lot/trx</th>
                     <th className="num"><WithInfo info="Lot per transaksi hari ini dibagi median 20 hari sebelumnya.">× biasa</WithInfo></th>
                     <th className="num"><WithInfo info="Porsi lot yang terjadi di harga offer (pembeli agresif).">HAKA</WithInfo></th>
+                    <th className="num"><WithInfo info="Beli − jual asing hari itu (lot). Hanya ada bila Ringkasan Saham BEI tanggal itu sudah diunggah.">Asing</WithInfo></th>
                     <th>Sideways</th>
                   </tr>
                 </thead>
@@ -110,6 +116,7 @@ export default function Flow() {
                       <td className="num mono">{fmt1(r.avg_lot)}</td>
                       <td className={`num mono ${r.spike ? "accent" : ""}`}>{r.ratio == null ? "—" : `${fmt1(r.ratio)}×`}</td>
                       <td className={`num mono ${(r.haka ?? 0.5) >= 0.6 ? "buy" : (r.haka ?? 0.5) <= 0.4 ? "sell" : ""}`}>{r.haka == null ? "—" : `${Math.round(r.haka * 100)}%`}</td>
+                      <td className={`num mono ${(r.foreign_net ?? 0) > 0 ? "buy" : (r.foreign_net ?? 0) < 0 ? "sell" : "dim"}`}>{r.foreign_net == null ? "—" : fmtNum(r.foreign_net)}</td>
                       <td className="small">{r.sideways ? <span className="buy">✓</span> : <span className="dim">—</span>}</td>
                     </tr>
                   ))}
@@ -119,7 +126,7 @@ export default function Flow() {
             {rows.length === 0 && <p className="state">Tidak ada saham yang cocok{warming && view !== "all" ? " (deteksi spike belum aktif)" : ""}.</p>}
           </section>
           <p className="small dim">
-            {FLOW_INFO} Nilai transaksi untuk filter: rata-rata 20 hari ({fmtRp(1e9)} = 1 M). Sumber: done summary IPOT (tidak resmi).
+            {FLOW_INFO} Nilai transaksi untuk filter: rata-rata 20 hari ({fmtRp(1e9)} = 1 M). Sumber: Ringkasan Saham BEI (diunggah admin; papan reguler) bila ada, selain itu done summary IPOT (tidak resmi). HAKA/HAKI hanya dari IPOT.
           </p>
         </>
       )}
