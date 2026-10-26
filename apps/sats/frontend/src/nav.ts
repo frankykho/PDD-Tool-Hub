@@ -39,15 +39,21 @@ export const lastDashboardHash = () => ss.get(DASH_HASH_KEY) ?? "#/";
 export const saveDashboardScroll = (y: number) => ss.set(DASH_SCROLL_KEY, String(Math.round(y)));
 export const savedDashboardScroll = () => Number(ss.get(DASH_SCROLL_KEY) ?? 0);
 
-/** Back from a detail page: browser back if we came from inside the app, else to the saved dashboard. */
+/**
+ * Back from a detail page: to the page the stock was opened from (remembered in the history entry), else the saved
+ * dashboard. Never history.back(): inside Tool Hub the iframe shares the session history with the hub, so going back
+ * after a detour through the hub undid the hub's own navigation and landed on the workspace.
+ */
 export function goBack(): void {
-  const cameFromApp = (history.state as { inApp?: boolean } | null)?.inApp === true;
-  if (cameFromApp) history.back();
-  else window.location.hash = lastDashboardHash();
+  const from = (history.state as { from?: string } | null)?.from;
+  const target = from && from.startsWith("#/") && !from.startsWith(window.location.hash) ? from : lastDashboardHash();
+  history.replaceState(null, "", target);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 
-/** Open a stock page and mark the entry so goBack() can use history.back(). */
+/** Open a stock page, remembering where it was opened from (see goBack). */
 export function openStock(code: string): void {
-  history.pushState({ inApp: true }, "", `#/saham/${code}`);
+  const here = window.location.hash || "#/";
+  history.pushState({ inApp: true, from: here }, "", `#/saham/${code}`);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
 }

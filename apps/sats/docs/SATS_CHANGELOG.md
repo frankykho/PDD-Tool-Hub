@@ -327,3 +327,6 @@ Hasil `compare-variants.ts --all` (data s/d 2026-09-23, transaksi ≥ Rp 5 M/har
 - Frequency Analyzer memakai BEI (papan reguler = total − non-reguler) bila ada untuk tanggal itu, selain itu IPOT; HAKA/HAKI tetap dari IPOT. Kolom/keterangan baru: net asing (lot) dan sumber data. Dengan unggahan tanggal lalu, histori (dan uji Lab) tidak perlu menunggu 3 bulan.
 - Sumber BEI lewat unduhan browser biasa: tidak ada pengambilan otomatis yang menembus proteksi idx.co.id.
 - Test: `src/flow/test-xlsx.ts` (membuat .xlsx sungguhan), `src/flow/test-flow-api.ts` (unggah, validasi, penggabungan sumber).
+
+## 2026-10-26 (9) — Tombol "Kembali" di detail saham
+- Tidak lagi memakai `history.back()`: di dalam Tool Hub, riwayat iframe dan hub digabung, sehingga setelah pindah ke hub lalu kembali ke SATS, "Kembali" membatalkan navigasi hub dan membuka workspace. Sekarang `openStock` mencatat halaman asal di entri riwayat, dan `goBack` mengganti entri saham dengan halaman asal itu (fallback: dashboard terakhir).
