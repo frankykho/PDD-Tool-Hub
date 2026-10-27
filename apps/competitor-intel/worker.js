@@ -102,6 +102,8 @@ export async function ciMigrate(env) {
   ]) { try { await env.DB.prepare(`ALTER TABLE ci_programs ADD COLUMN ${col[0]} ${col[1]}`).run(); } catch {} }
   try { await env.DB.prepare(`ALTER TABLE ci_sources ADD COLUMN mode TEXT DEFAULT 'auto'`).run(); } catch {}
   await env.DB.prepare(`CREATE INDEX IF NOT EXISTS ci_programs_discovered ON ci_programs(discovered_at)`).run();
+  // jumlah program per sumber (/api/ci/sources): tanpa index ini seluruh ci_programs terbaca sekali untuk tiap sumber
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS ci_programs_source ON ci_programs(source_id)`).run();
   // Status lama "Terverifikasi" disatukan ke "Aktif"; promo lama tanpa first_seen memakai discovered_at.
   await env.DB.batch([
     env.DB.prepare(`UPDATE ci_programs SET status='Aktif' WHERE status='Terverifikasi'`),

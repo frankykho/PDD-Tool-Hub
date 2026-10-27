@@ -87,6 +87,11 @@ export async function ensure(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_fin (code TEXT, period TEXT, company TEXT, currency TEXT, revenue REAL, revenue_prev REAL, revenue_yoy REAL,
     net_profit REAL, net_profit_prev REAL, net_profit_yoy REAL, note TEXT, sources TEXT, item_id TEXT, model TEXT, at TEXT, updated_at TEXT, notified INTEGER DEFAULT 0,
     PRIMARY KEY (code, period))`).run();
+  // index untuk filter waktu & antrean notifikasi (tanpa ini tiap panggilan beranda Hub / cron memindai seluruh mn_fin)
+  await env.DB.batch([
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS mn_fin_upd ON mn_fin(updated_at)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS mn_fin_new ON mn_fin(at) WHERE notified=0"),
+  ]);
   // latar banner KISI (ilustrasi AI): per tema (status usul → ok setelah disetujui tim) atau khusus satu berita (item_id)
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_bg (id TEXT PRIMARY KEY, theme TEXT, item_id TEXT, status TEXT, img TEXT, prompt TEXT,
     made_by TEXT, made_at TEXT)`).run();
@@ -198,7 +203,8 @@ const AI_MIN = 8; // skor minimal berita yang diringkas otomatis
 async function enrichQueue(env, n) {
   if (!env.AI && !env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
   const since = new Date(Date.now() - 36 * 3600e3).toISOString();
-  const L = (await env.DB.prepare("SELECT * FROM mn_items WHERE lead=1 AND status='baru' AND ai_state IS NULL AND score>=? AND seen_at>=? ORDER BY score DESC LIMIT ?").bind(AI_MIN, since, n).all()).results || [];
+  // INDEXED BY: tanpa statistik, D1 memilih index status, dan hampir semua berita tetap 'baru' -> seluruh tabel terbaca tiap cron
+  const L = (await env.DB.prepare("SELECT * FROM mn_items INDEXED BY mn_items_seen WHERE lead=1 AND status='baru' AND ai_state IS NULL AND score>=? AND seen_at>=? ORDER BY score DESC LIMIT ?").bind(AI_MIN, since, n).all()).results || [];
   let done = 0;
   for (const x of L) {
     if (!(await aiTake(env))) break;
@@ -284,8 +290,10 @@ export async function notifyFin(env) {
 async function hubToday(env) {
   await ensure(env);
   const today = ymd(wib()), since = new Date(Date.parse(today + "T00:00:00+07:00") - 864e5).toISOString();
-  const fin = (await env.DB.prepare(`SELECT ${FIN_COLS} FROM mn_fin WHERE at>=? OR updated_at>=? ORDER BY at DESC LIMIT 6`).bind(since, since).all()).results || [];
-  const c = await env.DB.prepare("SELECT SUM(status='terbit' AND published_at>=?) AS pub, SUM(status='baru' AND lead=1 AND ai_state='done' AND seen_at>=?) AS ready FROM mn_items").bind(since, since).first();
+  // updated_at ditulis saat baris dibuat/diubah (>= at, waktu berita), jadi cukup filter updated_at lewat index mn_fin_upd
+  const fin = (await env.DB.prepare(`SELECT ${FIN_COLS} FROM mn_fin WHERE updated_at>=? ORDER BY at DESC LIMIT 6`).bind(since).all()).results || [];
+  // dua hitungan lewat index (dulu satu SUM tanpa WHERE: seluruh mn_items terbaca tiap beranda Hub dimuat / 5 menit)
+  const c = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM mn_items WHERE status='terbit' AND published_at>=?1) AS pub, (SELECT COUNT(*) FROM mn_items INDEXED BY mn_items_seen WHERE seen_at>=?1 AND status='baru' AND lead=1 AND ai_state='done') AS ready").bind(since).first();
   return { date: today, fin: fin.map((r) => ({ ...r, sources: JSON.parse(r.sources || "[]") })), pub: (c && c.pub) || 0, ready: (c && c.ready) || 0 };
 }
 
@@ -421,7 +429,8 @@ export default withCron({
             : v === "skip" ? ["status='abaikan' AND seen_at>=? ORDER BY seen_at DESC LIMIT 100", [since]]
             : v === "all" ? ["seen_at>=? ORDER BY seen_at DESC LIMIT 300", [since]]
             : ["status='baru' AND lead=1 AND seen_at>=? ORDER BY score DESC, seen_at DESC LIMIT 80", [since]];
-          const L = (await env.DB.prepare(`SELECT ${ITEM_COLS} FROM mn_items WHERE ${q[0]}`).bind(...q[1]).all()).results || [];
+          // selain "pub": hanya 48 jam terakhir, lewat index seen_at (bukan index status yang mencakup semua berita lama)
+          const L = (await env.DB.prepare(`SELECT ${ITEM_COLS} FROM mn_items${v === "pub" ? "" : " INDEXED BY mn_items_seen"} WHERE ${q[0]}`).bind(...q[1]).all()).results || [];
           const m = await getMeta(env, "mkt"), px = (m && m.px) || {};
           return json(L.map((x) => ({ ...pub(x), raw_title: x.title, score: x.score, status: x.status, ai_state: x.ai_state, model: x.model, no_img: !!x.no_img, has_img: !!x.has_img, seen_at: x.seen_at, published_by: x.published_by,
             px: Object.fromEntries((x.tickers ? x.tickers.split(",") : []).filter((c) => typeof px[c] === "number").map((c) => [c, px[c]])) })));

@@ -138,7 +138,10 @@ async function init(env) {
     'CREATE INDEX IF NOT EXISTS urls_status ON urls(status, found_at)',
     'CREATE TABLE IF NOT EXISTS articles(id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT UNIQUE, source TEXT, topic TEXT, title TEXT, published TEXT, text TEXT, words INTEGER, notes TEXT, scraped_at INTEGER)',
     'CREATE INDEX IF NOT EXISTS art_topic ON articles(topic, scraped_at)',
+    // ringkasan beranda Hub (tiap 5 menit) & daftar terbaru: tanpa index ini seluruh artikel/draf terbaca tiap kali
+    'CREATE INDEX IF NOT EXISTS art_scraped ON articles(scraped_at)',
     'CREATE TABLE IF NOT EXISTS drafts(id INTEGER PRIMARY KEY AUTOINCREMENT, format TEXT, title TEXT, body TEXT, refs TEXT, score REAL, model TEXT, author TEXT, created_at INTEGER)',
+    'CREATE INDEX IF NOT EXISTS drafts_created ON drafts(created_at)',
     'CREATE TABLE IF NOT EXISTS robots(host TEXT PRIMARY KEY, body TEXT, fetched_at INTEGER)',
   ].map(s => env.DB.prepare(s)));
   ready = true;

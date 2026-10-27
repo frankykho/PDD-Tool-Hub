@@ -81,6 +81,8 @@ async function cnEnsure(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ci_content (id TEXT PRIMARY KEY, url TEXT NOT NULL UNIQUE, platform TEXT, account TEXT, format TEXT, caption TEXT, posted_at TEXT, likes INTEGER, comments INTEGER, pillar TEXT, topic TEXT, note TEXT, idea TEXT, image_data TEXT, image_url TEXT, saved_at TEXT NOT NULL, saved_by TEXT, edited_by TEXT)`).run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ci_accounts (platform TEXT NOT NULL, account TEXT NOT NULL, kind TEXT, PRIMARY KEY (platform, account))`).run();
   await env.DB.prepare(`CREATE INDEX IF NOT EXISTS ci_content_saved ON ci_content(saved_at)`).run();
+  // jumlah konten per akun (/api/ig, dipanggil ulang tiap 15 dtk selama scan): tanpa index ini seluruh ci_content terbaca per akun
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS ci_content_account ON ci_content(platform, account)`).run();
   // tambahan: tanda "sudah dipakai jadi insight" (kolom yang sudah ada dilewati)
   for (const c of ['used_at', 'used_by', 'used_ref']) { try { await env.DB.prepare(`ALTER TABLE ci_content ADD COLUMN ${c} TEXT`).run(); } catch {} }
   cnReady = true;
