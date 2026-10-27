@@ -475,7 +475,8 @@ function fillSelects(){
   // program hanya bisa dibuat Partnership & admin
   $("iKind").innerHTML=Object.keys(K).filter(k=>k!=="program"||PL.me.assign).map(k=>`<button type="button" data-k="${k}">${ICON[k]} ${esc(K[k].label)}</button>`).join("");
   $("iRole").innerHTML=opts(PL.eduRoles);$("iDst").innerHTML=opts(PL.designStatuses,DSL);
-  $("tJob").innerHTML=Object.keys(PL.roles).filter(k=>k!=="partnership").map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
+  // semua role bisa menerima tugas, termasuk Partnership (dari sesama Partnership atau admin)
+  $("tJob").innerHTML=Object.keys(PL.roles).map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
   const v=recall("pl_view");
   view=v==="list"||v==="month"||v==="design"||v==="tasks"||v==="perf"||v==="daily"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
   if(view==="month"&&matchMedia("(max-width:640px)").matches)view="list";
@@ -990,7 +991,7 @@ $("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 
 /* =================== LAPORAN (PPT / PDF) =================== */
-const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["desain","🎨 Tugas desain"]];
+const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["program","🤝 Program partnership"],["desain","🎨 Tugas desain"]];
 // jenis laporan: kegiatan tim (per orang) atau program partnership (per program)
 let RT="keg";
 function setRT(t){
@@ -1018,10 +1019,11 @@ $("rep").addEventListener("click",e=>{const b=e.target.closest("[data-per]");if(
 async function repData(){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const all=await api(`/api/items?from=${from}&to=${to}`),who=$("rWho").value,want=new Set([...$("rKinds").querySelectorAll("input:checked")].map(c=>c.value));
+  // overlap: program yang mulai sebelum periode tapi masih berjalan ikut masuk
+  const all=await api(`/api/items?from=${from}&to=${to}&overlap=1`),who=$("rWho").value,want=new Set([...$("rKinds").querySelectorAll("input:checked")].map(c=>c.value));
   if(!want.size)throw new Error("Pilih minimal satu isi laporan.");
   const mine=i=>!who||i.owner_email===who;
-  const S={};["edukasi","artikel","konten"].forEach(k=>{if(want.has(k))S[k]=all.filter(i=>kindOf(i)===k&&mine(i))});
+  const S={};["edukasi","artikel","konten","program"].forEach(k=>{if(want.has(k))S[k]=all.filter(i=>kindOf(i)===k&&mine(i))});
   if(want.has("desain"))S.desain=all.filter(i=>i.d_need&&(!who||i.d_who===who));
   const u=USERS.find(x=>x.email===who);
   const sum=L=>L.reduce((a,i)=>a+(+i.result_num||0),0),done=(L,s)=>L.filter(i=>s.includes(i.status));
@@ -1029,11 +1031,13 @@ async function repData(){
   if(S.edukasi){const ok=done(S.edukasi,["selesai"]);kpi.push(["Edukasi selesai",`${ok.length} dari ${S.edukasi.filter(i=>i.status!=="batal").length}`,`${int(sum(ok))} peserta · ${ok.filter(i=>i.role==="Narasumber").length}× narasumber`])}
   if(S.artikel){const ok=done(S.artikel,["terbit"]);kpi.push(["Artikel tayang",`${ok.length} dari ${S.artikel.length}`,`${int(sum(ok))} pembaca/views`])}
   if(S.konten){const ok=done(S.konten,["terbit"]);kpi.push(["Konten terbit",`${ok.length} dari ${S.konten.length}`,`${int(sum(ok))} jangkauan/views`])}
+  if(S.program){const run=S.program.filter(i=>i.status!=="batal"),n=f=>run.reduce((a,i)=>a+(+i[f]||0),0);
+    kpi.push(["Program partnership",`${done(run,["selesai"]).length} selesai dari ${run.length}`,`${int(n("result_num"))} peserta · ${int(n("leads"))} leads · ${int(n("accounts"))} akun baru`])}
   if(S.desain){const ok=S.desain.filter(i=>i.d_status==="selesai");kpi.push(["Visual selesai",`${ok.length} dari ${S.desain.length}`,`${S.desain.filter(i=>i.d_status!=="selesai"&&(i.d_due||i.date)<todayIso()).length} lewat tenggat`])}
   // rekap per orang (hanya kalau semua orang)
   let people=[];
-  if(!who){const by={};const add=(e,n,k,ok)=>{const key=e||"n:"+n;if(!key||key==="n:")return;const r=by[key]=by[key]||{name:nameOf(e)||n||e,role:(USERS.find(x=>x.email===e)||{}).role||"",edukasi:0,artikel:0,konten:0,desain:0};if(ok)r[k]++};
-    ["edukasi","artikel","konten"].forEach(k=>(S[k]||[]).forEach(i=>add(i.owner_email,i.owner,k,["selesai","terbit"].includes(i.status))));
+  if(!who){const by={};const add=(e,n,k,ok)=>{const key=e||"n:"+n;if(!key||key==="n:")return;const r=by[key]=by[key]||{name:nameOf(e)||n||e,role:(USERS.find(x=>x.email===e)||{}).role||"",edukasi:0,artikel:0,konten:0,program:0,desain:0};if(ok)r[k]++};
+    ["edukasi","artikel","konten","program"].forEach(k=>(S[k]||[]).forEach(i=>add(i.owner_email,i.owner,k,["selesai","terbit"].includes(i.status))));
     (S.desain||[]).forEach(i=>add(i.d_who,i.d_name,"desain",i.d_status==="selesai"));
     people=Object.values(by).sort((a,b)=>a.name.localeCompare(b.name));}
   const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
@@ -1044,9 +1048,10 @@ const COLS={
   edukasi:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:"")],["Acara / materi",i=>i.title],["Format",i=>i.channel],["Peran",i=>i.role||"–"],["Narasumber",i=>i.owner||"–"],["Penyelenggara / tempat",i=>[i.audience,i.place].filter(Boolean).join(" · ")||"–"],["Peserta",i=>int(i.result_num)],["Status",i=>STL[i.status]||i.status]],
   artikel:[["Tanggal",i=>fmtShort(i.date)],["Judul",i=>i.title],["Kanal",i=>i.channel],["Penulis",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Pembaca",i=>int(i.result_num)],["Link",i=>i.link||"–"]],
   konten:[["Tanggal",i=>fmtShort(i.date)],["Konten",i=>i.title],["Kanal",i=>i.channel],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Jangkauan",i=>int(i.result_num)],["Link",i=>i.link||"–"]],
+  program:[["Periode",i=>fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):"")],["Program",i=>i.title],["Partner",i=>i.partner||"–"],["Jenis",i=>i.channel||"–"],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Peserta",i=>int(i.result_num)],["Leads",i=>int(i.leads)],["Akun baru",i=>int(i.accounts)]],
   desain:[["Tenggat",i=>fmtShort(i.d_due||i.date)],["Visual untuk",i=>i.title],["Jenis / kanal",i=>`${(K[kindOf(i)]||{}).label} · ${i.channel}`],["Diminta",i=>i.owner||"–"],["Desainer",i=>i.d_name||nameOf(i.d_who)||"–"],["Status",i=>DSL[i.d_status]||"–"],["Link",i=>i.d_link||"–"]],
 };
-const SEC={edukasi:"Edukasi & narasumber",artikel:"Artikel",konten:"Konten media sosial",desain:"Tugas desain"};
+const SEC={edukasi:"Edukasi & narasumber",artikel:"Artikel",konten:"Konten media sosial",program:"Program partnership",desain:"Tugas desain"};
 const repTitle=()=>"Laporan Kegiatan"+(B.team?" "+B.team:"");
 /* ---------- laporan program ---------- */
 const rp=x=>x==null||x===""||!isFinite(x)?"–":"Rp "+Number(x).toLocaleString("id-ID",{maximumFractionDigits:0});
@@ -1136,10 +1141,10 @@ $("rPdf").onclick=async()=>{
   if(RT==="mon")return monthlyPdf();
   try{
     const R=await repData();showErr("repErr");
-    const tbl=(k,L)=>`<h2>${SEC[k]} (${L.length})</h2>`+(L.length?`<table><thead><tr>${COLS[k].map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${COLS[k].map(c=>`<td class="${/Peserta|Pembaca|Jangkauan/.test(c[0])?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:"<p>Tidak ada kegiatan.</p>");
+    const tbl=(k,L)=>`<h2>${SEC[k]} (${L.length})</h2>`+(L.length?`<table><thead><tr>${COLS[k].map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${COLS[k].map(c=>`<td class="${/Peserta|Pembaca|Jangkauan|Leads|Akun baru/.test(c[0])?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:"<p>Tidak ada kegiatan.</p>");
     $("printArea").innerHTML=`<h1>${esc(repTitle())}</h1><div>${esc(R.per)} · ${esc(R.who)}${B.company?" · "+esc(B.company):""}</div>
       <div class="kpis">${R.kpi.map(k=>`<div class="kpi">${esc(k[0])}<b>${esc(k[1])}</b>${esc(k[2])}</div>`).join("")}</div>
-      ${R.people.length?`<h2>Rekap per orang (selesai / terbit)</h2><table><thead><tr><th>Nama</th><th>Peran</th><th class="n">Edukasi</th><th class="n">Artikel</th><th class="n">Konten</th><th class="n">Visual</th></tr></thead><tbody>${R.people.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(PL.roles[p.role]||"–")}</td><td class="n">${p.edukasi}</td><td class="n">${p.artikel}</td><td class="n">${p.konten}</td><td class="n">${p.desain}</td></tr>`).join("")}</tbody></table>`:""}
+      ${R.people.length?`<h2>Rekap per orang (selesai / terbit)</h2><table><thead><tr><th>Nama</th><th>Peran</th><th class="n">Edukasi</th><th class="n">Artikel</th><th class="n">Konten</th><th class="n">Program</th><th class="n">Visual</th></tr></thead><tbody>${R.people.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(PL.roles[p.role]||"–")}</td><td class="n">${p.edukasi}</td><td class="n">${p.artikel}</td><td class="n">${p.konten}</td><td class="n">${p.program}</td><td class="n">${p.desain}</td></tr>`).join("")}</tbody></table>`:""}
       ${Object.keys(R.S).map(k=>tbl(k,R.S[k])).join("")}
       <div class="foot">Dibuat dari Content Planner, ${new Date().toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"})}.</div>`;
     document.body.classList.add("printing");
@@ -1167,9 +1172,9 @@ $("rPpt").onclick=async()=>{
     R.kpi.forEach((k,i)=>{const x=.5+i*(w+.3);s.addShape(pp.ShapeType.roundRect,{x,y:1.4,w,h:1.7,fill:{color:"E3F2E9"},line:{color:"E3F2E9"},rectRadius:.1});
       s.addText(k[0],{x:x+.2,y:1.5,w:w-.4,h:.4,fontSize:13,color:"5B6D62"});s.addText(k[1],{x:x+.2,y:1.9,w:w-.4,h:.7,fontSize:28,bold:true,color:G});s.addText(k[2],{x:x+.2,y:2.6,w:w-.4,h:.4,fontSize:11,color:"17251D"})});
     if(R.people.length){
-      const hdr=["Nama","Peran","Edukasi","Artikel","Konten","Visual"].map(t=>({text:t,options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}}));
+      const hdr=["Nama","Peran","Edukasi","Artikel","Konten","Program","Visual"].map(t=>({text:t,options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}}));
       s.addText("Rekap per orang (selesai / terbit)",{x:.5,y:3.35,w:12,h:.35,fontSize:13,bold:true,color:"17251D"});
-      s.addTable([hdr,...R.people.slice(0,9).map(p=>[p.name,PL.roles[p.role]||"–",String(p.edukasi),String(p.artikel),String(p.konten),String(p.desain)])],{x:.5,y:3.75,w:12.3,colW:[3.4,3.1,1.45,1.45,1.45,1.45],fontSize:11,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"middle"});
+      s.addTable([hdr,...R.people.slice(0,9).map(p=>[p.name,PL.roles[p.role]||"–",String(p.edukasi),String(p.artikel),String(p.konten),String(p.program),String(p.desain)])],{x:.5,y:3.75,w:12.3,colW:[3,2.6,1.34,1.34,1.34,1.34,1.34],fontSize:11,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"middle"});
       if(R.people.length>9)s.addText(`+${R.people.length-9} orang lagi (lihat PDF)`,{x:.5,y:6.7,w:12,h:.3,fontSize:10,color:"5B6D62"});
     }
     // 3+. detail per bagian, 10 baris per slide
@@ -1180,7 +1185,7 @@ $("rPpt").onclick=async()=>{
         if(!L.length){s.addText("Tidak ada kegiatan pada periode ini.",{x:.5,y:1.5,w:12,h:.5,fontSize:14,color:"5B6D62"});continue}
         const rows=[C.map(c=>({text:c[0],options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}})),...L.slice(p*10,p*10+10).map(i=>C.map(c=>{const t=String(c[1](i));return /^https?:\/\//.test(t)?{text:"buka",options:{hyperlink:{url:t},color:G}}:t}))];
         // kolom judul & keterangan panjang dibuat lebih lebar supaya tidak terlipat
-        const wt=C.map(c=>/^(Acara|Judul|Konten|Visual untuk)/.test(c[0])?2.4:/Penyelenggara|Jenis/.test(c[0])?1.9:/Tanggal|Tenggat/.test(c[0])?1.3:1),tw=wt.reduce((a,b)=>a+b,0);
+        const wt=C.map(c=>/^(Acara|Judul|Konten|Visual untuk|Program)/.test(c[0])?2.4:/Penyelenggara|Jenis|Partner|Periode/.test(c[0])?1.9:/Tanggal|Tenggat/.test(c[0])?1.3:1),tw=wt.reduce((a,b)=>a+b,0);
         s.addTable(rows,{x:.5,y:1.35,w:12.3,colW:wt.map(x=>+(x/tw*12.3).toFixed(2)),fontSize:10,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"top",autoPage:false});
       }
     }
@@ -1229,7 +1234,7 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const [its,logs]=await Promise.all([api(`/api/items?from=${from}&to=${to}`),api(`/api/logs?from=${from}&to=${to}`)]);
+  const [its,logs]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`)]);
   const order=Object.keys(PL.roles),T={};
   const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[]};
   USERS.forEach(u=>{if(PL.roles[u.role])team(u.role).members.set(u.email,u.name)});
@@ -1279,7 +1284,11 @@ async function mrBuild(R){
       tb.lastElementChild.remove();
       let carry=null;
       if(!n){if(body.children.length>els.length){els.forEach(e=>e.remove());page();els=start(false)}}   // judul tanpa satu baris pun: pindah utuh
-      else{const last=tb.lastElementChild;if(last&&last.classList.contains("grp")&&n>1){carry=last;last.remove()}page();els=start(true)}
+      else{
+        const last=tb.lastElementChild;if(last&&last.classList.contains("grp")){carry=last;last.remove()}
+        // tinggal judul + kepala tabel tanpa baris (nama orang ikut pindah): pindahkan utuh, tanpa "(lanjutan)"
+        if(!tb.children.length&&body.children.length>els.length){els.forEach(e=>e.remove());page();els=start(false)}else{page();els=start(true)}
+      }
       tb=els[els.length-1].tBodies[0];if(carry)tb.appendChild(carry);
       tb.insertAdjacentHTML("beforeend",r);n++;   // baris yang lebih tinggi dari satu halaman tetap ditaruh
     }
@@ -1299,8 +1308,19 @@ async function mrBuild(R){
   // per tim: kegiatan kalender lalu pekerjaan harian per orang
   for(const t of R.teams){
     page();put(`<h2>Tim ${esc(t.name)}</h2><p class="sub">Anggota: ${esc([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")}</p>`+mrKpis(t.logs,t.items,t.key,t.members.size));
-    table(`<h3>Project &amp; kegiatan kalender (${t.items.length})</h3>`,[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
-      t.items.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>{const own=roleOf(i.owner_email)===t.key||!i.d_need;
+    // program partnership: hasil bisnis & biaya, lalu tabel program; tabel kegiatan di bawahnya berisi kegiatan lain
+    const progs=t.items.filter(i=>kindOf(i)==="program"),others=t.items.filter(i=>kindOf(i)!=="program");
+    if(progs.length){
+      const run=progs.filter(i=>i.status!=="batal"),n=f=>run.reduce((a,i)=>a+(+i[f]||0),0),bud=n("budget"),cost=n("cost");
+      const PK=[["Peserta",int(n("result_num")),"jangkauan "+int(n("reach"))],["Leads",int(n("leads")),"akun baru "+int(n("accounts"))],["Nilai transaksi / AUM",rp(n("aum")),`dari ${run.length} program`],
+        ["Biaya realisasi",rp(cost),bud?`anggaran ${rp(bud)} (${Math.round(cost/bud*100)}% terpakai)`:"anggaran belum diisi"]];
+      put(`<h3>Hasil program partnership</h3><div class="mr-kpis">${PK.map(x=>`<div class="mr-kpi"><small>${esc(x[0])}</small><b>${esc(x[1])}</b><i>${esc(x[2])}</i></div>`).join("")}</div>`);
+      table(`<h3>Program partnership (${progs.length})</h3>`,[["Periode",16],["Program",22],["Partner",14],["Status",9],["Peserta",8,1],["Leads",7,1],["Akun baru",8,1],["Nilai transaksi",16,1]],
+        progs.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>`<tr><td>${esc(fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):""))}</td><td>${ICON.program} ${esc(i.title)}</td><td>${esc(i.partner||"–")}</td>`+
+          `<td>${esc(STL[i.status]||i.status||"–")}</td><td class="n">${esc(int(i.result_num))}</td><td class="n">${esc(int(i.leads))}</td><td class="n">${esc(int(i.accounts))}</td><td class="n">${esc(rp(i.aum))}</td></tr>`),"");
+    }
+    table(`<h3>${progs.length?"Kegiatan kalender lainnya":"Project &amp; kegiatan kalender"} (${others.length})</h3>`,[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
+      others.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>{const own=roleOf(i.owner_email)===t.key||!i.d_need;
         return `<tr><td>${esc(fmtShort(i.date))}</td><td>${ICON[kindOf(i)]||""} ${esc(i.title)}</td><td>${esc([(K[kindOf(i)]||{}).label,i.channel].filter(Boolean).join(" · "))}</td><td>${esc(own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–")}</td>`+
           `<td>${esc(own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"))}</td><td class="n">${own&&i.result_num!=null&&i.result_num!==""?esc(int(i.result_num)):""}${lnk(own?i.link:i.d_link)||(own&&i.result_num?"":"–")}</td></tr>`}),
       "Tidak ada kegiatan kalender tim ini pada periode ini.");

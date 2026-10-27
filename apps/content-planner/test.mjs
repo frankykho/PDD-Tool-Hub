@@ -349,6 +349,19 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.equal((await call("/api/items", { ck: COPY, body: { ...v1, title: "Tanpa base (klien lama)" } })).status, 200, "tanpa base tetap bisa menyimpan");
 }
 
+/* ---------- Partnership di laporan & tugas ---------- */
+{
+  // program yang mulai sebelum periode tapi masih berjalan: ikut di laporan (overlap), kalender tetap menurut tanggal mulai
+  const id = (await call("/api/items", { ck: PART, body: { ...prog, title: "Program lintas bulan", date: plus(-10), end_date: plus(10), status: "berjalan" } })).j.id;
+  const has = async (q) => (await call(`/api/items?from=${wib}&to=${plus(5)}${q}`, { ck: COPY })).j.some((i) => i.id === id);
+  assert.equal(await has(""), false, "kalender: menurut tanggal mulai");
+  assert.equal(await has("&overlap=1"), true, "laporan: program yang masih berjalan ikut");
+  // anggota Partnership bisa menerima tugas (dari admin atau sesama Partnership)
+  r = await call("/api/tasks", { ck: await cookie({ e: "adm@acme.test", n: "Admin", adm: true }), body: { item_id: id, title: "Follow up partner", job: "partnership", who: "pia@acme.test", due: plus(2) } });
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  assert.ok((await call("/api/tasks?mine=1", { ck: PART })).j.some((t) => t.id === r.j.id && t.job === "partnership"), "tugas muncul di daftar Partnership");
+}
+
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
 assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");
 assert.equal(hijriToIso(1447, 10, 1), "2026-03-20", "Idul Fitri 1447 H (perkiraan)");

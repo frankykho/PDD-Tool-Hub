@@ -206,10 +206,14 @@ export function cleanItem(b) {
 }
 // total klik link pelacak per kegiatan
 const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) AS clicks";
-async function listItems(env, from, to) {
+/** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya (kalender cukup menurut tanggal mulai). */
+async function listItems(env, from, to, overlap) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
-  return (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at`).bind(from, to).all()).results;
+  const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at`).bind(from, to).all()).results;
+  if (!overlap) return L;
+  const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND COALESCE(NULLIF(end_date, ''), date) >= ? ORDER BY date`).bind(from, from).all()).results;
+  return [...run, ...L];
 }
 /** Tugas desain: semua yang belum selesai (tanggal berapa pun) + yang selesai dengan tenggat di rentang itu. */
 async function designItems(env, from, to) {
@@ -878,7 +882,7 @@ export default {
           const it = await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE id=?`).bind(url.searchParams.get("id")).first();
           return it ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
         }
-        if (path === "/api/items") return json(await (url.searchParams.has("design") ? designItems(env, from, to) : listItems(env, from, to)));
+        if (path === "/api/items") return json(await (url.searchParams.has("design") ? designItems(env, from, to) : listItems(env, from, to, url.searchParams.has("overlap"))));
         if (path === "/api/users") return json(await users(env));
         if (path === "/api/tasks") return json(await listTasks(env, me, { item: url.searchParams.get("item") || "", all: url.searchParams.has("all") }));
         if (path === "/api/programs") return json(await programs(env));
