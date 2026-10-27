@@ -356,6 +356,17 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   const has = async (q) => (await call(`/api/items?from=${wib}&to=${plus(5)}${q}`, { ck: COPY })).j.some((i) => i.id === id);
   assert.equal(await has(""), false, "kalender: menurut tanggal mulai");
   assert.equal(await has("&overlap=1"), true, "laporan: program yang masih berjalan ikut");
+  // jenis di luar pilihan ditulis sendiri; kosong jadi "Lainnya"
+  const ft = (await call("/api/items", { ck: PART, body: { ...prog, title: "Meeting dengan AM", channel: "Meeting kerja sama" } })).j.id;
+  assert.equal((await call("/api/items?id=" + ft, { ck: PART })).j.channel, "Meeting kerja sama");
+  const ft2 = (await call("/api/items", { ck: PART, body: { ...prog, title: "Tanpa jenis", channel: " " } })).j.id;
+  assert.equal((await call("/api/items?id=" + ft2, { ck: PART })).j.channel, "Lainnya");
+  // tanggal selesai sudah lewat tapi status masih "berjalan": tetap ikut; yang sudah selesai tidak
+  const late = (await call("/api/items", { ck: PART, body: { ...prog, title: "Program molor", date: plus(-40), end_date: plus(-20), status: "berjalan" } })).j.id;
+  const done = (await call("/api/items", { ck: PART, body: { ...prog, title: "Program tuntas", date: plus(-40), end_date: plus(-20), status: "selesai" } })).j.id;
+  const rep = (await call(`/api/items?from=${wib}&to=${plus(5)}&overlap=1`, { ck: COPY })).j.map((i) => i.id);
+  assert.ok(rep.includes(late) && !rep.includes(done), "program molor ikut, yang selesai tidak");
+  assert.ok((await call(`/api/program-report?from=${wib}&to=${plus(5)}`, { ck: COPY })).j.programs.some((p) => p.id === late), "laporan program: program molor ikut");
   // anggota Partnership bisa menerima tugas (dari admin atau sesama Partnership)
   r = await call("/api/tasks", { ck: await cookie({ e: "adm@acme.test", n: "Admin", adm: true }), body: { item_id: id, title: "Follow up partner", job: "partnership", who: "pia@acme.test", due: plus(2) } });
   assert.equal(r.status, 200, JSON.stringify(r.j));

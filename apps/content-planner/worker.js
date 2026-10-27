@@ -94,8 +94,9 @@ export const KINDS = {
   artikel: { label: "Artikel", channels: ["Website", "Blog", "Email / Newsletter", "Media partner", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
   edukasi: { label: "Edukasi / narasumber", channels: ["Webinar", "Seminar", "Talkshow", "Kelas / kunjungan", "Live IG / TikTok", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // dibuat Partnership: kerja sama dengan pihak luar; kegiatan lain bisa dikaitkan (program_id) dan tugas dibagi di dalamnya
-  program: { label: "Program partnership", channels: ["Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
+  program: { label: "Program partnership", channels: ["Manajer investasi (AM)", "APERD / agen penjual", "Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
 };
+// kanal / jenis di luar pilihan boleh ditulis sendiri (pilih "Lainnya" di form); kosong -> "Lainnya"
 export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
 export const DESIGN_STATUSES = ["belum", "proses", "revisi", "selesai"];
 // role pekerjaan anggota tim, diatur di Tool Hub (menentukan tampilan bawaan, pilihan penerima tugas, & pengelompokan di laporan)
@@ -177,7 +178,7 @@ export function cleanItem(b) {
   }
   if (!ISO.test(it.date) || isNaN(Date.parse(it.date))) return { error: "Tanggal belum diisi." };
   if (!it.title) return { error: "Judul belum diisi." };
-  if (!K.channels.includes(it.channel)) it.channel = "Lainnya";
+  if (!it.channel) it.channel = "Lainnya";
   if (!K.statuses.includes(it.status)) it.status = K.statuses[0];
   const n = Math.round(Number(String(b.result_num ?? "").replace(/[.\s]/g, "").replace(",", ".")));
   it.result_num = String(b.result_num ?? "").trim() !== "" && n >= 0 && n < 1e12 ? n : null;
@@ -206,13 +207,14 @@ export function cleanItem(b) {
 }
 // total klik link pelacak per kegiatan
 const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) AS clicks";
-/** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya (kalender cukup menurut tanggal mulai). */
+/** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya, termasuk yang statusnya masih "berjalan"
+ *  walau tanggal selesainya sudah lewat (kalender cukup menurut tanggal mulai). */
 async function listItems(env, from, to, overlap) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
   const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at`).bind(from, to).all()).results;
   if (!overlap) return L;
-  const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND COALESCE(NULLIF(end_date, ''), date) >= ? ORDER BY date`).bind(from, from).all()).results;
+  const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date`).bind(from, from).all()).results;
   return [...run, ...L];
 }
 /** Tugas desain: semua yang belum selesai (tanggal berapa pun) + yang selesai dengan tenggat di rentang itu. */
@@ -628,7 +630,7 @@ async function programs(env) {
 async function programReport(env, from, to, id) {
   await ensure(env);
   const P = id ? (await env.DB.prepare("SELECT * FROM items WHERE kind = 'program' AND id = ?").bind(id).all()).results
-    : ISO.test(from) && ISO.test(to) ? (await env.DB.prepare("SELECT * FROM items WHERE kind = 'program' AND date <= ? AND COALESCE(NULLIF(end_date, ''), date) >= ? ORDER BY date LIMIT 90").bind(to, from).all()).results : [];
+    : ISO.test(from) && ISO.test(to) ? (await env.DB.prepare("SELECT * FROM items WHERE kind = 'program' AND date <= ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date LIMIT 90").bind(to, from).all()).results : [];
   if (!P.length) return { programs: [] };
   const ids = P.map((p) => p.id), ph = ids.map(() => "?").join(",");
   const [items, tasks] = await env.DB.batch([
