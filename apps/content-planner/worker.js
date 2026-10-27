@@ -225,9 +225,12 @@ async function saveItem(env, me, b) {
   await ensure(env);
   const it = cleanItem(b);
   if (it.error) return it;
-  const now = new Date().toISOString(), by = who(me), meE = lower(me.e), vals = EDIT.map((k) => it[k] ?? null);
+  const by = who(me), meE = lower(me.e), vals = EDIT.map((k) => it[k] ?? null);
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
+  // updated_at selalu naik (juga bila dua simpanan jatuh di milidetik yang sama), supaya cek base di bawah tidak terlewat
+  let now = new Date().toISOString();
+  if (prev && prev.updated_at && now <= prev.updated_at) now = new Date(Date.parse(prev.updated_at) + 1).toISOString();
   // base = updated_at versi yang dibuka: kalau sudah diubah lagi sejak itu (orang lain / tab lain), jangan ditimpa diam-diam
   if (prev && b.base !== undefined && !b.force && (prev.updated_at || "") !== String(b.base || ""))
     return { conflict: true, by: prev.updated_by || "", at: prev.updated_at || "", error: `Kegiatan ini sudah diubah ${prev.updated_by || "orang lain"} setelah kamu membukanya.` };
