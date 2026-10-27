@@ -1,7 +1,11 @@
 // Email Studio: generator email marketing. Secret: SSO_SECRET
+// ROOMS = Durable Object DraftRoom (satu per template): draft tim realtime lewat WebSocket. Paket gratis: hanya Durable
+// Object dengan storage SQLite (new_sqlite_classes). DRAFTS (KV) = draft versi lama, dipindah otomatis ke DraftRoom.
 {
   "name": "email-studio",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
-  "kv_namespaces": [{ "binding": "DRAFTS", "id": "auto" }]
+  "kv_namespaces": [{ "binding": "DRAFTS", "id": "auto" }],
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DraftRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DraftRoom"] }]
 }
