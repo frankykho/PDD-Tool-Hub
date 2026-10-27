@@ -964,6 +964,9 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
   .nav-more { flex: 0 0 auto; }
   /* the bar scrolls (clips overflow), so the admin menu is pinned to the viewport instead */
   .nav-more-menu { position: fixed; top: auto; left: auto; right: 8px; bottom: calc(72px + env(safe-area-inset-bottom)); }
+  /* backdrop-filter makes an element the containing block of its position:fixed children: on the topbar it pinned the
+     bottom bar to the topbar (covering brand & search), on the bar it trapped the admin menu inside the scrolling bar */
+  .topbar, .nav { backdrop-filter: none; }
 }
 
 /* ── Pemegang Saham (#/pemegang) */
