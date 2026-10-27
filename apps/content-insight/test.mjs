@@ -168,7 +168,7 @@ const realFetch = globalThis.fetch, APIFY = { runs: [], status: {}, data: {}, us
 const post = (code, user, ts) => ({ url: `https://www.instagram.com/p/${code}/`, shortCode: code, type: "Image", ownerUsername: user, caption: "Reksa dana pasar uang " + code, timestamp: ts, likesCount: 5, commentsCount: 1, displayUrl: "https://cdn.test/" + code + ".jpg" });
 globalThis.fetch = async (u, init = {}) => {
   const url = new URL(typeof u === "string" ? u : u.url);
-  if (url.hostname === "cdn.test") return new Response(new Uint8Array(400).fill(7), { headers: { "content-type": "image/jpeg" } });
+  if (url.hostname === "cdn.test") return url.pathname.includes("expired") ? new Response("URL signature expired", { status: 403 }) : new Response(new Uint8Array(400).fill(7), { headers: { "content-type": "image/jpeg" } });
   if (url.hostname !== "api.apify.com") return realFetch(u, init);
   APIFY.auth.push(init.headers.authorization);
   const path = url.pathname.replace("/v2", "");
@@ -204,7 +204,25 @@ r = await ig(VIEW);   // membuka halaman juga melanjutkan penyimpanan
 st = env.DB.db.prepare("SELECT status, done, saved, items, cost FROM ci_ig_runs").get();
 assert.equal(st.status, "SUCCEEDED"); assert.equal(st.saved, 7, "7 postingan baru, OLD1 dilewati"); assert.equal(st.items, 8);
 assert.ok(Math.abs(st.cost - 9 * 0.0017) < 1e-9);
-assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM ci_content WHERE url LIKE '%/p/N%' AND saved_by='Otomatis (Apify)' AND image_data LIKE 'data:image/jpeg;base64,%'").get().n, 7);
+// sampul tidak diunduh worker: hanya tautannya; browser editor mengambil aslinya lewat /api/cimg?src=1, mengecilkan, lalu PATCH
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM ci_content WHERE url LIKE '%/p/N%' AND saved_by='Otomatis (Apify)' AND image_data IS NULL AND image_url LIKE 'https://cdn.test/N%'").get().n, 7);
+{
+  const n1 = env.DB.db.prepare("SELECT id FROM ci_content WHERE url LIKE '%/p/N1/'").get().id;
+  const img = (q) => ci.fetch(new Request(BASE + "/api/cimg?id=" + n1 + q, { headers: { cookie: VIEW } }), env, { waitUntil() { } });
+  let rr = await img("&src=1");
+  assert.equal(rr.status, 200); assert.equal(rr.headers.get("content-type"), "image/jpeg"); assert.equal((await rr.arrayBuffer()).byteLength, 400, "gambar asli diteruskan");
+  assert.equal(env.DB.db.prepare("SELECT image_data FROM ci_content WHERE id=?").get(n1).image_data, null, "gambar asli tidak disimpan");
+  const small = "data:image/webp;base64," + Buffer.from("RIFF0000WEBPVP8 ").toString("base64");
+  assert.equal((await call("/api/content", { ck: EDIT, method: "PATCH", body: { id: n1, image_data: small } })).status, 200);
+  rr = await img(""); assert.equal(rr.headers.get("content-type"), "image/webp", "sampul kecil (WebP) tersimpan");
+  const row = (await call("/api/content", { ck: VIEW })).j.find((x) => x.id === n1);
+  assert.deepEqual([row.has_img, row.img_len], [1, small.length], "daftar membawa ukuran sampul untuk pengecil di browser");
+  // tautan kedaluwarsa (403 dari CDN): dikosongkan supaya tidak dicoba lagi tiap halaman dibuka
+  const n2 = env.DB.db.prepare("SELECT id FROM ci_content WHERE url LIKE '%/p/N2/'").get().id;
+  env.DB.db.prepare("UPDATE ci_content SET image_url='https://cdn.test/expired.jpg' WHERE id=?").run(n2);
+  rr = await ci.fetch(new Request(BASE + "/api/cimg?src=1&id=" + n2, { headers: { cookie: VIEW } }), env, { waitUntil() { } });
+  assert.equal(rr.status, 410); assert.equal(env.DB.db.prepare("SELECT image_url FROM ci_content WHERE id=?").get(n2).image_url, null);
+}
 assert.equal(env.DB.db.prepare("SELECT ig_seen FROM ci_accounts WHERE account='bibit.id'").get().ig_seen, "2026-10-21T07:00:01.000Z", "batas berikutnya = postingan terbaru + 1 detik");
 assert.equal(r.j.running, false); assert.equal(r.j.runs[0].saved, 7);
 // tombol manual: jeda 30 menit
