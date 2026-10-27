@@ -162,26 +162,6 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .lrow{display:flex;gap:8px;align-items:center;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .lrow code{font-size:12px;word-break:break-all}
 
-/* ---------- Laporan (cetak / PDF) ---------- */
-#printArea{display:none}
-@media print{
-  @page{size:A4 landscape;margin:12mm}
-  html,body.printing{background:#fff!important;color:#111}
-  body.printing .wrap,body.printing dialog{display:none!important}
-  body.printing #printArea{display:block;font:11px/1.45 var(--font);color:#111}
-  #printArea h1{font-size:20px;margin:0 0 2px}
-  #printArea h2{font-size:14px;margin:18px 0 6px;color:#1f7a4d;break-after:avoid}
-  #printArea .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
-  #printArea .kpi{border:1px solid #cfdcd3;border-radius:8px;padding:8px 10px}
-  #printArea .kpi b{display:block;font-size:18px}
-  #printArea table{width:100%;border-collapse:collapse;font-size:10.5px}
-  #printArea th{background:#e3f2e9;text-align:left;padding:4px 6px;border:1px solid #cfdcd3}
-  #printArea td{padding:4px 6px;border:1px solid #dfe8e2;vertical-align:top}
-  #printArea tr{break-inside:avoid}
-  #printArea .n{text-align:right;white-space:nowrap}
-  #printArea .foot{margin-top:14px;color:#666;font-size:9.5px}
-}
-
 /* ---------- Pekerjaan harian ---------- */
 .daily{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
 .daily h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
@@ -193,11 +173,11 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .dteam h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 4px}
 .dperson{font-weight:700;font-size:13px;margin:8px 0 0}
 @media (max-width:900px){.daily{grid-template-columns:minmax(0,1fr)}}
-/* Monthly Report (PDF 16:9): gaya halamannya ada di MR_CSS (script), area cetaknya #mrArea */
+/* Laporan PDF 16:9 (template divisi): gaya halamannya ada di MR_CSS (script), area cetaknya #mrArea */
 #mrArea{display:none}
 .mr-host{position:fixed;left:-30000px;top:0}
 @media print{
-  body.mrprint .wrap,body.mrprint dialog,body.mrprint #printArea{display:none!important}
+  body.mrprint .wrap,body.mrprint dialog{display:none!important}
   body.mrprint{background:#f7f7f5!important}
   body.mrprint #mrArea{display:block}
 }
@@ -401,13 +381,12 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <div class="fld" id="rProgF"><label for="rProg">Program</label><select class="f" id="rProg"></select></div>
     <div class="fld" id="rWhoF"><label for="rWho">Orang</label><select class="f" id="rWho"></select></div>
     <div class="fld" id="rKindsF"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
-    <div class="fld" id="rDivF" hidden><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
+    <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
     <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
     <p class="muted small" id="rHelp" style="margin:10px 0 0"></p>
   </div>
 </dialog>
-<div id="printArea"></div>
 <div id="mrArea"></div>
 
 <script>
@@ -996,9 +975,12 @@ const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["k
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg";$("rKindsF").hidden=t!=="keg";$("rDivF").hidden=t!=="mon";$("rPpt").hidden=t==="mon";
-  if(t==="mon")return $("rHelp").innerHTML="Monthly Report: halaman 16:9 berisi ringkasan, lalu per tim (role pekerjaan) kegiatan kalender dan pekerjaan harian anggotanya. Di jendela cetak, pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
-  $("rHelp").innerHTML=t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu.":"PDF: di jendela cetak, pilih <b>Simpan sebagai PDF</b>. Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan.";
+  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg";$("rKindsF").hidden=t!=="keg";
+  // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
+  const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
+  $("rHelp").innerHTML=(t==="mon"?"Monthly Report: ringkasan, lalu per tim (role pekerjaan) hasil program, kegiatan kalender, dan pekerjaan harian anggotanya."
+    :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
+    :"Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan.")+pdf;
 }
 $("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(b)setRT(b.dataset.t)});
 function openRep(){
@@ -1085,115 +1067,37 @@ const PCOLS={
   rekap:[["Program",p=>p.title,0,2.4],["Partner",p=>p.partner||"–",0,1.6],["Periode",perOf,0,2],["Status",p=>STL[p.status]||p.status,0,1],["Peserta",p=>int(p.result_num),1,1],["Leads",p=>int(p.leads),1,.9],["Akun baru",p=>int(p.accounts),1,1],["Nilai transaksi",p=>rp(p.aum),1,1.7],["Biaya",p=>rp(p.cost),1,1.5],["Biaya/akun",p=>p.cpa!=null?rp(Math.round(p.cpa)):"–",1,1.4]],
 };
 const progInfo=p=>[["Partner",p.partner||"–"],["Jenis",p.channel||"–"],["Periode",perOf(p)],["Status",STL[p.status]||p.status],["PIC",p.owner||"–"],["Tujuan",p.goal||"–"],["Target",p.target||"–"],["Catatan hasil",p.result_note||"–"]];
-function printNow(){
-  document.body.classList.add("printing");
-  const done=()=>{document.body.classList.remove("printing");removeEventListener("afterprint",done)};
-  addEventListener("afterprint",done);window.print();setTimeout(done,1500);
+/* ---------- Template laporan divisi (PDF & PPT): halaman 16:9, logo + "Divisi Report | periode" + garis hijau di kepala,
+   sampul judul besar. Isi tiap laporan disusun sekali sebagai daftar blok, lalu digambar ke PDF (pdfDoc) atau PPT (pptDoc):
+     {t:"cover",lines,sub} · {t:"page",h2,sub} (halaman baru) · {t:"kpis",h3?,items:[[judul,nilai,keterangan]]}
+     {t:"table",h3,cols:[[judul,lebar %,rata kanan?]],rows,empty}
+   baris tabel: array sel, atau {grp:"teks"} (nama orang, membentang); sel: teks, {t,href} (teks + link "buka"), {st} (label status) */
+const cell=v=>{const s=String(v??"–");return /^https?:\/\//.test(s)?{href:s}:s};
+const pctCols=L=>{const tw=L.reduce((a,c)=>a+c[1],0);return L.map(c=>[c[0],Math.round(c[1]/tw*1000)/10,c[2]])};
+// lebar relatif kolom laporan Kegiatan tim: judul & keterangan panjang lebih lebar
+const kegW=t=>/^(Acara|Judul|Konten|Visual untuk|Program)/.test(t)?2.4:/Penyelenggara|Jenis|Partner|Periode/.test(t)?1.9:/Tanggal|Tenggat/.test(t)?1.3:1;
+const kegN=t=>/Peserta|Pembaca|Jangkauan|Leads|Akun baru/.test(t);
+function kegDoc(R){
+  const Bk=[{t:"cover",lines:["Laporan Kegiatan",R.per],sub:[R.div,R.who].join(" · ")},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.who}`},{t:"kpis",items:R.kpi}];
+  if(R.people.length)Bk.push({t:"table",h3:"Rekap per orang (selesai / terbit)",cols:[["Nama",24],["Peran",22],["Edukasi",10.8,1],["Artikel",10.8,1],["Konten",10.8,1],["Program",10.8,1],["Visual",10.8,1]],
+    rows:R.people.map(p=>[p.name,PL.roles[p.role]||"–",p.edukasi,p.artikel,p.konten,p.program,p.desain].map(String))});
+  for(const k of Object.keys(R.S))Bk.push({t:"table",h3:`${SEC[k]} (${R.S[k].length})`,cols:pctCols(COLS[k].map(c=>[c[0],kegW(c[0]),kegN(c[0])])),
+    rows:R.S[k].map(i=>COLS[k].map(c=>cell(c[1](i)))),empty:"Tidak ada kegiatan pada periode ini."});
+  return {div:R.div,per:R.per,blocks:Bk};
 }
-async function progPdf(){
-  try{
-    const R=await progData();showErr("repErr");
-    const tbl=(title,C,L,empty)=>`<h2>${title}</h2>`+(L.length?`<table><thead><tr>${C.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${C.map(c=>`<td class="${c[2]?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p>${empty}</p>`);
-    $("printArea").innerHTML=`<h1>${esc(progTitle())}</h1><div>${esc(R.per)}${B.company?" · "+esc(B.company):""}</div>`+
-      (R.P.length>1?tbl(`Rekap ${R.P.length} program`,PCOLS.rekap,R.P,""):"")+
-      R.P.map(p=>`<h2 style="font-size:16px;margin-top:24px">🤝 ${esc(p.title)}</h2><table><tbody>${progInfo(p).map(r=>`<tr><th style="width:16%">${r[0]}</th><td>${esc(r[1])}</td></tr>`).join("")}</tbody></table>`+
-        `<div class="kpis">${pk(p).map(k=>`<div class="kpi">${esc(k[0])}<b>${esc(k[1])}</b>${esc(k[2])}</div>`).join("")}</div>`+
-        tbl(`Kegiatan terkait (${p.items.length})`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.")+tbl(`Tugas tim (${p.tasks.length})`,PCOLS.tasks,p.tasks,"Belum ada tugas.")).join("")+
-      tbl(`Benchmark: promo reksa dana kompetitor di periode yang sama (${R.bench.length})`,PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini.")+
-      `<div class="foot">Dibuat dari Content Planner, ${new Date().toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"})}.</div>`;
-    printNow();
-  }catch(e){showErr("repErr",e)}
+function progDoc(R){
+  const tb=(h3,C,L,empty)=>({t:"table",h3,cols:pctCols(C.map(c=>[c[0],c[3],c[2]])),rows:L.map(x=>C.map(c=>cell(c[1](x)))),empty});
+  const Bk=[{t:"cover",lines:["Laporan Program Partnership",R.per],sub:[R.div,R.P.length>1?`${R.P.length} program`:[R.P[0].title,R.P[0].partner].filter(Boolean).join(" · ")].join(" · ")}];
+  if(R.P.length>1)Bk.push({t:"page",h2:"Rekap program",sub:`${R.per} · ${R.P.length} program`},tb("Semua program",PCOLS.rekap,R.P,""));
+  for(const p of R.P)Bk.push({t:"page",h2:p.title,sub:[p.partner,p.channel,perOf(p),STL[p.status]].filter(Boolean).join(" · ")},
+    {t:"table",h3:"Detail program",cols:[["Keterangan",20],["Isi",80]],rows:progInfo(p).map(r=>[r[0],r[1]])},{t:"kpis",items:pk(p)},
+    tb(`Kegiatan terkait (${p.items.length})`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini."),tb(`Tugas tim (${p.tasks.length})`,PCOLS.tasks,p.tasks,"Belum ada tugas."));
+  Bk.push({t:"page",h2:"Benchmark promo reksa dana kompetitor",sub:"Dari Competitor Intelligence · promo yang berjalan di periode yang sama"},
+    tb(`Promo kompetitor (${R.bench.length})`,PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini."));
+  return {div:R.div,per:R.per,blocks:Bk};
 }
-async function progPpt(){
-  $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
-  try{
-    const R=await progData();await loadPpt();showErr("repErr");
-    const G="1F7A4D",pp=new window.PptxGenJS();pp.layout="LAYOUT_WIDE";pp.title=progTitle()+" "+R.per;
-    const head=(s,t,sub)=>{s.background={color:"FFFFFF"};s.addShape(pp.ShapeType.rect,{x:0,y:0,w:13.33,h:.12,fill:{color:G}});s.addText(t,{x:.5,y:.3,w:12.3,h:.6,fontSize:24,bold:true,color:"17251D",fontFace:"Calibri"});if(sub)s.addText(sub,{x:.5,y:.85,w:12.3,h:.35,fontSize:12,color:"5B6D62"});s.addText(`${progTitle()} · ${R.per}`,{x:.5,y:7.05,w:12.3,h:.3,fontSize:9,color:"8A9A90"})};
-    const cell=t=>/^https?:\/\//.test(t)?{text:"buka",options:{hyperlink:{url:t},color:G}}:t;
-    const pages=(title,sub,C,L,empty)=>{const n=Math.max(1,Math.ceil(L.length/10));for(let p=0;p<n;p++){const s=pp.addSlide();head(s,title+(n>1?` (${p+1}/${n})`:""),sub);
-      if(!L.length){s.addText(empty,{x:.5,y:1.5,w:12,h:.5,fontSize:14,color:"5B6D62"});continue}
-      const tw=C.reduce((a,c)=>a+c[3],0),rows=[C.map(c=>({text:c[0],options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}})),...L.slice(p*10,p*10+10).map(i=>C.map(c=>cell(String(c[1](i)))))];
-      s.addTable(rows,{x:.5,y:1.35,w:12.3,colW:C.map(c=>+(c[3]/tw*12.3).toFixed(2)),fontSize:10,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"top",autoPage:false})}};
-    let s=pp.addSlide();s.background={color:G};
-    s.addText(progTitle(),{x:.7,y:2.3,w:12,h:1,fontSize:38,bold:true,color:"FFFFFF",fontFace:"Calibri"});
-    s.addText(R.per,{x:.7,y:3.35,w:12,h:.6,fontSize:22,color:"E3F2E9"});
-    s.addText(R.P.length>1?`${R.P.length} program`:[R.P[0].title,R.P[0].partner].filter(Boolean).join("  ·  "),{x:.7,y:4.05,w:12,h:.5,fontSize:16,color:"E3F2E9"});
-    if(R.P.length>1)pages("Rekap program",`${R.P.length} program`,PCOLS.rekap,R.P,"");
-    for(const p of R.P){
-      s=pp.addSlide();head(s,p.title,[p.partner,p.channel,perOf(p),STL[p.status]].filter(Boolean).join("  ·  "));
-      s.addText([{text:"Tujuan: ",options:{bold:true}},{text:(p.goal||"–")+"\n"},{text:"Target: ",options:{bold:true}},{text:p.target||"–"}],{x:.5,y:1.3,w:12.3,h:.9,fontSize:12,color:"17251D",valign:"top"});
-      const w=(12.3-.6)/3;
-      pk(p).forEach((k,i)=>{const x=.5+(i%3)*(w+.3),y=2.35+Math.floor(i/3)*1.9;
-        s.addShape(pp.ShapeType.roundRect,{x,y,w,h:1.7,fill:{color:"E3F2E9"},line:{color:"E3F2E9"},rectRadius:.1});
-        s.addText(k[0],{x:x+.2,y:y+.1,w:w-.4,h:.4,fontSize:13,color:"5B6D62"});s.addText(k[1],{x:x+.2,y:y+.5,w:w-.4,h:.7,fontSize:24,bold:true,color:G});s.addText(k[2],{x:x+.2,y:y+1.2,w:w-.4,h:.4,fontSize:11,color:"17251D"})});
-      pages("Kegiatan terkait · "+p.title,`${p.items.length} kegiatan`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini.");
-      pages("Tugas tim · "+p.title,`${p.done} dari ${p.tasks.length} selesai`,PCOLS.tasks,p.tasks,"Belum ada tugas.");
-    }
-    pages("Benchmark promo reksa dana kompetitor","Dari Competitor Intelligence · promo yang berjalan di periode yang sama",PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini.");
-    await pp.writeFile({fileName:`Laporan-Program-${R.from}_${R.to}.pptx`});
-    $("repMsg").textContent="✓ PPT diunduh.";
-  }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
-  finally{$("rPpt").disabled=false}
-}
-$("rPdf").onclick=async()=>{
-  if(RT==="prog")return progPdf();
-  if(RT==="mon")return monthlyPdf();
-  try{
-    const R=await repData();showErr("repErr");
-    const tbl=(k,L)=>`<h2>${SEC[k]} (${L.length})</h2>`+(L.length?`<table><thead><tr>${COLS[k].map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${COLS[k].map(c=>`<td class="${/Peserta|Pembaca|Jangkauan|Leads|Akun baru/.test(c[0])?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:"<p>Tidak ada kegiatan.</p>");
-    $("printArea").innerHTML=`<h1>${esc(repTitle())}</h1><div>${esc(R.per)} · ${esc(R.who)}${B.company?" · "+esc(B.company):""}</div>
-      <div class="kpis">${R.kpi.map(k=>`<div class="kpi">${esc(k[0])}<b>${esc(k[1])}</b>${esc(k[2])}</div>`).join("")}</div>
-      ${R.people.length?`<h2>Rekap per orang (selesai / terbit)</h2><table><thead><tr><th>Nama</th><th>Peran</th><th class="n">Edukasi</th><th class="n">Artikel</th><th class="n">Konten</th><th class="n">Program</th><th class="n">Visual</th></tr></thead><tbody>${R.people.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(PL.roles[p.role]||"–")}</td><td class="n">${p.edukasi}</td><td class="n">${p.artikel}</td><td class="n">${p.konten}</td><td class="n">${p.program}</td><td class="n">${p.desain}</td></tr>`).join("")}</tbody></table>`:""}
-      ${Object.keys(R.S).map(k=>tbl(k,R.S[k])).join("")}
-      <div class="foot">Dibuat dari Content Planner, ${new Date().toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"})}.</div>`;
-    document.body.classList.add("printing");
-    const done=()=>{document.body.classList.remove("printing");removeEventListener("afterprint",done)};
-    addEventListener("afterprint",done);window.print();setTimeout(done,1500);
-  }catch(e){showErr("repErr",e)}
-};
 let pptLib=null;
 const loadPpt=()=>pptLib||(pptLib=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";s.onload=()=>window.PptxGenJS?ok():no(new Error("Library PPT gagal dimuat."));s.onerror=()=>{pptLib=null;no(new Error("Library PPT gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
-$("rPpt").onclick=async()=>{
-  if(RT==="prog")return progPpt();
-  $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
-  try{
-    const R=await repData();await loadPpt();showErr("repErr");
-    const G="1F7A4D",pp=new window.PptxGenJS();pp.layout="LAYOUT_WIDE";pp.title=repTitle()+" "+R.per;
-    const head=(s,t,sub)=>{s.background={color:"FFFFFF"};s.addShape(pp.ShapeType.rect,{x:0,y:0,w:13.33,h:.12,fill:{color:G}});s.addText(t,{x:.5,y:.3,w:12.3,h:.6,fontSize:24,bold:true,color:"17251D",fontFace:"Calibri"});if(sub)s.addText(sub,{x:.5,y:.85,w:12.3,h:.35,fontSize:12,color:"5B6D62"});s.addText(`${R.per} · ${R.who}`,{x:.5,y:7.05,w:12.3,h:.3,fontSize:9,color:"8A9A90"})};
-    // 1. judul
-    let s=pp.addSlide();s.background={color:G};
-    s.addText(repTitle(),{x:.7,y:2.3,w:12,h:1,fontSize:40,bold:true,color:"FFFFFF",fontFace:"Calibri"});
-    s.addText(R.per,{x:.7,y:3.35,w:12,h:.6,fontSize:22,color:"E3F2E9"});
-    s.addText([R.who,B.company].filter(Boolean).join("  ·  "),{x:.7,y:4.05,w:12,h:.5,fontSize:16,color:"E3F2E9"});
-    // 2. ringkasan
-    s=pp.addSlide();head(s,"Ringkasan");
-    const w=(12.3-.3*(R.kpi.length-1))/Math.max(R.kpi.length,1);
-    R.kpi.forEach((k,i)=>{const x=.5+i*(w+.3);s.addShape(pp.ShapeType.roundRect,{x,y:1.4,w,h:1.7,fill:{color:"E3F2E9"},line:{color:"E3F2E9"},rectRadius:.1});
-      s.addText(k[0],{x:x+.2,y:1.5,w:w-.4,h:.4,fontSize:13,color:"5B6D62"});s.addText(k[1],{x:x+.2,y:1.9,w:w-.4,h:.7,fontSize:28,bold:true,color:G});s.addText(k[2],{x:x+.2,y:2.6,w:w-.4,h:.4,fontSize:11,color:"17251D"})});
-    if(R.people.length){
-      const hdr=["Nama","Peran","Edukasi","Artikel","Konten","Program","Visual"].map(t=>({text:t,options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}}));
-      s.addText("Rekap per orang (selesai / terbit)",{x:.5,y:3.35,w:12,h:.35,fontSize:13,bold:true,color:"17251D"});
-      s.addTable([hdr,...R.people.slice(0,9).map(p=>[p.name,PL.roles[p.role]||"–",String(p.edukasi),String(p.artikel),String(p.konten),String(p.program),String(p.desain)])],{x:.5,y:3.75,w:12.3,colW:[3,2.6,1.34,1.34,1.34,1.34,1.34],fontSize:11,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"middle"});
-      if(R.people.length>9)s.addText(`+${R.people.length-9} orang lagi (lihat PDF)`,{x:.5,y:6.7,w:12,h:.3,fontSize:10,color:"5B6D62"});
-    }
-    // 3+. detail per bagian, 10 baris per slide
-    for(const k of Object.keys(R.S)){
-      const L=R.S[k],C=COLS[k],pages=Math.max(1,Math.ceil(L.length/10));
-      for(let p=0;p<pages;p++){
-        s=pp.addSlide();head(s,SEC[k]+(pages>1?` (${p+1}/${pages})`:""),`${L.length} kegiatan`);
-        if(!L.length){s.addText("Tidak ada kegiatan pada periode ini.",{x:.5,y:1.5,w:12,h:.5,fontSize:14,color:"5B6D62"});continue}
-        const rows=[C.map(c=>({text:c[0],options:{bold:true,fill:{color:"E3F2E9"},color:"17251D"}})),...L.slice(p*10,p*10+10).map(i=>C.map(c=>{const t=String(c[1](i));return /^https?:\/\//.test(t)?{text:"buka",options:{hyperlink:{url:t},color:G}}:t}))];
-        // kolom judul & keterangan panjang dibuat lebih lebar supaya tidak terlipat
-        const wt=C.map(c=>/^(Acara|Judul|Konten|Visual untuk|Program)/.test(c[0])?2.4:/Penyelenggara|Jenis|Partner|Periode/.test(c[0])?1.9:/Tanggal|Tenggat/.test(c[0])?1.3:1),tw=wt.reduce((a,b)=>a+b,0);
-        s.addTable(rows,{x:.5,y:1.35,w:12.3,colW:wt.map(x=>+(x/tw*12.3).toFixed(2)),fontSize:10,border:{type:"solid",color:"DFE8E2",pt:.75},valign:"top",autoPage:false});
-      }
-    }
-    await pp.writeFile({fileName:`Laporan-Kegiatan-${R.from}_${R.to}.pptx`});
-    $("repMsg").textContent="✓ PPT diunduh.";
-  }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
-  finally{$("rPpt").disabled=false}
-};
 
 /* ---------- Monthly Report: PDF 16:9 per tim (role), mengikuti template divisi: logo + garis hijau di kepala, sampul judul besar ---------- */
 const MON_EN=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -1251,28 +1155,58 @@ const mrDone=(i,k)=>roleOf(i.owner_email)===k||!i.d_need?["selesai","terbit"].in
 const mrPct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
 function mrKpis(logs,items,k,members){
   const by=s=>logs.filter(l=>l.status===s).length,people=new Set(logs.map(l=>l.email)).size,done=items.filter(i=>mrDone(i,k)).length;
-  const K=[["Pekerjaan tercatat",int(logs.length),`${people}${members?" dari "+members:""} orang mengisi`],["Selesai",int(by("selesai")),mrPct(by("selesai"),logs.length)+" dari pekerjaan"],
+  return [["Pekerjaan tercatat",int(logs.length),`${people}${members?" dari "+members:""} orang mengisi`],["Selesai",int(by("selesai")),mrPct(by("selesai"),logs.length)+" dari pekerjaan"],
     ["Kendala",int(by("kendala")),`${int(by("berjalan"))} masih berjalan`],["Kegiatan kalender",`${done} / ${items.length}`,"terbit / selesai"]];
-  return `<div class="mr-kpis">${K.map(x=>`<div class="mr-kpi"><small>${esc(x[0])}</small><b>${esc(x[1])}</b><i>${esc(x[2])}</i></div>`).join("")}</div>`;
 }
 let mrFontP=null;
 const mrFonts=()=>mrFontP||(mrFontP=new Promise(ok=>{const l=document.createElement("link");l.rel="stylesheet";l.href=MR_FONT;
   l.onload=()=>Promise.all(["400","700","800"].map(w=>document.fonts.load(w+" 16px Inter"))).then(ok,ok);l.onerror=ok;document.head.appendChild(l);setTimeout(ok,4000)}));
 const mrImg=src=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(true);i.onerror=()=>ok(false);i.src=src;setTimeout(()=>ok(false),5000)});
-/** Menyusun halaman 16:9 di luar layar: isi yang tidak muat pindah ke halaman berikutnya (tabel berlanjut dengan kepala tabelnya). */
-async function mrBuild(R){
+function monDoc(R){
+  const allItems=[...new Map(R.teams.flatMap(t=>t.items).map(i=>[i.id,i])).values()],members=new Set(R.teams.flatMap(t=>[...t.members.keys()])).size,kd=R.logs.filter(l=>l.status==="kendala");
+  const per=i=>fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):"");
+  const Bk=[{t:"cover",lines:[R.month?"Monthly Report":"Report",R.per],sub:R.div},
+    {t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.teams.length} tim · ${members} anggota`},{t:"kpis",items:mrKpis(R.logs,allItems,"",members)},
+    {t:"table",h3:"Per tim",cols:[["Tim",24],["Anggota",10,1],["Pekerjaan",11,1],["Selesai",11,1],["Berjalan",11,1],["Kendala",11,1],["Kegiatan (selesai / total)",22,1]],
+      rows:R.teams.map(t=>{const c=s=>t.logs.filter(l=>l.status===s).length;return [t.name,t.members.size,t.logs.length,c("selesai"),c("berjalan"),c("kendala"),`${t.items.filter(i=>mrDone(i,t.key)).length} / ${t.items.length}`].map(String)})},
+    {t:"table",h3:`Kendala yang tercatat (${kd.length})`,cols:[["Tanggal",11],["Tim",15],["Orang",14],["Pekerjaan",30],["Kendala",30]],
+      rows:kd.map(l=>[fmtShort(l.date),PL.roles[teamOf(l.job,l.email)]||"Lainnya",l.name||nameOf(l.email),l.text,l.note||"–"]),empty:"Tidak ada kendala yang tercatat pada periode ini."}];
+  // per tim: (hasil program) lalu kegiatan kalender lalu pekerjaan harian per orang
+  for(const t of R.teams){
+    Bk.push({t:"page",h2:`Tim ${t.name}`,sub:"Anggota: "+([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")},{t:"kpis",items:mrKpis(t.logs,t.items,t.key,t.members.size)});
+    const byDate=(a,b)=>a.date.localeCompare(b.date),progs=t.items.filter(i=>kindOf(i)==="program").sort(byDate),others=t.items.filter(i=>kindOf(i)!=="program").sort(byDate);
+    if(progs.length){
+      const run=progs.filter(i=>i.status!=="batal"),n=f=>run.reduce((a,i)=>a+(+i[f]||0),0),bud=n("budget"),cost=n("cost");
+      Bk.push({t:"kpis",h3:"Hasil program partnership",items:[["Peserta",int(n("result_num")),"jangkauan "+int(n("reach"))],["Leads",int(n("leads")),"akun baru "+int(n("accounts"))],
+        ["Nilai transaksi / AUM",rp(n("aum")),`dari ${run.length} program`],["Biaya realisasi",rp(cost),bud?`anggaran ${rp(bud)} (${Math.round(cost/bud*100)}% terpakai)`:"anggaran belum diisi"]]},
+        {t:"table",h3:`Program partnership (${progs.length})`,cols:[["Periode",16],["Program",22],["Partner",14],["Status",9],["Peserta",8,1],["Leads",7,1],["Akun baru",8,1],["Nilai transaksi",16,1]],
+          rows:progs.map(i=>[per(i),`${ICON.program} ${i.title}`,i.partner||"–",STL[i.status]||i.status||"–",int(i.result_num),int(i.leads),int(i.accounts),rp(i.aum)])});
+    }
+    Bk.push({t:"table",h3:`${progs.length?"Kegiatan kalender lainnya":"Project & kegiatan kalender"} (${others.length})`,cols:[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
+      rows:others.map(i=>{const own=roleOf(i.owner_email)===t.key||!i.d_need,res=own&&i.result_num!=null&&i.result_num!==""?int(i.result_num):"",href=own?i.link:i.d_link;
+        return [fmtShort(i.date),`${ICON[kindOf(i)]||""} ${i.title}`,[(K[kindOf(i)]||{}).label,i.channel].filter(Boolean).join(" · "),own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",
+          own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"),href?{t:res,href}:res||"–"]}),empty:"Tidak ada kegiatan kalender tim ini pada periode ini."});
+    const byP={};t.logs.forEach(l=>(byP[l.email]=byP[l.email]||[]).push(l));
+    Bk.push({t:"table",h3:`Pekerjaan harian (${t.logs.length})`,cols:[["Tanggal",10],["Pekerjaan",36],["Kegiatan terkait",22],["Status",10],["Catatan / kendala",22]],empty:"Belum ada pekerjaan harian yang dicatat tim ini.",
+      rows:Object.entries(byP).sort((a,b)=>(t.members.get(a[0])||"").localeCompare(t.members.get(b[0])||"")).flatMap(([e,L])=>[{grp:`${t.members.get(e)||e} · ${L.length} pekerjaan`},
+        ...L.map(l=>[fmtShort(l.date),l.link?{t:l.text,href:l.link}:l.text,l.item_title||"–",{st:l.status},l.note||"–"])])});
+  }
+  return {div:R.div,per:R.per,blocks:Bk};
+}
+/** PDF: halaman 16:9 disusun di luar layar; isi yang tidak muat pindah ke halaman berikutnya (tabel berlanjut dengan kepala tabelnya). */
+async function pdfDoc(doc){
   await mrFonts();
   const logo=new URL(MR_LOGO,location.href).href,hasLogo=await mrImg(logo);
   if(!$("mrCss")){const s=document.createElement("style");s.id="mrCss";s.textContent=MR_CSS;document.head.appendChild(s)}
   const host=document.createElement("div");host.className="mr-host";document.body.appendChild(host);
-  const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(R.div)} Report | ${esc(R.per)}</span></div>`;
+  const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(doc.div)} Report | ${esc(doc.per)}</span></div>`;
   const foot=`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`;
   let body=null;
   const page=cls=>{const p=document.createElement("section");p.className="mr-page"+(cls?" "+cls:"");p.innerHTML=head+`<div class="mr-body"></div><div class="mr-foot"><span>${esc(foot)}</span><span class="pn"></span></div>`;host.appendChild(p);body=p.querySelector(".mr-body")};
   const over=()=>body.scrollHeight>body.clientHeight+1;
   const frag=html=>{const t=document.createElement("template");t.innerHTML=html;return [...t.content.children]};
   const put=html=>{const els=frag(html);els.forEach(e=>body.appendChild(e));if(over()&&body.children.length>els.length){els.forEach(e=>e.remove());page();els.forEach(e=>body.appendChild(e))}};
-  // cols: [judul, lebar %, rata kanan?]; rows: <tr> siap pakai (baris tr.grp = nama orang, ikut pindah bersama baris sesudahnya)
+  // rows: <tr> siap pakai (baris tr.grp = nama orang, ikut pindah bersama baris sesudahnya)
   const table=(title,cols,rows,empty)=>{
     if(!rows.length)return put(`${title}<p class="mr-note">${esc(empty)}</p>`);
     const thead=`<thead><tr>${cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead>`;
@@ -1293,45 +1227,93 @@ async function mrBuild(R){
       tb.insertAdjacentHTML("beforeend",r);n++;   // baris yang lebih tinggi dari satu halaman tetap ditaruh
     }
   };
-  const st=s=>`<span class="mr-st ${esc(s)}">${esc(WS[s]||s||"–")}</span>`;
-  const lnk=u=>u?` <a href="${esc(u)}">buka</a>`:"";
-  // sampul
-  page("mr-cover");body.innerHTML=`<h1>${R.month?"Monthly Report":"Report"}<br>${esc(R.per)}</h1><p>${esc(R.div)}</p>`;
-  // ringkasan
-  const allItems=[...new Map(R.teams.flatMap(t=>t.items).map(i=>[i.id,i])).values()],members=new Set(R.teams.flatMap(t=>[...t.members.keys()])).size;
-  page();put(`<h2>Ringkasan</h2><p class="sub">${esc(R.per)} · ${R.teams.length} tim · ${members} anggota</p>`+mrKpis(R.logs,allItems,"",members));
-  table("<h3>Per tim</h3>",[["Tim",24],["Anggota",10,1],["Pekerjaan",11,1],["Selesai",11,1],["Berjalan",11,1],["Kendala",11,1],["Kegiatan (selesai / total)",22,1]],
-    R.teams.map(t=>{const c=s=>t.logs.filter(l=>l.status===s).length;return `<tr><td>${esc(t.name)}</td><td class="n">${t.members.size}</td><td class="n">${t.logs.length}</td><td class="n">${c("selesai")}</td><td class="n">${c("berjalan")}</td><td class="n">${c("kendala")}</td><td class="n">${t.items.filter(i=>mrDone(i,t.key)).length} / ${t.items.length}</td></tr>`}),"");
-  const kd=R.logs.filter(l=>l.status==="kendala");
-  table(`<h3>Kendala yang tercatat (${kd.length})</h3>`,[["Tanggal",11],["Tim",15],["Orang",14],["Pekerjaan",30],["Kendala",30]],
-    kd.map(l=>`<tr><td>${esc(fmtShort(l.date))}</td><td>${esc(PL.roles[teamOf(l.job,l.email)]||"Lainnya")}</td><td>${esc(l.name||nameOf(l.email))}</td><td>${esc(l.text)}</td><td>${esc(l.note||"–")}</td></tr>`),"Tidak ada kendala yang tercatat pada periode ini.");
-  // per tim: kegiatan kalender lalu pekerjaan harian per orang
-  for(const t of R.teams){
-    page();put(`<h2>Tim ${esc(t.name)}</h2><p class="sub">Anggota: ${esc([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")}</p>`+mrKpis(t.logs,t.items,t.key,t.members.size));
-    // program partnership: hasil bisnis & biaya, lalu tabel program; tabel kegiatan di bawahnya berisi kegiatan lain
-    const progs=t.items.filter(i=>kindOf(i)==="program"),others=t.items.filter(i=>kindOf(i)!=="program");
-    if(progs.length){
-      const run=progs.filter(i=>i.status!=="batal"),n=f=>run.reduce((a,i)=>a+(+i[f]||0),0),bud=n("budget"),cost=n("cost");
-      const PK=[["Peserta",int(n("result_num")),"jangkauan "+int(n("reach"))],["Leads",int(n("leads")),"akun baru "+int(n("accounts"))],["Nilai transaksi / AUM",rp(n("aum")),`dari ${run.length} program`],
-        ["Biaya realisasi",rp(cost),bud?`anggaran ${rp(bud)} (${Math.round(cost/bud*100)}% terpakai)`:"anggaran belum diisi"]];
-      put(`<h3>Hasil program partnership</h3><div class="mr-kpis">${PK.map(x=>`<div class="mr-kpi"><small>${esc(x[0])}</small><b>${esc(x[1])}</b><i>${esc(x[2])}</i></div>`).join("")}</div>`);
-      table(`<h3>Program partnership (${progs.length})</h3>`,[["Periode",16],["Program",22],["Partner",14],["Status",9],["Peserta",8,1],["Leads",7,1],["Akun baru",8,1],["Nilai transaksi",16,1]],
-        progs.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>`<tr><td>${esc(fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):""))}</td><td>${ICON.program} ${esc(i.title)}</td><td>${esc(i.partner||"–")}</td>`+
-          `<td>${esc(STL[i.status]||i.status||"–")}</td><td class="n">${esc(int(i.result_num))}</td><td class="n">${esc(int(i.leads))}</td><td class="n">${esc(int(i.accounts))}</td><td class="n">${esc(rp(i.aum))}</td></tr>`),"");
-    }
-    table(`<h3>${progs.length?"Kegiatan kalender lainnya":"Project &amp; kegiatan kalender"} (${others.length})</h3>`,[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
-      others.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>{const own=roleOf(i.owner_email)===t.key||!i.d_need;
-        return `<tr><td>${esc(fmtShort(i.date))}</td><td>${ICON[kindOf(i)]||""} ${esc(i.title)}</td><td>${esc([(K[kindOf(i)]||{}).label,i.channel].filter(Boolean).join(" · "))}</td><td>${esc(own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–")}</td>`+
-          `<td>${esc(own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"))}</td><td class="n">${own&&i.result_num!=null&&i.result_num!==""?esc(int(i.result_num)):""}${lnk(own?i.link:i.d_link)||(own&&i.result_num?"":"–")}</td></tr>`}),
-      "Tidak ada kegiatan kalender tim ini pada periode ini.");
-    const byP={};t.logs.forEach(l=>(byP[l.email]=byP[l.email]||[]).push(l));
-    const rows=Object.entries(byP).sort((a,b)=>(t.members.get(a[0])||"").localeCompare(t.members.get(b[0])||"")).flatMap(([e,L])=>[
-      `<tr class="grp"><td colspan="5">${esc(t.members.get(e)||e)} · ${L.length} pekerjaan</td></tr>`,
-      ...L.map(l=>`<tr><td>${esc(fmtShort(l.date))}</td><td>${esc(l.text)}${lnk(l.link)}</td><td>${l.item_title?esc(l.item_title):"–"}</td><td>${st(l.status)}</td><td>${esc(l.note||"–")}</td></tr>`)]);
-    table(`<h3>Pekerjaan harian (${t.logs.length})</h3>`,[["Tanggal",10],["Pekerjaan",36],["Kegiatan terkait",22],["Status",10],["Catatan / kendala",22]],rows,"Belum ada pekerjaan harian yang dicatat tim ini.");
+  const td=(c,num)=>{
+    if(c===null||typeof c!=="object")return `<td${num?' class="n"':""}>${esc(c)}</td>`;
+    let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(WS[c.st]||c.st)}</span>`:esc(c.t||"");
+    if(c.href)h+=`${h?" ":""}<a href="${esc(c.href)}">buka</a>`;
+    return `<td${num?' class="n"':""}>${h||"–"}</td>`;
+  };
+  for(const b of doc.blocks){
+    if(b.t==="cover"){page("mr-cover");body.innerHTML=`<h1>${b.lines.map(esc).join("<br>")}</h1><p>${esc(b.sub||"")}</p>`}
+    else if(b.t==="page"){page();put(`<h2>${esc(b.h2)}</h2>${b.sub?`<p class="sub">${esc(b.sub)}</p>`:""}`)}
+    else if(b.t==="kpis")put((b.h3?`<h3>${esc(b.h3)}</h3>`:"")+`<div class="mr-kpis">${b.items.map(x=>`<div class="mr-kpi"><small>${esc(x[0])}</small><b>${esc(x[1])}</b><i>${esc(x[2])}</i></div>`).join("")}</div>`);
+    else if(b.t==="table")table(`<h3>${esc(b.h3)}</h3>`,b.cols,b.rows.map(r=>r.grp!==undefined?`<tr class="grp"><td colspan="${b.cols.length}">${esc(r.grp)}</td></tr>`:`<tr>${r.map((c,i)=>td(c,(b.cols[i]||[])[2])).join("")}</tr>`),b.empty||"");
   }
   const P=[...host.children];P.forEach((p,i)=>{p.querySelector(".pn").textContent=`${i+1} / ${P.length}`});
   const html=host.innerHTML;host.remove();return html;
+}
+/** PPT: template yang sama (LAYOUT_WIDE = 13,33 x 7,5 inci, sama dengan halaman PDF); tabel dipecah per slide menurut perkiraan tinggi baris. */
+let logoP=null;
+const logoData=()=>logoP||(logoP=fetch(new URL(MR_LOGO,location.href).href).then(r=>r.ok?r.blob():Promise.reject(new Error("logo"))).then(b=>new Promise(ok=>{
+  const f=new FileReader();f.onload=()=>{const i=new Image();i.onload=()=>ok({data:f.result,r:i.naturalWidth/i.naturalHeight});i.onerror=()=>ok(null);i.src=f.result};f.onerror=()=>ok(null);f.readAsDataURL(b)})).catch(()=>null));
+async function pptDoc(doc,fileName){
+  await loadPpt();
+  const logo=await logoData(),pp=new window.PptxGenJS();pp.layout="LAYOUT_WIDE";pp.title=fileName;
+  const C={g:"3F8A66",a:"2F7A55",t:"2B2B2B",m:"5F6B7A",s:"8A94A0",bg:"F7F7F5",h:"E6F0EA",l:"E2E6E3",grp:"F1F4F2",th:"24372C"},F="Inter",X=.62,W=+(13.333-2*X).toFixed(3),BOT=6.95;
+  const ST={selesai:["E1F5E9","1D6B41"],berjalan:["FFF4DC","8A5A00"],kendala:["FDE8E6","A5352A"]};
+  const foot=`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`;
+  let s=null,y=0;
+  const slide=cover=>{
+    s=pp.addSlide();s.background={color:C.bg};
+    if(logo)s.addImage({data:logo.data,x:X,y:.4,h:.36,w:+(.36*logo.r).toFixed(3)});else s.addText(B.company||"",{x:X,y:.4,w:6,h:.36,fontFace:F,fontSize:13,bold:true,color:C.t,margin:0});
+    s.addText(`${doc.div} Report | ${doc.per}`,{x:X+W/2,y:.42,w:W/2,h:.36,fontFace:F,fontSize:11,color:C.m,align:"right",valign:"bottom",margin:0});
+    s.addShape(pp.ShapeType.rect,{x:X,y:.88,w:W,h:.035,fill:{color:C.g},line:{color:C.g,width:0}});
+    if(!cover){s.addText(foot,{x:X,y:7.12,w:W/2,h:.22,fontFace:F,fontSize:8,color:C.s,margin:0});s.slideNumber={x:X+W-1,y:7.12,w:1,h:.22,fontFace:F,fontSize:8,color:C.s,align:"right"}}
+    y=1.12;
+  };
+  const h2=(t,sub)=>{s.addText(t,{x:X,y,w:W,h:.5,fontFace:F,fontSize:24,bold:true,color:C.t,margin:0});y+=.52;if(sub){s.addText(sub,{x:X,y,w:W,h:.28,fontFace:F,fontSize:11,color:C.m,margin:0});y+=.38}else y+=.1};
+  const h3=t=>{s.addText(t,{x:X,y,w:W,h:.3,fontFace:F,fontSize:13,bold:true,color:C.a,margin:0});y+=.34};
+  const kpis=(items,title)=>{
+    const rows=Math.ceil(items.length/4);if(y+(title?.34:0)+rows*.98>BOT)slide();
+    if(title)h3(title);const w=(W-.42)/4;
+    items.forEach((k,i)=>{const x=X+(i%4)*(w+.14),yy=y+Math.floor(i/4)*.98;
+      s.addShape(pp.ShapeType.roundRect,{x,y:yy,w,h:.86,fill:{color:"FFFFFF"},line:{color:C.l,width:.75},rectRadius:.08});
+      s.addText(String(k[0]),{x:x+.14,y:yy+.07,w:w-.28,h:.2,fontFace:F,fontSize:9,color:C.m,margin:0});
+      s.addText(String(k[1]),{x:x+.14,y:yy+.27,w:w-.28,h:.36,fontFace:F,fontSize:20,bold:true,color:C.a,margin:0,fit:"shrink"});
+      s.addText(String(k[2]||""),{x:x+.14,y:yy+.63,w:w-.28,h:.18,fontFace:F,fontSize:8,color:C.m,margin:0})});
+    y+=rows*.98+.1;
+  };
+  // perkiraan tinggi baris: ±14 karakter per inci di 9 pt
+  const txt=c=>c===null||typeof c!=="object"?String(c??"–"):c.st?WS[c.st]||c.st:(c.t?c.t+" ":"")+(c.href?"buka":"");
+  const lines=(t,w)=>String(t).split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/Math.max(4,w*14))),0);
+  const pcell=(c,num)=>{
+    const o={fontFace:F,fontSize:9,color:C.t,align:num?"right":"left",valign:"top"};
+    if(c===null||typeof c!=="object")return {text:String(c??"–"),options:o};
+    if(c.st){const z=ST[c.st]||[C.h,C.t];return {text:WS[c.st]||c.st,options:{...o,bold:true,color:z[1],fill:{color:z[0]}}}}
+    if(c.href)return {text:txt(c),options:{...o,color:C.a,hyperlink:{url:c.href}}};
+    return {text:String(c.t||"–"),options:o};
+  };
+  const table=b=>{
+    const cw=b.cols.map(c=>+(c[1]/100*W).toFixed(3)),hdr=b.cols.map(c=>({text:c[0],options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.h},align:c[2]?"right":"left"}}));
+    const rh=r=>r.grp!==undefined?.26:Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1)))*.16+.1;
+    if(!b.rows.length){if(y+.7>BOT)slide();h3(b.h3);s.addText(b.empty||"",{x:X,y,w:W,h:.26,fontFace:F,fontSize:10,color:C.m,margin:0});y+=.38;return}
+    let i=0,cont=false;
+    while(i<b.rows.length){
+      if(y+.34+.3+rh(b.rows[i])+(b.rows[i].grp!==undefined&&b.rows[i+1]?rh(b.rows[i+1]):0)>BOT)slide();
+      h3(b.h3+(cont?" (lanjutan)":""));
+      const rows=[hdr],hs=[.3];let yy=y+.3;
+      while(i<b.rows.length){
+        const r=b.rows[i],h=rh(r);if(yy+h>BOT&&rows.length>1)break;
+        if(r.grp!==undefined&&b.rows[i+1]&&yy+h+rh(b.rows[i+1])>BOT&&rows.length>1)break;   // nama orang tidak tertinggal di akhir slide
+        rows.push(r.grp!==undefined?[{text:r.grp,options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.grp},colspan:b.cols.length}}]:r.map((c,j)=>pcell(c,(b.cols[j]||[])[2])));
+        hs.push(+h.toFixed(3));yy+=h;i++;
+      }
+      s.addTable(rows,{x:X,y,w:W,colW:cw,rowH:hs,fill:{color:"FFFFFF"},border:{type:"solid",color:"E8ECE9",pt:.75},margin:.05,autoPage:false});
+      y=yy+.14;cont=true;
+      if(i<b.rows.length)slide();
+    }
+  };
+  for(const b of doc.blocks){
+    if(b.t==="cover"){
+      slide(true);const big=Math.max(...b.lines.map(l=>l.length))>20?44:56;
+      s.addText(b.lines.join("\n"),{x:X,y:1.6,w:W,h:2.9,fontFace:F,fontSize:big,bold:true,color:C.t,valign:"bottom",margin:0,lineSpacingMultiple:.92});
+      s.addText(b.sub||"",{x:X,y:4.62,w:W,h:.45,fontFace:F,fontSize:16,color:C.m,margin:0});
+    }
+    else if(b.t==="page"){slide();h2(b.h2,b.sub)}
+    else if(b.t==="kpis")kpis(b.items,b.h3);
+    else if(b.t==="table")table(b);
+  }
+  await pp.writeFile({fileName:fileName+".pptx"});
 }
 // di dalam Tool Hub di HP, window.print() dari bingkai mencetak halaman hub: PDF dibuka di tab sendiri (dibuka saat tombol ditekan)
 const mobileFramed=()=>parent!==window&&(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)));
@@ -1351,18 +1333,30 @@ function mrPrint(html,name,tab){
   const done=()=>{removeEventListener("afterprint",done);document.body.classList.remove("mrprint");pg.remove();$("mrArea").innerHTML="";title("")};
   addEventListener("afterprint",done);window.print();setTimeout(()=>{if(document.body.classList.contains("mrprint"))done()},1500);
 }
-async function monthlyPdf(){
+// jenis laporan -> data, isi (blok), nama file
+const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
+const repDiv=()=>{const d=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",d);return d};
+const repFile=(X,R)=>`${X.name.replace(/\s+/g,"-")}-${R.from}_${R.to}`;
+$("rPdf").onclick=async()=>{
   const tab=mobileFramed()?window.open("","_blank"):null;
-  if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Monthly Report</title><p style="font:16px system-ui,sans-serif;padding:24px">Menyiapkan PDF…</p>');
+  if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laporan</title><p style="font:16px system-ui,sans-serif;padding:24px">Menyiapkan PDF…</p>');
   $("rPdf").disabled=true;$("repMsg").textContent="Menyusun PDF…";
   try{
-    const div=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",div);
-    const R=await monData(div);showErr("repErr");
-    mrPrint(await mrBuild(R),`${R.div} Report - ${R.per}`,tab);
+    const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
+    mrPrint(await pdfDoc(X.doc(R)),RT==="mon"?`${R.div} Report - ${R.per}`:`${X.name} - ${R.per}`,tab);
     $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
   }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
   finally{$("rPdf").disabled=false}
-}
+};
+$("rPpt").onclick=async()=>{
+  $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
+  try{
+    const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
+    await pptDoc(X.doc(R),repFile(X,R));
+    $("repMsg").textContent="✓ PPT diunduh.";
+  }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
+  finally{$("rPpt").disabled=false}
+};
 
 /* =================== PAKET MINGGUAN =================== */
 const CATS=["Pasar Uang","Pendapatan Tetap","Campuran","Saham","Indeks"];
