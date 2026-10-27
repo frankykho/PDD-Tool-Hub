@@ -443,7 +443,7 @@ const pct=(x,n=2)=>x==null||!isFinite(x)?"–":(x>0?"+":"")+num(x,n)+"%";
 async function api(path,body){
   const r=await fetch(path,body?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{cache:"no-store"});
   const j=await r.json().catch(()=>({error:"Respons tidak terbaca (HTTP "+r.status+")"}));
-  if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
+  if(!r.ok||j.error){const e=new Error(j.error||("HTTP "+r.status));e.status=r.status;e.data=j;throw e}
   return j;
 }
 const showErr=(box,e)=>{$(box).innerHTML=e?`<div class="msg err">${esc(e.message||e)}</div>`:""};
@@ -496,7 +496,18 @@ function shown(){
   const k=$("fKind").value,s=$("fSt").value,o=$("fOw").value;
   return items.filter(i=>(!k||(k==="desain"?i.d_need:(i.kind||"konten")===k))&&(!s||i.status===s)&&(!o||isOf(i,o)));
 }
+// kembali ke tab Planner / jendela aktif lagi: muat ulang supaya perubahan rekan terlihat (paling sering tiap 30 detik;
+// tidak saat dialog terbuka atau isian harian belum disimpan)
+let lastLoad=0;
+function refreshIfStale(){
+  if(document.visibilityState!=="visible"||Date.now()-lastLoad<30e3||$("vCal").hidden)return;
+  if([...document.querySelectorAll("dialog")].some(x=>x.open))return;
+  if(view==="daily"&&(DV.edit||($("dvText")&&$("dvText").value.trim())))return;
+  loadCal();
+}
+addEventListener("focus",refreshIfStale);document.addEventListener("visibilitychange",refreshIfStale);
 async function loadCal(){
+  lastLoad=Date.now();
   const d=D(cur);$("period").textContent=`${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   if(view==="tasks")return loadTasksView();
   if(view==="daily")return loadDaily();
@@ -899,33 +910,43 @@ $("tList").addEventListener("click",async e=>{
   if(!t||!confirm(`Hapus tugas “${t.title}”?`))return;
   try{await api("/api/tasks/delete",{id:t.id});await renderTaskBox()}catch(err){showErr("dlgErr",err)}
 });
-const formData=()=>({id:editing&&editing.id,kind:fKind,title:$("iTitle").value,date:$("iDate").value,channel:$("iCh").value,status:$("iSt").value,
+// base: versi yang dibuka (updated_at); server menolak (409) kalau kegiatan sudah diubah orang lain sejak itu
+const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":undefined,kind:fKind,title:$("iTitle").value,date:$("iDate").value,channel:$("iCh").value,status:$("iSt").value,
   time:$("iTime").value,role:$("iRole").value,place:$("iPlace").value,audience:$("iAud").value,
   owner:$("iOw").value,owner_email:emailOf($("iOw").value),link:$("iLink").value,note:$("iNote").value,result_num:$("iRes").value,result_note:$("iResN").value,
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
   program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
   reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
   copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value]))});
-$("form").addEventListener("submit",async e=>{
-  e.preventDefault();$("iSave").disabled=true;
+// konflik: kegiatan sudah diubah orang lain sejak form dibuka -> pilih muat versi terbaru atau tetap simpan versi sendiri
+function showConflict(err){
+  const d=err.data||{};showErr("dlgErr",err);
+  $("dlgErr").insertAdjacentHTML("beforeend",`<div class="acts" style="margin:-4px 0 10px"><span class="muted small">${d.at?"Diubah "+esc(when(d.at))+". ":""}Perubahanmu di form ini belum tersimpan.</span><span class="sp"></span><button type="button" class="btn sm" data-cf="load">Muat versi terbaru</button><button type="button" class="btn sm danger" data-cf="mine">Tetap simpan versi saya</button></div>`);
+}
+$("dlgErr").addEventListener("click",e=>{const b=e.target.closest("[data-cf]");if(!b||!editing)return;
+  if(b.dataset.cf==="load"){showErr("dlgErr");openItem(editing.id)}else{showErr("dlgErr");saveForm(true)}});
+$("form").addEventListener("submit",e=>{e.preventDefault();saveForm(false)});
+async function saveForm(force){
+  $("iSave").disabled=true;
   try{
-    const wasNew=!editing,r=await api("/api/items",formData());
+    const wasNew=!editing,r=await api("/api/items",{...formData(),force});
     if(fKind==="program")await loadProgs();
     // program baru: form tetap terbuka supaya tugas bisa langsung dibagi
     if(wasNew&&fKind==="program"&&PL.me.assign){editing=await api("/api/items?id="+encodeURIComponent(r.id));$("dlgTitle").textContent="Ubah kegiatan";$("iDel").hidden=false;await renderTaskBox();$("tTitle").focus();}
     else $("dlg").close();
     const d=$("iDate").value;if(view!=="design"&&view!=="tasks"&&!(d>=range.from&&d<=range.to))cur=d.slice(0,8)+"01";
     await loadCal();
-  }catch(err){showErr("dlgErr",err)}
+  }catch(err){err.status===409?showConflict(err):showErr("dlgErr",err)}
   finally{$("iSave").disabled=false}
-});
+}
 $("iCancel").onclick=()=>$("dlg").close();
 $("iDel").onclick=async()=>{
   if(!editing||!confirm(`Hapus kegiatan “${editing.title}”?`))return;
   try{await api("/api/items/delete",{id:editing.id});$("dlg").close();if(editing&&editing.kind==="program")await loadProgs();await loadCal();}catch(err){showErr("dlgErr",err)}
 };
-// simpan perubahan kecil (geser tanggal, status desain) tanpa membuka form
-const quick=async(it,patch)=>{try{await api("/api/items",{...it,...patch,d_need:!!it.d_need});await loadCal();}catch(err){showErr("calErr",err)}};
+// simpan perubahan kecil (geser tanggal, status desain) tanpa membuka form: diterapkan ke versi terbaru di server,
+// bukan ke salinan di layar (yang bisa sudah usang dan menimpa perubahan orang lain)
+const quick=async(it,patch)=>{try{const cur=await api("/api/items?id="+encodeURIComponent(it.id));await api("/api/items",{...cur,...patch,d_need:!!cur.d_need,base:cur.updated_at||""});await loadCal();}catch(err){showErr("calErr",err);if(err.status===409)loadCal()}};
 $("calBox").addEventListener("click",e=>{
   if(e.target.closest("select"))return;
   const pg=e.target.closest("[data-prog]");if(pg){openItem(pg.dataset.prog);return}

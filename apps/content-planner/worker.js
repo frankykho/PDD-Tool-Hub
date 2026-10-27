@@ -224,6 +224,9 @@ async function saveItem(env, me, b) {
   const now = new Date().toISOString(), by = who(me), meE = lower(me.e), vals = EDIT.map((k) => it[k] ?? null);
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
+  // base = updated_at versi yang dibuka: kalau sudah diubah lagi sejak itu (orang lain / tab lain), jangan ditimpa diam-diam
+  if (prev && b.base !== undefined && !b.force && (prev.updated_at || "") !== String(b.base || ""))
+    return { conflict: true, by: prev.updated_by || "", at: prev.updated_at || "", error: `Kegiatan ini sudah diubah ${prev.updated_by || "orang lain"} setelah kamu membukanya.` };
   if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(await jobOf(env, me), me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh Partnership atau admin." };
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
@@ -278,11 +281,12 @@ async function decide(env, me, b) {
   if (b.action === "setujui") {
     if (it.approval !== "menunggu") return { error: "Konten ini tidak sedang menunggu persetujuan." };
     if (b.checked !== true) return { error: "Centang dulu bahwa caption sudah dicek kepatuhannya." };
-    st = env.DB.prepare("UPDATE items SET approval='disetujui', approval_note=?, approved_by=?, approved_at=? WHERE id=?").bind(note, by, now, it.id);
+    // updated_at ikut berubah: form yang masih membuka versi lama tidak menimpa keputusan ini (lihat base di saveItem)
+    st = env.DB.prepare("UPDATE items SET approval='disetujui', approval_note=?, approved_by=?, approved_at=?, updated_by=?, updated_at=? WHERE id=?").bind(note, by, now, by, now, it.id);
   } else if (b.action === "revisi") {
     if (!note) return { error: "Tulis catatan revisinya." };
     if (it.approval !== "menunggu" && it.approval !== "disetujui") return { error: "Konten ini tidak sedang menunggu persetujuan." };
-    st = env.DB.prepare("UPDATE items SET approval='revisi', approval_note=?, approved_by='', approved_at='', status = CASE WHEN status = 'review' THEN 'draf' ELSE status END WHERE id=?").bind(note, it.id);
+    st = env.DB.prepare("UPDATE items SET approval='revisi', approval_note=?, approved_by='', approved_at='', status = CASE WHEN status = 'review' THEN 'draf' ELSE status END, updated_by=?, updated_at=? WHERE id=?").bind(note, by, now, it.id);
   } else return { error: "Aksi tidak dikenal." };
   const ok = b.action === "setujui";
   await env.DB.batch([st, env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(it.id, now, by, meE, ok ? "disetujui" : "revisi", note)]);
@@ -414,7 +418,7 @@ async function importMetrics(env, me, b) {
     const res = r.m_reach ?? r.m_views, id = have.get(r.key);
     if (id) {
       matched++;
-      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=?").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num) WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, id));
+      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=?").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, by, now, id));
     } else if (b.create && r.date) {
       created++;
       const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
@@ -891,7 +895,7 @@ export default {
       if (request.method === "POST") {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
         const b = await request.json().catch(() => ({}));
-        if (path === "/api/items") { const r = await saveItem(env, me, b); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/items") { const r = await saveItem(env, me, b); return json(r, r.conflict ? 409 : r.error ? 400 : 200); }
         if (path === "/api/tasks") { const r = await saveTask(env, me, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }

@@ -334,6 +334,21 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.equal((await call(`/api/logs?from=${plus(-1)}&to=${wib}`, { ck: PART })).j.length, 1);
 }
 
+/* ---------- dua orang mengubah kegiatan yang sama: versi lama tidak menimpa diam-diam ---------- */
+{
+  const id = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Konten bersama", date: plus(3), channel: "IG Feed", status: "ide", copy: "caption awal" } })).j.id;
+  const v1 = (await call("/api/items?id=" + id, { ck: COPY })).j;           // Cici & Dodi membuka versi yang sama
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...v1, copy: "caption baru Cici", base: v1.updated_at } })).status, 200);
+  r = await call("/api/items", { ck: DES, body: { ...v1, status: "draf", base: v1.updated_at } });
+  assert.equal(r.status, 409, "Dodi masih memegang versi lama"); assert.equal(r.j.conflict, true); assert.equal(r.j.by, "Cici");
+  assert.equal((await call("/api/items?id=" + id, { ck: COPY })).j.copy, "caption baru Cici", "caption Cici tidak tertimpa");
+  const v2 = (await call("/api/items?id=" + id, { ck: DES })).j;           // muat versi terbaru, lalu ubah
+  assert.equal((await call("/api/items", { ck: DES, body: { ...v2, status: "draf", base: v2.updated_at } })).status, 200);
+  assert.deepEqual((({ copy, status }) => [copy, status])((await call("/api/items?id=" + id, { ck: COPY })).j), ["caption baru Cici", "draf"]);
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...v1, title: "Versi saya", base: v1.updated_at, force: true } })).status, 200, "tetap simpan versi sendiri");
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...v1, title: "Tanpa base (klien lama)" } })).status, 200, "tanpa base tetap bisa menyimpan");
+}
+
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
 assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");
 assert.equal(hijriToIso(1447, 10, 1), "2026-03-20", "Idul Fitri 1447 H (perkiraan)");
