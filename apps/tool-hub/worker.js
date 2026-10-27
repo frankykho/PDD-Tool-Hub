@@ -14,7 +14,7 @@ import { JOBS, OPS_ALERTS } from "../../shared/jobs.js";
 import SHELL from "./shell.html";
 
 // cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
-// ai = baris singkat kalau tool memakai AI (muncul di AI Workbench); kw = kata kunci tambahan untuk pencarian.
+// ai = baris singkat kalau tool memakai AI (label "Memakai AI" di halaman detail, ikut dicari); kw = kata kunci tambahan untuk pencarian.
 // Tool baru cukup ditambahkan di sini: sidebar, beranda, pencarian, dan halaman detail membaca daftar ini.
 // frame: false = belum bisa tampil di dalam dashboard, dibuka di tab browser baru (hapus setelah tool itu disambungkan ke hub).
 // Daftar tool. Alamat tool = profile.urls[id] (appUrl); tiket hanya dikirim ke alamat ini. levels / tabs = pilihan hak akses di halaman admin.
@@ -503,7 +503,7 @@ function levelLabel(a, acc) {
   return '';
 }
 
-/** Dashboard: sidebar, beranda (aksi cepat, Hari ini, AI Workbench, favorit, semua tool), Semua tools, detail tool, dan tool di dalam bingkai.
+/** Dashboard: sidebar, beranda (Tool kamu, Ritme & kartu hari ini), Semua tools, detail tool, dan tool di dalam bingkai.
  *  Tampilan ada di shell.html; di sini hanya data pengguna yang disuntikkan. Tool tetap dibuka di bingkai lewat /sso seperti sebelumnya. */
 function shellPage(env, sess, mine, pending, fav) {
   const p = profile(env), repo = env.GITHUB_REPO || p.github.repo || '';
@@ -513,7 +513,6 @@ function shellPage(env, sess, mine, pending, fav) {
     me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin', job: JOBS[sess.u.job] || '', ops: sess.role === 'admin' || OPS_ALERTS.includes(sess.u.job) },
     pending,
     brand: { name: title(env, 'Tool Hub'), short: p.brand.short || '', logo: p.brand.logo || '', logoDark: p.brand.logoDark || '' },
-    aiTitle: title(env, 'AI Workbench'),
     cats: CATEGORIES,
     apps: mine.map(a => ({
       id: a.id, name: a.name, desc: a.desc, blurb: a.blurb || '', cat: CATEGORIES[a.cat] ? a.cat : 'research', icon: a.icon || 'grid',

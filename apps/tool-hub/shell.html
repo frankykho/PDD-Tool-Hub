@@ -556,13 +556,16 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
       '<a class="iconbtn" href="#/about/' + a.id + '" aria-label="Detail ' + esc(a.name) + '" title="Detail">' + icon("info") + "</a></div></article>";
   }
   function words(s) { return String(s || "").toLowerCase().split(/\s+/).filter(Boolean); }
-  function hay(a) { return [a.name, a.desc, a.blurb, cats[a.cat].label, (a.features || []).join(" "), a.kw || ""].join(" ").toLowerCase(); }
+  // keterangan AI ikut dicari, jadi "AI" menemukan tool yang memakai AI (label "Memakai AI" di halaman detail)
+  function hay(a) { return [a.name, a.desc, a.blurb, cats[a.cat].label, (a.features || []).join(" "), a.kw || "", a.ai ? "memakai ai " + a.ai : ""].join(" ").toLowerCase(); }
+  // kata pendek (≤ 2 huruf, mis. "ai", "rd") hanya cocok di awal kata, supaya "ai" tidak cocok dengan "harian" atau "selesai"
+  function has(h, x) { return x.length > 2 ? h.indexOf(x) >= 0 : (" " + h.replace(/[^a-z0-9]+/g, " ")).indexOf(" " + x) >= 0; }
   function pick(cat, sort, q) {
     var list = apps.slice();
     if (cat === "fav") list = fav.map(function (id) { return byId[id]; });
     else if (cat === "recent") list = recent.map(function (x) { return byId[x.id]; });
     else if (cats[cat]) list = list.filter(function (a) { return a.cat === cat; });
-    var w = words(q); if (w.length) list = list.filter(function (a) { var h = hay(a); return w.every(function (x) { return h.indexOf(x) >= 0; }); });
+    var w = words(q); if (w.length) list = list.filter(function (a) { var h = hay(a); return w.every(function (x) { return has(h, x); }); });
     if (sort === "az") list.sort(function (a, b) { return a.name.localeCompare(b.name, "id"); });
     else if (sort === "recent") list.sort(function (a, b) { return (lastUse(b.id) - lastUse(a.id)) || (a.i - b.i); });
     else if (cat !== "fav" && cat !== "recent") list.sort(function (a, b) { return (catOrder.indexOf(a.cat) - catOrder.indexOf(b.cat)) || (a.i - b.i); });
@@ -1039,7 +1042,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
       res = src.filter(function (o) { return o.g === "Tool"; }).sort(function (a, b) { return (b.w - a.w) || 0; }).slice(0, 6).map(function (o) { o.g2 = o.w ? "Terakhir dibuka" : "Tool"; return o; });
       res = res.concat(src.filter(function (o) { return o.g === "Navigasi"; }).slice(0, 2).map(function (o) { o.g2 = o.g; return o; }));
     } else {
-      res = src.filter(function (o) { var h = (o.t + " " + o.s + " " + o.h).toLowerCase(); return w.every(function (x) { return h.indexOf(x) >= 0; }); }).map(function (o) {
+      res = src.filter(function (o) { var h = (o.t + " " + o.s + " " + o.h).toLowerCase(); return w.every(function (x) { return has(h, x); }); }).map(function (o) {
         var t = o.t.toLowerCase(), ql = q.toLowerCase(); o.sc = t.indexOf(ql) === 0 ? 3 : t.indexOf(ql) >= 0 ? 2 : 1; o.g2 = o.g; return o;
       });
       // grup dengan judul paling cocok tampil lebih dulu (mis. "paket" -> halaman Paket Mingguan di atas kartu tool)

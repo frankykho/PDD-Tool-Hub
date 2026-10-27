@@ -116,7 +116,7 @@ for (const a of boot.apps) {
   assert.ok(a.icon && a.blurb && a.features.length, `${a.id}: ikon, ringkasan, dan fitur terisi`);
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
-assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["competitor", "content", "copy", "edukasi", "news", "recap", "sats", "tutorial"], "AI Workbench hanya tool yang memang memakai AI");
+assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["competitor", "content", "copy", "edukasi", "news", "recap", "sats", "tutorial"], "label Memakai AI hanya di tool yang memang memakai AI");
 assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, bond: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
