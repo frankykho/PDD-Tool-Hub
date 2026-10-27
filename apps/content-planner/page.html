@@ -181,6 +181,26 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
   #printArea .n{text-align:right;white-space:nowrap}
   #printArea .foot{margin-top:14px;color:#666;font-size:9.5px}
 }
+
+/* ---------- Pekerjaan harian ---------- */
+.daily{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.daily h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.daily .trow>.ap{flex:none;margin-top:1px;min-width:68px;text-align:center}
+.dvf{display:grid;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.dvf .grid3 .f{width:100%}
+.dteam{margin-top:12px}
+.dteam:first-of-type{margin-top:0}
+.dteam h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 4px}
+.dperson{font-weight:700;font-size:13px;margin:8px 0 0}
+@media (max-width:900px){.daily{grid-template-columns:minmax(0,1fr)}}
+/* Monthly Report (PDF 16:9): gaya halamannya ada di MR_CSS (script), area cetaknya #mrArea */
+#mrArea{display:none}
+.mr-host{position:fixed;left:-30000px;top:0}
+@media print{
+  body.mrprint .wrap,body.mrprint dialog,body.mrprint #printArea{display:none!important}
+  body.mrprint{background:#f7f7f5!important}
+  body.mrprint #mrArea{display:block}
+}
 </style>
 </head>
 <body>
@@ -195,7 +215,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
     <button class="btn sm" id="next" aria-label="Berikutnya">›</button>
     <button class="btn sm" id="today">Hari ini</button></span>
     <span class="sp"></span>
-    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button><button id="vPerf">📈 Performa</button></div>
+    <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button><button id="vDaily">📝 Harian</button><button id="vPerf">📈 Performa</button></div>
     <button class="btn" id="momBtn" aria-expanded="false">✨ Momen</button>
     <button class="btn" id="repBtn">⬇ Laporan</button>
     <button class="btn pri" id="addBtn">+ Kegiatan</button>
@@ -374,19 +394,21 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 <dialog id="rep">
   <div class="dlg">
     <h2>Laporan</h2>
-    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button></div></div>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
     <div class="fld" id="rProgF"><label for="rProg">Program</label><select class="f" id="rProg"></select></div>
     <div class="fld" id="rWhoF"><label for="rWho">Orang</label><select class="f" id="rWho"></select></div>
     <div class="fld" id="rKindsF"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
+    <div class="fld" id="rDivF" hidden><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
     <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
     <p class="muted small" id="rHelp" style="margin:10px 0 0"></p>
   </div>
 </dialog>
 <div id="printArea"></div>
+<div id="mrArea"></div>
 
 <script>
 (function(){
@@ -455,7 +477,7 @@ function fillSelects(){
   $("iRole").innerHTML=opts(PL.eduRoles);$("iDst").innerHTML=opts(PL.designStatuses,DSL);
   $("tJob").innerHTML=Object.keys(PL.roles).filter(k=>k!=="partnership").map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
   const v=recall("pl_view");
-  view=v==="list"||v==="month"||v==="design"||v==="tasks"||v==="perf"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
+  view=v==="list"||v==="month"||v==="design"||v==="tasks"||v==="perf"||v==="daily"?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
   if(view==="month"&&matchMedia("(max-width:640px)").matches)view="list";
 }
 function fillPeople(){
@@ -477,6 +499,7 @@ function shown(){
 async function loadCal(){
   const d=D(cur);$("period").textContent=`${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   if(view==="tasks")return loadTasksView();
+  if(view==="daily")return loadDaily();
   if(view==="design"){range={from:cur,to:monthEnd(cur)};}
   else{const dow=(D(cur).getUTCDay()+6)%7,last=monthEnd(cur),ldow=(D(last).getUTCDay()+6)%7;range={from:addD(cur,-dow),to:addD(last,6-ldow)};}
   const momP=view==="month"||view==="list"?api(`/api/moments?from=${range.from}&to=${range.to}`).catch(()=>[]):Promise.resolve([]);
@@ -491,9 +514,10 @@ function chip(i){
   return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
-  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");
-  ["fKind","fSt","fOw"].forEach(id=>$(id).hidden=view==="tasks"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design"));$("calHelp").hidden=view!=="month"&&view!=="list";
+  $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
+  ["fKind","fSt","fOw"].forEach(id=>$(id).hidden=view==="tasks"||view==="daily"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design"));$("calHelp").hidden=view!=="month"&&view!=="list";
   if(view==="tasks")return renderTasksView();
+  if(view==="daily")return renderDaily();
   const list=shown(),mStart=cur,mEnd=monthEnd(cur),t=todayIso();
   if(view==="design")return renderBoard(list,t);
   if(view==="perf")return renderPerf(list.filter(i=>i.date>=mStart&&i.date<=mEnd));
@@ -657,6 +681,73 @@ function renderTasksView(){
     (PL.me.assign||other.length?col(TV.all?"Tugas tim lainnya":"Kamu berikan",other,false,PL.me.assign?"Buka sebuah program, lalu beri tugas di bagian Tugas tim.":"Tidak ada."):"")+"</div>"+
     (PL.me.assign?`<label class="chk small" style="margin-top:10px"><input type="checkbox" id="tAll"${TV.all?" checked":""}> Tampilkan semua tugas tim</label>`:"")+
     `<p class="muted small" style="margin-top:8px">Tugas yang sudah selesai tetap tampil 30 hari. Klik nama program untuk membuka rinciannya.</p>`;
+}
+/* ---------- Harian: pekerjaan yang dikerjakan tiap orang per hari (semua bisa melihat; mengubah hanya milik sendiri) ---------- */
+const WS=PL.workStatuses||{selesai:"Selesai",berjalan:"Berjalan",kendala:"Kendala"},WCL={selesai:4,berjalan:2,kendala:5};
+const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null};
+// tim = role pekerjaan: role saat mencatat, kalau kosong role orangnya sekarang
+const roleOf=e=>(USERS.find(u=>u.email===e)||{}).role||"";
+const teamOf=(job,email)=>{const r=job||roleOf(email);return PL.roles[r]?r:"lain"};
+async function loadDaily(){
+  const d=DV.date,mk=d.slice(0,7);$("period").textContent=fmtDate(d);
+  try{
+    // pilihan kegiatan terkait: kegiatan sebulan sebelum s.d. sebulan sesudah tanggalnya (dimuat sekali per bulan)
+    const [logs,its]=await Promise.all([api(`/api/logs?from=${d}&to=${d}`),DV.itemsAt===mk?DV.items:api(`/api/items?from=${addD(mk+"-01",-31)}&to=${addD(monthEnd(mk+"-01"),31)}`).catch(()=>[])]);
+    DV.logs=logs;DV.items=its;DV.itemsAt=mk;showErr("calErr");
+  }catch(e){DV.logs=[];showErr("calErr",e)}
+  renderCal();
+}
+const logRow=(l,own)=>`<div class="trow"><span class="ap c${WCL[l.status]||1}">${esc(WS[l.status]||l.status||"–")}</span><div class="ti"><b>${esc(l.text)}</b>`+
+  (l.item_id&&l.item_title?`<small><button type="button" class="lnk" data-open="${esc(l.item_id)}">${ICON[l.item_kind]||""} ${esc(l.item_title)}</button></small>`:"")+
+  (l.note?`<small${l.status==="kendala"?' class="late"':""}>${l.status==="kendala"?"⚠ ":""}${esc(l.note)}</small>`:"")+
+  (l.link?`<small><a href="${esc(l.link)}" target="_blank" rel="noopener">Hasil ↗</a></small>`:"")+"</div>"+
+  (own?`<button type="button" class="btn sm" data-ledit="${esc(l.id)}">Ubah</button><button type="button" class="x" data-ldel="${esc(l.id)}" aria-label="Hapus catatan ${esc(l.text)}">×</button>`:"")+"</div>";
+function dailyForm(){
+  const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit)||{},me=PL.me.email;
+  const mine=i=>i.owner_email===me||i.d_who===me,lab=i=>`<option value="${esc(i.id)}">${ICON[kindOf(i)]} ${esc(i.title)} · ${esc(fmtDate(i.date))}</option>`;
+  const near=DV.items.slice().sort((a,b)=>Math.abs(D(a.date)-D(DV.date))-Math.abs(D(b.date)-D(DV.date))).slice(0,80),my=near.filter(mine),rest=near.filter(i=>!mine(i));
+  return `<form id="dvForm" class="dvf"><input class="f" id="dvText" maxlength="500" required placeholder="Apa yang dikerjakan? mis. Revisi caption promo RDPU" value="${esc(ed.text||"")}" aria-label="Pekerjaan">
+    <div class="grid3"><select class="f" id="dvSt" aria-label="Status">${opts(Object.keys(WS),WS)}</select>
+      <select class="f" id="dvItem" aria-label="Kegiatan kalender terkait"><option value="">Tanpa kegiatan kalender</option>${my.length?`<optgroup label="Kegiatanku">${my.map(lab).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Kegiatan tim">${rest.map(lab).join("")}</optgroup>`:""}</select>
+      <input class="f" id="dvLink" maxlength="500" placeholder="Link hasil (opsional)" value="${esc(ed.link||"")}" aria-label="Link hasil"></div>
+    <input class="f" id="dvNote" maxlength="500" placeholder="${ed.status==="kendala"?"Kendalanya apa? (mis. tunggu data dari MI)":"Catatan (opsional)"}" value="${esc(ed.note||"")}" aria-label="Catatan atau kendala">
+    <div class="acts"><button class="btn pri" type="submit">${DV.edit?"Simpan perubahan":"+ Tambah pekerjaan"}</button>${DV.edit?'<button type="button" class="btn" data-lcancel="1">Batal</button>':""}<span class="muted small" id="dvMsg"></span></div></form>`;
+}
+function renderDaily(){
+  const d=DV.date,t=todayIso(),me=PL.me.email,mine=DV.logs.filter(l=>l.email===me),others=DV.logs.filter(l=>l.email!==me);
+  const kd=DV.logs.filter(l=>l.status==="kendala").length,who=new Set(DV.logs.map(l=>l.email));
+  $("stats").innerHTML=`<span class="stat">${DV.logs.length} pekerjaan tercatat</span><span class="stat">${who.size} dari ${USERS.length} orang mengisi</span>${kd?`<span class="stat c5">${kd} kendala</span>`:""}`;
+  const head=`<h2>Pekerjaanku <span class="muted small" style="font-weight:600">${esc(fmtDate(d,true))}</span><span class="sp"></span><input class="f" type="date" id="dvDate" value="${d}" max="${t}" aria-label="Pilih tanggal" style="padding:4px 8px;font-size:12.5px"></h2>`;
+  const my=`<div class="card">${head}${mine.length?mine.map(l=>logRow(l,true)).join(""):`<p class="muted small" style="margin:4px 0">Belum ada pekerjaan tercatat${d===t?" hari ini":" di tanggal ini"}.</p>`}`+
+    (d>t?`<p class="muted small">Hari yang belum datang belum bisa dicatat.</p>`:dailyForm())+
+    `<p class="muted small" style="margin:10px 0 0">Satu baris untuk tiap pekerjaan. Kaitkan dengan kegiatan kalender kalau ada; semua catatan masuk ke Monthly Report tim (⬇ Laporan).</p></div>`;
+  // tim: dikelompokkan per role; di hari kerja, anggota yang belum mengisi ikut disebut
+  const work=(D(d).getUTCDay()+6)%7<5,order=Object.keys(PL.roles),T={};
+  others.forEach(l=>{const k=teamOf(l.job,l.email);(T[k]=T[k]||{logs:[],people:new Map()}).logs.push(l);T[k].people.set(l.email,l.name||nameOf(l.email)||l.email)});
+  const missing={};if(work)USERS.filter(u=>u.email!==me&&u.role&&!who.has(u.email)).forEach(u=>(missing[u.role]=missing[u.role]||[]).push(u.name));
+  const keys=order.filter(k=>T[k]||missing[k]);
+  const team=`<div class="card"><h2>Tim${d===t?" hari ini":""}</h2>`+(keys.length?keys.map(k=>`<div class="dteam"><h3>${esc(PL.roles[k]||"Lainnya")}</h3>`+
+    (T[k]?[...T[k].people].map(([e,n])=>`<div class="dperson">${esc(n)}</div>`+T[k].logs.filter(l=>l.email===e).map(l=>logRow(l,false)).join("")).join(""):"")+
+    (missing[k]?`<p class="muted small" style="margin:6px 0 0">Belum mengisi: ${missing[k].map(esc).join(", ")}</p>`:"")+"</div>").join(""):`<p class="muted small" style="margin:4px 0">Belum ada catatan dari anggota lain.</p>`)+"</div>";
+  $("calBox").innerHTML=`<div class="daily">${my}${team}</div>`;
+  const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit);
+  if($("dvSt")){$("dvSt").value=ed?ed.status||"selesai":"selesai";$("dvItem").value=ed&&ed.item_id&&[...$("dvItem").options].some(o=>o.value===ed.item_id)?ed.item_id:""}
+}
+async function saveDaily(){
+  const text=$("dvText").value.trim();if(!text)return;
+  const b={id:DV.edit||undefined,date:DV.date,text,status:$("dvSt").value,item_id:$("dvItem").value,link:$("dvLink").value.trim(),note:$("dvNote").value.trim()};
+  $("dvMsg").textContent="Menyimpan…";
+  try{await api("/api/logs",b);DV.edit=null;await loadDaily();if($("dvText"))$("dvText").focus()}catch(e){$("dvMsg").textContent="";showErr("calErr",e)}
+}
+function dailyClick(e){
+  const ed=e.target.closest("[data-ledit]");if(ed){DV.edit=ed.dataset.ledit;renderCal();$("dvText").focus();return}
+  if(e.target.closest("[data-lcancel]")){DV.edit=null;renderCal();return}
+  const del=e.target.closest("[data-ldel]");
+  if(del&&confirm("Hapus catatan pekerjaan ini?"))api("/api/logs/delete",{id:del.dataset.ldel}).then(()=>{if(DV.edit===del.dataset.ldel)DV.edit=null;return loadDaily()}).catch(x=>showErr("calErr",x));
+}
+function dailyChange(e){
+  if(e.target.id==="dvDate"&&e.target.value){DV.date=e.target.value>todayIso()?todayIso():e.target.value;cur=DV.date.slice(0,8)+"01";DV.edit=null;loadCal();return}
+  if(e.target.id==="dvSt")$("dvNote").placeholder=e.target.value==="kendala"?"Kendalanya apa? (mis. tunggu data dari MI)":"Catatan (opsional)";
 }
 const openItem=async id=>{try{openForm(await api("/api/items?id="+encodeURIComponent(id)))}catch(e){showErr("calErr",e)}};
 // form tambah / ubah
@@ -840,13 +931,16 @@ $("calBox").addEventListener("click",e=>{
   const pg=e.target.closest("[data-prog]");if(pg){openItem(pg.dataset.prog);return}
   if(e.target.closest("#tAll")){TV.all=e.target.closest("#tAll").checked;loadTasksView();return}
   const op=e.target.closest("[data-open]");if(op){openItem(op.dataset.open);return}
+  if(view==="daily")return dailyClick(e);
   if(view==="tasks")return;
   if(e.target.closest("#csvGo")){importCsv();return}
   const mo=e.target.closest("[data-mom]");if(mo){fromMoment(MOMS[+mo.dataset.mom]);return}
   const c=e.target.closest(".chip,.task,tr[data-id]");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
   const d=e.target.closest(".day");if(d)openForm(null,d.dataset.date);
 });
+$("calBox").addEventListener("submit",e=>{if(e.target.id==="dvForm"){e.preventDefault();saveDaily()}});
 $("calBox").addEventListener("change",e=>{
+  if(view==="daily")return dailyChange(e);
   const ts=e.target.closest("[data-tstat]");if(ts){setTaskStatus(ts.dataset.tstat,ts.value,TV.list);return}
   const s=e.target.closest("[data-move]");if(s){const it=items.find(i=>i.id===s.dataset.move);if(it)quick(it,{d_status:s.value})}});
 $("calBox").addEventListener("keydown",e=>{
@@ -864,12 +958,13 @@ $("calBox").addEventListener("drop",e=>{
   if(it&&it.date!==d.dataset.date)quick(it,{date:d.dataset.date});
 });
 $("calBox").addEventListener("dragend",()=>{dragId=null});
-const shift=n=>{const d=D(cur);d.setUTCMonth(d.getUTCMonth()+n);cur=iso(d).slice(0,8)+"01";loadCal()};
+// tampilan Harian: ‹ › berpindah per hari (bulan kalender ikut tanggalnya)
+const shift=n=>{if(view==="daily"){DV.date=addD(DV.date,n);cur=DV.date.slice(0,8)+"01";DV.edit=null;return loadCal()}const d=D(cur);d.setUTCMonth(d.getUTCMonth()+n);cur=iso(d).slice(0,8)+"01";loadCal()};
 $("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
-$("today").onclick=()=>{cur=todayIso().slice(0,8)+"01";loadCal()};
+$("today").onclick=()=>{cur=todayIso().slice(0,8)+"01";DV.date=todayIso();DV.edit=null;loadCal()};
 $("addBtn").onclick=()=>openForm(null);
-function setView(v){const reload=(v==="design")!==(view==="design")||v==="tasks"||view==="tasks"||view==="perf";view=v;store("pl_view",v);reload?loadCal():renderCal()}
-$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");$("vTasks").onclick=()=>setView("tasks");$("vPerf").onclick=()=>setView("perf");
+function setView(v){const reload=(v==="design")!==(view==="design")||v==="tasks"||view==="tasks"||view==="perf"||v==="daily"||view==="daily";view=v;store("pl_view",v);reload?loadCal():renderCal()}
+$("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");$("vDesign").onclick=()=>setView("design");$("vTasks").onclick=()=>setView("tasks");$("vPerf").onclick=()=>setView("perf");$("vDaily").onclick=()=>setView("daily");
 ["fKind","fSt"].forEach(id=>$(id).onchange=renderCal);
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 
@@ -879,7 +974,8 @@ const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["k
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t==="prog";$("rKindsF").hidden=t==="prog";
+  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg";$("rKindsF").hidden=t!=="keg";$("rDivF").hidden=t!=="mon";$("rPpt").hidden=t==="mon";
+  if(t==="mon")return $("rHelp").innerHTML="Monthly Report: halaman 16:9 berisi ringkasan, lalu per tim (role pekerjaan) kegiatan kalender dan pekerjaan harian anggotanya. Di jendela cetak, pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
   $("rHelp").innerHTML=t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu.":"PDF: di jendela cetak, pilih <b>Simpan sebagai PDF</b>. Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan.";
 }
 $("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(b)setRT(b.dataset.t)});
@@ -889,6 +985,7 @@ function openRep(){
   setRT(PL.me.role==="partnership"?"prog":"keg");
   $("rWho").innerHTML=`<option value="">Semua orang</option>`+USERS.map(u=>`<option value="${esc(u.email)}">${esc(u.name)}${u.role?" · "+esc(PL.roles[u.role]):""}</option>`).join("");
   $("rWho").value=PL.me.role&&PL.me.role!=="lain"&&!PL.me.adm?PL.me.email:"";
+  $("rDiv").value=recall("pl_div")||B.team||"Product & Digital Development";
   $("rKinds").innerHTML=RK.map(([k,l])=>`<label class="chk" style="margin:0 10px 0 0;font-weight:500"><input type="checkbox" value="${k}" checked> ${l}</label>`).join("");
   showErr("repErr");$("repMsg").textContent="";$("rep").showModal();
 }
@@ -1015,6 +1112,7 @@ async function progPpt(){
 }
 $("rPdf").onclick=async()=>{
   if(RT==="prog")return progPdf();
+  if(RT==="mon")return monthlyPdf();
   try{
     const R=await repData();showErr("repErr");
     const tbl=(k,L)=>`<h2>${SEC[k]} (${L.length})</h2>`+(L.length?`<table><thead><tr>${COLS[k].map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${L.map(i=>`<tr>${COLS[k].map(c=>`<td class="${/Peserta|Pembaca|Jangkauan/.test(c[0])?"n":""}">${esc(c[1](i))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:"<p>Tidak ada kegiatan.</p>");
@@ -1070,6 +1168,160 @@ $("rPpt").onclick=async()=>{
   }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
   finally{$("rPpt").disabled=false}
 };
+
+/* ---------- Monthly Report: PDF 16:9 per tim (role), mengikuti template divisi: logo + garis hijau di kepala, sampul judul besar ---------- */
+const MON_EN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MR_FONT="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+// logo dari profil (brand.logo); bawaannya file di assets/brand tool ini
+const MR_LOGO=B.logo||"/brand/logo-color.png";
+const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hidden;box-sizing:border-box;padding:.4in .62in 0;background:#f7f7f5;color:#2b2b2b;font:10pt/1.4 Inter,system-ui,sans-serif;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.mr-page:last-child{break-after:auto;page-break-after:auto}
+.mr-page *{box-sizing:border-box}
+.mr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:.3in;height:.5in;padding-bottom:.07in;border-bottom:3px solid #3f8a66}
+.mr-head img{height:.36in;width:auto}
+.mr-head b{font-size:13pt}
+.mr-head span{font-size:10.5pt;color:#5f6b7a;white-space:nowrap}
+.mr-body{height:6.05in;overflow:hidden;padding-top:.24in}
+.mr-foot{position:absolute;left:.62in;right:.62in;bottom:.2in;display:flex;justify-content:space-between;font-size:7.5pt;color:#8a94a0}
+.mr-cover .mr-body{display:flex;flex-direction:column;justify-content:center;padding-bottom:.9in}
+.mr-cover .mr-foot{display:none}
+.mr-cover h1{font-size:58pt;line-height:1.04;font-weight:800;letter-spacing:-.02em;margin:0;color:#2b2b2b}
+.mr-cover p{font-size:14pt;color:#5f6b7a;margin:.1in 0 0}
+.mr-body h2{font-size:21pt;line-height:1.15;font-weight:800;letter-spacing:-.01em;margin:0}
+.mr-body .sub{font-size:10.5pt;color:#5f6b7a;margin:.03in 0 .14in}
+.mr-body h3{font-size:12pt;font-weight:700;color:#2f7a55;margin:.16in 0 .06in}
+.mr-cont{font-weight:500;color:#8a94a0;font-size:10pt}
+.mr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.14in;margin:0 0 .04in}
+.mr-kpi{background:#fff;border:1px solid #e2e6e3;border-radius:10px;padding:.09in .14in}
+.mr-kpi small{display:block;font-size:8.5pt;color:#5f6b7a}
+.mr-kpi b{display:block;font-size:21pt;font-weight:800;color:#2f7a55;line-height:1.2}
+.mr-kpi i{display:block;font-style:normal;font-size:8pt;color:#5f6b7a}
+.mr-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.5pt;background:#fff}
+.mr-t th{background:#e6f0ea;color:#24372c;text-align:left;font-weight:700;padding:.045in .07in;border-bottom:1px solid #cfdcd3}
+.mr-t td{padding:.04in .07in;border-bottom:1px solid #e8ece9;vertical-align:top;overflow-wrap:anywhere}
+.mr-t .n{text-align:right;white-space:nowrap}
+.mr-t tr.grp td{background:#f1f4f2;font-weight:700;color:#24372c}
+.mr-t a{color:#2f7a55}
+.mr-st{display:inline-block;font-size:7.5pt;font-weight:700;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.mr-st.selesai{background:#e1f5e9;color:#1d6b41}.mr-st.berjalan{background:#fff4dc;color:#8a5a00}.mr-st.kendala{background:#fde8e6;color:#a5352a}
+.mr-note{color:#5f6b7a;font-size:9pt;margin:.02in 0}`;
+async function monData(div){
+  const from=$("rFrom").value,to=$("rTo").value;
+  if(!from||!to||from>to)throw new Error("Periode belum benar.");
+  const [its,logs]=await Promise.all([api(`/api/items?from=${from}&to=${to}`),api(`/api/logs?from=${from}&to=${to}`)]);
+  const order=Object.keys(PL.roles),T={};
+  const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[]};
+  USERS.forEach(u=>{if(PL.roles[u.role])team(u.role).members.set(u.email,u.name)});
+  logs.forEach(l=>{const t=team(teamOf(l.job,l.email));t.logs.push(l);if(!t.members.has(l.email))t.members.set(l.email,l.name||nameOf(l.email)||l.email)});
+  // kegiatan masuk ke tim PIC-nya; kegiatan yang butuh visual juga ke tim desainernya
+  its.forEach(i=>{const ks=new Set();const o=roleOf(i.owner_email);if(o)ks.add(o);const d=i.d_need&&roleOf(i.d_who);if(d)ks.add(d);ks.forEach(k=>team(PL.roles[k]?k:"lain").items.push(i))});
+  const teams=Object.values(T).filter(t=>t.logs.length||t.items.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
+  if(!teams.length)throw new Error("Belum ada pekerjaan harian atau kegiatan kalender pada periode ini.");
+  const month=from.endsWith("-01")&&to===monthEnd(from),f=D(from);
+  const per=month?`${MON_EN[f.getUTCMonth()]} ${f.getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
+  return {from,to,per,month,div,teams,logs};
+}
+const mrDone=(i,k)=>roleOf(i.owner_email)===k||!i.d_need?["selesai","terbit"].includes(i.status):i.d_status==="selesai";
+const mrPct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
+function mrKpis(logs,items,k,members){
+  const by=s=>logs.filter(l=>l.status===s).length,people=new Set(logs.map(l=>l.email)).size,done=items.filter(i=>mrDone(i,k)).length;
+  const K=[["Pekerjaan tercatat",int(logs.length),`${people}${members?" dari "+members:""} orang mengisi`],["Selesai",int(by("selesai")),mrPct(by("selesai"),logs.length)+" dari pekerjaan"],
+    ["Kendala",int(by("kendala")),`${int(by("berjalan"))} masih berjalan`],["Kegiatan kalender",`${done} / ${items.length}`,"terbit / selesai"]];
+  return `<div class="mr-kpis">${K.map(x=>`<div class="mr-kpi"><small>${esc(x[0])}</small><b>${esc(x[1])}</b><i>${esc(x[2])}</i></div>`).join("")}</div>`;
+}
+let mrFontP=null;
+const mrFonts=()=>mrFontP||(mrFontP=new Promise(ok=>{const l=document.createElement("link");l.rel="stylesheet";l.href=MR_FONT;
+  l.onload=()=>Promise.all(["400","700","800"].map(w=>document.fonts.load(w+" 16px Inter"))).then(ok,ok);l.onerror=ok;document.head.appendChild(l);setTimeout(ok,4000)}));
+const mrImg=src=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(true);i.onerror=()=>ok(false);i.src=src;setTimeout(()=>ok(false),5000)});
+/** Menyusun halaman 16:9 di luar layar: isi yang tidak muat pindah ke halaman berikutnya (tabel berlanjut dengan kepala tabelnya). */
+async function mrBuild(R){
+  await mrFonts();
+  const logo=new URL(MR_LOGO,location.href).href,hasLogo=await mrImg(logo);
+  if(!$("mrCss")){const s=document.createElement("style");s.id="mrCss";s.textContent=MR_CSS;document.head.appendChild(s)}
+  const host=document.createElement("div");host.className="mr-host";document.body.appendChild(host);
+  const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(R.div)} Report | ${esc(R.per)}</span></div>`;
+  const foot=`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`;
+  let body=null;
+  const page=cls=>{const p=document.createElement("section");p.className="mr-page"+(cls?" "+cls:"");p.innerHTML=head+`<div class="mr-body"></div><div class="mr-foot"><span>${esc(foot)}</span><span class="pn"></span></div>`;host.appendChild(p);body=p.querySelector(".mr-body")};
+  const over=()=>body.scrollHeight>body.clientHeight+1;
+  const frag=html=>{const t=document.createElement("template");t.innerHTML=html;return [...t.content.children]};
+  const put=html=>{const els=frag(html);els.forEach(e=>body.appendChild(e));if(over()&&body.children.length>els.length){els.forEach(e=>e.remove());page();els.forEach(e=>body.appendChild(e))}};
+  // cols: [judul, lebar %, rata kanan?]; rows: <tr> siap pakai (baris tr.grp = nama orang, ikut pindah bersama baris sesudahnya)
+  const table=(title,cols,rows,empty)=>{
+    if(!rows.length)return put(`${title}<p class="mr-note">${esc(empty)}</p>`);
+    const thead=`<thead><tr>${cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead>`;
+    const start=cont=>{const els=frag((cont?title.replace(/<\/h3>$/,' <span class="mr-cont">(lanjutan)</span></h3>'):title)+`<table class="mr-t">${thead}<tbody></tbody></table>`);els.forEach(e=>body.appendChild(e));return els};
+    let els=start(false),tb=els[els.length-1].tBodies[0],n=0;
+    for(const r of rows){
+      tb.insertAdjacentHTML("beforeend",r);
+      if(!over()){n++;continue}
+      tb.lastElementChild.remove();
+      let carry=null;
+      if(!n){if(body.children.length>els.length){els.forEach(e=>e.remove());page();els=start(false)}}   // judul tanpa satu baris pun: pindah utuh
+      else{const last=tb.lastElementChild;if(last&&last.classList.contains("grp")&&n>1){carry=last;last.remove()}page();els=start(true)}
+      tb=els[els.length-1].tBodies[0];if(carry)tb.appendChild(carry);
+      tb.insertAdjacentHTML("beforeend",r);n++;   // baris yang lebih tinggi dari satu halaman tetap ditaruh
+    }
+  };
+  const st=s=>`<span class="mr-st ${esc(s)}">${esc(WS[s]||s||"–")}</span>`;
+  const lnk=u=>u?` <a href="${esc(u)}">buka</a>`:"";
+  // sampul
+  page("mr-cover");body.innerHTML=`<h1>${R.month?"Monthly Report":"Report"}<br>${esc(R.per)}</h1><p>${esc(R.div)}</p>`;
+  // ringkasan
+  const allItems=[...new Map(R.teams.flatMap(t=>t.items).map(i=>[i.id,i])).values()],members=new Set(R.teams.flatMap(t=>[...t.members.keys()])).size;
+  page();put(`<h2>Ringkasan</h2><p class="sub">${esc(R.per)} · ${R.teams.length} tim · ${members} anggota</p>`+mrKpis(R.logs,allItems,"",members));
+  table("<h3>Per tim</h3>",[["Tim",24],["Anggota",10,1],["Pekerjaan",11,1],["Selesai",11,1],["Berjalan",11,1],["Kendala",11,1],["Kegiatan (selesai / total)",22,1]],
+    R.teams.map(t=>{const c=s=>t.logs.filter(l=>l.status===s).length;return `<tr><td>${esc(t.name)}</td><td class="n">${t.members.size}</td><td class="n">${t.logs.length}</td><td class="n">${c("selesai")}</td><td class="n">${c("berjalan")}</td><td class="n">${c("kendala")}</td><td class="n">${t.items.filter(i=>mrDone(i,t.key)).length} / ${t.items.length}</td></tr>`}),"");
+  const kd=R.logs.filter(l=>l.status==="kendala");
+  table(`<h3>Kendala yang tercatat (${kd.length})</h3>`,[["Tanggal",11],["Tim",15],["Orang",14],["Pekerjaan",30],["Kendala",30]],
+    kd.map(l=>`<tr><td>${esc(fmtShort(l.date))}</td><td>${esc(PL.roles[teamOf(l.job,l.email)]||"Lainnya")}</td><td>${esc(l.name||nameOf(l.email))}</td><td>${esc(l.text)}</td><td>${esc(l.note||"–")}</td></tr>`),"Tidak ada kendala yang tercatat pada periode ini.");
+  // per tim: kegiatan kalender lalu pekerjaan harian per orang
+  for(const t of R.teams){
+    page();put(`<h2>Tim ${esc(t.name)}</h2><p class="sub">Anggota: ${esc([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")}</p>`+mrKpis(t.logs,t.items,t.key,t.members.size));
+    table(`<h3>Project &amp; kegiatan kalender (${t.items.length})</h3>`,[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
+      t.items.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(i=>{const own=roleOf(i.owner_email)===t.key||!i.d_need;
+        return `<tr><td>${esc(fmtShort(i.date))}</td><td>${ICON[kindOf(i)]||""} ${esc(i.title)}</td><td>${esc([(K[kindOf(i)]||{}).label,i.channel].filter(Boolean).join(" · "))}</td><td>${esc(own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–")}</td>`+
+          `<td>${esc(own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"))}</td><td class="n">${own&&i.result_num!=null&&i.result_num!==""?esc(int(i.result_num)):""}${lnk(own?i.link:i.d_link)||(own&&i.result_num?"":"–")}</td></tr>`}),
+      "Tidak ada kegiatan kalender tim ini pada periode ini.");
+    const byP={};t.logs.forEach(l=>(byP[l.email]=byP[l.email]||[]).push(l));
+    const rows=Object.entries(byP).sort((a,b)=>(t.members.get(a[0])||"").localeCompare(t.members.get(b[0])||"")).flatMap(([e,L])=>[
+      `<tr class="grp"><td colspan="5">${esc(t.members.get(e)||e)} · ${L.length} pekerjaan</td></tr>`,
+      ...L.map(l=>`<tr><td>${esc(fmtShort(l.date))}</td><td>${esc(l.text)}${lnk(l.link)}</td><td>${l.item_title?esc(l.item_title):"–"}</td><td>${st(l.status)}</td><td>${esc(l.note||"–")}</td></tr>`)]);
+    table(`<h3>Pekerjaan harian (${t.logs.length})</h3>`,[["Tanggal",10],["Pekerjaan",36],["Kegiatan terkait",22],["Status",10],["Catatan / kendala",22]],rows,"Belum ada pekerjaan harian yang dicatat tim ini.");
+  }
+  const P=[...host.children];P.forEach((p,i)=>{p.querySelector(".pn").textContent=`${i+1} / ${P.length}`});
+  const html=host.innerHTML;host.remove();return html;
+}
+// di dalam Tool Hub di HP, window.print() dari bingkai mencetak halaman hub: PDF dibuka di tab sendiri (dibuka saat tombol ditekan)
+const mobileFramed=()=>parent!==window&&(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)));
+function mrPrint(html,name,tab){
+  if(tab){
+    tab.document.open();
+    tab.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=1340"><title>${esc(name)}</title><link rel="stylesheet" href="${MR_FONT}"><style>${MR_CSS}
+@page{size:13.333in 7.5in;margin:0}body{margin:0}
+@media screen{body{background:#dfe5e2;padding:64px 0 24px}.mr-page{margin:0 auto 14px;box-shadow:0 2px 12px rgba(0,0,0,.18)}.pbar{position:fixed;top:0;left:0;right:0;z-index:9;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px;background:#2f7a55;color:#fff;font:600 15px system-ui,sans-serif}.pbar button{font:inherit;padding:8px 16px;border-radius:8px;border:0;background:#fff;color:#2f7a55}}
+@media print{.pbar{display:none!important}}</style></head><body><div class="pbar">${esc(name)} <button onclick="print()">Simpan PDF / Cetak</button></div>${html}<script>setTimeout(function(){print()},900)<\/script></body></html>`);
+    tab.document.close();return;
+  }
+  $("mrArea").innerHTML=html;
+  const pg=document.createElement("style");pg.textContent="@page{size:13.333in 7.5in;margin:0}";document.head.appendChild(pg);
+  const t0=document.title,title=n=>{document.title=n||t0;try{if(parent!==window)parent.postMessage({hubPrintTitle:n},"*")}catch(e){}};
+  title(name);document.body.classList.add("mrprint");
+  const done=()=>{removeEventListener("afterprint",done);document.body.classList.remove("mrprint");pg.remove();$("mrArea").innerHTML="";title("")};
+  addEventListener("afterprint",done);window.print();setTimeout(()=>{if(document.body.classList.contains("mrprint"))done()},1500);
+}
+async function monthlyPdf(){
+  const tab=mobileFramed()?window.open("","_blank"):null;
+  if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Monthly Report</title><p style="font:16px system-ui,sans-serif;padding:24px">Menyiapkan PDF…</p>');
+  $("rPdf").disabled=true;$("repMsg").textContent="Menyusun PDF…";
+  try{
+    const div=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",div);
+    const R=await monData(div);showErr("repErr");
+    mrPrint(await mrBuild(R),`${R.div} Report - ${R.per}`,tab);
+    $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
+  }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
+  finally{$("rPdf").disabled=false}
+}
 
 /* =================== PAKET MINGGUAN =================== */
 const CATS=["Pasar Uang","Pendapatan Tetap","Campuran","Saham","Indeks"];

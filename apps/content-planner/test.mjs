@@ -309,6 +309,31 @@ const tm = (await call("/api/moments?from=2026-12-20&to=2026-12-31", { ck: CI })
 assert.deepEqual([tm.type, tm.created_by], ["tim", "Cici"]);
 assert.equal((await call("/api/moments/delete", { ck: DES, body: { id: mid } })).status, 400, "bukan pembuatnya");
 assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).status, 200);
+/* ---------- pekerjaan harian: semua bisa lihat, hanya pemilik yang mengubah, dikelompokkan per role ---------- */
+{
+  const log = (ck, body) => call("/api/logs", { ck, body });
+  const KG = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Promo RDPU November", date: wib, channel: "IG Feed", status: "draf" } })).j.id;
+  r = await log(COPY, { date: wib, text: "Revisi caption promo", status: "selesai", item_id: KG, link: "contoh.test/hasil" });
+  assert.equal(r.status, 200, JSON.stringify(r.j)); const L1 = r.j.id;
+  assert.equal((await log(COPY, { date: wib, text: "  " })).status, 400, "isian kosong ditolak");
+  assert.equal((await log(COPY, { date: plus(1), text: "besok" })).status, 400, "hari yang belum datang ditolak");
+  r = await log(DES, { date: plus(-1), text: "Banner webinar", status: "kendala", note: "tunggu foto narasumber", item_id: "tidak-ada" });
+  assert.equal(r.status, 200); const L2 = r.j.id;
+  assert.equal((await log(DES, { id: L1, date: wib, text: "ubah punya orang" })).status, 400, "bukan pemiliknya");
+  const all = (await call(`/api/logs?from=${plus(-1)}&to=${wib}`, { ck: PART })).j;
+  assert.deepEqual(all.map((x) => [x.name, x.job, x.status]), [["Dodi", "design", "kendala"], ["Cici", "copy", "selesai"]], "urut tanggal, role pemilik tercatat");
+  assert.equal(all[1].item_title, "Promo RDPU November", "judul kegiatan terkait ikut");
+  assert.equal(all[1].link, "https://contoh.test/hasil");
+  assert.equal(all[0].item_id, null, "kegiatan yang tidak ada dilepas");
+  assert.equal((await log(COPY, { id: L1, date: wib, text: "Revisi caption promo RDPU", status: "berjalan" })).status, 200);
+  assert.equal((await call(`/api/logs?from=${wib}&to=${wib}`, { ck: DES })).j[0].text, "Revisi caption promo RDPU");
+  assert.equal((await call(`/api/logs?from=2026-01-01&to=2026-12-31`, { ck: PART })).status, 400, "periode maks. 3 bulan");
+  assert.equal((await call("/api/logs/delete", { ck: COPY, body: { id: L2 } })).status, 400, "hapus milik orang lain ditolak");
+  const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
+  assert.equal((await call("/api/logs/delete", { ck: ADM, body: { id: L2 } })).status, 200, "admin boleh menghapus");
+  assert.equal((await call(`/api/logs?from=${plus(-1)}&to=${wib}`, { ck: PART })).j.length, 1);
+}
+
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
 assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");
 assert.equal(hijriToIso(1447, 10, 1), "2026-03-20", "Idul Fitri 1447 H (perkiraan)");

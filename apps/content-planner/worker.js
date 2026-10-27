@@ -15,6 +15,8 @@
 // - "/api/moments"  -> kalender momen (shared/moments.js) + momen tim (GET ?from=&to=, POST, POST /api/moments/delete)
 // - "/api/links"    -> link pelacak klik per konten (GET ?item=, POST); "/go/<kode>" (publik) -> hitung klik lalu alihkan
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
+// - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
+//                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
 // Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
 // disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
 // Notifikasi (tabel notifs) dibuat saat seseorang ditugaskan, saat status tugasnya berubah, dan saat tenggat dekat
@@ -132,6 +134,8 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL, at TEXT, by_name TEXT, by_email TEXT, kind TEXT, text TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, date TEXT NOT NULL, name TEXT NOT NULL, idea TEXT, created_by TEXT, created_email TEXT, created_at TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, item_id TEXT, target TEXT NOT NULL, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT)"),
+    // pekerjaan harian: job = role pemiliknya saat mencatat (pengelompokan per tim di Monthly Report)
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS worklog (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, text TEXT NOT NULL, status TEXT, item_id TEXT, link TEXT, note TEXT, created_at TEXT, updated_at TEXT)"),
   ]);
   const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
   const uhave = new Set((await env.DB.prepare("PRAGMA table_info(users)").all()).results.map((c) => c.name));
@@ -142,7 +146,7 @@ async function ensure(env) {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS items_program ON items (program_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_who ON tasks (who, status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS comments_item ON comments (item_id, id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS links_item ON links (item_id)"),
-    env.DB.prepare("CREATE INDEX IF NOT EXISTS moments_date ON moments (date)"));
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS moments_date ON moments (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS worklog_date ON worklog (date)"));
   await env.DB.batch(add);
   ready = true;
 }
@@ -552,6 +556,59 @@ async function listTasks(env, me, q) {
   const all = q.all && canAssign(await jobOf(env, me), me.adm);
   return (await env.DB.prepare(TASK_SEL + ` WHERE ${all ? "1 = 1" : "(t.who = ?1 OR t.by_email = ?1)"} AND (COALESCE(t.status, 'belum') <> 'selesai' OR t.done_at >= ?2) ORDER BY t.due, t.created_at LIMIT 300`).bind(meE, since).all()).results;
 }
+/* =========================================================
+   PEKERJAAN HARIAN: tiap anggota mencatat apa yang dikerjakan per hari (beberapa entri), dibaca semua anggota,
+   diubah hanya oleh pemiliknya (hapus: pemilik atau admin). Dirangkum per tim (role) di Monthly Report (PDF di browser).
+   ========================================================= */
+export const WORK_STATUSES = { selesai: "Selesai", berjalan: "Berjalan", kendala: "Kendala" };
+const WCOLS = ["date", "text", "status", "item_id", "link", "note"];
+const wibToday = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+/** Isian dari browser -> entri yang sah, atau { error }. Hari yang belum datang (WIB) belum bisa dicatat. */
+export function cleanLog(b, today = wibToday()) {
+  const s = (v, n) => String(v ?? "").trim().slice(0, n);
+  const l = { date: ISO.test(s(b.date, 10)) ? s(b.date, 10) : "", text: s(b.text, 500), status: WORK_STATUSES[b.status] ? b.status : "selesai",
+    item_id: s(b.item_id, 40) || null, link: cleanUrl(b.link) || null, note: s(b.note, 500) || null };
+  if (!l.date) return { error: "Tanggal belum benar." };
+  if (l.date > today) return { error: "Hari yang belum datang belum bisa dicatat." };
+  if (!l.text) return { error: "Tulis dulu apa yang dikerjakan." };
+  return l;
+}
+async function saveLog(env, me, b) {
+  await ensure(env);
+  const meE = lower(me.e), now = new Date().toISOString();
+  const prev = b.id ? await env.DB.prepare("SELECT email FROM worklog WHERE id=?").bind(String(b.id)).first() : null;
+  if (b.id && !prev) return { error: "Catatan ini sudah dihapus. Muat ulang halaman." };
+  if (prev && prev.email !== meE) return { error: "Hanya pemilik catatan yang bisa mengubahnya." };
+  const l = cleanLog(b);
+  if (l.error) return l;
+  // kegiatan terkait harus ada di kalender (kalau sudah dihapus, kaitannya dilepas)
+  if (l.item_id && !(await env.DB.prepare("SELECT id FROM items WHERE id=?").bind(l.item_id).first())) l.item_id = null;
+  if (prev) {
+    await env.DB.prepare(`UPDATE worklog SET ${WCOLS.map((k) => k + "=?").join(", ")}, updated_at=? WHERE id=?`).bind(...WCOLS.map((k) => l[k]), now, String(b.id)).run();
+    return { id: String(b.id) };
+  }
+  const id = crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO worklog (id, email, name, job, ${WCOLS.join(", ")}, created_at, updated_at) VALUES (?, ?, ?, ?${", ?".repeat(WCOLS.length)}, ?, ?)`)
+    .bind(id, meE, who(me), (await jobOf(env, me)) || null, ...WCOLS.map((k) => l[k]), now, now).run();
+  return { id };
+}
+async function deleteLog(env, me, id) {
+  await ensure(env);
+  const l = await env.DB.prepare("SELECT email FROM worklog WHERE id=?").bind(String(id || "")).first();
+  if (!l) return { ok: true };
+  if (!me.adm && l.email !== lower(me.e)) return { error: "Hanya pemilik catatan atau admin yang bisa menghapusnya." };
+  await env.DB.prepare("DELETE FROM worklog WHERE id=?").bind(String(id)).run();
+  return { ok: true };
+}
+/** Semua catatan pada periode (maks. ±3 bulan), dengan judul kegiatan terkait. */
+async function listLogs(env, from, to) {
+  await ensure(env);
+  if (!ISO.test(from) || !ISO.test(to) || from > to) return { error: "Periode belum benar." };
+  if ((Date.parse(to) - Date.parse(from)) / 864e5 > 93) return { error: "Periode maksimal 3 bulan." };
+  return (await env.DB.prepare("SELECT w.*, i.title AS item_title, i.kind AS item_kind FROM worklog w LEFT JOIN items i ON i.id = w.item_id WHERE w.date BETWEEN ? AND ? ORDER BY w.date, w.name, w.created_at LIMIT 3000")
+    .bind(from, to).all()).results;
+}
+
 async function programs(env) {
   await ensure(env);
   return (await env.DB.prepare("SELECT id, title, date, end_date, partner, status, channel FROM items WHERE kind = 'program' ORDER BY date DESC LIMIT 300").all()).results;
@@ -770,7 +827,7 @@ async function page(env, me, mode) {
   const etf = (profile(env).tools || {}).etf || {};
   const cfg = { mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm) },
     kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
-    copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}) };
+    copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
@@ -826,6 +883,7 @@ export default {
         if (path === "/api/comments") return json(await listComments(env, url.searchParams.get("item")));
         if (path === "/api/moments") return json(await moments(env, from, to));
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
+        if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
       }
       if (path === "/api/weekly" && request.method === "GET") {
         return new Response(await weeklyCached(env, ctx, url.searchParams.has("refresh")), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -838,7 +896,8 @@ export default {
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
-          "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b) }[path];
+          "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

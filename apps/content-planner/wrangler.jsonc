@@ -7,6 +7,8 @@
   "name": "content-planner",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
+  // aset statis (tanpa login): logo di kepala halaman Monthly Report (/brand/logo-color.png); alamat lain tetap ke worker
+  "assets": { "directory": "./assets" },
   "d1_databases": [
     { "binding": "DB", "database_name": "planner-db", "database_id": "auto" },
     { "binding": "FUND_DB", "database_name": "insight-db", "database_id": "auto" }
