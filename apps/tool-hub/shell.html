@@ -121,6 +121,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .searchbtn span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
 .top-actions{display:flex;align-items:center;gap:8px}
 .iconbtn{display:inline-grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:transparent;color:var(--text-2);text-decoration:none;flex:none}
+.iconbtn[hidden]{display:none}
 .iconbtn:hover{background:var(--hover);color:var(--text)}
 .avatar{width:38px;height:38px;border-radius:50%;border:0;background:var(--brand-soft);color:var(--brand-text);font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
 .side .avatar{width:34px;height:34px;background:var(--side-2);color:var(--brand)}
@@ -441,7 +442,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   <div class="pal-box" role="dialog" aria-modal="true" aria-label="Pencarian">
     <div class="pal-in" id="palIn">
       <input id="palInput" type="text" role="combobox" aria-expanded="true" aria-controls="palList" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Cari tool, halaman, atau aksi…" aria-label="Kata kunci">
-      <button class="iconbtn" id="palClear" type="button" aria-label="Hapus kata kunci" hidden></button>
+      <button class="iconbtn" id="palClear" type="button" aria-label="Tutup pencarian" title="Tutup"></button>
       <kbd>Esc</kbd>
     </div>
     <div class="pal-list" id="palList" role="listbox" aria-label="Hasil pencarian"></div>
@@ -1037,7 +1038,8 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   var GROUPS = ["Tool", "Halaman", "Navigasi", "Detail", "Aksi"];
   function palRender() {
     var q = palIn.value.trim(), w = words(q), src = palSource(), res;
-    $("#palClear").hidden = !q;
+    // tombol ×: ada kata kunci = hapus kata kunci; kosong = tutup pencarian
+    var x = $("#palClear"), lb = q ? "Hapus kata kunci" : "Tutup pencarian"; x.setAttribute("aria-label", lb); x.title = q ? "Hapus" : "Tutup";
     if (!w.length) {
       res = src.filter(function (o) { return o.g === "Tool"; }).sort(function (a, b) { return (b.w - a.w) || 0; }).slice(0, 6).map(function (o) { o.g2 = o.w ? "Terakhir dibuka" : "Tool"; return o; });
       res = res.concat(src.filter(function (o) { return o.g === "Navigasi"; }).slice(0, 2).map(function (o) { o.g2 = o.g; return o; }));
@@ -1079,7 +1081,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   palList.addEventListener("mousemove", function (e) { var o = e.target.closest(".pal-o"); if (o && +o.dataset.i !== palIdx) palSel(+o.dataset.i); });
   palList.addEventListener("click", function (e) { var o = e.target.closest(".pal-o"); if (o) palRun(+o.dataset.i); });
   pal.addEventListener("mousedown", function (e) { if (e.target === pal) palClose(); });
-  $("#palClear").addEventListener("click", function () { palIn.value = ""; palRender(); palIn.focus(); });
+  $("#palClear").addEventListener("click", function () { if (!palIn.value.trim()) return palClose(); palIn.value = ""; palRender(); palIn.focus(); });
 
   /* ---------- event ---------- */
   document.addEventListener("click", function (e) {
