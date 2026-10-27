@@ -55,20 +55,22 @@ jobs:
         working-directory: .
         run: node scripts/deploy.mjs --resolve sats
 
-      - name: Bulan terakhir di D1
+      - name: Bulan yang sudah ada di D1
         id: last
         run: |
-          L=$(npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "SELECT MAX(as_of) AS d FROM own_releases" 2>/dev/null \
+          L=$(npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "SELECT group_concat(as_of) AS d FROM own_releases" 2>/dev/null \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s)[0].results[0].d||"")}catch{console.log("")}})' || true)
-          echo "Terakhir di D1: ${L:-(belum ada)}"
-          echo "since=$L" >> "$GITHUB_OUTPUT"
+          echo "Sudah di D1: ${L:-(belum ada)}"
+          echo "have=$L" >> "$GITHUB_OUTPUT"
 
+      # Maks. ±45 ribu baris tertulis per run (impor pertama dipecah; bulan berikutnya masuk di run selanjutnya, jalankan
+      # manual lagi besoknya kalau perlu). full menghapus lalu menulis ulang, jadi batasnya dipotong separuh.
       - name: Snapshot -> SQL
         run: |
-          if [ "${{ github.event.inputs.full }}" = "true" ] || [ -z "${{ steps.last.outputs.since }}" ]; then
-            npx tsx src/pipeline/run-ownership.ts
+          if [ "${{ github.event.inputs.full }}" = "true" ]; then
+            npx tsx src/pipeline/run-ownership.ts --budget 22000
           else
-            npx tsx src/pipeline/run-ownership.ts --since "${{ steps.last.outputs.since }}"
+            npx tsx src/pipeline/run-ownership.ts --have "${{ steps.last.outputs.have }}" --budget 45000
           fi
 
       - name: Write to D1

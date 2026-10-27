@@ -248,6 +248,7 @@ async function pull(env, iso, mkt = false) {
   const L = old ? JSON.parse(old.v) : { funds: {} };
   const latest = L.funds, nav = [], aum = [];
   if (!iso) L.at = new Date().toISOString();
+  let touched = !iso; // tanggal historis biasanya tidak mengubah 'latest', jadi baris besar itu tidak perlu ditulis ulang
   for (const d of rows) {
     const date = isoDate(d.nav?.date, fb), v = num(d.nav?.value);
     if (v) nav.push({ p: String(d.pid), d: date, n: v });
@@ -255,6 +256,7 @@ async function pull(env, iso, mkt = false) {
     const a = num(d.aum?.value_idr);
     if (a && d.aum?.period) aum.push({ p: String(d.pid), m: String(d.aum.period).slice(0, 7), a });
     if (latest[d.pid]?.navDate > date) continue;
+    touched = true;
     latest[d.pid] = {
       im: d.im?.name, currency: d.currency, nav: v, navDate: date, aum: a, aumPeriod: d.aum?.period,
       ret: { m1: num(d.return?.onemonth), m3: num(d.return?.threemonth), m6: num(d.return?.sixmonth),
@@ -266,16 +268,18 @@ async function pull(env, iso, mkt = false) {
   // terakhir pada atau sebelum tanggal yang sama tahun lalu - 1; rumus ini cocok dengan Bareksa sampai 3 desimal), untuk pengurutan.
   const want = rows.map((d) => String(d.pid)).filter((p) => latest[p]?.nav && latest[p].navDate)
     .map((p) => ({ p, d: String(+latest[p].navDate.slice(0, 4) - 1) + latest[p].navDate.slice(4) }));
-  if (want.length) {
+  if (want.length && touched) {
     const { results } = await env.DB.prepare("SELECT value->>'p' p, (SELECT nav FROM nav WHERE pid = value->>'p' AND date <= value->>'d' ORDER BY date DESC LIMIT 1) n FROM json_each(?)").bind(JSON.stringify(want)).all();
     for (const r of results) if (r.n > 0) (latest[r.p].ret ||= {}).y1x =+((latest[r.p].nav / r.n - 1) * 100).toFixed(6);
   }
-  const q = [
-    env.DB.prepare("INSERT OR REPLACE INTO nav SELECT value->>'p', value->>'d', value->>'n' FROM json_each(?)").bind(JSON.stringify(nav)),
-    env.DB.prepare("INSERT OR IGNORE INTO aum SELECT value->>'p', value->>'m', value->>'a' FROM json_each(?)").bind(JSON.stringify(aum)),
-  ];
-  q.push(env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('latest', ?)").bind(JSON.stringify(L)));
-  if (nav.length) q.push(env.DB.prepare("DELETE FROM meta WHERE k >= 'nav:' AND k < 'nav;'")); // simpanan riwayat NAB jadi basi
+  // Upsert: NAB yang sudah tersimpan dengan nilai sama tidak ditulis ulang. Dulu INSERT OR REPLACE (hapus + tulis + index tiap baris),
+  // sehingga backfill ulang ±1.570 tanggal karena satu produk baru menulis ulang NAB semua produk dan menghabiskan kuota tulis D1.
+  const navRes = nav.length
+    ? await env.DB.prepare("INSERT INTO nav SELECT value->>'p', value->>'d', value->>'n' FROM json_each(?) WHERE true ON CONFLICT(pid, date) DO UPDATE SET nav = excluded.nav WHERE nav IS NOT excluded.nav").bind(JSON.stringify(nav)).run()
+    : null;
+  const q = [env.DB.prepare("INSERT OR IGNORE INTO aum SELECT value->>'p', value->>'m', value->>'a' FROM json_each(?)").bind(JSON.stringify(aum))];
+  if (touched) q.push(env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('latest', ?)").bind(JSON.stringify(L)));
+  if (navRes && navRes.meta?.changes !== 0) q.push(env.DB.prepare("DELETE FROM meta WHERE k >= 'nav:' AND k < 'nav;'")); // simpanan riwayat NAB jadi basi
   if (iso) q.push(env.DB.prepare("INSERT OR REPLACE INTO snap VALUES (?, ?)").bind(iso, rows.length));
   // Ringkasan seluruh pasar (satu baris per tanggal): {pid:[NAB, AUM miliar, bulan AUM yyyymm]}; versi terbaru juga membawa jenis & return.
   if (!iso || mkt) {
@@ -303,12 +307,18 @@ async function pull(env, iso, mkt = false) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** true kalau tarikan data terbaru berhasil sejak t (ms). */
+async function pulledSince(env, t) {
+  const r = await env.DB.prepare("SELECT json_extract(v, '$.at') at FROM meta WHERE k='latest'").first().catch(() => null);
+  return !!(r && r.at && Date.parse(r.at) >= t);
+}
 
 // ---------- Kestabilan kenaikan harian (dihitung sendiri dari NAB harian yang tersimpan, 1 tahun terakhir) ----------
 // x = perubahan NAB per hari kalender: (NAB hari ini / NAB sebelumnya - 1) dibagi jarak harinya, supaya Senin (3 hari bunga) tidak terbaca sebagai lonjakan.
 // Dihitung di SQL (bukan di JS) supaya ringan untuk batas CPU paket gratis: hasilnya satu baris per produk.
 // 5 pengamatan terakhir (k <= 5) ikut dikirim untuk peringatan gerakan tidak biasa; pembandingnya (m0, q0) tanpa 5 hari itu, supaya lonjakannya tidak ikut melebarkan "biasanya".
-export const STAB_SQL = `WITH r AS (SELECT pid, date, CAST(nav AS REAL) / LAG(CAST(nav AS REAL)) OVER w - 1 AS y, julianday(date) - julianday(LAG(date) OVER w) AS g FROM nav WHERE date >= ? WINDOW w AS (PARTITION BY pid ORDER BY date)),
+// INDEXED BY nav_date: tanpa itu D1 (tanpa statistik ANALYZE) memindai seluruh riwayat NAB sejak 2016, ±280 ribu baris terbaca per hitungan.
+export const STAB_SQL = `WITH r AS (SELECT pid, date, CAST(nav AS REAL) / LAG(CAST(nav AS REAL)) OVER w - 1 AS y, julianday(date) - julianday(LAG(date) OVER w) AS g FROM nav INDEXED BY nav_date WHERE date >= ? WINDOW w AS (PARTITION BY pid ORDER BY date)),
 s AS (SELECT pid, date, y, y / g AS x, ROW_NUMBER() OVER (PARTITION BY pid ORDER BY date DESC) k FROM r WHERE y IS NOT NULL)
 SELECT pid, COUNT(x) n, AVG(x) m, AVG(x * x) q, SUM(x < 0) down, MIN(x) worst, AVG(CASE WHEN k > 5 THEN x END) m0, AVG(CASE WHEN k > 5 THEN x * x END) q0,
   group_concat(CASE WHEN k <= 5 THEN date || ',' || y || ',' || x END, ';') rec FROM s GROUP BY pid`;
@@ -570,7 +580,9 @@ export async function digest(env) {
   // arus dana: unit = dana kelolaan / NAB akhir bulan, dua bulan terakhir
   const since = new Date(Date.now() - 100 * 864e5).toISOString().slice(0, 7), A = {}, N = {};
   for (const x of (await env.DB.prepare("SELECT pid, month, idr FROM aum WHERE month >= ?").bind(since).all()).results) (A[x.pid] ||= {})[x.month] = +x.idr;
-  for (const x of (await env.DB.prepare("SELECT n.pid, substr(n.date,1,7) m, n.nav FROM nav n JOIN (SELECT pid, max(date) d FROM nav WHERE date >= ? GROUP BY pid, substr(date,1,7)) z ON n.pid = z.pid AND n.date = z.d").bind(since + "-01").all()).results) (N[x.pid] ||= {})[x.m] = +x.nav;
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS nav_date ON nav(date)").run();
+  // INDEXED BY: hanya ±100 hari terakhir yang dibaca, bukan seluruh riwayat NAB (dulu ±118 ribu baris tiap tab Insight dibuka)
+  for (const x of (await env.DB.prepare("SELECT n.pid, substr(n.date,1,7) m, n.nav FROM nav n JOIN (SELECT pid, max(date) d FROM nav INDEXED BY nav_date WHERE date >= ? GROUP BY pid, substr(date,1,7)) z ON n.pid = z.pid AND n.date = z.d").bind(since + "-01").all()).results) (N[x.pid] ||= {})[x.m] = +x.nav;
   const fl = fs.map((f) => { const ms = Object.keys(A[f.pid] || {}).sort(), [m0, m1] = ms.slice(-2); if (!m1) return null; const u = (m) => (A[f.pid][m] && N[f.pid]?.[m] ? A[f.pid][m] / N[f.pid][m] : null), u0 = u(m0), u1 = u(m1); return u0 && u1 ? { f, g: (u1 / u0 - 1) * 100, m: m1 } : null; }).filter(Boolean);
   if (fl.length) {
     out.push("", `*Dana masuk terbesar (${fl[0].m})*`, ...fl.slice().sort((a, b) => b.g - a.g).filter((x) => x.g > 0).slice(0, 5).map((x) => `• ${x.f.name}: unit ${fp(x.g)}`));
@@ -679,7 +691,8 @@ export default withCron({
     // Cron "0 2,7 * * *" (tarikan pagi & siang) dan/atau "*/30 * * * *" (pekerjaan latar) memakai routing ini.
     // Competitor Intelligence sudah dipindah ke worker sendiri (competitor).
     const h = scheduledAt.getUTCHours(), old = /^0 /.test(e.cron || "");
-    if (old ? h < 5 : h === 2 || h === 11) await pull(env, null);
+    // apps/cron memanggil :05 dan :35; tarikan :35 hanya cadangan kalau :05 gagal (tiap tarikan membaca & menulis ulang ringkasan)
+    if (old ? h < 5 : (h === 2 || h === 11) && (scheduledAt.getUTCMinutes() < 30 || !(await pulledSince(env, scheduledAt - 40 * 60e3)))) await pull(env, null);
     else if (await digestDue(env)) await sendDigest(env);
     else await work(env);
   },
@@ -893,6 +906,7 @@ export default withCron({
         const added = c.rows.filter((r) => !PIDS.has(r[0])).length, removed = FUNDS.filter((f) => !c.rows.some((r) => r[0] === f[0])).length;
         const q = [env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('funds', ?)").bind(JSON.stringify(c.rows))];
         // produk baru belum punya riwayat NAB: tanggal historis ditandai belum diisi supaya /admin/backfill menariknya lagi
+        // (hemat kuota tulis D1: pull() hanya menulis NAB yang belum ada/berubah, yaitu riwayat produk baru itu)
         if (added) { q.push(env.DB.prepare("DELETE FROM snap")); BF.at = 0; }
         await env.DB.batch(q);
         FUNDS = c.rows; PIDS = new Set(c.rows.map((r) => r[0])); fundsAt = Date.now();

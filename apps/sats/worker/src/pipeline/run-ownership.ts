@@ -3,11 +3,18 @@
  *
  * Sumber: snapshot SQLite bulanan dari proyek open-source idx-cli (MIT, github.com/0xrsydn/idx-cli), yang mengimpor file
  * "Pemegang Saham di Atas 1%" dari idx.co.id (file aslinya diblokir Cloudflare untuk unduhan otomatis). Snapshot memuat
- * beberapa bulan terakhir; bulan yang sudah ada di D1 ditulis ulang, bulan lama yang tidak lagi ada di snapshot tetap disimpan.
+ * beberapa bulan terakhir; bulan yang sudah ada di D1 dilewati (--have) kecuali full, bulan lama yang tidak lagi ada di
+ * snapshot tetap disimpan.
  *
  *   npx tsx src/pipeline/run-ownership.ts                 # unduh snapshot terbaru
  *   npx tsx src/pipeline/run-ownership.ts --file x.sqlite # snapshot lokal
  *   npx tsx src/pipeline/run-ownership.ts --since 2026-08-31  # hanya bulan setelah tanggal ini (yang sudah ada di D1 dilewati)
+ *   npx tsx src/pipeline/run-ownership.ts --have 2026-08-31,2026-09-30  # lewati bulan-bulan ini (sudah ada di D1)
+ *   npx tsx src/pipeline/run-ownership.ts --budget 45000  # perkiraan maks. baris tertulis D1 per run (default 45000)
+ *
+ * Bulan terbaru ditulis lebih dulu. Satu bulan ±7–8 ribu pemegang ≈ 3 baris tertulis per pemegang (baris + 2 index),
+ * jadi impor pertama dipecah ke beberapa run supaya tidak menghabiskan kuota tulis D1 gratis (100 ribu/hari, seluruh akun);
+ * bulan yang belum masuk ikut di run berikutnya.
  *
  * Output: out/ownership.sql (+ out/ownership-summary.json)
  */
@@ -20,6 +27,9 @@ const MANIFEST = "https://github.com/0xrsydn/idx-cli/releases/download/ownership
 const args = process.argv.slice(2);
 const fileArg = args.includes("--file") ? args[args.indexOf("--file") + 1] : null;
 const since = args.includes("--since") ? args[args.indexOf("--since") + 1] ?? "" : "";
+const have = new Set((args.includes("--have") ? args[args.indexOf("--have") + 1] ?? "" : "").split(",").map((s) => s.trim()).filter(Boolean));
+const budget = args.includes("--budget") ? Number(args[args.indexOf("--budget") + 1]) || 45000 : 45000;
+const WRITES_PER_ROW = 3; // row + primary key + own_holdings_key
 const q = (v: string | null) => (v == null ? "NULL" : `'${v.replace(/'/g, "''")}'`);
 
 export const OWN_DDL = [
@@ -47,11 +57,11 @@ interface Row { as_of: string; code: string; hkey: string; name: string; type: s
 async function main() {
   const snap = await snapshotFile();
   const db = new DatabaseSync(snap.path, { readOnly: true });
-  const releases = (db.prepare("SELECT sha256, as_of_date FROM ownership_releases ORDER BY as_of_date").all() as Array<{ sha256: string; as_of_date: string }>)
-    .filter((r) => !since || r.as_of_date > since);
+  const releases = (db.prepare("SELECT sha256, as_of_date FROM ownership_releases ORDER BY as_of_date DESC").all() as Array<{ sha256: string; as_of_date: string }>)
+    .filter((r) => (!since || r.as_of_date > since) && !have.has(r.as_of_date));
   if (!releases.length) {
     writeFileSync("out/ownership.sql", "");
-    console.log(`Tidak ada bulan baru setelah ${since}; tidak ada yang ditulis.`);
+    console.log(`Tidak ada bulan baru${since ? ` setelah ${since}` : ""}; tidak ada yang ditulis.`);
     return;
   }
   const stmt = db.prepare(
@@ -61,7 +71,10 @@ async function main() {
   const sql: string[] = [...OWN_DDL];
   const stamp = new Date().toISOString();
   const summary: Array<{ as_of: string; rows: number; holders: number; stocks: number }> = [];
+  const later: string[] = [];
+  let writes = 0;
   for (const rel of releases) {
+    if (later.length) { later.push(rel.as_of_date); continue; }
     // spelling variants of one holder in the same stock are merged (shares and % added)
     const byKey = new Map<string, Row>();
     for (const h of stmt.all(rel.sha256) as Array<{ code: string; name: string; type: string | null; loc: string | null; domicile: string | null; shares: number; bps: number }>) {
@@ -78,6 +91,9 @@ async function main() {
       byKey.set(k, { as_of: rel.as_of_date, code: h.code, hkey, name: h.name.trim(), type: h.type, cat: holderCat(h.type, local === 1, h.name), local, domicile: h.domicile, shares: Number(h.shares), pct: h.bps / 100 });
     }
     const rows = [...byKey.values()];
+    // at least one month per run; the rest waits for the next run
+    if (summary.length && writes + rows.length * WRITES_PER_ROW > budget) { later.push(rel.as_of_date); continue; }
+    writes += rows.length * WRITES_PER_ROW;
     sql.push(`DELETE FROM own_holdings WHERE as_of = ${q(rel.as_of_date)};`);
     for (let i = 0; i < rows.length; i += 100) {
       const chunk = rows.slice(i, i + 100).map((r) =>
@@ -90,6 +106,8 @@ async function main() {
   writeFileSync("out/ownership.sql", sql.join("\n") + "\n");
   writeFileSync("out/ownership-summary.json", JSON.stringify(summary, null, 2));
   for (const s of summary) console.log(`${s.as_of}: ${s.rows} baris, ${s.holders} pemegang, ${s.stocks} saham`);
+  console.log(`Perkiraan baris tertulis D1: ±${writes} (batas ${budget})`);
+  if (later.length) console.log(`Ditunda ke run berikutnya (kuota tulis D1): ${later.join(", ")}`);
   console.log(`SQL: ${sql.length} statement -> out/ownership.sql (${(readFileSync("out/ownership.sql").length / 1e6).toFixed(1)} MB)`);
 }
 

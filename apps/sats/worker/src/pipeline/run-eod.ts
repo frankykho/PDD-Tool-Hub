@@ -99,6 +99,15 @@ interface StockOutput {
   asOf: string;
 }
 
+// sats_latest columns besides the key. Upsert instead of INSERT OR REPLACE: REPLACE deletes and re-inserts the row
+// and every index entry, which roughly doubles the rows written (D1 free tier: 100k writes/day for the whole account).
+const LATEST_SET = [
+  "as_of_date", "close", "prev_close", "change_pct", "volume", "trend",
+  "signal_today", "last_signal", "last_signal_date", "last_signal_bars", "last_signal_score",
+  "entry", "sl", "tp1", "tp2", "tp3", "tp1_hit", "tp2_hit", "tp3_hit", "stop_now", "trade_status", "trade_exit_date",
+  "event_today", "value_20d", "filter_signal", "filter_now", "updated_at",
+];
+
 /** SQL for one stock and one strategy: 1 row in sats_latest + closed trades. */
 function strategySql(
   strategy: StrategyId,
@@ -120,10 +129,7 @@ function strategySql(
   const entry = lastSig ? (tradeOfLast ? tradeOfLast.entry : bars[lastSig.barIndex].close) : null;
 
   const latest =
-    `INSERT OR REPLACE INTO sats_latest (strategy, code, as_of_date, close, prev_close, change_pct, volume, trend, ` +
-    `signal_today, last_signal, last_signal_date, last_signal_bars, last_signal_score, ` +
-    `entry, sl, tp1, tp2, tp3, tp1_hit, tp2_hit, tp3_hit, stop_now, trade_status, trade_exit_date, ` +
-    `event_today, value_20d, filter_signal, filter_now, updated_at) VALUES (` +
+    `INSERT INTO sats_latest (strategy, code, ${LATEST_SET.join(", ")}) VALUES (` +
     [
       q(strategy), q(code), q(wib(bar.time)), n(bar.close), n(prev?.close ?? null),
       n(prev ? ((bar.close - prev.close) / prev.close) * 100 : null), n(bar.volume ?? null, 0), q(r.trend),
@@ -138,7 +144,7 @@ function strategySql(
       b(mask && lastSig?.side === "BUY" ? mask[lastSig.barIndex] : null), b(mask ? mask[i] : null),
       q(stamp),
     ].join(", ") +
-    `);`;
+    `) ON CONFLICT(strategy, code) DO UPDATE SET ${LATEST_SET.map((c) => `${c} = excluded.${c}`).join(", ")};`;
 
   const cutoff = wib(Math.floor(Date.now() / 1000) - TRADE_YEARS_FULL * 365 * 86400);
   const trades = r.trades
@@ -288,8 +294,9 @@ function buildIndexSql(universeCodes: Set<string>, stamp: string): string[] {
     }
     console.log(`Index ${indexCode}: ${codes.length} saham${unknown.length ? ` (tidak ada di universe: ${unknown.join(", ")})` : ""}`);
     seen.push(indexCode);
-    sql.push(`DELETE FROM index_members WHERE index_code = ${q(indexCode)};`);
-    for (const c of codes) sql.push(`INSERT INTO index_members (index_code, code) VALUES (${q(indexCode)}, ${q(c)});`);
+    // only members that left or joined are written (the list rarely changes between runs)
+    sql.push(`DELETE FROM index_members WHERE index_code = ${q(indexCode)} AND code NOT IN (${codes.map((c) => q(c)).join(", ")});`);
+    for (const c of codes) sql.push(`INSERT OR IGNORE INTO index_members (index_code, code) VALUES (${q(indexCode)}, ${q(c)});`);
     sql.push(
       `INSERT OR REPLACE INTO indices (index_code, name, effective, member_count, updated_at) VALUES (` +
         [q(indexCode), q(meta("name") ?? indexCode), q(meta("effective")), String(codes.length), q(stamp)].join(", ") + `);`,

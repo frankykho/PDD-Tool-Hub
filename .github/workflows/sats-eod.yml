@@ -7,9 +7,10 @@ on:
     # (mis. secret GITHUB_TOKEN di worker belum diisi atau cron worker gagal). Senin–Jumat, sengaja tidak tepat di menit :00:
     #  - 17:17 WIB (10:17 UTC)
     #  - 19:43 WIB (12:43 UTC)
-    # Aman dijalankan lebih dari sekali: hasilnya sama (ditimpa), dan concurrency d1-writer membuatnya antre.
-    # Run cadangan TIDAK menulis kalau database sudah berisi tanggal yang sama (worker sudah berhasil): satu run
-    # menulis ±20 ribu baris, sedangkan batas D1 paket gratis 100 ribu baris per hari untuk seluruh akun.
+    # Aman dijalankan lebih dari sekali: concurrency d1-writer membuatnya antre. Run mana pun (jadwal ini, pemicu worker
+    # 17:20 & 19:20, atau manual tanpa input) TIDAK menghitung/menulis ulang kalau database sudah berisi tanggal yang sama:
+    # satu run menulis ribuan baris, sedangkan batas D1 paket gratis 100 ribu baris per hari untuk seluruh akun.
+    # Untuk sengaja menimpa: jalankan manual dengan force (atau full / codes / strategies).
     - cron: "17 10 * * 1-5"
     - cron: "43 12 * * 1-5"
   workflow_dispatch:
@@ -26,6 +27,10 @@ on:
         description: "Opsional: subset strategi untuk full, mis. UTBOT,FOLLOW (kosong = semua; pecah jika mendekati limit D1)"
         type: string
         default: ""
+      force:
+        description: "Tulis ulang walaupun database sudah berisi tanggal yang sama (memakai kuota tulis D1)"
+        type: boolean
+        default: false
 
 concurrency:
   group: d1-writer
@@ -60,51 +65,76 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Config D1 (ID database sats-db dicari menurut nama -> wrangler.deploy.json)
+        working-directory: .
+        run: node scripts/deploy.mjs --resolve sats
+
+      # full / codes / strategies / force = sengaja ditulis ulang; selain itu (jadwal, pemicu worker, manual tanpa input)
+      # dilewati kalau database sudah berisi data hari ini, jadi run kedua & cadangan tidak memakai kuota tulis D1.
+      - name: Sudah tersimpan hari ini?
+        id: state
+        shell: bash
+        env:
+          FORCE: ${{ (inputs.force || inputs.full || inputs.codes != '' || inputs.strategies != '') && '1' || '' }}
+        run: |
+          DB=$(npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "SELECT MAX(as_of_date) AS d FROM sats_latest" 2>/dev/null \
+            | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{const j=JSON.parse(s.slice(s.indexOf('[')));console.log(j[0].results[0].d||'')}catch{console.log('')}})" || true)
+          TODAY=$(TZ=Asia/Jakarta date +%F)
+          echo "Database as_of: ${DB:-kosong} · hari ini: $TODAY · force: ${FORCE:-tidak}"
+          echo "db=$DB" >> "$GITHUB_OUTPUT"
+          echo "force=$FORCE" >> "$GITHUB_OUTPUT"
+          if [ -z "$FORCE" ] && [ "$DB" = "$TODAY" ]; then
+            echo "Database sudah berisi data $TODAY (run sebelumnya berhasil). Tidak dihitung/ditulis ulang supaya kuota tulis D1 hemat."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Lifecycle unit tests
+        if: steps.state.outputs.skip != '1'
         run: npx tsx src/sats/test-lifecycle.ts
 
       - name: Data cleaning tests
+        if: steps.state.outputs.skip != '1'
         run: npx tsx src/data/test-clean.ts && npx tsx src/data/test-yahoo-close.ts
 
       - name: Compute SATS (Yahoo -> engine -> SQL)
+        if: steps.state.outputs.skip != '1'
         run: >
           npx tsx src/pipeline/run-eod.ts
           ${{ inputs.full && '--full' || '' }}
           ${{ inputs.codes != '' && format('--codes {0}', inputs.codes) || '' }}
           ${{ inputs.strategies != '' && format('--strategies {0}', inputs.strategies) || '' }}
 
-      - name: Config D1 (ID database sats-db dicari menurut nama -> wrangler.deploy.json)
-        working-directory: .
-        run: node scripts/deploy.mjs --resolve sats
-
       - name: Ensure D1 schema
+        if: steps.state.outputs.skip != '1'
         run: npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --file=../database/schema.sql
 
       - name: Write results to D1 (never overwrite newer data)
+        if: steps.state.outputs.skip != '1'
         shell: bash
         env:
-          EVENT: ${{ github.event_name }}
+          DB: ${{ steps.state.outputs.db }}
+          FORCE: ${{ steps.state.outputs.force }}
         run: |
-          DB=$(npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --json --command "SELECT MAX(as_of_date) AS d FROM sats_latest" \
-            | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{const j=JSON.parse(s.slice(s.indexOf('[')));console.log(j[0].results[0].d||'')}catch{console.log('')}})")
           NEW=$(node -e "console.log(require('./out/eod-summary.json').asOf||'')")
           echo "Database as_of: ${DB:-kosong} · hasil run ini: ${NEW:-kosong}"
           if [ -n "$DB" ] && [ -n "$NEW" ] && [[ "$NEW" < "$DB" ]]; then
             echo "::warning::Hasil run ini ($NEW) lebih lama dari isi database ($DB). Tidak ditulis supaya data terbaru tidak tertimpa."
             exit 0
           fi
-          if [ "$EVENT" = "schedule" ] && [ -n "$NEW" ] && [ "$NEW" = "$DB" ]; then
-            echo "Run cadangan: database sudah berisi data $DB (run worker berhasil). Tidak ditulis ulang supaya kuota tulis D1 hemat."
+          # mis. hari libur bursa: bar terakhir Yahoo = tanggal yang sudah ada di database
+          if [ -z "$FORCE" ] && [ -n "$NEW" ] && [ "$NEW" = "$DB" ]; then
+            echo "Database sudah berisi data $DB. Tidak ditulis ulang supaya kuota tulis D1 hemat."
             exit 0
           fi
           npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --file=out/eod.sql
 
       - name: Verify database date
+        if: steps.state.outputs.skip != '1'
         run: |
           npx wrangler d1 execute sats-db --remote -c wrangler.deploy.json --command "SELECT MAX(as_of_date) AS sats, (SELECT MAX(as_of_date) FROM tech_latest) AS screener FROM sats_latest"
 
       - name: Keep run output
-        if: always()
+        if: always() && steps.state.outputs.skip != '1'
         uses: actions/upload-artifact@v4
         with:
           name: eod-${{ github.run_id }}
