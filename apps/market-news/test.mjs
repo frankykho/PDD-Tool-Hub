@@ -80,7 +80,7 @@ assert.deepEqual([ov.ihsg.pct, ov.sectors.best[0].name, ov.sectors.worst[0].name
   "komoditas bergerak >= 2% disorot bersama emiten sektornya");
 
 /* ---------- worker: kumpulkan, skor, AI, terbitkan, halaman publik ---------- */
-const { default: news, collect, rescore, enrich, ensure, finQueue, notifyFin } = await import("./worker.js");
+const { default: news, collect, rescore, enrich, ensure, finQueue, notifyFin, prune, KEEP_DAYS } = await import("./worker.js");
 function d1() {
   const db = new DatabaseSync(":memory:");
   const st = (sql, args = []) => ({ bind: (...a) => st(sql, a), all: async () => ({ results: db.prepare(sql).all(...args) }), first: async () => db.prepare(sql).get(...args) ?? null,
@@ -255,5 +255,18 @@ assert.equal(idOf("https://a.test/x"), idOf("https://a.test/x"));
   const r = await news.fetch(new Request("https://mn.test/bg/" + b.id), env2, { waitUntil() {} });
   assert.equal(r.status, 200); assert.equal(r.headers.get("content-type"), "image/jpeg");
   assert.equal((await news.fetch(new Request("https://mn.test/bg/tidakada"), env2, { waitUntil() {} })).status, 404);
+
+  /* ---------- berita lama dihapus (maks. KEEP_DAYS hari), latar khususnya ikut; latar per tema tetap ---------- */
+  const ago = (d) => new Date(Date.now() - d * 864e5).toISOString();
+  await env2.DB.prepare("UPDATE mn_items SET seen_at=?, status='terbit' WHERE id='n1'").bind(ago(KEEP_DAYS + 1)).run();
+  await env2.DB.prepare("INSERT INTO mn_items (id, url, title, seen_at) VALUES ('n2','https://a.test/n2','Masih baru',?)").bind(ago(KEEP_DAYS - 1)).run();
+  const before = (await env2.DB.prepare("SELECT COUNT(*) n FROM mn_items").first()).n;
+  assert.equal(await prune(env2), 1);
+  assert.equal((await env2.DB.prepare("SELECT COUNT(*) n FROM mn_items").first()).n, before - 1);
+  assert.equal(await env2.DB.prepare("SELECT id FROM mn_items WHERE id='n1'").first(), null, "berita > 7 hari dihapus, termasuk yang sudah terbit");
+  assert.ok(await env2.DB.prepare("SELECT id FROM mn_items WHERE id='n2'").first(), "berita < 7 hari tetap");
+  assert.equal((await env2.DB.prepare("SELECT COUNT(*) n FROM mn_bg WHERE item_id='n1'").first()).n, 0, "latar khusus berita yang dihapus ikut dihapus");
+  assert.ok(await env2.DB.prepare("SELECT id FROM mn_bg WHERE id=?").bind(t.id).first(), "latar per tema tidak ikut dihapus");
+  assert.equal(await prune(env2), 0);
 }
 console.log("semua cek lolos");

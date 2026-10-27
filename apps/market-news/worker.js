@@ -133,6 +133,17 @@ export async function collect(env, ids) {
   await setMeta(env, "src", st);
   return rows.length;
 }
+/** Berita disimpan maksimal KEEP_DAYS hari sejak masuk (seen_at), termasuk yang sudah terbit; yang lebih lama dihapus bertahap
+ *  (maks. 100 per jalan cron, supaya tulisan D1 tidak melonjak) beserta latar banner khusus berita itu. collect() melewati berita
+ *  yang lebih lama dari 48 jam, jadi berita yang dihapus tidak masuk lagi. */
+export const KEEP_DAYS = 7;
+export async function prune(env, n = 100) {
+  const cut = new Date(Date.now() - KEEP_DAYS * 864e5).toISOString();
+  const r = await env.DB.prepare("DELETE FROM mn_items WHERE id IN (SELECT id FROM mn_items INDEXED BY mn_items_seen WHERE seen_at<? LIMIT ?)").bind(cut, n).run();
+  const gone = (r && r.meta && r.meta.changes) || 0;
+  if (gone) await env.DB.prepare("DELETE FROM mn_bg WHERE item_id IS NOT NULL AND item_id NOT IN (SELECT id FROM mn_items)").run();
+  return gone;
+}
 /** Hitung ulang skor 48 jam terakhir; hanya baris yang berubah yang ditulis (hemat kuota tulis D1). */
 export async function rescore(env) {
   const since = new Date(Date.now() - 48 * 3600e3).toISOString(), mkt = await getMeta(env, "mkt");
@@ -379,6 +390,7 @@ export default withCron({
     await enrichQueue(env, 2).catch((err) => console.error("AI:", err.message));
     await finQueue(env, 3).catch((err) => console.error("lapkeu:", err.message));
     await notifyFin(env).catch((err) => console.error("notifikasi:", err.message));
+    await prune(env).catch((err) => console.error("hapus berita lama:", err.message));
   },
 
   async fetch(request, env, ctx) {
