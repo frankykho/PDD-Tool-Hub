@@ -1086,7 +1086,6 @@ async function repData(){
     kpi.push(["Program partnership",int(L.length),`${stageSum(L)} · ${int(n("result_num"))} peserta · ${int(n("leads"))} leads · ${int(n("accounts"))} akun baru${L.some(i=>stageOf(i)==="berjalan")?" (hasil sementara)":""}`])}
   if(S.desain){kpi.push(["Tugas desain",int(S.desain.length),`${stageSum(S.desain,dStage)} · ${S.desain.filter(i=>i.d_status!=="selesai"&&(i.d_due||i.date)<todayIso()).length} lewat tenggat`])}
   const W=want.has("wa")?(Array.isArray(wa)?wa:[]).filter(w=>!who||w.email===who):null;
-  if(W)kpi.push(["Posting WA Channel",int(waSum(W)),waTxt(W)||"belum ada yang dicatat"]);
   // kegiatan yang masih berjalan (bukan tugas desain: sudah ada di bagiannya sendiri)
   const run=["edukasi","artikel","konten","program"].flatMap(k=>S[k]||[]).filter(i=>stageOf(i)==="berjalan");
   // rekap per orang (hanya kalau semua orang): jumlah kegiatan yang ditangani & yang selesai
@@ -1165,6 +1164,7 @@ const kegW=t=>/^(Acara|Judul|Konten|Visual untuk|Program)/.test(t)?2.4:/Penyelen
 const kegN=t=>/Peserta|Pembaca|Jangkauan|Leads|Akun baru/.test(t);
 function kegDoc(R){
   const Bk=[{t:"cover",lines:["Laporan Kegiatan",R.per],sub:[R.div,R.who].join(" · ")},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.who}`},{t:"kpis",items:R.kpi}];
+  if(R.wa)Bk.push(waKpis(R.wa));
   if(R.people.length)Bk.push({t:"table",h3:"Rekap per orang (kegiatan ditangani · yang selesai)",cols:[["Nama",22],["Peran",20],["Edukasi",11.6,1],["Artikel",11.6,1],["Konten",11.6,1],["Program",11.6,1],["Visual",11.6,1]],
     rows:R.people.map(p=>[p.name,PL.roles[p.role]||"–",...["edukasi","artikel","konten","program","desain"].map(k=>p[k][0]?`${p[k][0]} · ${p[k][1]} selesai`:"–")])});
   // kegiatan yang belum selesai tetap dilaporkan, dengan progres terakhirnya
@@ -1173,6 +1173,12 @@ function kegDoc(R){
     rows:R.S[k].map(i=>COLS[k].map(c=>cell(c[1](i)))),empty:"Tidak ada kegiatan pada periode ini."});
   if(R.wa)Bk.push(waTable(R.wa));
   return {div:R.div,per:R.per,blocks:Bk};
+}
+// kotak angka posting WA Channel: insight, stockpick, berita selalu tampil (walau 0), lalu total
+function waKpis(W){
+  const tot=waSum(W),ppl=new Set(W.map(w=>w.email)).size,lain=waSum(W,"lain"),of=k=>tot?mrPct(waSum(W,k),tot)+" dari total":"belum ada";
+  return {t:"kpis",h3:"Posting WA Channel",items:[...["insight","stockpick","berita"].map(k=>[WK[k],int(waSum(W,k)),of(k)]),
+    ["Total posting",int(tot),`${ppl} orang · ${new Set(W.map(w=>w.date)).size} hari${lain?` · ${lain} lainnya`:""}`]]};
 }
 // jumlah posting WA Channel per orang per jenis (+ baris total kalau lebih dari satu orang)
 function waTable(W,h3){
@@ -1268,6 +1274,7 @@ function monDoc(R){
   const per=perI;
   const Bk=[{t:"cover",lines:[R.month?"Monthly Report":"Report",R.per],sub:R.div},
     {t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.teams.length} tim · ${members} anggota`},{t:"kpis",items:mrKpis(R.logs,allItems,"",members)},
+    ...(R.teams.some(t=>t.wa.length)?[waKpis(R.teams.flatMap(t=>t.wa))]:[]),
     {t:"table",h3:"Per tim",cols:[["Tim",22],["Anggota",8,1],["Pekerjaan harian",11,1],["Selesai",8,1],["Berjalan",8,1],["Kendala",8,1],["Kegiatan kalender",12,1],["Keg. selesai",11,1],["Keg. berjalan",12,1]],
       rows:R.teams.map(t=>{const c=s=>t.logs.filter(l=>l.status===s).length,g=s=>t.items.filter(i=>mrStage(i,t.key)===s).length;
         return [t.name,t.members.size,t.logs.length,c("selesai"),c("berjalan"),c("kendala"),t.items.filter(i=>mrStage(i,t.key)!=="batal").length,g("selesai"),g("berjalan")].map(String)})},
@@ -1277,9 +1284,7 @@ function monDoc(R){
   for(const t of R.teams){
     Bk.push({t:"page",h2:`Tim ${t.name}`,sub:"Anggota: "+([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")},{t:"kpis",items:mrKpis(t.logs,t.items,t.key,t.members.size)});
     // posting WA Channel tim ini: total & per jenis, lalu per orang
-    if(t.wa.length){const tot=waSum(t.wa),ppl=new Set(t.wa.map(w=>w.email)).size;
-      Bk.push({t:"kpis",h3:"Posting WA Channel",items:[["Total posting",int(tot),`${ppl} orang · ${new Set(t.wa.map(w=>w.date)).size} hari`],...Object.keys(WK).filter(k=>waSum(t.wa,k)).map(k=>[WK[k],int(waSum(t.wa,k)),mrPct(waSum(t.wa,k),tot)+" dari total"])]});
-      if(ppl>1)Bk.push(waTable(t.wa,"Posting WA Channel per orang"))}
+    if(t.wa.length){Bk.push(waKpis(t.wa));if(new Set(t.wa.map(w=>w.email)).size>1)Bk.push(waTable(t.wa,"Posting WA Channel per orang"))}
     const byDate=(a,b)=>a.date.localeCompare(b.date),progs=t.items.filter(i=>kindOf(i)==="program").sort(byDate);
     // yang masih berjalan dilaporkan tersendiri dengan progres terakhirnya; tabel kegiatan kalender memuat sisanya
     const run=t.items.filter(i=>mrStage(i,t.key)==="berjalan"),others=t.items.filter(i=>kindOf(i)!=="program"&&mrStage(i,t.key)!=="berjalan").sort(byDate);
