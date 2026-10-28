@@ -25,6 +25,11 @@ export const PLATFORMS = {
   inapp_body: { label: "Banner in-app: isi", max: 100, short: true },
   email_subject: { label: "Email: subject", max: 45, short: true },
   email_pre: { label: "Email: preheader", max: 90, short: true },
+  // What's New di aplikasi: belum ada batas resmi dari tim aplikasi, angka ini batas wajar (teks informasi fitur, tanpa disclaimer)
+  wn_title: { label: "What's New: judul fitur", max: 40, short: true },
+  wn_short: { label: "What's New: deskripsi singkat", max: 150, rec: 120, short: true },
+  wn_long: { label: "What's New: deskripsi lengkap", max: 1500, rec: 800, short: true },
+  wn_manual: { label: "What's New: manual", max: 3000, short: true },
   artikel: { label: "Artikel / email", max: 100000 },
 };
 

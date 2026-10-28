@@ -1,9 +1,9 @@
 // Copy Studio — Cloudflare Worker
 // Tempat Copywriter & Social Media Specialist menulis dan menyiapkan konten, di dalam Tool Hub:
-// - "/"                    halaman tim: Cek Caption, Variasi A/B, Teks Aplikasi, Naskah Reels/TikTok, Subtitle, Ubah Ukuran, Panduan Gaya
+// - "/"                    halaman tim: Cek Caption, Variasi A/B, Teks Aplikasi, What's New, Naskah Reels/TikTok, Subtitle, Ubah Ukuran, Panduan Gaya
 // - GET  /api/style        panduan gaya & glosarium
 // - POST /api/style        simpan panduan gaya (editor & admin)
-// - POST /api/ai           tulis dengan AI: kind = ab | app | reels | fix (batas per hari: COPY_AI_DAILY)
+// - POST /api/ai           tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
 // Cek kepatuhan & panjang teks: shared/compliance.js, dijalankan di browser. Ubah ukuran gambar & potong audio juga di browser.
@@ -216,6 +216,23 @@ export function prompt(kind, b) {
     if (!brief) return null;
     return { max: 1800, user: `Buat teks pendek di dalam aplikasi dari brief ini:\n${brief}\n${b.goal ? "Tujuan: " + str(b.goal, 200) + "\n" : ""}${toneLine(b)}\n- 3 push notification: title maks. 40 karakter, body maks. 110 karakter. Boleh 1 emoji di title. Ketiganya memakai pendekatan berbeda: manfaat, rasa ingin tahu, dan pengingat/tenggat (tenggat hanya bila ada di brief).\n- Title harus membuat orang ingin membuka notifikasi; body menjelaskan apa yang didapat dan langkah berikutnya.\n- 3 banner in-app: title maks. 40 karakter, body maks. 90 karakter, cta maks. 18 karakter diawali kata kerja.\nPromo selalu sebut \"S&K berlaku\" di body.\nFormat: {"push":[{"title":"","body":""}],"inapp":[{"title":"","body":"","cta":""}]}` };
   }
+  if (kind === "wn") {
+    const name = str(b.name, 120), notes = str(b.notes, 5000);
+    if (!name && !notes) return null;
+    // langkah kasar dipertahankan per baris (str() meratakan baris baru)
+    const steps = String(b.steps ?? "").split(/\r?\n/).map((s) => str(s, 300)).filter(Boolean).slice(0, 15).join("\n");
+    return { max: 2600, user: `Tulis What's New untuk fitur baru di dalam aplikasi${b.version ? " versi " + str(b.version, 40) : ""}.
+${name ? "Nama fitur: " + name + "\n" : ""}${notes ? "Catatan rilis / poin fitur:\n" + notes + "\n" : ""}${b.where ? "Letak di aplikasi: " + str(b.where, 300) + "\n" : ""}${b.who ? "Siapa yang bisa memakai: " + str(b.who, 300) + "\n" : ""}${steps ? "Langkah pemakaian (kasar):\n" + steps + "\n" : ""}${toneLine(b)}
+Ini teks informasi fitur yang dibaca nasabah di dalam aplikasi, bukan iklan: jelas, ramah, dan langsung ke manfaat. Tanpa hook bombastis, tanpa hashtag, tanpa emoji, tanpa tanda seru beruntun.
+Gunakan HANYA fakta dari bahan di atas. Jangan mengarang nama menu, tombol, syarat, angka, atau biaya; kalau nama menu/tombol tidak ada di bahan, tulis penanda dalam kurung siku, mis. [nama menu], dan sebut di "check".
+- title: nama fitur yang tampil di What's New (maks. 40 karakter).
+- short: deskripsi singkat 1–2 kalimat (maks. 120 karakter): manfaat utama untuk nasabah, untuk daftar What's New atau pop-up.
+- long: deskripsi lengkap 2–4 paragraf pendek (total ±400–800 karakter): apa fiturnya, manfaat konkret, siapa yang bisa memakai / syaratnya, dan di mana menemukannya.
+- manual: intro (1 kalimat), steps (3–8 langkah, satu tindakan per langkah, diawali kata kerja, sebut nama menu/tombol persis seperti di bahan; tanpa nomor di depan), notes (0–4 catatan penting: syarat, batas, biaya, jam layanan; hanya bila ada di bahan).
+- faq: 2–4 tanya-jawab singkat yang kemungkinan ditanyakan nasabah (jawab hanya dari bahan).
+- check: hal yang perlu dikonfirmasi ke tim produk/IT sebelum terbit (nama menu, syarat, angka yang belum jelas).
+Format: {"title":"","short":"","long":[""],"manual":{"intro":"","steps":[""],"notes":[""]},"faq":[{"q":"","a":""}],"check":[""]}` };
+  }
   if (kind === "reels") {
     const topic = str(b.topic, 500), source = str(b.source, 8000), dur = [15, 30, 60, 90].includes(Number(b.duration)) ? Number(b.duration) : 30;
     if (!topic && !source) return null;
@@ -280,6 +297,15 @@ export function parse(kind, raw) {
     push: list(j.push, 5).map((x) => ({ title: str(x && x.title, 80), body: str(x && x.body, 200) })).filter((x) => x.title || x.body),
     inapp: list(j.inapp, 5).map((x) => ({ title: str(x && x.title, 80), body: str(x && x.body, 200), cta: str(x && x.cta, 40) })).filter((x) => x.title || x.body),
   };
+  if (kind === "wn") {
+    const m = j.manual && typeof j.manual === "object" ? j.manual : {}, paras = typeof j.long === "string" ? j.long.split(/\n\s*\n/) : list(j.long, 6);
+    return {
+      title: str(j.title, 80), short: str(j.short, 300), long: paras.map((p) => str(p, 1200)).filter(Boolean).slice(0, 6),
+      manual: { intro: str(m.intro, 400), steps: list(m.steps, 12).map((s) => str(s, 400).replace(/^(?:langkah\s*)?\d+[.)]\s*/i, "")).filter(Boolean), notes: list(m.notes, 6).map((s) => str(s, 300)).filter(Boolean) },
+      faq: list(j.faq, 6).map((x) => ({ q: str(x && x.q, 200), a: str(x && x.a, 500) })).filter((x) => x.q && x.a),
+      check: list(j.check, 8).map((s) => str(s, 300)).filter(Boolean),
+    };
+  }
   if (kind === "reels") return {
     title: str(j.title, 150), hook: str(j.hook, 300),
     hooks: list(j.hooks, 5).map((h) => (typeof h === "string" ? { text: str(h, 300), pattern: "" } : { text: str(h && h.text, 300), pattern: str(h && h.pattern, 60) })).filter((h) => h.text),
@@ -416,7 +442,7 @@ export default {
           const q = prompt(b.kind, b);
           if (!q) return json({ error: "Isi dulu brief atau teksnya." }, 400);
           if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 60))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
-          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : 0.9 });
+          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "wn" ? 0.5 : 0.9 });
           return json({ result: parse(b.kind, text), model });
         }
         if (path === "/api/transcribe") {

@@ -69,6 +69,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,.btn:focus-visib
 .var .tx{font-size:14.5px;font-weight:600}
 .tag{display:inline-block;font-size:11.5px;font-weight:700;border-radius:20px;padding:1px 8px;background:var(--g2);color:var(--g)}
 .tag.e{background:var(--err2);color:var(--err)}.tag.w{background:var(--warn2);color:var(--warn)}
+.note{background:var(--warn2);color:var(--t);border-radius:10px;padding:8px 12px}.note b{color:var(--warn)}
 .mock{border-radius:16px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);display:grid;gap:2px}
 .mock .app{font-size:11.5px;color:var(--t2);font-weight:600;display:flex;justify-content:space-between}
 .mock .tt{font-weight:700}
@@ -188,6 +189,21 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     <div class="card stack" id="apOut"><div class="empty">Push notif dan banner muncul di sini.</div></div>
   </section>
 
+  <!-- ============ WHAT'S NEW ============ -->
+  <section data-tab="wn" class="grid2" hidden>
+    <div class="card stack">
+      <div><h2>What's New</h2><p class="muted small" style="margin:0">Deskripsi singkat, deskripsi lengkap, dan manual untuk fitur baru di aplikasi.</p></div>
+      <div class="row"><label class="grow">Nama fitur<input type="text" id="wnName" maxlength="120" placeholder="Mis. Auto-invest reksa dana"></label><label>Versi aplikasi (opsional)<input type="text" id="wnVer" maxlength="40" placeholder="Mis. 3.12" style="width:110px"></label></div>
+      <label class="small muted" style="font-weight:600">Catatan rilis / poin fitur: tempel apa adanya dari tim produk atau IT<textarea id="wnNotes" placeholder="Apa yang baru, manfaatnya untuk nasabah, syarat, batasan, biaya (kalau ada)."></textarea></label>
+      <div class="row"><label class="grow">Letak di aplikasi (opsional)<input type="text" id="wnWhere" maxlength="300" placeholder="Mis. Menu Reksa Dana › Auto-invest"></label></div>
+      <div class="row"><label class="grow">Siapa yang bisa memakai (opsional)<input type="text" id="wnWho" maxlength="300" placeholder="Mis. nasabah dengan rekening reksa dana aktif"></label></div>
+      <label class="small muted" style="font-weight:600">Langkah pemakaian (opsional): satu langkah per baris, AI merapikannya jadi manual<textarea id="wnSteps" style="min-height:90px" placeholder="Buka menu Reksa Dana&#10;Pilih Auto-invest&#10;Atur nominal dan tanggal"></textarea></label>
+      <div class="row"><label>Nada<select id="wnTone" data-tone></select></label></div>
+      <div class="row"><button class="btn pri" id="wnGo" type="button">Buat What's New</button><span class="muted small">AI hanya memakai fakta dari isian; nama menu yang tidak disebut ditandai [ … ].</span></div>
+    </div>
+    <div class="card stack" id="wnOut"><div class="empty">Deskripsi singkat, deskripsi lengkap, dan manual muncul di sini. Semuanya bisa diedit sebelum disalin.</div></div>
+  </section>
+
   <!-- ============ PAKET PRODUK ============ -->
   <section data-tab="kit" class="grid2" hidden>
     <div class="card stack">
@@ -304,7 +320,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   "use strict";
   var CS = window.CS || {}, P = window.PROFILE || {}, C = window.Compliance, $ = function (id) { return document.getElementById(id); };
   var style = CS.style || { guide: "", glossary: [] };
-  var TABS = [["cek", "Cek Caption"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["yt", "Naskah YouTube"],["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
+  var TABS = [["cek", "Cek Caption"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["wn", "What's New"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["yt", "Naskah YouTube"],["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var tt;
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(function () { t.hidden = true; }, 2600); }
@@ -341,6 +357,9 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     app: ["Membuat teks pendek di dalam aplikasi: push notification dan banner in-app, lengkap dengan pratinjau dan batas karakternya.",
       ["Tulis <b>Brief</b>: promo, produk, atau berita yang mau diumumkan (sertakan tanggal, angka, dan syaratnya).", "Isi <b>Tujuan</b> bila ada (mis. orang membuka halaman produk).", "Klik <b>Buat teks</b>: keluar 3 push notif dan 3 banner.", "Periksa label panjang tiap judul & isi, lalu <b>Salin</b> yang dipakai dan serahkan ke tim aplikasi."],
       ["Judul push maks. ±40 karakter supaya tidak terpotong di layar kunci.", "Promo wajib menyebut “S&K berlaku”.", "Hindari kata mendesak berlebihan (buruan, kesempatan terakhir)."]],
+    wn: ["Menulis What's New untuk fitur baru di aplikasi: judul fitur, deskripsi singkat, deskripsi lengkap, manual langkah demi langkah, dan FAQ, lengkap dengan cek panjang & kepatuhan.",
+      ["Isi <b>Nama fitur</b> dan tempel <b>Catatan rilis / poin fitur</b> dari tim produk atau IT apa adanya.", "Bila ada, isi <b>Letak di aplikasi</b>, <b>Siapa yang bisa memakai</b>, dan <b>Langkah pemakaian</b> (satu langkah per baris) supaya manualnya tepat.", "Klik <b>Buat What's New</b>.", "Edit langsung di kolom hasil; label panjang dan hasil cek ikut berubah. Ganti penanda <b>[ … ]</b> dengan nama menu/tombol yang benar.", "Konfirmasi poin di kotak kuning ke tim produk, lalu <b>Salin</b> per bagian atau <b>Salin semua</b> untuk diserahkan ke tim aplikasi."],
+      ["AI hanya memakai fakta dari isian: semakin lengkap catatan rilisnya, semakin sedikit penanda yang perlu diisi.", "Isian tersimpan di browser ini, jadi aman kalau pindah tab dulu.", "Batas panjang yang dipakai masih batas wajar (singkat ±120, lengkap ±800 karakter) sampai ada ketentuan dari tim aplikasi."]],
     kit: ["Satu produk (reksa dana, obligasi/sukuk, atau ETF) langsung jadi paket konten: caption feed, frame story, WhatsApp, email, push notif, FAQ untuk CS/sales, brief visual untuk desainer, dan catatan compliance. Angka diambil otomatis dari Fund, Bond, dan ETF Insight.",
       ["Pilih <b>Jenis</b> produk, cari namanya, lalu klik produk di daftar. Fakta produk tampil di bawahnya; cek angkanya.", "Pilih <b>Mode</b>: <b>Peluncuran / promosi</b>, atau <b>Co-marketing</b> bila kampanye bersama manajer investasi/mitra (nama mitra terisi otomatis dari MI produk).", "Isi <b>Target pembaca</b> dan <b>Tujuan</b> (opsional, tapi membuat hasil lebih tepat).", "Klik <b>Buat paket</b>.", "Tiap bagian punya <b>Salin</b> dan <b>Cek</b>. <b>Salin semua</b> / <b>Unduh .txt</b> untuk dibagikan ke tim, desainer, dan CS."],
       ["AI hanya memakai angka dari fakta produk; tetap cocokkan tanggal data dengan fund fact sheet sebelum terbit.", "Brief visual bisa langsung ditempel ke permintaan desain di Content Planner.", "Untuk co-marketing, konfirmasi materi ke MI sebelum tayang."]],
@@ -486,6 +505,43 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     var b = e.target.closest("button"); if (!b || !apRes) return;
     if (b.dataset.p != null) { var p = apRes.push[+b.dataset.p]; copy("Judul: " + p.title + "\nIsi: " + p.body); }
     if (b.dataset.i != null) { var i = apRes.inapp[+b.dataset.i]; copy("Judul: " + i.title + "\nIsi: " + i.body + (i.cta ? "\nTombol: " + i.cta : "")); }
+  };
+
+  /* ---------- WHAT'S NEW: deskripsi singkat, deskripsi lengkap, manual (hasil AI jadi kolom yang bisa diedit) ---------- */
+  var WN_IN = ["wnName", "wnVer", "wnNotes", "wnWhere", "wnWho", "wnSteps"];
+  try { var wn0 = JSON.parse(localStorage.getItem("cs_wn") || "{}"); WN_IN.forEach(function (id) { if (wn0[id]) $(id).value = wn0[id]; }); } catch (e) {}
+  WN_IN.forEach(function (id) { $(id).addEventListener("input", function () { var o = {}; WN_IN.forEach(function (k) { o[k] = $(k).value; }); try { localStorage.setItem("cs_wn", JSON.stringify(o)); } catch (e) {} }); });
+  // [label, kunci platform cek panjang/kepatuhan, tinggi kolom]
+  var WN_F = { title: ["Judul fitur", "wn_title", 0], short: ["Deskripsi singkat", "wn_short", 70], long: ["Deskripsi lengkap", "wn_long", 180], manual: ["Manual", "wn_manual", 220], faq: ["FAQ (opsional)", "wn_manual", 140] };
+  function wnText(r) {
+    var m = r.manual || {};
+    return {
+      title: r.title || "", short: r.short || "", long: (r.long || []).join("\n\n"),
+      manual: [m.intro].concat((m.steps || []).map(function (s, i) { return (i + 1) + ". " + s; })).concat((m.notes || []).length ? ["", "Catatan:"].concat(m.notes.map(function (n) { return "• " + n; })) : []).filter(function (x) { return x != null; }).join("\n").trim(),
+      faq: (r.faq || []).map(function (x) { return "T: " + x.q + "\nJ: " + x.a; }).join("\n\n"),
+    };
+  }
+  $("wnGo").onclick = function () {
+    var btn = this, name = $("wnName").value.trim(), notes = $("wnNotes").value.trim();
+    if (!name && !notes) return toast("Isi nama fitur atau catatan rilisnya dulu");
+    busy(btn, true);
+    api("/api/ai", { kind: "wn", name: name, version: $("wnVer").value, notes: notes, where: $("wnWhere").value, who: $("wnWho").value, steps: $("wnSteps").value, tone: $("wnTone").value }).then(function (j) {
+      var t = wnText(j.result);
+      $("wnOut").innerHTML = Object.keys(WN_F).map(function (k) {
+        var f = WN_F[k];
+        return '<div class="stack" style="gap:6px"><div class="row"><b>' + f[0] + '</b><span class="small" data-wb="' + k + '">' + badge(t[k], f[1]) + '</span><span style="flex:1"></span><button class="btn sm" data-wc="' + k + '" type="button">Salin</button></div>' +
+          (f[2] ? '<textarea data-wf="' + k + '" style="min-height:' + f[2] + 'px">' + esc(t[k]) + "</textarea>" : '<input type="text" data-wf="' + k + '" value="' + esc(t[k]) + '">') + "</div>";
+      }).join("") +
+        ((j.result.check || []).length ? '<div class="note small"><b>Konfirmasi ke tim produk sebelum terbit:</b><ul style="margin:4px 0 0;padding-left:18px">' + j.result.check.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + "</ul></div>" : "") +
+        '<div class="row"><button class="btn" id="wnAll" type="button">Salin semua</button><span class="muted small">Model: ' + esc(j.model) + "</span></div>";
+    }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
+  };
+  var wnVal = function (k) { var el = $("wnOut").querySelector('[data-wf="' + k + '"]'); return el ? el.value.trim() : ""; };
+  $("wnOut").addEventListener("input", function (e) { var k = e.target.dataset.wf; if (!k) return; var s = $("wnOut").querySelector('[data-wb="' + k + '"]'); if (s) s.innerHTML = badge(e.target.value, WN_F[k][1]); });
+  $("wnOut").onclick = function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.wc) return copy(wnVal(b.dataset.wc));
+    if (b.id === "wnAll") copy(Object.keys(WN_F).filter(function (k) { return wnVal(k); }).map(function (k) { return WN_F[k][0].replace(" (opsional)", "").toUpperCase() + "\n" + wnVal(k); }).join("\n\n"));
   };
 
   /* ---------- PAKET PRODUK ---------- */

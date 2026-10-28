@@ -70,6 +70,13 @@ assert.match(prompt("ab", { brief: "reksa dana", type: "subject", n: 99 }).user,
 assert.match(prompt("reels", { topic: "Deposito vs RDPU", duration: 60 }).user, /60 detik/);
 assert.match(prompt("reels", { topic: "x", duration: 7 }).user, /30 detik/, "durasi tidak sah -> 30");
 assert.equal(prompt("nope", {}), null);
+// What's New: nama fitur atau catatan wajib; langkah kasar tetap per baris; hasil dirapikan (nomor langkah dibuang, paragraf dipisah)
+assert.equal(prompt("wn", { name: " ", notes: "" }), null);
+{ const u = prompt("wn", { name: "Auto-invest", steps: "buka menu RD\n\npilih auto-invest", version: "3.12" }).user;
+  assert.match(u, /Nama fitur: Auto-invest/); assert.match(u, /buka menu RD\npilih auto-invest/); assert.match(u, /versi 3\.12/); assert.match(u, /\[nama menu\]/); }
+{ const r = parse("wn", '{"title":"Auto-invest","short":"Investasi rutin otomatis.","long":"Paragraf satu.\\n\\nParagraf dua.","manual":{"intro":"Begini caranya.","steps":["1. Buka menu Reksa Dana","Langkah 2) Pilih Auto-invest",""],"notes":["Minimal Rp100 ribu"]},"faq":[{"q":"Bisa dihentikan?","a":"Bisa kapan saja."},{"q":"","a":"x"}],"check":["Nama menu"]}');
+  assert.deepEqual(r.long, ["Paragraf satu.", "Paragraf dua."]); assert.deepEqual(r.manual.steps, ["Buka menu Reksa Dana", "Pilih Auto-invest"]);
+  assert.equal(r.faq.length, 1); assert.deepEqual(r.check, ["Nama menu"]); }
 assert.deepEqual(parse("ab", 'oke ```json {"items":[{"text":"Halo","angle":"manfaat","why":"langsung ke inti"},{"text":""}]} ```'), { items: [{ text: "Halo", angle: "manfaat", why: "langsung ke inti" }] });
 // nada & formula: nada sah masuk ke perintah, nada asing diabaikan; tiap jenis A/B punya petunjuk sendiri
 assert.match(prompt("ab", { brief: "x", tone: "syariah" }).user, /Nada: hangat dan santun/);
