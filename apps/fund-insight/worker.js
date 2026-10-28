@@ -113,7 +113,7 @@ html[data-theme]{--r:var(--hg-r-lg);background:var(--hg-base)}
 html[data-theme] body{background:transparent}
 html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
 html[data-theme] .top{border-bottom-color:var(--hg-edge)}
-html[data-theme] :is(.card,.metric,.hero,.disc,.nasbar,.scp):not(.spc):not(.hl){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] :is(.card,.metric,.hero,.disc,.nasbar,.scp):not(.spc):not(.hl){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow);background-image:var(--hg-sheen)}
 html[data-theme] .hm-say{border-left-color:var(--g)}
 html[data-theme] :is(.spc,.results .hl){box-shadow:var(--hg-hl),var(--hg-shadow)}
 html[data-theme] :is(.ctbl,.strip,.card:not(.spc):has(table,textarea,canvas,.hchart,.curve,.cfchart)){background-color:var(--hg-solid);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}

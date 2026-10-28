@@ -189,14 +189,14 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 html[data-theme]{background:var(--hg-base)}
 html[data-theme] body{background:transparent}
 html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
-html[data-theme] .wrap .card,html[data-theme] .wrap .col{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .card,html[data-theme] .wrap .col{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
 html[data-theme] .wrap .card:has(table),html[data-theme] .wrap .card.draft,html[data-theme] .wrap .list.card{background:var(--hg-solid)}
 html[data-theme] .wrap .kpi{background:var(--hg-solid);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl),var(--hg-shadow)}
 html[data-theme] .wrap .task{background:var(--hg-solid);border-color:var(--hg-edge);box-shadow:var(--hg-hl);transition:box-shadow .2s,transform .2s}
 html[data-theme] .wrap .task:hover{transform:translateY(-1px);box-shadow:var(--hg-hl),var(--hg-lift)}
 html[data-theme] .wrap .cal{border-radius:var(--hg-r-lg);box-shadow:var(--hg-shadow)}
-html[data-theme] .wrap .stat{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
-html[data-theme] .wrap .seg,html[data-theme] dialog .seg{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .stat{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .seg,html[data-theme] dialog .seg{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl)}
 html[data-theme] .wrap .btn,html[data-theme] dialog .btn{border-radius:var(--hg-r)}
 html[data-theme] .wrap .btn.sm,html[data-theme] dialog .btn.sm{border-radius:10px}
 html[data-theme] .wrap .btn:not(.pri),html[data-theme] dialog .btn:not(.pri){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}

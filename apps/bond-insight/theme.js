@@ -86,22 +86,22 @@ ${G}{background:var(--hg-base)}
 ${G} body{background:transparent}
 ${G} body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
 ${G} .top{border-bottom-color:var(--hg-edge)}
-${G} .asof{background:var(--hg-glass);box-shadow:var(--hg-hl)}
+${G} .asof{background:var(--hg-sheen),var(--hg-glass);box-shadow:var(--hg-hl)}
 ${G} .asof:not(.demo){border-color:var(--hg-edge)}
 ${G} .tabs{background:var(--hg-float);border-color:var(--hg-edge);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} .card:not(.homehero):not(#loadErr){background:var(--hg-solid);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} .card,${G} .home-pick{border-radius:var(--hg-r-lg)}
 ${G} .homehero{border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
-${G} .card.bond,${G} .metric:not(.hl),${G} .home-pick,${G} .home-shortcut{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow);transition:background-color .2s,border-color .2s,box-shadow .2s,transform .2s}
+${G} .card.bond,${G} .metric:not(.hl),${G} .home-pick,${G} .home-shortcut{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow);transition:background-color .2s,border-color .2s,box-shadow .2s,transform .2s}
 ${G} .card.bond:hover,${G} .metric:not(.hl):hover,${G} .home-pick:hover,${G} .home-shortcut:hover{background:var(--hg-glass-hover);border-color:rgba(56,201,130,.32);box-shadow:var(--hg-hl),var(--hg-lift)}
 ${G} .card.bond:hover,${G} .home-pick:hover{transform:translateY(-2px)}
 ${G} .btn{border-radius:var(--hg-r)}
 ${G} .btn:not(.s){box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 4px 14px rgba(11,33,23,.16)}
-${G} .btn.s{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .btn.s{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
 ${G} .btn.s:hover{background:var(--hg-glass-hover);border-color:rgba(56,201,130,.4)}
-${G} .chip:not(.active){background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .chip:not(.active){background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
 ${G} .chip:not(.active):hover{background:var(--hg-glass-hover);border-color:rgba(56,201,130,.4)}
-${G} .disc{background:var(--hg-glass);border-color:var(--hg-edge)}
+${G} .disc{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge)}
 ${G} #tipbox{background:var(--hg-float);border-color:var(--hg-edge);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
 ${G} .toast{background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
 }

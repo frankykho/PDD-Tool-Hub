@@ -14,12 +14,12 @@ ${G} .topbar{background:var(--hg-float);border-bottom-color:var(--hg-edge);box-s
 ${G} .form-panel{background:var(--hg-float);border-right-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} .sp-card,${G} .news-card-form,${G} .ca-card-form,${G} .wa-pg,${G} .cal-item{border-color:var(--hg-edge)}
 ${G} .preview-panel{background:transparent}
-${G} .pw-lbl{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),0 2px 8px rgba(16,32,22,.04)}
+${G} .pw-lbl{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),0 2px 8px rgba(16,32,22,.04)}
 ${G} #sfHome{background:var(--hg-mesh)}
-${G} .sf-card{background:var(--hg-glass)!important;border-color:var(--hg-edge)!important;border-radius:var(--hg-r-lg)!important;box-shadow:var(--hg-hl),var(--hg-shadow)!important;transition:background-color .2s,box-shadow .2s,transform .2s}
+${G} .sf-card{background:var(--hg-sheen),var(--hg-glass)!important;border-color:var(--hg-edge)!important;border-radius:var(--hg-r-lg)!important;box-shadow:var(--hg-hl),var(--hg-shadow)!important;transition:background-color .2s,box-shadow .2s,transform .2s}
 ${G} .sf-card:hover{background:var(--hg-glass-hover)!important;border-color:var(--hg-edge)!important;transform:translateY(-2px);box-shadow:var(--hg-hl),var(--hg-lift)!important}
 ${G} .sf-bar{background:var(--hg-float);border-top-color:var(--hg-edge);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),0 -8px 24px rgba(16,32,22,.08)}
-${G} .sf-bar .s{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .sf-bar .s{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
 ${G} .btn-dl,${G} .btn-dl-sm,${G} .btn-dl-all{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 5px 14px rgba(22,132,81,.16)}
 ${G} .sf-row button.p{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 14px rgba(11,33,23,.16)!important}
 ${D} .sf-bar{box-shadow:var(--hg-hl),0 -8px 24px rgba(0,0,0,.35)}

@@ -748,14 +748,14 @@ ${G}{background:var(--hg-base)}${G} body{background:transparent}
 ${G} body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
 ${G} .top{top:10px;margin:10px 12px 0;border:0;border-radius:var(--hg-r-lg);background:transparent;isolation:isolate}
 ${G} .top::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow)}
-${G} .tabs,${G} .seg{background:var(--hg-glass);box-shadow:inset 0 0 0 1px var(--hg-edge)}
+${G} .tabs,${G} .seg{background:var(--hg-sheen),var(--hg-glass);box-shadow:inset 0 0 0 1px var(--hg-edge)}
 ${G} .tabs button.on,${G} .seg button.on{background:var(--hg-solid);box-shadow:var(--hg-hl),0 1px 3px rgba(0,0,0,.1)}
-${G} .card{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} .card{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} #outCard,${G} #t-sumber .card{background:var(--hg-solid)}
-${G} .item{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),0 1px 2px rgba(16,32,22,.04);transition:background-color .2s,box-shadow .2s}
+${G} .item{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),0 1px 2px rgba(16,32,22,.04);transition:background-color .2s,box-shadow .2s}
 ${G} .item:hover{background:var(--hg-glass-hover);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} .item.sel{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand),var(--hg-shadow)}
-${G} .chips button:not(.on){background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .chips button:not(.on){background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
 ${G} .chips button:not(.on):not(.ghost),${G} .tab .seg button:not(.ghost){color:var(--mut)}
 ${G} .tab .seg button.on:not(.ghost){color:var(--brand)}
 ${G} .chips button:not(.on):hover{background:var(--hg-glass-hover)}

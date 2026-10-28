@@ -13,12 +13,12 @@ ${G}{background:var(--hg-base)}
 ${G} body{background:transparent}
 ${G} body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--hg-mesh);pointer-events:none}
 ${G} .topbar{isolation:isolate;background:transparent;border-bottom-color:var(--hg-edge);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-${G} .topbar::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--hg-glass);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow);pointer-events:none}
-${G} .search-box,${G} .user-chip,${G} .segmented{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .topbar::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--hg-sheen),var(--hg-glass);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow);pointer-events:none}
+${G} .search-box,${G} .user-chip,${G} .segmented{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
 ${G} .search-box:focus-within{border-color:var(--ac)}
 ${G} .search-results,${G} .nav-more-menu,${G} .own-results,${G} .info-pop{background:var(--hg-float);border-color:var(--hg-edge);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
 ${G} .card{background:var(--hg-solid);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
-${G} .card.kpi,${G} .sector-tile,${G} .preset-card{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} .card.kpi,${G} .sector-tile,${G} .preset-card{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),var(--hg-shadow)}
 ${G} .kpi-button.active,${G} .sector-tile.on,${G} .preset-card.on{border-color:var(--ac)}
 ${G} .preset-card.on{background:color-mix(in srgb,var(--ac) 9%,var(--hg-glass-hover))}
 ${G} .kpi-button,${G} .sector-tile,${G} .preset-card{transition:background-color .2s,border-color .2s,box-shadow .2s,transform .2s}

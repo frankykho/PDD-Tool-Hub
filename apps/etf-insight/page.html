@@ -91,13 +91,13 @@ html[data-theme="dark"] .tag.dividen{background:#3a2f15;color:#f0c66b}html[data-
   html[data-theme] body{background:transparent}
   html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
   html[data-theme] .card{background:var(--hg-solid);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
-  html[data-theme] .card.etf{background:var(--hg-glass);transition:background-color .2s,border-color .2s,box-shadow .2s,transform .2s}
+  html[data-theme] .card.etf{background:var(--hg-sheen),var(--hg-glass);transition:background-color .2s,border-color .2s,box-shadow .2s,transform .2s}
   html[data-theme] .card.etf:hover{background:var(--hg-glass-hover);transform:translateY(-2px);box-shadow:var(--hg-hl),var(--hg-lift)}
   html[data-theme] .card.etf[aria-pressed="true"]{border-color:var(--brand2);box-shadow:0 0 0 2px var(--tint),var(--hg-hl),var(--hg-shadow)}
-  html[data-theme] .kpi{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl),var(--hg-shadow)}
+  html[data-theme] .kpi{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl),var(--hg-shadow)}
   html[data-theme] .btn{border-radius:var(--hg-r)}
   html[data-theme] .btn:not(.s){background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 14px rgba(11,33,23,.16)}
-  html[data-theme] .btn.s{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+  html[data-theme] .btn.s{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
   html[data-theme] .btn.s:hover{background:var(--hg-glass-hover);border-color:var(--brand2)}
   html[data-theme] .seg{border-color:var(--hg-edge);border-radius:var(--hg-r)}
   html[data-theme] .chart .tip{background:var(--hg-float);border-color:var(--hg-edge);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
