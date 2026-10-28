@@ -174,6 +174,11 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .dteam h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 4px}
 .dperson{font-weight:700;font-size:13px;margin:8px 0 0}
 @media (max-width:900px){.daily{grid-template-columns:minmax(0,1fr)}}
+.wabox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
+.wabox summary{cursor:pointer;margin:0}.wabox[open] summary{margin-bottom:8px}
+.wa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.wac{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
+.wab{display:flex;align-items:center;gap:6px}.wab .btn{min-width:30px;justify-content:center;padding-left:0;padding-right:0}.wab b{min-width:22px;text-align:center;font-size:16px}
+@media (max-width:600px){.wa{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Laporan PDF 16:9 (template divisi): gaya halamannya ada di MR_CSS (script), area cetaknya #mrArea */
 #mrArea{display:none}
 .mr-host{position:fixed;left:-30000px;top:0}
@@ -705,7 +710,8 @@ function renderTasksView(){
 }
 /* ---------- Harian: pekerjaan yang dikerjakan tiap orang per hari (semua bisa melihat; mengubah hanya milik sendiri) ---------- */
 const WS=PL.workStatuses||{selesai:"Selesai",berjalan:"Berjalan",kendala:"Kendala"},WCL={selesai:4,berjalan:2,kendala:5};
-const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null};
+const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[]};
+const WK=PL.waKinds||{insight:"Insight pasar",berita:"Berita",stockpick:"Stockpick",lain:"Lainnya"};
 // tim = role pekerjaan: role saat mencatat, kalau kosong role orangnya sekarang
 const roleOf=e=>(USERS.find(u=>u.email===e)||{}).role||"";
 const teamOf=(job,email)=>{const r=job||roleOf(email);return PL.roles[r]?r:"lain"};
@@ -713,8 +719,9 @@ async function loadDaily(){
   const d=DV.date,mk=d.slice(0,7);$("period").textContent=fmtDate(d);
   try{
     // pilihan kegiatan terkait: kegiatan sebulan sebelum s.d. sebulan sesudah tanggalnya (dimuat sekali per bulan)
-    const [logs,its]=await Promise.all([api(`/api/logs?from=${d}&to=${d}`),DV.itemsAt===mk?DV.items:api(`/api/items?from=${addD(mk+"-01",-31)}&to=${addD(monthEnd(mk+"-01"),31)}`).catch(()=>[])]);
-    DV.logs=logs;DV.items=its;DV.itemsAt=mk;showErr("calErr");
+    const [logs,its,wa]=await Promise.all([api(`/api/logs?from=${d}&to=${d}`),DV.itemsAt===mk?DV.items:api(`/api/items?from=${addD(mk+"-01",-31)}&to=${addD(monthEnd(mk+"-01"),31)}`).catch(()=>[]),
+      api(`/api/wa?from=${mk}-01&to=${monthEnd(mk+"-01")}`).catch(()=>[])]);
+    DV.logs=logs;DV.items=its;DV.itemsAt=mk;DV.wa=Array.isArray(wa)?wa:[];showErr("calErr");
   }catch(e){DV.logs=[];showErr("calErr",e)}
   renderCal();
 }
@@ -734,12 +741,30 @@ function dailyForm(){
     <input class="f" id="dvNote" maxlength="500" placeholder="${ed.status==="kendala"?"Kendalanya apa? (mis. tunggu data dari MI)":"Catatan (opsional)"}" value="${esc(ed.note||"")}" aria-label="Catatan atau kendala">
     <div class="acts"><button class="btn pri" type="submit">${DV.edit?"Simpan perubahan":"+ Tambah pekerjaan"}</button>${DV.edit?'<button type="button" class="btn" data-lcancel="1">Batal</button>':""}<span class="muted small" id="dvMsg"></span></div></form>`;
 }
+// posting WA Channel: cukup jumlahnya (tanpa isi). Investment Specialist melihat panelnya terbuka, role lain bisa membukanya.
+const waSum=(L,k)=>L.filter(w=>!k||w.kind===k).reduce((a,w)=>a+(+w.n||0),0);
+const waTxt=L=>Object.keys(WK).filter(k=>waSum(L,k)).map(k=>`${waSum(L,k)} ${WK[k].toLowerCase()}`).join(" · ");
+function waPanel(open){
+  const d=DV.date,me=PL.me.email,mine=DV.wa.filter(w=>w.email===me),day=k=>waSum(mine.filter(w=>w.date===d),k),tot=waSum(mine),team=waSum(DV.wa);
+  const body=`<div class="wa">${Object.entries(WK).map(([k,l])=>`<div class="wac"><span>${esc(l)}</span><div class="wab"><button type="button" class="btn sm" data-wa="${k}" data-d="-1" aria-label="Kurangi ${esc(l)}"${day(k)?"":" disabled"}>−</button><b>${day(k)}</b><button type="button" class="btn sm" data-wa="${k}" data-d="1" aria-label="Tambah ${esc(l)}">+</button></div></div>`).join("")}</div>
+    <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}. Cukup jumlahnya, isi posting tidak perlu dicatat; masuk ke ⬇ Laporan.</p>`;
+  const h=`📣 Posting WA Channel ${d===todayIso()?"hari ini":fmtShort(d)}`;
+  return PL.me.role==="is"||mine.length?`<div class="wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
+}
+// angka diubah dulu di layar, lalu disimpan; hanya panelnya yang digambar ulang supaya isian pekerjaan yang sedang diketik tidak hilang
+async function bumpWaUi(kind,delta){
+  const me=PL.me.email,d=DV.date,redraw=()=>{const b=$("waBox");if(b)b.outerHTML=waPanel(b.open)};
+  let r=DV.wa.find(w=>w.email===me&&w.date===d&&w.kind===kind);
+  if(!r){if(delta<0)return;r={date:d,email:me,name:PL.me.name,job:PL.me.role,kind,n:0};DV.wa.push(r)}
+  const old=r.n;r.n=Math.max(0,old+delta);redraw();
+  try{r.n=(await api("/api/wa",{date:d,kind,delta})).n;redraw()}catch(e){r.n=old;redraw();showErr("calErr",e)}
+}
 function renderDaily(){
   const d=DV.date,t=todayIso(),me=PL.me.email,mine=DV.logs.filter(l=>l.email===me),others=DV.logs.filter(l=>l.email!==me);
   const kd=DV.logs.filter(l=>l.status==="kendala").length,who=new Set(DV.logs.map(l=>l.email));
   $("stats").innerHTML=`<span class="stat">${DV.logs.length} pekerjaan tercatat</span><span class="stat">${who.size} dari ${USERS.length} orang mengisi</span>${kd?`<span class="stat c5">${kd} kendala</span>`:""}`;
   const head=`<h2>Pekerjaanku <span class="muted small" style="font-weight:600">${esc(fmtDate(d,true))}</span><span class="sp"></span><input class="f" type="date" id="dvDate" value="${d}" max="${t}" aria-label="Pilih tanggal" style="padding:4px 8px;font-size:12.5px"></h2>`;
-  const my=`<div class="card">${head}${mine.length?mine.map(l=>logRow(l,true)).join(""):`<p class="muted small" style="margin:4px 0">Belum ada pekerjaan tercatat${d===t?" hari ini":" di tanggal ini"}.</p>`}`+
+  const my=`<div class="card">${head}${d>t?"":waPanel(false)}${mine.length?mine.map(l=>logRow(l,true)).join(""):`<p class="muted small" style="margin:4px 0">Belum ada pekerjaan tercatat${d===t?" hari ini":" di tanggal ini"}.</p>`}`+
     (d>t?`<p class="muted small">Hari yang belum datang belum bisa dicatat.</p>`:dailyForm())+
     `<p class="muted small" style="margin:10px 0 0">Satu baris untuk tiap pekerjaan. Kaitkan dengan kegiatan kalender kalau ada; semua catatan masuk ke Monthly Report tim (⬇ Laporan).</p></div>`;
   // tim: dikelompokkan per role; di hari kerja, anggota yang belum mengisi ikut disebut
@@ -761,6 +786,7 @@ async function saveDaily(){
   try{await api("/api/logs",b);DV.edit=null;await loadDaily();if($("dvText"))$("dvText").focus()}catch(e){$("dvMsg").textContent="";showErr("calErr",e)}
 }
 function dailyClick(e){
+  const wa=e.target.closest("[data-wa]");if(wa){bumpWaUi(wa.dataset.wa,+wa.dataset.d);return}
   const ed=e.target.closest("[data-ledit]");if(ed){DV.edit=ed.dataset.ledit;renderCal();$("dvText").focus();return}
   if(e.target.closest("[data-lcancel]")){DV.edit=null;renderCal();return}
   const del=e.target.closest("[data-ldel]");
@@ -1009,7 +1035,7 @@ $("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 
 /* =================== LAPORAN (PPT / PDF) =================== */
-const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["program","🤝 Program partnership"],["desain","🎨 Tugas desain"]];
+const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["program","🤝 Program partnership"],["desain","🎨 Tugas desain"],["wa","📣 Posting WA Channel"]];
 // jenis laporan: kegiatan tim (per orang) atau program partnership (per program)
 let RT="keg";
 function setRT(t){
@@ -1044,7 +1070,8 @@ async function repData(){
   const who=$("rWho").value,want=new Set([...$("rKinds").querySelectorAll("input:checked")].map(c=>c.value));
   if(!want.size)throw new Error("Pilih minimal satu isi laporan.");
   // pekerjaan harian untuk progres kegiatan yang masih berjalan (periode > 3 bulan: tanpa progres)
-  const [all,logs]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`).catch(()=>[])]);
+  const [all,logs,wa]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`).catch(()=>[]),
+    want.has("wa")?api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]):[]]);
   const mine=i=>!who||i.owner_email===who;
   const S={};["edukasi","artikel","konten","program"].forEach(k=>{if(want.has(k))S[k]=all.filter(i=>kindOf(i)===k&&mine(i))});
   if(want.has("desain"))S.desain=all.filter(i=>i.d_need&&(!who||i.d_who===who));
@@ -1058,6 +1085,8 @@ async function repData(){
   if(S.program){const L=act(S.program),n=f=>L.reduce((a,i)=>a+(+i[f]||0),0);
     kpi.push(["Program partnership",int(L.length),`${stageSum(L)} · ${int(n("result_num"))} peserta · ${int(n("leads"))} leads · ${int(n("accounts"))} akun baru${L.some(i=>stageOf(i)==="berjalan")?" (hasil sementara)":""}`])}
   if(S.desain){kpi.push(["Tugas desain",int(S.desain.length),`${stageSum(S.desain,dStage)} · ${S.desain.filter(i=>i.d_status!=="selesai"&&(i.d_due||i.date)<todayIso()).length} lewat tenggat`])}
+  const W=want.has("wa")?(Array.isArray(wa)?wa:[]).filter(w=>!who||w.email===who):null;
+  if(W)kpi.push(["Posting WA Channel",int(waSum(W)),waTxt(W)||"belum ada yang dicatat"]);
   // kegiatan yang masih berjalan (bukan tugas desain: sudah ada di bagiannya sendiri)
   const run=["edukasi","artikel","konten","program"].flatMap(k=>S[k]||[]).filter(i=>stageOf(i)==="berjalan");
   // rekap per orang (hanya kalau semua orang): jumlah kegiatan yang ditangani & yang selesai
@@ -1067,7 +1096,7 @@ async function repData(){
     (S.desain||[]).forEach(i=>add(i.d_who,i.d_name,"desain",dStage(i)));
     people=Object.values(by).sort((a,b)=>a.name.localeCompare(b.name));}
   const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from,to,per,who:u?`${u.name}${u.role?" · "+PL.roles[u.role]:""}`:"Semua anggota tim",S,kpi,people,run,logs:Array.isArray(logs)?logs:[]};
+  return {from,to,per,who:u?`${u.name}${u.role?" · "+PL.roles[u.role]:""}`:"Semua anggota tim",S,kpi,people,run,logs:Array.isArray(logs)?logs:[],wa:W};
 }
 // kolom tabel tiap bagian: [judul, isi(i)]
 const COLS={
@@ -1142,7 +1171,16 @@ function kegDoc(R){
   if(R.run.length)Bk.push(runBlock(R.run,R.logs,i=>i.owner||"–",stLate));
   for(const k of Object.keys(R.S))Bk.push({t:"table",h3:`${SEC[k]} (${R.S[k].length})`,cols:pctCols(COLS[k].map(c=>[c[0],kegW(c[0]),kegN(c[0])])),
     rows:R.S[k].map(i=>COLS[k].map(c=>cell(c[1](i)))),empty:"Tidak ada kegiatan pada periode ini."});
+  if(R.wa)Bk.push(waTable(R.wa));
   return {div:R.div,per:R.per,blocks:Bk};
+}
+// jumlah posting WA Channel per orang per jenis (+ baris total kalau lebih dari satu orang)
+function waTable(W,h3){
+  const by={};W.forEach(w=>{const r=by[w.email]=by[w.email]||{name:w.name||nameOf(w.email)||w.email,L:[]};r.L.push(w)});
+  const P=Object.values(by).sort((a,b)=>waSum(b.L)-waSum(a.L)||a.name.localeCompare(b.name)),K=Object.keys(WK);
+  const row=(n,L)=>[n,...K.map(k=>int(waSum(L,k))),int(waSum(L))];
+  return {t:"table",h3:h3||`Posting WA Channel (${int(waSum(W))})`,cols:[["Nama",28],...K.map(k=>[WK[k],13,1]),["Total",12,1]],
+    rows:[...P.map(p=>row(p.name,p.L)),...(P.length>1?[row("Total",W)]:[])],empty:"Belum ada posting WA Channel yang dicatat pada periode ini."};
 }
 function progDoc(R){
   const tb=(h3,C,L,empty)=>({t:"table",h3,cols:pctCols(C.map(c=>[c[0],c[3],c[2]])),rows:L.map(x=>C.map(c=>cell(c[1](x)))),empty});
@@ -1198,14 +1236,15 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const [its,logs]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`)]);
+  const [its,logs,wa]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[])]);
   const order=Object.keys(PL.roles),T={};
-  const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[]};
+  const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[]};
+  (Array.isArray(wa)?wa:[]).forEach(w=>{const t=team(teamOf(w.job,w.email));t.wa.push(w);if(!t.members.has(w.email))t.members.set(w.email,w.name||nameOf(w.email)||w.email)});
   USERS.forEach(u=>{if(PL.roles[u.role])team(u.role).members.set(u.email,u.name)});
   logs.forEach(l=>{const t=team(teamOf(l.job,l.email));t.logs.push(l);if(!t.members.has(l.email))t.members.set(l.email,l.name||nameOf(l.email)||l.email)});
   // kegiatan masuk ke tim PIC-nya; kegiatan yang butuh visual juga ke tim desainernya
   its.forEach(i=>{const ks=new Set();const o=roleOf(i.owner_email);if(o)ks.add(o);const d=i.d_need&&roleOf(i.d_who);if(d)ks.add(d);ks.forEach(k=>team(PL.roles[k]?k:"lain").items.push(i))});
-  const teams=Object.values(T).filter(t=>t.logs.length||t.items.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
+  const teams=Object.values(T).filter(t=>t.logs.length||t.items.length||t.wa.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
   if(!teams.length)throw new Error("Belum ada pekerjaan harian atau kegiatan kalender pada periode ini.");
   const month=from.endsWith("-01")&&to===monthEnd(from),f=D(from);
   const per=month?`${MON_EN[f.getUTCMonth()]} ${f.getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
@@ -1237,6 +1276,10 @@ function monDoc(R){
   // per tim: (hasil program) lalu kegiatan kalender lalu pekerjaan harian per orang
   for(const t of R.teams){
     Bk.push({t:"page",h2:`Tim ${t.name}`,sub:"Anggota: "+([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")},{t:"kpis",items:mrKpis(t.logs,t.items,t.key,t.members.size)});
+    // posting WA Channel tim ini: total & per jenis, lalu per orang
+    if(t.wa.length){const tot=waSum(t.wa),ppl=new Set(t.wa.map(w=>w.email)).size;
+      Bk.push({t:"kpis",h3:"Posting WA Channel",items:[["Total posting",int(tot),`${ppl} orang · ${new Set(t.wa.map(w=>w.date)).size} hari`],...Object.keys(WK).filter(k=>waSum(t.wa,k)).map(k=>[WK[k],int(waSum(t.wa,k)),mrPct(waSum(t.wa,k),tot)+" dari total"])]});
+      if(ppl>1)Bk.push(waTable(t.wa,"Posting WA Channel per orang"))}
     const byDate=(a,b)=>a.date.localeCompare(b.date),progs=t.items.filter(i=>kindOf(i)==="program").sort(byDate);
     // yang masih berjalan dilaporkan tersendiri dengan progres terakhirnya; tabel kegiatan kalender memuat sisanya
     const run=t.items.filter(i=>mrStage(i,t.key)==="berjalan"),others=t.items.filter(i=>kindOf(i)!=="program"&&mrStage(i,t.key)!=="berjalan").sort(byDate);

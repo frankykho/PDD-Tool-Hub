@@ -17,6 +17,7 @@
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
+// - "/api/wa"       -> jumlah posting WA Channel per hari/orang/jenis (GET ?from=&to=, POST {date, kind, delta: 1|-1} milik sendiri)
 // Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
 // disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
 // Notifikasi (tabel notifs) dibuat saat seseorang ditugaskan, saat status tugasnya berubah, dan saat tenggat dekat
@@ -137,6 +138,8 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, item_id TEXT, target TEXT NOT NULL, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT)"),
     // pekerjaan harian: job = role pemiliknya saat mencatat (pengelompokan per tim di Monthly Report)
     env.DB.prepare("CREATE TABLE IF NOT EXISTS worklog (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, text TEXT NOT NULL, status TEXT, item_id TEXT, link TEXT, note TEXT, created_at TEXT, updated_at TEXT)"),
+    // posting WA Channel: hanya jumlah per hari, per orang, per jenis (isi postingan tidak disimpan)
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS wapost (date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, updated_at TEXT, PRIMARY KEY (date, email, kind))"),
   ]);
   const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
   const uhave = new Set((await env.DB.prepare("PRAGMA table_info(users)").all()).results.map((c) => c.name));
@@ -622,6 +625,31 @@ async function listLogs(env, from, to) {
     .bind(from, to).all()).results;
 }
 
+// ---------- posting WA Channel (insight, berita, stockpick): tombol + / − di tab Harian, jumlahnya masuk ke laporan ----------
+export const WA_KINDS = { insight: "Insight pasar", berita: "Berita", stockpick: "Stockpick", lain: "Lainnya" };
+/** Tambah / kurangi satu posting milik sendiri pada satu tanggal; jumlah tidak pernah di bawah 0. */
+async function bumpWa(env, me, b) {
+  await ensure(env);
+  const date = String(b.date ?? "").slice(0, 10), kind = String(b.kind ?? ""), d = +b.delta;
+  if (!ISO.test(date)) return { error: "Tanggal belum benar." };
+  if (date > wibToday()) return { error: "Hari yang belum datang belum bisa dicatat." };
+  if (!WA_KINDS[kind]) return { error: "Jenis posting tidak dikenal." };
+  if (d !== 1 && d !== -1) return { error: "Perubahan jumlah tidak valid." };
+  const meE = lower(me.e);
+  await env.DB.prepare("INSERT INTO wapost (date, email, name, job, kind, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+    + "ON CONFLICT(date, email, kind) DO UPDATE SET n = MAX(0, n + ?), name = excluded.name, updated_at = excluded.updated_at")
+    .bind(date, meE, who(me), (await jobOf(env, me)) || null, kind, Math.max(0, d), new Date().toISOString(), d).run();
+  const r = await env.DB.prepare("SELECT n FROM wapost WHERE date=? AND email=? AND kind=?").bind(date, meE, kind).first();
+  return { n: r ? r.n : 0 };
+}
+/** Jumlah posting semua orang pada periode (maks. ±1 tahun, cukup untuk laporan triwulan / tahunan). */
+async function listWa(env, from, to) {
+  await ensure(env);
+  if (!ISO.test(from) || !ISO.test(to) || from > to) return { error: "Periode belum benar." };
+  if ((Date.parse(to) - Date.parse(from)) / 864e5 > 400) return { error: "Periode maksimal 1 tahun." };
+  return (await env.DB.prepare("SELECT date, email, name, job, kind, n FROM wapost WHERE date BETWEEN ? AND ? AND n > 0 ORDER BY date, name").bind(from, to).all()).results;
+}
+
 async function programs(env) {
   await ensure(env);
   return (await env.DB.prepare("SELECT id, title, date, end_date, partner, status, channel FROM items WHERE kind = 'program' ORDER BY date DESC LIMIT 300").all()).results;
@@ -840,7 +868,7 @@ async function page(env, me, mode) {
   const etf = (profile(env).tools || {}).etf || {};
   const cfg = { mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm) },
     kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
-    copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES };
+    copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
@@ -897,6 +925,7 @@ export default {
         if (path === "/api/moments") return json(await moments(env, from, to));
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
       }
       if (path === "/api/weekly" && request.method === "GET") {
         return new Response(await weeklyCached(env, ctx, url.searchParams.has("refresh")), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -910,7 +939,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
-          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id) }[path];
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => bumpWa(env, me, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

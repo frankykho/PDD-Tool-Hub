@@ -333,6 +333,21 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.equal((await call("/api/logs/delete", { ck: ADM, body: { id: L2 } })).status, 200, "admin boleh menghapus");
   assert.equal((await call(`/api/logs?from=${plus(-1)}&to=${wib}`, { ck: PART })).j.length, 1);
 }
+/* ---------- posting WA Channel: hanya jumlah per hari/orang/jenis, tidak pernah di bawah 0 ---------- */
+{
+  const wa = (ck, body) => call("/api/wa", { ck, body });
+  assert.equal((await wa(COPY, { date: wib, kind: "insight", delta: 1 })).j.n, 1);
+  assert.equal((await wa(COPY, { date: wib, kind: "insight", delta: 1 })).j.n, 2);
+  assert.equal((await wa(COPY, { date: wib, kind: "insight", delta: -1 })).j.n, 1);
+  assert.equal((await wa(COPY, { date: plus(-1), kind: "stockpick", delta: -1 })).j.n, 0, "kurang dari 0 tetap 0");
+  assert.equal((await wa(DES, { date: plus(-1), kind: "berita", delta: 1 })).j.n, 1);
+  assert.equal((await wa(COPY, { date: plus(1), kind: "insight", delta: 1 })).status, 400, "hari yang belum datang ditolak");
+  assert.equal((await wa(COPY, { date: wib, kind: "gosip", delta: 1 })).status, 400, "jenis tidak dikenal ditolak");
+  assert.equal((await wa(COPY, { date: wib, kind: "insight", delta: 5 })).status, 400, "hanya +1 / −1");
+  const rows = (await call(`/api/wa?from=${plus(-1)}&to=${wib}`, { ck: PART })).j;
+  assert.deepEqual(rows.map((x) => [x.name, x.job, x.kind, x.n]), [["Dodi", "design", "berita", 1], ["Cici", "copy", "insight", 1]], "jumlah 0 tidak ikut, role pencatat tersimpan");
+  assert.equal((await call(`/api/wa?from=2024-01-01&to=2026-12-31`, { ck: PART })).status, 400, "periode maks. 1 tahun");
+}
 
 /* ---------- dua orang mengubah kegiatan yang sama: versi lama tidak menimpa diam-diam ---------- */
 {
