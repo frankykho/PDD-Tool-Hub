@@ -1161,8 +1161,9 @@ const loadPpt=()=>pptLib||(pptLib=new Promise((ok,no)=>{const s=document.createE
 /* ---------- Monthly Report: PDF 16:9 per tim (role), mengikuti template divisi: logo + garis hijau di kepala, sampul judul besar ---------- */
 const MON_EN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MR_FONT="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
-// logo dari profil (brand.logo); bawaannya file di assets/brand tool ini
-const MR_LOGO=B.logo||"/brand/logo-color.png";
+// laporan selalu memakai logo perusahaan (assets/brand tool ini, salinan brand/kisi-color.png), bukan brand.logo profil
+// yang berisi logo aplikasi (iKISI)
+const MR_LOGO="/brand/logo-color.png";
 const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hidden;box-sizing:border-box;padding:.4in .62in 0;background:#f7f7f5;color:#2b2b2b;font:10pt/1.4 Inter,system-ui,sans-serif;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .mr-page:last-child{break-after:auto;page-break-after:auto}
 .mr-page *{box-sizing:border-box}
