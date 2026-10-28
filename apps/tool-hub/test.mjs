@@ -365,8 +365,13 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
 
 /* ---------- tim regional: daftar regional & cabang, cabang per akun, ikut ke Planner ---------- */
 assert.equal((await call("/admin/cabang", { cookie: user })).status, 403, "khusus admin");
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "" } });
+assert.equal(r.status, 400); assert.match(await r.text(), /Belum tersimpan: kotak kosong/, "kotak kosong tidak disimpan sebagai 0 cabang");
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta Cabang Sudirman" } });
+assert.equal(r.status, 400); assert.match(await r.text(), /tidak ada baris yang terbaca[\s\S]*Jakarta Cabang Sudirman<\/textarea>/, "isi yang salah format dikembalikan ke kotak");
+assert.equal(env.HUB_KV.m.get("cfg:cabang"), undefined);
 r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur\tCabang Surabaya\nbaris tanpa cabang\nJakarta | galeri blok m\n" } });
-assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 2 cabang di 2 regional/);
+assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 2 cabang di 2 regional[\s\S]*1 baris dilewati karena tidak ada tanda \|: <code>baris tanpa cabang<\/code>/);
 assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v), [{ r: "Jakarta", c: "Galeri Blok M" }, { r: "Jawa Timur", c: "Cabang Surabaya" }], "tab Excel diterima, duplikat & baris rusak dilewati");
 {
   const html = await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text();

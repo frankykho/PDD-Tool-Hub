@@ -439,13 +439,14 @@ ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}<input 
 <p class="sub" style="margin:14px 0 0">Perubahan berlaku paling lambat 2 jam kemudian di tool yang sedang dibuka orangnya, atau langsung setelah ia keluar lalu masuk lagi.</p></form>${regionalJs}`);
 }
 /** Daftar regional & cabang / galeri investasi: diketik atau ditempel dari Excel (2 kolom), satu cabang per baris. */
-function branchPage(sess, B, users, note = '') {
+function branchPage(sess, B, users, note = '', err = '', raw = null) {
   const n = c => users.filter(x => x.status === 'approved' && x.br === c).length, R = [...new Set(B.map(x => x.r))];
   return doc('Regional & cabang', `<form class="card wide" method="post" action="/admin/cabang">${topBar(sess, 'Regional &amp; cabang', '/admin/cabang')}
 <p class="sub">Dipakai tim regional (Sales &amp; Pengelola Galeri Investasi) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional atau per cabang. Cabang tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
-${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}
+${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
 <label for="brList">Satu cabang per baris: <b>Regional | Cabang / galeri</b>. Bisa juga tempel 2 kolom dari Excel.</label>
-<textarea id="brList" name="list" rows="14" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font:13px/1.6 ui-monospace,monospace" placeholder="Jakarta | Galeri Investasi Universitas X&#10;Jakarta | Cabang Sudirman&#10;Jawa Timur | Cabang Surabaya">${esc(B.map(x => `${x.r} | ${x.c}`).join('\n'))}</textarea>
+<p class="sub" style="margin:2px 0 6px">Contoh penulisan: <code>Jakarta | Cabang Sudirman</code> &middot; <code>Jawa Timur | Cabang Surabaya</code></p>
+<textarea id="brList" name="list" rows="14" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font:13px/1.6 ui-monospace,monospace" placeholder="Ketik atau tempel daftar cabang di sini">${esc(raw ?? B.map(x => `${x.r} | ${x.c}`).join('\n'))}</textarea>
 <div style="margin-top:10px" class="row"><button type="submit">Simpan daftar</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
 <p class="sub" style="margin:10px 0 0">Mengganti nama cabang tidak mengubah kegiatan yang sudah tercatat dengan nama lama. Orang yang cabangnya dihapus dari daftar tetap memakai cabang lamanya sampai diganti di Atur akses.</p>
 ${B.length ? `<h2>${R.length} regional &middot; ${B.length} cabang</h2><div class="scroll"><table><tr><th>Regional</th><th>Cabang / galeri</th><th>Anggota</th></tr>${R.map(r => B.filter(x => x.r === r).map((x, i) => `<tr><td>${i ? '' : `<b>${esc(r)}</b>`}</td><td>${esc(x.c)}</td><td><small>${n(x.c) || '–'}</small></td></tr>`).join('')).join('')}</table></div>` : ''}</form>`);
@@ -482,9 +483,15 @@ async function admin(request, env, url, sess) {
   if (request.headers.get('origin') !== url.origin) return page(403, 'Permintaan ditolak.');          // cegah form dari situs lain (CSRF)
   const f = await form(request), email = fv(f, 'email').toLowerCase(), act = fv(f, 'act');
   if (path === '/admin/cabang') {
-    const B = parseBranches(fv(f, 'list'));
+    const raw = fv(f, 'list'), B = parseBranches(raw), old = await getBranches(env), users = await listUsers(env);
+    const lines = raw.split(/\r?\n/).filter(l => l.trim()), odd = lines.filter(l => !/\S\s*[|\t]\s*\S/.test(l));
+    // Kotak kosong, atau ada isi tapi tak satu pun terbaca: jangan simpan (daftar lama tetap).
+    if (!B.length) return page(400, branchPage(sess, old, users, '', lines.length
+      ? 'Belum tersimpan: tidak ada baris yang terbaca. Tiap baris berisi regional, tanda <b>|</b>, lalu nama cabang, misalnya <code>Jakarta | Cabang Sudirman</code>.'
+      : 'Belum tersimpan: kotak kosong. Daftar lama tidak dihapus; untuk menghapus satu cabang, hapus barisnya saja lalu simpan.', raw));
     await env.HUB_KV.put('cfg:cabang', JSON.stringify(B)); await syncPlanner(env);
-    return page(200, branchPage(sess, B, await listUsers(env), `Tersimpan: ${B.length} cabang di ${new Set(B.map(x => x.r)).size} regional. Pilihan cabang di Content Planner ikut diperbarui.`));
+    const skip = odd.length ? ` ${odd.length} baris dilewati karena tidak ada tanda |: ${odd.slice(0, 3).map(l => `<code>${esc(l.trim().slice(0, 60))}</code>`).join(', ')}${odd.length > 3 ? ', …' : ''}.` : '';
+    return page(200, branchPage(sess, B, users, `Tersimpan: ${B.length} cabang di ${new Set(B.map(x => x.r)).size} regional. Pilihan cabang di Content Planner ikut diperbarui.${skip}`));
   }
   const bad = note => adminPage(env, sess, note, true).then(h => page(400, h));
   if (path === '/admin/import') { const r = await importUsers(env, fv(f, 'data')); return r.err ? bad(r.err) : page(200, await adminPage(env, sess, `Impor selesai: ${r.added} akun ditambahkan, ${r.skipped} dilewati (sudah ada atau email tidak valid). Daftar di bawah bisa terlambat tampil sampai 1 menit.`)); }
