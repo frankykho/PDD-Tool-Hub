@@ -363,6 +363,32 @@ assert.equal(r.status, 200);
 assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, undefined);
 assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active = 1 ORDER BY email").all().map((x) => x.email), [ADMIN], "user biasa bukan anggota Planner");
 
+/* ---------- tim regional: daftar regional & cabang, cabang per akun, ikut ke Planner ---------- */
+assert.equal((await call("/admin/cabang", { cookie: user })).status, 403, "khusus admin");
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur\tCabang Surabaya\nbaris tanpa cabang\nJakarta | galeri blok m\n" } });
+assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 2 cabang di 2 regional/);
+assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v), [{ r: "Jakarta", c: "Galeri Blok M" }, { r: "Jawa Timur", c: "Cabang Surabaya" }], "tab Excel diterima, duplikat & baris rusak dilewati");
+{
+  const html = await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text();
+  assert.match(html, /<optgroup label="Jawa Timur"><option value="Cabang Surabaya">/);
+  // tombol "Pakai akses tim regional": Content Planner, Fund (lihat saja), ETF, Bond
+  const js = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((x) => x.includes("regAcc"));
+  const els = { a_planner: { tagName: "INPUT" }, a_fund: { tagName: "SELECT" }, a_etf: { tagName: "INPUT" }, a_bond: { tagName: "INPUT" } }, btn = {};
+  for (const k of Object.keys(els)) assert.match(html, new RegExp(`name="${k}"`), k + " ada di form");
+  new Function("document", js)({ getElementById: () => btn, querySelector: (q) => els[/a_\w+/.exec(q)[0]] });
+  btn.onclick.call(btn);
+  assert.deepEqual([els.a_planner.checked, els.a_fund.value, els.a_etf.checked, els.a_bond.checked], [true, "viewer", true, true]);
+}
+r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "sales", branch: "Cabang Surabaya", a_planner: "1", a_fund: "viewer" } });
+assert.equal(r.status, 200);
+assert.deepEqual((({ job, region, branch }) => [job, region, branch])(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v)), ["sales", "Jawa Timur", "Cabang Surabaya"]);
+assert.deepEqual({ ...plannerEnv.DB.db.prepare("SELECT role, branch FROM users WHERE email = 'user@acme.test'").get() }, { role: "sales", branch: "Cabang Surabaya" }, "cabang ikut ke Planner");
+assert.equal(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'branches'").get().v).length, 2, "daftar cabang ikut ke Planner");
+r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "sales", branch: "Cabang Antah", a_planner: "1" } });
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).branch, "Cabang Surabaya", "cabang di luar daftar diabaikan");
+r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "none", branch: "none", a_fund: "viewer", a_planner: "1" } });
+assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).branch, undefined, "tanpa cabang");
+
 /* ---------- tanpa sesi ---------- */
 assert.equal((await call("/api/today")).status, 401);
 assert.equal((await call("/")).status, 303);

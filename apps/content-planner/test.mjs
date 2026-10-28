@@ -388,6 +388,47 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.ok((await call("/api/tasks?mine=1", { ck: PART })).j.some((t) => t.id === r.j.id && t.job === "partnership"), "tugas muncul di daftar Partnership");
 }
 
+/* ---------- tim regional: hanya kegiatan cabang, cabang dari daftar Tool Hub ---------- */
+{
+  const SALES = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales", c: "Galeri Blok M" });
+  await seen(env, { e: "sari@acme.test", n: "Sari", j: "sales", c: "Galeri Blok M" });
+  r = await hub("/__hub/users", { users: [{ email: "pia@acme.test", name: "Pia", job: "partnership" }, { email: "cici@acme.test", name: "Cici", job: "copy" },
+    { email: "sari@acme.test", name: "Sari", job: "sales", branch: "Galeri Blok M" }, { email: "gani@acme.test", name: "Gani", job: "galeri", branch: "Cabang Surabaya" }],
+    branches: [{ r: "Jakarta", c: "Galeri Blok M" }, { r: "Jawa Timur", c: "Cabang Surabaya" }, { r: "", c: "tanpa regional" }] });
+  assert.equal(r.status, 200);
+  assert.equal((await call("/api/users", { ck: SALES })).j.find((u) => u.email === "sari@acme.test").branch, "Galeri Blok M", "cabang anggota tersimpan");
+  const cab = { kind: "cabang", title: "Gathering nasabah", date: wib, channel: "Gathering nasabah", status: "selesai", result_num: "45", leads: "12", accounts: "5", aum: "250.000.000", cost: "3.000.000" };
+  // cabang wajib, harus ada di daftar (huruf besar/kecil dirapikan), regionalnya ikut
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...cab, branch: "" } })).status, 400, "cabang wajib");
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...cab, branch: "Cabang Antah" } })).status, 400, "cabang di luar daftar ditolak");
+  const cid = (await call("/api/items", { ck: SALES, body: { ...cab, branch: "galeri blok m", program_id: "x", d_need: true } })).j.id;
+  const ci = (await call("/api/items?id=" + cid, { ck: SALES })).j;
+  assert.deepEqual([ci.branch, ci.region, ci.result_num, ci.accounts, ci.aum, ci.program_id, ci.d_need], ["Galeri Blok M", "Jakarta", 45, 5, 250000000, "", 0], "regional diisi, program & visual dilepas");
+  // tim regional tidak bisa membuat / melihat kegiatan lain
+  assert.equal((await call("/api/items", { ck: SALES, body: { kind: "konten", title: "Konten", date: wib } })).status, 400, "regional hanya kegiatan cabang");
+  const kid = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Konten pusat", date: wib, channel: "IG Feed" } })).j.id;
+  const mineR = (await call(`/api/items?from=${wib}&to=${wib}&overlap=1`, { ck: SALES })).j;
+  assert.ok(mineR.length && mineR.every((i) => i.kind === "cabang"), "kalender regional: kegiatan cabang saja");
+  assert.equal((await call("/api/items?id=" + kid, { ck: SALES })).status, 404, "kegiatan pusat tidak bisa dibuka");
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...(await call("/api/items?id=" + kid, { ck: COPY })).j, kind: "cabang", branch: "Galeri Blok M" } })).status, 400, "kegiatan pusat tidak bisa diubah jadi kegiatan cabang");
+  assert.deepEqual((await call(`/api/logs?from=${wib}&to=${wib}`, { ck: SALES })).j, [], "pekerjaan harian tim pusat tidak terlihat");
+  assert.deepEqual((await call("/api/programs", { ck: SALES })).j, []);
+  assert.equal((await call("/api/wa", { ck: SALES, body: { date: wib, kind: "insight", delta: 1 } })).status, 403);
+  assert.equal((await call("/api/items/bulk", { ck: SALES, body: { items: [cab] } })).status, 403);
+  // tim pusat tetap melihat semuanya; cabang lama yang sudah dihapus dari daftar tetap bisa disimpan
+  assert.ok((await call(`/api/items?from=${wib}&to=${wib}`, { ck: COPY })).j.some((i) => i.id === cid), "tim pusat melihat kegiatan cabang");
+  await hub("/__hub/users", { users: [{ email: "sari@acme.test", name: "Sari", job: "sales", branch: "Galeri Blok M" }], branches: [{ r: "Jawa Timur", c: "Cabang Surabaya" }] });
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...ci, title: "Gathering (revisi)", base: ci.updated_at } })).status, 200, "cabang lama tetap tersimpan");
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...cab, branch: "Galeri Blok M" } })).status, 400, "kegiatan baru: cabang yang dihapus ditolak");
+  // halaman: jenis kegiatan & cabang bawaan
+  const html = await planner.fetch(new Request(BASE + "/paket", { headers: { cookie: SALES } }), env, { waitUntil() { } }).then((x) => x.text());
+  const PLc = JSON.parse(html.match(/window\.PL=(\{.*?\});<\/script>/)[1]);
+  assert.deepEqual([PLc.mode, Object.keys(PLc.kinds), PLc.me.reg, PLc.me.branch, PLc.branches.length], ["kalender", ["cabang"], true, "Galeri Blok M", 1]);
+  // beranda Tool Hub: tim regional melihat kegiatan cabang hari ini, tim pusat tidak
+  assert.ok((await today("?email=sari@acme.test")).today.every((i) => i.kind === "cabang"));
+  assert.ok((await today("?email=cici@acme.test")).today.every((i) => i.kind !== "cabang"));
+}
+
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
 assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");
 assert.equal(hijriToIso(1447, 10, 1), "2026-03-20", "Idul Fitri 1447 H (perkiraan)");

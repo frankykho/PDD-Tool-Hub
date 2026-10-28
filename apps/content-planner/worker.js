@@ -34,7 +34,7 @@ import { title, profileScript, appUrl, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
-import { JOBS, canAssign } from "../../shared/jobs.js";
+import { JOBS, canAssign, isRegional } from "../../shared/jobs.js";
 import { complianceScript } from "../../shared/compliance.js";
 import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
 import PAGE from "./page.html";
@@ -96,6 +96,8 @@ export const KINDS = {
   edukasi: { label: "Edukasi / narasumber", channels: ["Webinar", "Seminar", "Talkshow", "Kelas / kunjungan", "Live IG / TikTok", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // dibuat Partnership: kerja sama dengan pihak luar; kegiatan lain bisa dikaitkan (program_id) dan tugas dibagi di dalamnya
   program: { label: "Program partnership", channels: ["Manajer investasi (AM)", "APERD / agen penjual", "Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
+  // dicatat tim regional (sales & pengelola galeri investasi): acara di cabang / galeri, dengan cabang (+ regionalnya) dari daftar Tool Hub
+  cabang: { label: "Kegiatan cabang", channels: ["Gathering nasabah", "Edukasi / seminar", "Open booth / pameran", "Kunjungan korporasi / komunitas", "Sosialisasi produk", "Kunjungan kampus / sekolah", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
 };
 // kanal / jenis di luar pilihan boleh ditulis sendiri (pilih "Lainnya" di form); kosong -> "Lainnya"
 export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
@@ -111,7 +113,7 @@ const COLS = {
   kind: "TEXT", channel: "TEXT", status: "TEXT", owner: "TEXT", owner_email: "TEXT", note: "TEXT", link: "TEXT",
   time: "TEXT", place: "TEXT", role: "TEXT", audience: "TEXT", result_num: "INTEGER", result_note: "TEXT",
   d_need: "INTEGER", d_who: "TEXT", d_name: "TEXT", d_due: "TEXT", d_status: "TEXT", d_link: "TEXT", d_brief: "TEXT",
-  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT",
+  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT", region: "TEXT", branch: "TEXT",
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
@@ -140,12 +142,16 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS worklog (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, text TEXT NOT NULL, status TEXT, item_id TEXT, link TEXT, note TEXT, created_at TEXT, updated_at TEXT)"),
     // posting WA Channel: hanya jumlah per hari, per orang, per jenis (isi postingan tidak disimpan)
     env.DB.prepare("CREATE TABLE IF NOT EXISTS wapost (date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, updated_at TEXT, PRIMARY KEY (date, email, kind))"),
+    // pengaturan dari Tool Hub, mis. branches = daftar regional & cabang [{ r, c }]
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS cfg (k TEXT PRIMARY KEY, v TEXT)"),
   ]);
   const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
   const uhave = new Set((await env.DB.prepare("PRAGMA table_info(users)").all()).results.map((c) => c.name));
   const add = Object.entries(COLS).filter(([k]) => !have.has(k)).map(([k, t]) => env.DB.prepare(`ALTER TABLE items ADD COLUMN ${k} ${t}`));
   // active: 1 = ada di daftar anggota Tool Hub, 0 = sudah tidak (tidak tampil sebagai pilihan); kosong = belum pernah disinkronkan
   if (!uhave.has("active")) add.push(env.DB.prepare("ALTER TABLE users ADD COLUMN active INTEGER"));
+  // branch: cabang / galeri anggota tim regional (diatur admin Tool Hub)
+  if (!uhave.has("branch")) add.push(env.DB.prepare("ALTER TABLE users ADD COLUMN branch TEXT"));
   add.push(env.DB.prepare("CREATE INDEX IF NOT EXISTS items_date ON items (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS items_design ON items (d_need, d_status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS items_program ON items (program_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_who ON tasks (who, status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"),
@@ -170,7 +176,7 @@ export function cleanItem(b) {
     owner: s(b.owner, 60), owner_email: EMAIL.test(s(b.owner_email, 120)) ? s(b.owner_email, 120).toLowerCase() : "",
     note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
     d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
-    program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
+    program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", region: "", branch: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
     copy: "", approver: "", approver_email: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
   };
   if (COPY_KINDS.includes(kind)) {
@@ -187,10 +193,16 @@ export function cleanItem(b) {
   it.result_num = String(b.result_num ?? "").trim() !== "" && n >= 0 && n < 1e12 ? n : null;
   // konten sosmed: angka hasil di laporan = jangkauan (atau views) dari angka performa
   if (kind === "konten" && (it.m_reach ?? it.m_views) != null) it.result_num = it.m_reach ?? it.m_views;
-  if (kind === "edukasi") {
+  if (kind === "edukasi" || kind === "cabang") {
     it.time = /^\d{2}:\d{2}$/.test(s(b.time, 5)) ? s(b.time, 5) : "";
     it.place = s(b.place, 160); it.audience = s(b.audience, 160);
-    it.role = EDU_ROLES.includes(b.role) ? b.role : EDU_ROLES[0];
+    if (kind === "edukasi") it.role = EDU_ROLES.includes(b.role) ? b.role : EDU_ROLES[0];
+  }
+  // kegiatan cabang: regionalnya diisi saveItem dari daftar cabang; angka hasil bisnis seperti program
+  if (kind === "cabang") {
+    it.branch = s(b.branch, 60);
+    if (!it.branch) return { error: "Cabang / galeri belum dipilih." };
+    for (const k of PROGRAM_NUMS) it[k] = numOf(b[k]);
   }
   if (kind === "program") {
     // program tidak bisa menjadi bagian dari program lain; pekerjaan untuk orang lain lewat tugas, bukan permintaan visual
@@ -212,11 +224,12 @@ export function cleanItem(b) {
 const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) AS clicks";
 /** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya, termasuk yang statusnya masih "berjalan"
  *  walau tanggal selesainya sudah lewat (kalender cukup menurut tanggal mulai). */
-async function listItems(env, from, to, overlap) {
+async function listItems(env, from, to, overlap, reg) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
-  const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ? ORDER BY date, time, created_at`).bind(from, to).all()).results;
-  if (!overlap) return L;
+  // tim regional hanya melihat kegiatan cabang
+  const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ?${reg ? " AND kind = 'cabang'" : ""} ORDER BY date, time, created_at`).bind(from, to).all()).results;
+  if (!overlap || reg) return L;
   const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date`).bind(from, from).all()).results;
   return [...run, ...L];
 }
@@ -226,20 +239,39 @@ async function designItems(env, from, to) {
   return (await env.DB.prepare("SELECT * FROM items WHERE d_need = 1 AND (COALESCE(d_status, 'belum') <> 'selesai' OR COALESCE(d_due, date) BETWEEN ? AND ?) ORDER BY COALESCE(d_due, date), created_at LIMIT 500")
     .bind(ISO.test(from) ? from : "0000-00-00", ISO.test(to) ? to : "9999-12-31").all()).results;
 }
+/** Daftar regional & cabang [{ r, c }] yang dikirim Tool Hub (kosong = belum diatur: cabang boleh diketik bebas). */
+export async function branches(env) {
+  await ensure(env);
+  const r = await env.DB.prepare("SELECT v FROM cfg WHERE k = 'branches'").first();
+  try { const L = JSON.parse((r && r.v) || "[]"); return Array.isArray(L) ? L : []; } catch { return []; }
+}
 async function saveItem(env, me, b) {
   await ensure(env);
   const it = cleanItem(b);
   if (it.error) return it;
-  const by = who(me), meE = lower(me.e), vals = EDIT.map((k) => it[k] ?? null);
+  const by = who(me), meE = lower(me.e);
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
+  const job = await jobOf(env, me);
+  if (isRegional(job, me.adm)) {
+    if (it.kind !== "cabang" || (prev && prev.kind !== "cabang")) return { error: "Tim regional hanya bisa mencatat kegiatan cabang." };
+    it.program_id = ""; it.d_need = 0;   // program & permintaan visual tidak terlihat oleh tim regional
+  }
+  if (it.kind === "cabang") {
+    // cabang dari daftar (nama dirapikan, regional ikut); cabang lama yang sudah dihapus dari daftar tetap boleh disimpan apa adanya
+    const B = await branches(env), hit = B.find((x) => lower(x.c) === lower(it.branch)), kept = prev && prev.branch === it.branch;
+    if (hit) { it.branch = hit.c; it.region = hit.r; }
+    else if (kept) it.region = prev.region || "";
+    else if (B.length) return { error: "Cabang “" + it.branch + "” tidak ada di daftar. Pilih dari daftar, atau minta admin Tool Hub menambahkannya." };
+  }
+  const vals = EDIT.map((k) => it[k] ?? null);
   // updated_at selalu naik (juga bila dua simpanan jatuh di milidetik yang sama), supaya cek base di bawah tidak terlewat
   let now = new Date().toISOString();
   if (prev && prev.updated_at && now <= prev.updated_at) now = new Date(Date.parse(prev.updated_at) + 1).toISOString();
   // base = updated_at versi yang dibuka: kalau sudah diubah lagi sejak itu (orang lain / tab lain), jangan ditimpa diam-diam
   if (prev && b.base !== undefined && !b.force && (prev.updated_at || "") !== String(b.base || ""))
     return { conflict: true, by: prev.updated_by || "", at: prev.updated_at || "", error: `Kegiatan ini sudah diubah ${prev.updated_by || "orang lain"} setelah kamu membukanya.` };
-  if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(await jobOf(env, me), me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh Partnership atau admin." };
+  if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(job, me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh Partnership atau admin." };
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
   const mChanged = METRICS.some((k) => (it[k] ?? null) !== ((prev && prev[k]) ?? null));
@@ -475,21 +507,25 @@ export async function seen(env, p) {
   if (!EMAIL.test(email)) return;
   await ensure(env);
   const job = JOBS[p.j] ? p.j : null, member = job || p.adm ? 1 : 0;
-  await env.DB.prepare("INSERT INTO users (email, name, role, seen_at, active) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, seen_at = excluded.seen_at, "
-    + "role = CASE WHEN excluded.active = 1 THEN COALESCE(excluded.role, role) ELSE NULL END, active = CASE WHEN excluded.active = 1 THEN active ELSE 0 END")
-    .bind(email, String(p.n || p.u || email).slice(0, 60), job, new Date().toISOString(), member).run();
+  // cabang (c) dari tiket: kosong tidak menghapus yang sudah ada (sinkron anggota dari Tool Hub yang menentukan)
+  await env.DB.prepare("INSERT INTO users (email, name, role, seen_at, active, branch) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, seen_at = excluded.seen_at, "
+    + "role = CASE WHEN excluded.active = 1 THEN COALESCE(excluded.role, role) ELSE NULL END, active = CASE WHEN excluded.active = 1 THEN active ELSE 0 END, branch = COALESCE(NULLIF(excluded.branch, ''), branch)")
+    .bind(email, String(p.n || p.u || email).slice(0, 60), job, new Date().toISOString(), member, String(p.c || "").slice(0, 60)).run();
 }
 async function users(env) {
   await ensure(env);
-  return (await env.DB.prepare("SELECT email, name, role FROM users WHERE COALESCE(active, 1) = 1 ORDER BY name").all()).results;
+  return (await env.DB.prepare("SELECT email, name, role, COALESCE(branch, '') AS branch FROM users WHERE COALESCE(active, 1) = 1 ORDER BY name").all()).results;
 }
-/** POST /__hub/users dari Tool Hub: semua akun yang boleh membuka Content Planner. Yang tidak ada di daftar tidak lagi tampil sebagai pilihan. */
-async function syncUsers(env, list) {
+/** POST /__hub/users dari Tool Hub: semua akun yang boleh membuka Content Planner (+ cabangnya), dan daftar regional & cabang.
+ *  Yang tidak ada di daftar tidak lagi tampil sebagai pilihan. */
+async function syncUsers(env, list, brs) {
   await ensure(env);
-  const L = (Array.isArray(list) ? list : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: JOBS[u && u.job] ? u.job : null }))
+  const L = (Array.isArray(list) ? list : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: JOBS[u && u.job] ? u.job : null, branch: String((u && u.branch) || "").slice(0, 60) }))
     .filter((u) => EMAIL.test(u.email)).slice(0, 500);
   if (!L.length) return { error: "Daftar anggota kosong." };   // jangan sampai semua anggota hilang karena kiriman yang keliru
-  await env.DB.batch([env.DB.prepare("UPDATE users SET active = 0"), ...L.map((u) => env.DB.prepare("INSERT INTO users (email, name, role, active) VALUES (?, ?, ?, 1) ON CONFLICT(email) DO UPDATE SET name = CASE WHEN excluded.name <> '' THEN excluded.name ELSE name END, role = COALESCE(excluded.role, role), active = 1").bind(u.email, u.name || u.email, u.job))]);
+  const B = Array.isArray(brs) ? brs.map((x) => ({ r: String((x && x.r) || "").slice(0, 60), c: String((x && x.c) || "").slice(0, 60) })).filter((x) => x.r && x.c).slice(0, 300) : null;
+  await env.DB.batch([env.DB.prepare("UPDATE users SET active = 0"), ...L.map((u) => env.DB.prepare("INSERT INTO users (email, name, role, active, branch) VALUES (?, ?, ?, 1, ?) ON CONFLICT(email) DO UPDATE SET name = CASE WHEN excluded.name <> '' THEN excluded.name ELSE name END, role = COALESCE(excluded.role, role), active = 1, branch = excluded.branch").bind(u.email, u.name || u.email, u.job, u.branch)),
+    ...(B ? [env.DB.prepare("INSERT INTO cfg (k, v) VALUES ('branches', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify(B))] : [])]);
   return { ok: true, n: L.length };
 }
 async function myRole(env, me) {
@@ -724,8 +760,11 @@ async function hubToday(env, email) {
   const today = wib(), until = addDays(today, 6), me = EMAIL.test(email) ? email.toLowerCase() : "";
   const cols = "id, kind, date, time, title, channel, status, owner, d_due, d_status";
   const done = "('terbit', 'selesai', 'batal')";
+  // "kegiatan tim hari ini": tim regional melihat kegiatan cabang saja, tim pusat tanpa kegiatan cabang
+  const u = me ? await env.DB.prepare("SELECT role FROM users WHERE email = ?").bind(me).first() : null;
+  const scope = isRegional(u && u.role, false) ? "kind = 'cabang'" : "COALESCE(kind, '') <> 'cabang'";
   const [team, mine, design, tasks] = await Promise.all([
-    env.DB.prepare(`SELECT ${cols} FROM items WHERE date = ? ORDER BY time, created_at LIMIT 20`).bind(today).all(),
+    env.DB.prepare(`SELECT ${cols} FROM items WHERE date = ? AND ${scope} ORDER BY time, created_at LIMIT 20`).bind(today).all(),
     me ? env.DB.prepare(`SELECT ${cols} FROM items WHERE owner_email = ? AND date BETWEEN ? AND ? AND COALESCE(status, '') NOT IN ${done} ORDER BY date, time LIMIT 20`).bind(me, today, until).all() : null,
     me ? env.DB.prepare("SELECT " + cols + " FROM items WHERE d_need = 1 AND d_who = ? AND COALESCE(d_status, 'belum') <> 'selesai' ORDER BY COALESCE(d_due, date) LIMIT 20").bind(me).all() : null,
     me ? env.DB.prepare("SELECT t.id, t.title, t.due, t.status, t.by_name, t.item_id, i.title AS item_title FROM tasks t LEFT JOIN items i ON i.id = t.item_id WHERE t.who = ? AND COALESCE(t.status, 'belum') <> 'selesai' ORDER BY t.due LIMIT 20").bind(me).all() : null,
@@ -864,15 +903,19 @@ async function glossary(env) {
   } catch { return []; }
 }
 async function page(env, me, mode) {
-  const [job, gl] = await Promise.all([jobOf(env, me), mode === "kalender" ? glossary(env) : []]);
-  const etf = (profile(env).tools || {}).etf || {};
-  const cfg = { mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm) },
-    kinds: KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
+  const [job, gl, B, u] = await Promise.all([jobOf(env, me), mode === "kalender" ? glossary(env) : [], branches(env),
+    env.DB.prepare("SELECT branch FROM users WHERE email = ?").bind(lower(me.e)).first().catch(() => null)]);
+  const etf = (profile(env).tools || {}).etf || {}, reg = isRegional(job, me.adm);
+  // tim regional: hanya jenis "Kegiatan cabang" (tanpa paket mingguan, tugas, harian, performa)
+  const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm), reg, branch: (u && u.branch) || me.c || "" },
+    branches: B, kinds: reg ? { cabang: KINDS.cabang } : KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
+// API yang boleh dipakai tim regional; selebihnya kosong (GET) atau ditolak
+const REG_GET = ["/api/items", "/api/users", "/api/moments"], REG_POST = ["/api/items", "/api/items/delete"];
 
 export default {
   async fetch(request, env, ctx) {
@@ -889,7 +932,7 @@ export default {
     }
     if (path === "/__hub/users" || path === "/__hub/notif") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
-      const b = await request.json().catch(() => ({})), r = path === "/__hub/users" ? await syncUsers(env, b.users) : await readNotifs(env, b);
+      const b = await request.json().catch(() => ({})), r = path === "/__hub/users" ? await syncUsers(env, b.users, b.branches) : await readNotifs(env, b);
       return json(r, r.error ? 400 : 200);
     }
     // link pelacak: publik, tanpa login
@@ -908,14 +951,18 @@ export default {
       });
     }
     try {
+      // tim regional: hanya kalender kegiatan cabang (lihat, tambah, ubah, hapus milik sendiri) + daftar anggota & momen
+      const reg = isRegional(await jobOf(env, me), me.adm);
+      if (reg && !(request.method === "GET" ? REG_GET : REG_POST).includes(path))
+        return request.method === "GET" && !["/api/weekly", "/api/program-report"].includes(path) ? json([]) : json({ error: "Tidak tersedia untuk tim regional." }, 403);
       if (request.method === "GET") {
         const from = url.searchParams.get("from") || "", to = url.searchParams.get("to") || "";
         if (path === "/api/items" && url.searchParams.get("id")) {
           await ensure(env);
           const it = await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE id=?`).bind(url.searchParams.get("id")).first();
-          return it ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
+          return it && !(reg && it.kind !== "cabang") ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
         }
-        if (path === "/api/items") return json(await (url.searchParams.has("design") ? designItems(env, from, to) : listItems(env, from, to, url.searchParams.has("overlap"))));
+        if (path === "/api/items") return json(await (url.searchParams.has("design") ? (reg ? [] : designItems(env, from, to)) : listItems(env, from, to, url.searchParams.has("overlap"), reg)));
         if (path === "/api/users") return json(await users(env));
         if (path === "/api/tasks") return json(await listTasks(env, me, { item: url.searchParams.get("item") || "", all: url.searchParams.has("all") }));
         if (path === "/api/programs") return json(await programs(env));
