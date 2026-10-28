@@ -212,7 +212,7 @@ export async function enrich(env, x) {
 }
 const AI_MIN = 8; // skor minimal berita yang diringkas otomatis
 async function enrichQueue(env, n) {
-  if (!env.AI && !env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
+  if (!env.AI && !env.GEMINI_API_KEY && !env.GROQ_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
   const since = new Date(Date.now() - 36 * 3600e3).toISOString();
   // INDEXED BY: tanpa statistik, D1 memilih index status, dan hampir semua berita tetap 'baru' -> seluruh tabel terbaca tiap cron
   const L = (await env.DB.prepare("SELECT * FROM mn_items INDEXED BY mn_items_seen WHERE lead=1 AND status='baru' AND ai_state IS NULL AND score>=? AND seen_at>=? ORDER BY score DESC LIMIT ?").bind(AI_MIN, since, n).all()).results || [];
@@ -257,7 +257,7 @@ export async function finRead(env, x) {
 }
 /** Antrean berita kinerja (4 hari terakhir, terbaru dulu). Emiten yang sudah terbaca dalam 3 hari: berita lain cukup jadi sumber tambahan (tanpa AI). */
 export async function finQueue(env, n = 3) {
-  if (!env.AI && !env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
+  if (!env.AI && !env.GEMINI_API_KEY && !env.GROQ_API_KEY && !env.ANTHROPIC_API_KEY) return 0;
   const since = new Date(Date.now() - 4 * 864e5).toISOString(), recent = new Date(Date.now() - 3 * 864e5).toISOString();
   const L = (await env.DB.prepare("SELECT id,url,src,title,at,descr,tickers FROM mn_items WHERE fin_state='pending' AND seen_at>=? ORDER BY seen_at DESC LIMIT 12").bind(since).all()).results || [];
   let done = 0;

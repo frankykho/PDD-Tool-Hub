@@ -6,6 +6,7 @@
 //   node scripts/deploy.mjs --dry-run       cek bundel semua tool tanpa menyentuh Cloudflare
 //   node scripts/deploy.mjs --resolve sats  hanya tulis wrangler.deploy.json (untuk perintah wrangler d1 di workflow)
 //   node scripts/deploy.mjs secrets [id..]  kirim secret dari .secrets.json ke tiap tool
+//   node scripts/deploy.mjs ai-keys         kirim env GEMINI_API_KEY / GROQ_API_KEY (yang terisi saja) ke semua tool yang memakai AI
 //
 // Profil (nama brand, link, subdomain) dibaca dari profile.json atau env PROFILE_JSON, lalu disuntikkan ke setiap
 // worker sebagai variabel PROFILE, HUB_URL, ADMIN_EMAILS, dan GITHUB_REPO. Database D1 dan KV dicari menurut nama;
@@ -159,13 +160,25 @@ function secrets(ids) {
     // nilai berupa objek (mis. FIREBASE_SA yang ditempel utuh dari berkas .json) dikirim sebagai teks JSON
     const vals = Object.fromEntries(Object.entries({ ...(all["*"] || {}), ...(all[app.id] || {}) })
       .filter(([, v]) => v).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
-    if (!Object.keys(vals).length) continue;
-    const cfg = resolve(app, profile, false);
-    const tmp = path.join(ROOT, app.dir, ".secrets.tmp.json");
-    fs.writeFileSync(tmp, JSON.stringify(vals));
-    try { log(`\n▶ secret ${app.id}: ${Object.keys(vals).join(", ")}`); wrangler(["secret", "bulk", tmp, "-c", cfg], { cwd: path.dirname(cfg) }); }
-    finally { fs.rmSync(tmp, { force: true }); }
+    if (Object.keys(vals).length) putSecrets(app, profile, vals);
   }
+}
+function putSecrets(app, profile, vals) {
+  const cfg = resolve(app, profile, false);
+  const tmp = path.join(ROOT, app.dir, ".secrets.tmp.json");
+  fs.writeFileSync(tmp, JSON.stringify(vals));
+  try { log(`\n▶ secret ${app.id}: ${Object.keys(vals).join(", ")}`); wrangler(["secret", "bulk", tmp, "-c", cfg], { cwd: path.dirname(cfg) }); }
+  finally { fs.rmSync(tmp, { force: true }); }
+}
+// Key AI dari env (workflow "AI keys" mengisinya dari secret repo GitHub) ke semua tool yang memanggil shared/ai.js.
+// Key yang kosong tidak dikirim, jadi secret yang sudah ada di worker tidak tertimpa.
+const AI_APPS = ["edukasi", "recap", "content", "competitor", "news", "copy", "tutorial", "sats"];
+function aiKeys() {
+  const vals = Object.fromEntries(["GEMINI_API_KEY", "GROQ_API_KEY"].map((k) => [k, (process.env[k] || "").trim()]).filter(([, v]) => v));
+  if (!Object.keys(vals).length) die("GEMINI_API_KEY dan GROQ_API_KEY kosong: isi minimal satu sebagai secret repo GitHub (Settings › Secrets and variables › Actions).");
+  const profile = loadProfile();
+  for (const app of APPS.filter((a) => AI_APPS.includes(a.id))) putSecrets(app, profile, vals);
+  log(`\n✓ ${Object.keys(vals).join(" & ")} terpasang di: ${AI_APPS.join(", ")}`);
 }
 
 function deploy(list, dry) {
@@ -185,6 +198,7 @@ function deploy(list, dry) {
 }
 
 if (args[0] === "secrets") secrets(args.slice(1));
+else if (args[0] === "ai-keys") aiKeys();
 else {
   const dry = flag("--dry-run"), base = opt("--changed"), only = opt("--resolve");
   if (only) { const a = APPS.find((x) => x.id === only) || die(`tool "${only}" tidak dikenal`); log(resolve(a, loadProfile(), false)); }

@@ -675,7 +675,7 @@ const CI_AI_DETAIL = ['summary', 'promo_type', 'holding_period', 'lockin', 'min_
 /** Rapikan maksimal n promo di antrean: 'pending' = promo belum dicek (semua isian), 'enrich' = promo terverifikasi (hanya isian detail).
  *  Promo tidak relevan dilewati. Catatan "Mengapa penting / Apa yang bisa dilakukan" hanya diisi bila masih kosong dan konteks perusahaan sudah diisi. */
 export async function ciAiPending(env, n = 2) {
-  if (!env.AI && !env.ANTHROPIC_API_KEY && !env.GEMINI_API_KEY) return 0;
+  if (!env.AI && !env.ANTHROPIC_API_KEY && !env.GEMINI_API_KEY && !env.GROQ_API_KEY) return 0;
   const rows = (await env.DB.prepare("SELECT id,title,platform,source_url,page_content,status,verified_by,cat_manual,history,why_matters,our_action,ai_state FROM ci_programs WHERE ai_state IN ('pending','enrich') ORDER BY CASE WHEN status='Aktif' THEN 0 ELSE 1 END, COALESCE(first_seen, discovered_at) DESC LIMIT ?").bind(n).all()).results || [];
   let done = 0, mis = null, ctxOk = null;
   for (const r of rows) {

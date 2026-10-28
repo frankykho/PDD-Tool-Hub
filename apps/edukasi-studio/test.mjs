@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
 const { default: edu, phrases } = await import("./worker.js");
-const { ai, GEMINI_MODELS } = await import("../../shared/ai.js");
+const { ai, GEMINI_MODELS, GROQ_MODELS } = await import("../../shared/ai.js");
 
 function d1() {
   const db = new DatabaseSync(":memory:");
@@ -82,6 +82,27 @@ out = await ai({ GEMINI_API_KEY: "g-key", GEMINI_MODEL: "gemini-x", AI: wai }, "
 assert.equal(seen[0], "gemini-x", "GEMINI_MODEL dicoba lebih dulu");
 out = await ai({ AI: wai }, "SYS", "USER", 500);
 assert.match(out.text, /Workers AI/, "tanpa GEMINI_API_KEY tetap Workers AI");
+
+/* ---------- shared/ai.js: Groq sesudah Gemini, sebelum Workers AI ---------- */
+const gq = []; let gqMode = "ok";
+globalThis.fetch = async (u, init) => {
+  if (/generativelanguage/.test(String(u))) return Response.json({ error: { status: "RESOURCE_EXHAUSTED" } }, { status: 429 });
+  assert.match(String(u), /api\.groq\.com\/openai\/v1\/chat\/completions/); assert.equal(init.headers.authorization, "Bearer q-key");
+  const b = JSON.parse(init.body); gq.push(b.model); assert.equal(b.messages[0].content, "SYS"); assert.equal(b.messages[1].content, "USER");
+  if (gqMode === "429" || (gqMode === "first404" && b.model === GROQ_MODELS[0])) return Response.json({ error: { code: gqMode === "429" ? "rate_limit_exceeded" : "model_not_found" } }, { status: gqMode === "429" ? 429 : 404 });
+  return Response.json({ choices: [{ message: { content: "Jawaban Groq yang cukup panjang untuk dipakai di tool.", reasoning: "berpikir…" }, finish_reason: "stop" }] });
+};
+out = await ai({ GEMINI_API_KEY: "g-key", GROQ_API_KEY: "q-key", AI: wai }, "SYS", "USER", 500);
+assert.deepEqual(out, { text: "Jawaban Groq yang cukup panjang untuk dipakai di tool.", model: GROQ_MODELS[0] }, "kuota Gemini habis -> Groq, bukan Workers AI");
+gqMode = "first404"; gq.length = 0;
+out = await ai({ GROQ_API_KEY: "q-key", AI: wai }, "SYS", "USER", 500);
+assert.equal(out.model, GROQ_MODELS[1], "model Groq yang ditolak dilewati");
+gqMode = "429"; gq.length = 0;
+out = await ai({ GROQ_API_KEY: "q-key", AI: wai }, "SYS", "USER", 500);
+assert.equal(gq.length, GROQ_MODELS.length); assert.match(out.text, /Workers AI/, "kuota Groq habis -> Workers AI");
+gqMode = "ok"; gq.length = 0;
+await ai({ GROQ_API_KEY: "q-key", GROQ_MODEL: "qwen-x", AI: wai }, "SYS", "USER", 500);
+assert.equal(gq[0], "qwen-x", "GROQ_MODEL dicoba lebih dulu");
 globalThis.fetch = realFetch;
 
 console.log("semua cek lolos");

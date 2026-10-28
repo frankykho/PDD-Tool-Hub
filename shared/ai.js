@@ -1,5 +1,6 @@
 // Panggilan AI bersama (Edukasi Studio, Market Recap, Content Insight, Competitor): Claude kalau secret ANTHROPIC_API_KEY ada,
-// lalu Gemini kalau secret GEMINI_API_KEY ada (gratis), selain itu / bila Gemini gagal: Workers AI (binding AI di wrangler.jsonc).
+// lalu Gemini kalau secret GEMINI_API_KEY ada (gratis), lalu Groq kalau secret GROQ_API_KEY ada (gratis),
+// selain itu / bila semuanya gagal: Workers AI (binding AI di wrangler.jsonc).
 // Mengembalikan { text, model }; kegagalan yang pantas ditampilkan ke pengguna = AiError.
 //
 //   import { ai, AiError } from "../../shared/ai.js";
@@ -42,7 +43,35 @@ async function gemini(env, system, user, maxTokens, opts = {}) {
   return null;
 }
 
-/** Urutan penyedia: Claude (ANTHROPIC_API_KEY) -> Gemini (GEMINI_API_KEY, gratis) -> Workers AI (binding AI, gratis 10.000 neuron/hari).
+// Groq (paket gratis console.groq.com, secret GROQ_API_KEY): API gaya OpenAI. Batas gratis per model ±1.000 permintaan & 200 ribu
+// token per hari, 8 ribu token per menit; model yang ditolak (404/413/429/400 model_decommissioned) dilewati. null = semua gagal.
+export const GROQ_MODELS = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b'];
+async function groq(env, system, user, maxTokens, opts = {}) {
+  const models = [...new Set([env.GROQ_MODEL, ...GROQ_MODELS].filter(Boolean))];
+  const errs = [];
+  for (const m of models) {
+    try {
+      const oss = /gpt-oss/.test(m);
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST',
+        headers: { authorization: 'Bearer ' + env.GROQ_API_KEY, 'content-type': 'application/json' },
+        // gpt-oss berpikir dulu (reasoning terpisah dari jawaban); "low" supaya token per menit paket gratis cukup
+        body: JSON.stringify({ model: m, messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+          max_completion_tokens: oss ? maxTokens + 1500 : maxTokens, ...(oss ? { reasoning_effort: 'low' } : {}),
+          ...(opts.temperature != null ? { temperature: opts.temperature } : {}), ...(opts.json ? { response_format: { type: 'json_object' } } : {}) }),
+        signal: AbortSignal.timeout(90000) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { errs.push(`${m}: ${(j.error && (j.error.code || j.error.message)) || 'HTTP ' + r.status}`); continue; }
+      const text = cleanAi(pickText(j));
+      if (text.length > 40) return { text, model: m };
+      errs.push(`${m}: jawaban kosong (${(j.choices && j.choices[0] && j.choices[0].finish_reason) || '?'})`);
+    } catch (e) { errs.push(`${m}: ${e && e.message || e}`); }
+  }
+  console.log('Groq gagal, pindah ke Workers AI: ' + errs.join('; '));
+  return null;
+}
+
+/** Urutan penyedia: Claude (ANTHROPIC_API_KEY) -> Gemini (GEMINI_API_KEY, gratis) -> Groq (GROQ_API_KEY, gratis)
+ *  -> Workers AI (binding AI, gratis 10.000 neuron/hari).
  *  opts: temperature (bawaan: model masing-masing; Gemini 0.8), json = Gemini menjawab JSON murni (untuk ekstraksi data). */
 export async function ai(env, system, user, maxTokens, model = env.CLAUDE_MODEL || 'claude-sonnet-5-5', opts = {}) {
   if (env.ANTHROPIC_API_KEY) {
@@ -55,6 +84,7 @@ export async function ai(env, system, user, maxTokens, model = env.CLAUDE_MODEL 
     return { text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(), model: j.model || model };
   }
   if (env.GEMINI_API_KEY) { const g = await gemini(env, system, user, maxTokens, opts); if (g) return g; }
+  if (env.GROQ_API_KEY) { const g = await groq(env, system, user, maxTokens, opts); if (g) return g; }
   if (!env.AI) throw new AiError('Binding Workers AI (nama: AI) belum dipasang di worker ini.');
   const models = [env.AI_MODEL || '@cf/openai/gpt-oss-120b', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'];
   let last = '';
