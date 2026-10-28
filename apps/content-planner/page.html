@@ -1177,7 +1177,7 @@ async function repData(){
     people=Object.values(by).sort((a,b)=>a.name.localeCompare(b.name));}
   const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
   const whoTxt=u?`${u.name}${u.role?" · "+PL.roles[u.role]:""}`:br?"Semua anggota":"Semua anggota tim";
-  return {from,to,per,who:[brLabel(br),whoTxt].filter(Boolean).join(" · "),S,kpi,people,run,logs:Array.isArray(logs)?logs:[],wa:W};
+  return {from,to,per,who:[brLabel(br),whoTxt].filter(Boolean).join(" · "),tag:[brLabel(br),u?u.name:""].filter(Boolean).join(" · "),S,kpi,people,run,logs:Array.isArray(logs)?logs:[],wa:W};
 }
 // kolom tabel tiap bagian: [judul, isi(i)]
 const COLS={
@@ -1221,7 +1221,7 @@ async function progData(){
     return {...p,done,late,cpl:per(p.cost,p.leads),cpa:per(p.cost,p.accounts),used:p.budget&&p.cost!=null?p.cost/p.budget*100:null};
   });
   const per=id?perOf(P[0]):from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from:id?P[0].date:from,to:id?(P[0].end_date||P[0].date):to,per,P,bench:r.bench||[]};
+  return {from:id?P[0].date:from,to:id?(P[0].end_date||P[0].date):to,per,tag:id?P[0].title:"",P,bench:r.bench||[]};
 }
 // angka utama satu program: [judul, nilai, keterangan]
 const pk=p=>[["Peserta",int(p.result_num),"jangkauan "+int(p.reach)],["Leads",int(p.leads),"akun baru "+int(p.accounts)],["Nilai transaksi / AUM",rp(p.aum),"dari program ini"],
@@ -1280,7 +1280,7 @@ async function galData(){
   if(!L.length)throw new Error("Belum ada rencana galeri baru pada periode ini"+(br&&!br.startsWith("t:")?" di "+brLabel(br):"")+(who?" untuk orang ini":"")+".");
   const u=USERS.find(x=>x.email===who);
   const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from,to,per,who:[br.startsWith("t:")?"":brLabel(br),u?u.name:"Semua anggota"].filter(Boolean).join(" · "),L};
+  return {from,to,per,who:[br.startsWith("t:")?"":brLabel(br),u?u.name:"Semua anggota"].filter(Boolean).join(" · "),tag:[br.startsWith("t:")?"":brLabel(br),u?u.name:""].filter(Boolean).join(" · "),L};
 }
 function galDoc(R){
   const L=[...R.L].sort((a,b)=>(a.region||"").localeCompare(b.region||"")||GAL_FLOW.indexOf(b.status)-GAL_FLOW.indexOf(a.status)||a.date.localeCompare(b.date));
@@ -1607,14 +1607,16 @@ function mrPrint(html,name,tab){
 // jenis laporan -> data, isi (blok), nama file
 const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
 const repDiv=()=>{const d=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",d);return d};
-const repFile=(X,R)=>`${X.name.replace(/\s+/g,"-")}-${R.from}_${R.to}`;
+// nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
+// Monthly Report: "<divisi> Report - <periode>". Karakter yang tidak boleh di nama file dibuang.
+const repFile=(X,R)=>(RT==="mon"?[R.div+" Report",R.per]:[X.name,R.tag,R.per]).filter(Boolean).join(" - ").replace(/·/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120);
 $("rPdf").onclick=async()=>{
   const tab=mobileFramed()?window.open("","_blank"):null;
   if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laporan</title><p style="font:16px system-ui,sans-serif;padding:24px">Menyiapkan PDF…</p>');
   $("rPdf").disabled=true;$("repMsg").textContent="Menyusun PDF…";
   try{
     const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
-    mrPrint(await pdfDoc(X.doc(R)),RT==="mon"?`${R.div} Report - ${R.per}`:`${X.name} - ${R.per}`,tab);
+    mrPrint(await pdfDoc(X.doc(R)),repFile(X,R),tab);
     $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
   }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
   finally{$("rPdf").disabled=false}
