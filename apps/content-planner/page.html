@@ -101,6 +101,8 @@ dialog::backdrop{background:rgba(10,20,15,.45)}
 .dlg h2{margin:0 0 14px;font-size:17px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.grid3.g2w{grid-template-columns:1fr 2fr}
+.imptbl{width:100%;border-collapse:collapse}.imptbl th,.imptbl td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}.imptbl th{position:sticky;top:0;background:var(--card)}
+.gdoc{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center;margin:6px 0}.gdoc span{font-size:13px}
 .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .fld label,.lbl{font-size:12.5px;font-weight:600;color:var(--t2)}
 .fld .f{width:100%}
@@ -131,7 +133,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .sug .ti{flex:1;min-width:0}
 .sug .ti small{display:block}
 @media (max-width:900px){.pk{grid-template-columns:minmax(0,1fr)}}
-@media (max-width:640px){.grid2,.grid3,.grid3.g2w{grid-template-columns:1fr}.sug{flex-wrap:wrap}.sug .ti{flex-basis:100%}}
+@media (max-width:640px){.grid2,.grid3,.grid3.g2w{grid-template-columns:1fr}.gdoc{grid-template-columns:1fr 1fr}.gdoc span{grid-column:1/-1}.sug{flex-wrap:wrap}.sug .ti{flex-basis:100%}}
 
 /* ---------- Momen, persetujuan, performa ---------- */
 .mom{display:block;width:100%;text-align:left;font-size:11px;line-height:1.25;padding:2px 5px;border-radius:6px;background:var(--bg);color:var(--t2);border:1px dashed var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
@@ -227,6 +229,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <span class="sp"></span>
     <div class="seg" role="group" aria-label="Tampilan"><button id="vMonth">Bulan</button><button id="vList">Daftar</button><button id="vDesign">🎨 Tugas desain</button><button id="vTasks">✅ Tugas</button><button id="vDaily">📝 Harian</button><button id="vPerf">📈 Performa</button></div>
     <button class="btn" id="momBtn" aria-expanded="false">✨ Momen</button>
+    <button class="btn" id="impBtn" hidden>⬆ Impor galeri</button>
     <button class="btn" id="repBtn">⬇ Laporan</button>
     <button class="btn pri" id="addBtn">+ Kegiatan</button>
   </div>
@@ -294,14 +297,19 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <div class="grp" id="gGal">
       <span class="lbl">Detail rencana galeri</span>
       <div class="grid2">
-        <div class="fld"><label for="iGPart">Mitra / institusi</label><input class="f" id="iGPart" maxlength="120" placeholder="mis. Universitas X, Pemkot Y"></div>
+        <div class="fld"><label for="iGPart">Mitra kerja sama</label><input class="f" id="iGPart" maxlength="120" placeholder="mis. Universitas X, Pemkot Y"></div>
         <div class="fld"><label for="iGCity">Kota</label><input class="f" id="iGCity" maxlength="160" placeholder="mis. Surabaya"></div>
         <div class="fld"><label for="iGReg">Regional</label><select class="f" id="iGReg"></select><input class="f" id="iGRegO" maxlength="60" placeholder="Nama regional" aria-label="Regional" hidden></div>
-        <div class="fld" id="fGBr"><label for="iGBr">Cabang pendamping (opsional)</label><select class="f" id="iGBr"></select></div>
+        <div class="fld" id="fGBr"><label for="iGBr">Cabang in charge (opsional)</label><select class="f" id="iGBr"></select></div>
+        <div class="fld"><label for="iGPic">PIC coordinator (dari mitra)</label><input class="f" id="iGPic" maxlength="160" placeholder="Nama · jabatan · no. HP"></div>
         <div class="fld"><label for="iGEnd">Target peresmian (opsional)</label><input class="f" type="date" id="iGEnd"></div>
+        <div class="fld"><label for="iGStud">Jumlah mahasiswa / siswa</label><input class="f" id="iGStud" inputmode="numeric" maxlength="15" placeholder="mis. 12.000"></div>
+        <div class="fld"><label for="iGRank">Rank</label><input class="f" id="iGRank" maxlength="60" placeholder="mis. Akreditasi A, Top 50 nasional"></div>
       </div>
+      <span class="lbl">Dokumen kerja sama</span>
+      <div id="iGDocs" class="gdocs"></div>
       <div class="fld"><label for="iGUpd">Update progres</label><textarea class="f" id="iGUpd" rows="2" maxlength="1000" placeholder="mis. Proposal sudah diterima wakil rektor, presentasi dijadwalkan minggu depan"></textarea>
-        <p class="muted small" style="margin:4px 0 0">Tersimpan ke riwayat bersama tahap saat ini. Pindah tahap juga tercatat otomatis.</p></div>
+        <p class="muted small" style="margin:4px 0 0">Tersimpan ke riwayat bersama tahap saat ini (jadi kolom Remarks di laporan). Pindah tahap &amp; perubahan dokumen juga tercatat otomatis.</p></div>
       <span class="lbl">Riwayat progres</span><div class="coms" id="iGLog" style="margin-top:6px"></div>
     </div>
     <div class="grp" id="gEdu">
@@ -417,6 +425,21 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 </dialog>
 <datalist id="people"></datalist><datalist id="designers"></datalist>
 
+<!-- ============ IMPOR GALERI ============ -->
+<dialog id="imp">
+  <div class="dlg">
+    <h2>Impor data galeri dari Excel</h2>
+    <p class="muted small" style="margin:0 0 8px">Salin tabel dari sheet laporan galeri <b>beserta baris judul kolomnya</b> (Mitra Kerjasama, Galeri Investasi, Cabang In Charge, Number Of Students, Rank, PIC Coordinator, Surat Permohonan + Profil, PKS Bipartit, PKS Tripartit, Status, Remarks, Last Update), lalu tempel di sini. Bisa juga pilih file Excel. Galeri yang namanya sudah ada di Planner diperbarui, bukan dibuat dobel.</p>
+    <div class="fld"><textarea class="f" id="impTx" rows="5" placeholder="Tempel dari Excel di sini (Ctrl+V)" aria-label="Data dari Excel"></textarea></div>
+    <div class="acts" style="margin:0 0 10px"><label class="btn sm" style="cursor:pointer">📄 Pilih file Excel<input type="file" id="impFile" accept=".xlsx,.xls,.csv" hidden></label><span class="muted small" id="impFileN"></span><span class="sp"></span>
+      <span id="impRegW" class="acts" style="margin:0"><label for="impReg" class="small">Regional bila kosong</label><select class="f" id="impReg" style="width:auto;min-width:150px"></select></span></div>
+    <div id="impPrev"></div>
+    <div id="impErr"></div>
+    <div class="acts"><span class="muted small" id="impMsg"></span><span class="sp"></span><button type="button" class="btn" id="impClose">Tutup</button><button type="button" class="btn pri" id="impGo" disabled>Impor</button></div>
+    <p class="muted small" style="margin:10px 0 0">Tanggal dibaca sebagai tanggal/bulan/tahun. Kolom dokumen: kosong / “belum” = belum, “proses” / “menunggu” = proses, isi lain (done, sudah, tanggal) = selesai. Remarks masuk ke riwayat progres dengan tanggal Last Update.</p>
+  </div>
+</dialog>
+
 <!-- ============ LAPORAN ============ -->
 <dialog id="rep">
   <div class="dlg">
@@ -431,7 +454,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <div class="fld" id="rKindsF"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
     <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
-    <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
+    <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rXls" hidden>Unduh Excel</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
     <p class="muted small" id="rHelp" style="margin:10px 0 0"></p>
   </div>
 </dialog>
@@ -455,7 +478,7 @@ const LAB={
   edukasi:{title:"Judul acara / materi",date:"Tanggal acara",ch:"Format",link:"Link materi / dokumentasi",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Webinar mengenal reksa dana"},
   program:{title:"Nama program / kegiatan kerja sama",date:"Tanggal (mulai)",ch:"Jenis kerja sama",link:"Link proposal / notulen / dokumentasi",note:"Catatan (hasil meeting, langkah berikutnya)",res:"Jumlah peserta",ph:"mis. Meeting dengan AM bahas program bersama"},
   cabang:{title:"Nama kegiatan",date:"Tanggal kegiatan",ch:"Jenis kegiatan",link:"Link dokumentasi (foto, absensi, materi)",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Gathering nasabah: outlook pasar semester 2"},
-  galeri:{title:"Nama galeri (rencana)",date:"Tanggal mulai penjajakan",ch:"Jenis mitra",link:"Link dokumen (proposal, MoU, foto)",note:"Catatan umum",res:"",ph:"mis. Galeri Investasi Universitas X"},
+  galeri:{title:"Galeri investasi (nama rencana)",date:"Tanggal mulai penjajakan",ch:"Jenis mitra",link:"Link dokumen (surat, PKS, foto)",note:"Catatan umum",res:"",ph:"mis. Galeri Investasi Universitas X"},
 };
 // penjelasan singkat tiap jenis kegiatan, tampil di bawah pilihan jenis
 const HINT={konten:"Postingan media sosial: IG, TikTok, YouTube, WhatsApp.",artikel:"Tulisan untuk website, blog, newsletter, atau media partner.",
@@ -866,6 +889,13 @@ function setBr(v){
 }
 const brVal=()=>BR.length?$("iBr").value:$("iBrO").value.trim();
 // rencana galeri: regional dari daftar (atau ketik sendiri kalau daftar belum diisi), cabang pendamping dari daftar cabang
+// dokumen kerja sama: Belum / Proses / Selesai + tanggal (opsional), per dokumen dari PL.galDocs
+const GDOC=PL.galDocs||{},DOCL={"":"Belum",proses:"Proses",selesai:"Selesai"};
+const docsOf=i=>{try{return JSON.parse(i&&i.docs||"{}")||{}}catch(e){return {}}};
+const docTxt=x=>x&&x.s?DOCL[x.s]+(x.d?" · "+fmtShort(x.d):""):"–";
+function setDocs(it){const o=docsOf(it);
+  $("iGDocs").innerHTML=Object.keys(GDOC).map(k=>`<div class="gdoc"><span>${esc(GDOC[k])}</span><select class="f" data-ds="${k}" aria-label="Status ${esc(GDOC[k])}">${Object.keys(DOCL).map(v=>`<option value="${v}"${(o[k]||{}).s===v||(!o[k]&&!v)?" selected":""}>${DOCL[v]}</option>`).join("")}</select><input class="f" type="date" data-dd="${k}" value="${esc((o[k]||{}).d||"")}" aria-label="Tanggal ${esc(GDOC[k])}"></div>`).join("")}
+const docsVal=()=>JSON.stringify(Object.fromEntries(Object.keys(GDOC).map(k=>[k,{s:document.querySelector(`[data-ds="${k}"]`).value,d:document.querySelector(`[data-dd="${k}"]`).value}])));
 function setGal(it){
   const r=it?it.region||"":regionOf(PL.me.branch),b=it?it.branch||"":"";
   $("iGReg").hidden=!REGS.length;$("iGRegO").hidden=!!REGS.length;$("iGRegO").value=REGS.length?"":r;$("fGBr").hidden=!BR.length;
@@ -873,6 +903,7 @@ function setGal(it){
   $("iGBr").innerHTML='<option value="">Tanpa cabang pendamping</option>'+(b&&!BR.some(x=>x.c===b)?`<option value="${esc(b)}">${esc(b)} (tidak ada lagi di daftar)</option>`:"")+
     REGS.map(x=>`<optgroup label="${esc(x)}">${BR.filter(y=>y.r===x).map(y=>`<option value="${esc(y.c)}">${esc(brName(y))}</option>`).join("")}</optgroup>`).join("");$("iGBr").value=b;
   $("iGPart").value=it?it.partner||"":"";$("iGCity").value=it?it.place||"":"";$("iGEnd").value=it?it.end_date||"":"";$("iGUpd").value="";
+  $("iGPic").value=it?it.audience||"":"";$("iGRank").value=it?it.target||"":"";$("iGStud").value=it&&it.result_num!=null?it.result_num:"";setDocs(it);
 }
 const galRow=(l,first)=>`<div class="com"><b>${esc(GSL[l.st]||l.st)}</b> <span class="muted">${esc(l.by||"")} · ${when(l.at)}</span><div>${l.text?esc(l.text):`<span class="muted">${first?"Rencana dicatat":"Pindah tahap"}</span>`}</div></div>`;
 async function loadGalLog(){
@@ -1034,7 +1065,8 @@ const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":
   reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
   copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
   // rencana galeri: isian sendiri menggantikan partner / tempat / tanggal selesai / regional / cabang
-  ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value}:{})});
+  ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value,
+    audience:$("iGPic").value,target:$("iGRank").value,result_num:$("iGStud").value,docs:docsVal()}:{})});
 // konflik: kegiatan sudah diubah orang lain sejak form dibuka -> pilih muat versi terbaru atau tetap simpan versi sendiri
 function showConflict(err){
   const d=err.data||{};showErr("dlgErr",err);
@@ -1114,7 +1146,7 @@ const KEG=["edukasi","artikel","konten","program","cabang"];
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
+  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
   $("rHelp").innerHTML=(t==="mon"?"Monthly Report: ringkasan, lalu per tim (role pekerjaan) hasil program, kegiatan kalender, dan pekerjaan harian anggotanya."
@@ -1262,6 +1294,15 @@ const galEndDay=i=>{const l=(i.log||[]).filter(x=>x.st===i.status).slice(-1)[0];
 const galIn=(i,from,to)=>i.date<=to&&(!GAL_END.includes(i.status)||galEndDay(i)>=from);
 const galLog=(i,from,to)=>(i.log||[]).filter(l=>{const d=dayOf(l.at);return d>=from&&d<=to});
 const galLast=i=>{const l=(i.log||[]).filter(x=>x.text).slice(-1)[0];return l?`${fmtShort(dayOf(l.at))} · ${l.by||"–"}: ${l.text}`:"Belum ada update progres"};
+// tanggal update terakhir: riwayat progres terakhir, atau waktu terakhir diubah
+const galLastDay=i=>{const l=(i.log||[]).slice(-1)[0];return dayOf((l&&l.at)||i.updated_at||i.date+"T00:00:00Z")};
+// Remarks: update progres terakhir yang ada isinya, kalau belum ada catatan umumnya
+const galRemark=i=>{const l=(i.log||[]).filter(x=>x.text).slice(-1)[0];return l?l.text:i.note||"–"};
+// kolom daftar galeri = format sheet laporan tim galeri: [judul, isi(i, no), lebar PDF/PPT, angka?]
+const GCOLS=[["No",(i,n)=>String(n),3,1],["Mitra Kerjasama",i=>i.partner||"–",11],["Galeri Investasi",i=>i.title,12],["Cabang In Charge",i=>i.branch||"–",8],
+  ["Number Of Students",i=>int(i.result_num),8],["Rank",i=>i.target||"–",7],["PIC Coordinator",i=>i.audience||"–",9],
+  ...Object.keys(GDOC).map(k=>[{surat:"Surat Permohonan + Profil",bipartit:"PKS Bipartit",tripartit:"PKS Tripartit"}[k]||GDOC[k],i=>docTxt(docsOf(i)[k]),7]),
+  ["Status",i=>(STL[i.status]||i.status)+(!GAL_END.includes(i.status)&&i.end_date&&i.end_date<todayIso()?" · lewat target":""),7],["Remarks",galRemark,12],["Last Update",i=>fmtShort(galLastDay(i)),7]];
 const galSt=i=>(GSL[i.status]||i.status)+(!GAL_END.includes(i.status)&&i.end_date&&i.end_date<todayIso()?" · lewat target":"");
 // filter regional / cabang: rencana galeri ikut regionalnya; "c:" = cabang pendampingnya; "t:" tidak menyaring
 const galBr=(i,f)=>!f||f.startsWith("t:")||(f.startsWith("r:")?i.region===f.slice(2):i.branch===f.slice(2));
@@ -1288,8 +1329,9 @@ function galDoc(R){
   const U=L.filter(i=>galLog(i,R.from,R.to).length);
   return {div:R.div,per:R.per,blocks:[{t:"cover",lines:["Laporan Kerja Sama Galeri",R.per],sub:[R.div,R.who].join(" · ")},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.who}`},galKpis(L,R.from,R.to,""),
     {t:"table",h3:"Tahap per regional",cols:[["Regional",22],...S.map(s=>[STL[s],13,1])],rows:[...Rg.map(r=>{const X=L.filter(i=>(i.region||"–")===r);return [r,...S.map(s=>cnt(X,s))]}),...(Rg.length>1?[["Total",...S.map(s=>cnt(L,s))]]:[])]},
-    {t:"table",h3:`Daftar rencana galeri (${L.length})`,cols:[["Galeri (rencana)",19],["Mitra · kota",16],["Regional",11],["PIC",11],["Tahap",12],["Mulai",9],["Target resmi",9],["Update terakhir",13]],
-      rows:L.map(i=>[`${ICON.galeri} ${i.title}`,[i.partner,i.place].filter(Boolean).join(" · ")||"–",i.region||"–",i.owner||"–",galSt(i),fmtShort(i.date),i.end_date?fmtShort(i.end_date):"–",galLast(i)])},
+    // per regional (judul baris), kolom mengikuti sheet laporan galeri
+    {t:"table",h3:`Daftar kerja sama galeri investasi (${L.length})`,cols:pctCols(GCOLS.map(c=>[c[0],c[2],c[3]])),
+      rows:Rg.flatMap(r=>[{grp:`Regional ${r}`},...L.filter(i=>(i.region||"–")===r).map(i=>GCOLS.map(c=>c[1](i,L.indexOf(i)+1)))])},
     {t:"page",h2:"Update progres",sub:`${R.per} · ${U.length} galeri diperbarui`},
     {t:"table",h3:`Update progres periode ini (${U.reduce((a,i)=>a+galLog(i,R.from,R.to).length,0)})`,cols:[["Tanggal",11],["Tahap",15],["Update",56],["Oleh",18]],empty:"Belum ada update progres pada periode ini.",
       rows:U.flatMap(i=>[{grp:[i.title,i.region,i.partner].filter(Boolean).join(" · ")},...galLog(i,R.from,R.to).map(l=>[fmtShort(dayOf(l.at)),GSL[l.st]||l.st,l.text||(l===i.log[0]?"Rencana dicatat":"Pindah ke tahap "+(GSL[l.st]||l.st)),l.by||"–"])])}]};
@@ -1605,6 +1647,110 @@ function mrPrint(html,name,tab){
   addEventListener("afterprint",done);window.print();setTimeout(()=>{if(document.body.classList.contains("mrprint"))done()},1500);
 }
 // jenis laporan -> data, isi (blok), nama file
+let xlsLib=null;
+const loadXls=()=>xlsLib||(xlsLib=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";s.onload=()=>window.XLSX?ok():no(new Error("Library Excel gagal dimuat."));s.onerror=()=>{xlsLib=null;no(new Error("Library Excel gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
+async function galXls(R,name){
+  await loadXls();
+  const L=[...R.L].sort((a,b)=>(a.region||"").localeCompare(b.region||"")||a.date.localeCompare(b.date)),plain=v=>v==="–"?"":v;
+  const rows=L.map((i,n)=>GCOLS.map(c=>c[0]==="No"?n+1:c[0]==="Number Of Students"?(i.result_num==null||i.result_num===""?"":+i.result_num):plain(c[1](i,n+1))));
+  const head=[...GCOLS.map(c=>c[0]),"Regional","Kota","Jenis mitra","PIC internal","Mulai","Target peresmian"];
+  const ext=L.map(i=>[i.region||"",i.place||"",i.channel||"",i.owner||"",fmtShort(i.date),i.end_date?fmtShort(i.end_date):""]);
+  const ws=XLSX.utils.aoa_to_sheet([head,...rows.map((r,n)=>[...r,...ext[n]])]);ws["!cols"]=head.map(h=>({wch:/Remarks/.test(h)?50:/Mitra|Galeri|PIC/.test(h)?28:16}));
+  const U=L.flatMap(i=>galLog(i,R.from,R.to).map(l=>[fmtShort(dayOf(l.at)),i.title,i.region||"",GSL[l.st]||l.st,l.text||"",l.by||""]));
+  const wu=XLSX.utils.aoa_to_sheet([["Tanggal","Galeri Investasi","Regional","Tahap","Update","Oleh"],...U]);wu["!cols"]=[12,30,16,18,60,18].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Galeri");XLSX.utils.book_append_sheet(wb,wu,"Update progres");XLSX.writeFile(wb,name+".xlsx");
+}
+/* =================== IMPOR GALERI (sheet laporan galeri -> rencana galeri) =================== */
+// judul kolom sheet -> isian; "d:<kunci>" = dokumen kerja sama. Urutan penting (yang lebih khusus dulu).
+const IMPH=[[/^no\.?$/,""],[/mitra/,"partner"],[/^galeri/,"title"],[/cabang/,"branch"],[/student|mahasiswa|siswa/,"result_num"],[/^rank/,"target"],[/pic.*coord|koordinator/,"audience"],
+  [/surat|permohonan/,"d:surat"],[/bipartit/,"d:bipartit"],[/tripartit/,"d:tripartit"],[/^(status|tahap)/,"status"],[/remark|catatan|keterangan/,"progress"],[/last ?update|update terakhir/,"log_date"],
+  [/^regional/,"region"],[/^kota/,"place"],[/jenis mitra/,"channel"],[/^pic( internal)?$/,"owner"],[/^mulai/,"date"],[/^target/,"end_date"]];
+const impKey=h=>{h=String(h||"").replace(/\s+/g," ").trim().toLowerCase();const m=IMPH.find(([re])=>re.test(h));return m?m[1]:null};
+// teks tempelan Excel (tab) atau CSV (koma / titik koma), sel berkutip boleh berisi baris baru
+function parseSheet(t){
+  // pemisah: tab (tempelan Excel) kalau ada di mana pun; selain itu titik koma / koma, mana yang lebih banyak
+  const dl=t.includes("\t")?"\t":t.split(";").length>t.split(",").length?";":",";
+  const R=[];let row=[],c="",q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"'&&c==="")q=true;else if(ch===dl){row.push(c);c=""}
+    else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&t[i+1]==="\n")i++;row.push(c);R.push(row);row=[];c=""}else c+=ch}
+  if(c!==""||row.length){row.push(c);R.push(row)}
+  return R.filter(r=>r.some(x=>String(x).trim()));
+}
+const IMON={jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,agt:8,aug:8,sep:9,okt:10,oct:10,nov:11,des:12,dec:12};
+const ymd=(y,m,d)=>{y=+y<100?2000+ +y:+y;if(+m<1||+m>12||+d<1||+d>31)return "";const s=`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;return isNaN(Date.parse(s))?"":s};
+// tanggal: nomor seri Excel, YYYY-MM-DD, DD/MM/YYYY, atau "12 Sep 2026" / "12-Sep-26"
+function impDate(v){v=String(v??"").trim();let m;if(!v)return "";
+  if(/^\d{5}(\.\d+)?$/.test(v))return iso(new Date(Date.UTC(1899,11,30)+Math.floor(+v)*864e5));
+  if((m=v.match(/(\d{4})-(\d{1,2})-(\d{1,2})/)))return ymd(m[1],m[2],m[3]);
+  if((m=v.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/)))return ymd(m[3],m[2],m[1]);
+  if((m=v.match(/(\d{1,2})[\s-]+([a-z]{3})[a-z]*[\s-]+(\d{2,4})/i))&&IMON[m[2].toLowerCase()])return ymd(m[3],IMON[m[2].toLowerCase()],m[1]);
+  return ""}
+function impDoc(v){const t=String(v??"").trim(),l=t.toLowerCase();
+  if(!t||/^[-–—x✗0]$/.test(t)||/^(belum|no|tidak|n\/?a)\b/.test(l))return {s:"",d:""};
+  return {s:/proses|process|progress|on ?going|draft|review|menunggu|waiting|pending/.test(l)?"proses":"selesai",d:impDate(t)}}
+function impStatus(v,docs){const l=String(v??"").toLowerCase(),done=k=>(docs[k]||{}).s==="selesai";
+  if(/batal|cancel|drop|reject|tolak|gagal/.test(l))return "batal";
+  if(/resmi|launch|opening|aktif|active|running|beroperasi|complete/.test(l))return "resmi";
+  if(/mou|pks|signed|ttd|tanda ?tangan|bipartit|tripartit/.test(l))return "mou";
+  if(/nego|review|diskusi|discussion|pembahasan/.test(l))return "negosiasi";
+  if(/proposal|surat|permohonan|submit/.test(l))return "proposal";
+  if(/jajak|prospek|prospect|approach|initia|awal|rencana|follow/.test(l))return "penjajakan";
+  return done("tripartit")||done("bipartit")?"mou":(docs.surat||{}).s?"proposal":"penjajakan"}
+const impCh=p=>/univ|institut|politek|sekolah tinggi|stie|stmik|akademi|kampus/i.test(p)?"Kampus / universitas":/\b(sma|smk|sman|smkn|man)\b|sekolah/i.test(p)?"Sekolah":"";
+// baris sheet -> isian rencana galeri; judul kolom dicari di 5 baris pertama (sheet sering punya judul di atas tabel)
+function impRows(R){
+  const hi=R.slice(0,5).findIndex(r=>r.map(impKey).filter(Boolean).length>=3);
+  if(hi<0)throw new Error("Judul kolom tidak ditemukan. Ikut sertakan baris judul (Mitra Kerjasama, Galeri Investasi, …) saat menyalin.");
+  const keys=R[hi].map(impKey);if(!keys.includes("title"))throw new Error("Kolom “Galeri Investasi” tidak ditemukan.");
+  return R.slice(hi+1).map(r=>{const o={},docs={};keys.forEach((k,j)=>{const v=String(r[j]??"").trim();if(!k)return;
+      if(k.startsWith("d:"))docs[k.slice(2)]=impDoc(v);else if(v)o[k]=v});
+    if(!o.title)return null;
+    const reg=o.region||regionOf((BR.find(x=>x.c.toLowerCase()===String(o.branch||"").toLowerCase())||{}).c)||$("impReg").value;
+    const st=impStatus(o.status,docs);
+    return {title:o.title,partner:o.partner||"",branch:o.branch||"",result_num:o.result_num?String(o.result_num).replace(/[^\d]/g,""):"",target:o.target||"",audience:o.audience||"",
+      status:st,progress:o.progress||"",log_date:impDate(o.log_date),region:reg||"",place:o.place||"",channel:o.channel||impCh(o.partner||o.title),
+      ...(o.owner?{owner:o.owner,owner_email:emailOf(o.owner)}:{}),date:impDate(o.date),end_date:impDate(o.end_date),...(Object.keys(docs).length?{docs}:{})};
+  }).filter(Boolean);
+}
+let IMP={rows:[],have:new Set()};
+async function openImp(){
+  $("impTx").value="";$("impFile").value="";$("impFileN").textContent="";$("impPrev").innerHTML="";$("impMsg").textContent="";showErr("impErr");$("impGo").disabled=true;
+  const myR=regionOf(PL.me.branch);$("impReg").innerHTML='<option value="">Pilih regional…</option>'+REGS.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");$("impReg").value=myR;$("impRegW").hidden=!REGS.length;
+  $("imp").showModal();
+  try{IMP.have=new Set((await api("/api/galeri")).map(i=>i.title.trim().toLowerCase()))}catch(e){IMP.have=new Set()}
+}
+function impPreview(R){
+  try{IMP.rows=impRows(R);showErr("impErr")}catch(e){IMP.rows=[];showErr("impErr",e)}
+  const L=IMP.rows,dc=d=>d?Object.keys(GDOC).map(k=>({"":"·",proses:"◐",selesai:"●"})[(d[k]||{}).s||""]).join(" "):"";
+  $("impPrev").innerHTML=L.length?`<p class="small" style="margin:0 0 6px"><b>${L.length} galeri</b> terbaca: ${L.filter(r=>!IMP.have.has(r.title.toLowerCase())).length} baru, ${L.filter(r=>IMP.have.has(r.title.toLowerCase())).length} diperbarui${L.some(r=>!r.region)?` · <span class="late">${L.filter(r=>!r.region).length} tanpa regional (pilih “Regional bila kosong”)</span>`:""}</p>
+    <div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="imptbl small"><tr><th>Galeri</th><th>Mitra</th><th>Regional</th><th>Tahap</th><th title="Surat · Bipartit · Tripartit (● selesai ◐ proses)">Dok.</th><th></th></tr>${L.map(r=>`<tr><td>${esc(r.title)}</td><td>${esc(r.partner||"–")}</td><td>${r.region?esc(r.region):'<span class="late">–</span>'}</td><td>${esc(GSL[r.status])}</td><td>${dc(r.docs)}</td><td>${IMP.have.has(r.title.toLowerCase())?"perbarui":"baru"}</td></tr>`).join("")}</table></div>`:"";
+  $("impGo").disabled=!L.length;$("impGo").textContent=L.length?`Impor ${L.length} galeri`:"Impor";
+}
+$("impTx").addEventListener("input",()=>{$("impFileN").textContent="";impPreview(parseSheet($("impTx").value))});
+$("impReg").onchange=()=>{if($("impTx").value.trim())impPreview(parseSheet($("impTx").value));else if(IMP.sheet)impPreview(IMP.sheet)};
+$("impFile").onchange=async()=>{
+  const f=$("impFile").files[0];if(!f)return;$("impFileN").textContent="Membaca "+f.name+"…";$("impTx").value="";
+  try{
+    let R;
+    if(/\.csv$/i.test(f.name))R=parseSheet(await f.text());
+    else{await loadXls();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+      // sheet pertama yang punya judul kolom galeri
+      R=wb.SheetNames.map(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""}).map(r=>r.map(x=>x==null?"":String(x)))).find(S=>S.slice(0,5).some(r=>r.map(impKey).includes("title")))||[]}
+    IMP.sheet=R;$("impFileN").textContent=f.name;impPreview(R);
+  }catch(e){$("impFileN").textContent="";showErr("impErr",e)}
+};
+$("impGo").onclick=async()=>{
+  $("impGo").disabled=true;$("impMsg").textContent="Mengimpor…";
+  try{const r=await api("/api/galeri/import",{rows:IMP.rows});
+    $("impMsg").textContent=`✓ ${r.added} galeri baru, ${r.updated} diperbarui${r.same?`, ${r.same} tanpa perubahan`:""}.`;
+    const bad=[...r.errors.map(x=>`Baris ${x.row} (${esc((IMP.rows[x.row-1]||{}).title||"")}): ${esc(x.error)}`),...r.warn.map(x=>`Baris ${x.row}: ${esc(x.msg)}`)];
+    $("impErr").innerHTML=bad.length?`<div class="msg ${r.errors.length?"err":"ok"}">${bad.join("<br>")}</div>`:"";
+    IMP.have=new Set([...IMP.have,...IMP.rows.map(x=>x.title.toLowerCase())]);loadCal();
+  }catch(e){showErr("impErr",e);$("impMsg").textContent="";$("impGo").disabled=false}
+};
+$("impBtn").onclick=openImp;$("impClose").onclick=()=>$("imp").close();$("impBtn").hidden=!K.galeri;
 const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
 const repDiv=()=>{const d=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",d);return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
@@ -1620,6 +1766,12 @@ $("rPdf").onclick=async()=>{
     $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
   }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
   finally{$("rPdf").disabled=false}
+};
+$("rXls").onclick=async()=>{
+  $("rXls").disabled=true;$("repMsg").textContent="Menyusun Excel…";
+  try{const X=REP.gal,div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");await galXls(R,repFile(X,R));$("repMsg").textContent="✓ Excel diunduh."}
+  catch(e){showErr("repErr",e);$("repMsg").textContent=""}
+  finally{$("rXls").disabled=false}
 };
 $("rPpt").onclick=async()=>{
   $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";

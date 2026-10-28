@@ -106,6 +106,24 @@ export const REG_KINDS = ["cabang", "galeri"];
 const REG_SQL = "kind IN ('cabang', 'galeri')";
 // rencana galeri yang sudah sampai tahap ini diusulkan ke admin Tool Hub untuk masuk ke daftar cabang / galeri
 const GAL_DONE = ["mou", "resmi"];
+// dokumen kerja sama galeri (kolom docs, JSON { surat: { s, d }, ... }): s = "" (belum) | proses | selesai, d = tanggal (opsional)
+export const GAL_DOCS = { surat: "Surat permohonan + profil", bipartit: "PKS bipartit", tripartit: "PKS tripartit" };
+const DOC_ST = { proses: "proses", selesai: "selesai" };
+/** Isian dokumen -> JSON yang sah ("" kalau semuanya belum). */
+export function cleanDocs(v) {
+  let o = v; if (typeof o === "string") { try { o = JSON.parse(o || "{}"); } catch { o = {}; } }
+  const out = {};
+  for (const k of Object.keys(GAL_DOCS)) {
+    const x = (o && o[k]) || {}, st = DOC_ST[x.s] || "", d = ISO.test(String(x.d || "")) ? String(x.d) : "";
+    if (st || d) out[k] = { s: st || "selesai", d };
+  }
+  return Object.keys(out).length ? JSON.stringify(out) : "";
+}
+/** Dokumen yang berubah dibanding versi sebelumnya, untuk riwayat progres: "PKS bipartit: selesai". */
+function docChanges(before, after) {
+  const A = JSON.parse(before || "{}"), B = JSON.parse(after || "{}");
+  return Object.keys(GAL_DOCS).filter((k) => ((A[k] || {}).s || "") !== ((B[k] || {}).s || "")).map((k) => GAL_DOCS[k] + ": " + ((B[k] || {}).s || "belum"));
+}
 // kanal / jenis di luar pilihan boleh ditulis sendiri (pilih "Lainnya" di form); kosong -> "Lainnya"
 export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
 export const DESIGN_STATUSES = ["belum", "proses", "revisi", "selesai"];
@@ -120,7 +138,7 @@ const COLS = {
   kind: "TEXT", channel: "TEXT", status: "TEXT", owner: "TEXT", owner_email: "TEXT", note: "TEXT", link: "TEXT",
   time: "TEXT", place: "TEXT", role: "TEXT", audience: "TEXT", result_num: "INTEGER", result_note: "TEXT",
   d_need: "INTEGER", d_who: "TEXT", d_name: "TEXT", d_due: "TEXT", d_status: "TEXT", d_link: "TEXT", d_brief: "TEXT",
-  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT", region: "TEXT", branch: "TEXT",
+  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT", region: "TEXT", branch: "TEXT", docs: "TEXT",
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
@@ -184,7 +202,7 @@ export function cleanItem(b) {
     note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
     d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
     program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", region: "", branch: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
-    copy: "", approver: "", approver_email: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
+    copy: "", approver: "", approver_email: "", docs: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
   };
   if (COPY_KINDS.includes(kind)) {
     it.copy = s(b.copy, 6000);
@@ -211,9 +229,11 @@ export function cleanItem(b) {
     if (!it.branch) return { error: "Cabang / galeri belum dipilih." };
     for (const k of PROGRAM_NUMS) it[k] = numOf(b[k]);
   }
-  // rencana galeri: mitra, kota, regional (wajib; dicek saveItem terhadap daftar), cabang pendamping (opsional), target peresmian
+  // rencana galeri: mitra, kota, regional (wajib; dicek saveItem terhadap daftar), cabang in charge (opsional), target peresmian,
+  // jumlah mahasiswa / siswa (result_num), rank (target), PIC coordinator dari mitra (audience), dokumen kerja sama (docs)
   if (kind === "galeri") {
     it.partner = s(b.partner, 120); it.place = s(b.place, 160); it.region = s(b.region, 60); it.branch = s(b.branch, 60);
+    it.target = s(b.target, 60); it.audience = s(b.audience, 160); it.docs = cleanDocs(b.docs);
     if (!it.region) return { error: "Regional belum dipilih." };
     const end = s(b.end_date, 10);
     it.end_date = ISO.test(end) && end >= it.date ? end : "";
@@ -260,7 +280,8 @@ export async function branches(env) {
   const r = await env.DB.prepare("SELECT v FROM cfg WHERE k = 'branches'").first();
   try { const L = JSON.parse((r && r.v) || "[]"); return Array.isArray(L) ? L.map((x) => ({ ...x, t: x.t === "galeri" || x.t === "cabang" ? x.t : branchType(x.c) })) : []; } catch { return []; }
 }
-async function saveItem(env, me, b) {
+/** opts.logAt (ISO): waktu baris riwayat progres (impor dari sheet: tanggal "Last Update"); kosong = sekarang. */
+async function saveItem(env, me, b, opts = {}) {
   await ensure(env);
   const it = cleanItem(b);
   if (it.error) return it;
@@ -309,9 +330,10 @@ async function saveItem(env, me, b) {
     await env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(id, ...vals, ...svals, by, meE, now, by, now).run();
   }
   // rencana galeri: tiap pindah tahap atau ada update progres -> satu baris riwayat (tahap saat itu + catatannya)
-  const upd = String(b.progress ?? "").trim().slice(0, 1000);
+  // dokumen yang berubah ikut ditulis di riwayat
+  const upd = [String(b.progress ?? "").trim().slice(0, 1000), ...(it.kind === "galeri" ? docChanges(prev && prev.kind === "galeri" ? prev.docs : "", it.docs) : [])].filter(Boolean).join(" · ");
   if (it.kind === "galeri" && (upd || !prev || prev.status !== it.status))
-    await env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(id, now, by, meE, "progres:" + it.status, upd).run();
+    await env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(id, opts.logAt || now, by, meE, "progres:" + it.status, upd).run();
   await notify(env, [...itemNotifs(prev, it, id, meE, by), ...ap.notifs.map((n) => ({ ...n, item_id: id }))]).catch((e) => console.error("notify:", e.message));
   return { id };
 }
@@ -547,6 +569,41 @@ async function galleries(env, id) {
   const C = (await env.DB.prepare(`SELECT item_id, at, by_name, kind, text FROM comments WHERE kind LIKE 'progres:%' AND item_id IN (${L.map(() => "?").join(",")}) ORDER BY id`).bind(...L.map((i) => i.id)).all()).results;
   const by = {}; C.forEach((c) => (by[c.item_id] = by[c.item_id] || []).push({ at: c.at, by: c.by_name, st: c.kind.slice(8), text: c.text || "" }));
   return L.map((i) => ({ ...i, log: by[i.id] || [] }));
+}
+/**
+ * POST /api/galeri/import { rows: [...] } dari sheet laporan galeri (ditempel / file Excel, sudah dipetakan di browser).
+ * Baris = isian rencana galeri (title wajib) + progress (Remarks) + log_date (Last Update, YYYY-MM-DD).
+ * Galeri yang namanya sudah ada (huruf besar/kecil diabaikan) diperbarui: hanya kolom yang terisi di sheet yang menimpa,
+ * dokumen digabung per dokumen, Remarks masuk riwayat kalau berbeda dari update terakhir. Cabang in charge di luar daftar dikosongkan.
+ */
+async function importGalleries(env, me, b) {
+  await ensure(env);
+  const rows = Array.isArray(b.rows) ? b.rows.slice(0, 300) : [];
+  if (!rows.length) return { error: "Tidak ada baris untuk diimpor." };
+  const B = await branches(env), all = await galleries(env, ""), out = { added: 0, updated: 0, same: 0, errors: [], warn: [] };
+  const byName = new Map(all.map((i) => [lower(i.title).trim(), i]));
+  for (const [n, r0] of rows.entries()) {
+    const r = r0 && typeof r0 === "object" ? r0 : {}, name = String(r.title || "").trim(), row = n + 1;
+    if (!name) { out.errors.push({ row, error: "Nama galeri kosong." }); continue; }
+    const prev = byName.get(lower(name)), set = Object.fromEntries(Object.entries(r).filter(([k, v]) => !["docs", "progress", "log_date", "id"].includes(k) && v != null && String(v).trim() !== ""));
+    if (prev) delete set.title;   // nama galeri lama tetap (sheet bisa beda huruf besar/kecil)
+    if (set.branch && B.length && !B.some((x) => lower(x.c) === lower(set.branch))) { out.warn.push({ row, msg: `Cabang “${set.branch}” tidak ada di daftar, dikosongkan.` }); delete set.branch; }
+    // regional: kolom Regional, atau regional dari cabang in charge
+    if (!set.region && set.branch) { const h = B.find((x) => lower(x.c) === lower(set.branch)); if (h) set.region = h.r; }
+    const docs = { ...JSON.parse((prev && prev.docs) || "{}"), ...(r.docs && typeof r.docs === "object" ? r.docs : {}) };
+    const last = prev && (prev.log || []).filter((l) => l.text).slice(-1)[0], prog = String(r.progress || "").trim();
+    const item = prev ? { ...prev, ...set, id: prev.id, kind: "galeri", docs } : { kind: "galeri", date: set.date || r.log_date || "", owner: who(me), owner_email: lower(me.e), ...set, docs };
+    if (!ISO.test(String(item.date || ""))) item.date = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    item.progress = prog && !(last && last.text === prog) ? prog : "";
+    const changed = !prev || item.progress || cleanDocs(docs) !== (prev.docs || "") || Object.keys(set).some((k) => String(prev[k] ?? "") !== String(set[k]));
+    if (!changed) { out.same++; continue; }
+    const at = ISO.test(String(r.log_date || "")) ? r.log_date + "T05:00:00.000Z" : "";
+    const res = await saveItem(env, me, item, { logAt: at });
+    if (res.error) { out.errors.push({ row, error: res.error }); continue; }
+    prev ? out.updated++ : out.added++;
+    if (!prev) byName.set(lower(name), { id: res.id, title: name, log: [] });
+  }
+  return out;
 }
 /** GET /__hub/galeri (Tool Hub, halaman admin): rencana galeri yang sudah MoU / diresmikan tapi namanya belum ada di daftar cabang / galeri. */
 async function galleryProposals(env) {
@@ -951,14 +1008,14 @@ async function page(env, me, mode) {
   const etf = (profile(env).tools || {}).etf || {}, reg = isRegional(job, me.adm);
   // tim regional: hanya "Kegiatan cabang" & "Kerja sama galeri baru" (tanpa paket mingguan, tugas, harian, performa)
   const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm), reg, branch: (u && u.branch) || me.c || "" },
-    branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
+    branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, galDocs: GAL_DOCS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
 // API yang boleh dipakai tim regional; selebihnya kosong (GET) atau ditolak
-const REG_GET = ["/api/items", "/api/users", "/api/moments", "/api/galeri"], REG_POST = ["/api/items", "/api/items/delete"];
+const REG_GET = ["/api/items", "/api/users", "/api/moments", "/api/galeri"], REG_POST = ["/api/items", "/api/items/delete", "/api/galeri/import"];
 
 export default {
   async fetch(request, env, ctx) {
@@ -1031,7 +1088,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
-          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => bumpWa(env, me, b) }[path];
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => bumpWa(env, me, b), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

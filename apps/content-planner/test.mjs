@@ -451,10 +451,38 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   await call("/api/items", { ck: GANI, body: { ...gi, status: "proposal", base: gi.updated_at } });
   gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
   await call("/api/items", { ck: GANI, body: { ...gi, status: "mou", progress: "MoU ditandatangani rektor", base: gi.updated_at } });
+  // kolom sheet galeri: jumlah mahasiswa, rank, PIC coordinator mitra, dokumen kerja sama (perubahan dokumen ikut riwayat)
+  gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
+  await call("/api/items", { ck: GANI, body: { ...gi, result_num: "12.500", target: "Akreditasi Unggul", audience: "Dr. Rina (Kaprodi)", docs: { surat: { s: "selesai", d: plus(-20) }, bipartit: { s: "proses" }, tripartit: { s: "x" } }, base: gi.updated_at } });
+  gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
+  assert.deepEqual([gi.result_num, gi.target, gi.audience, JSON.parse(gi.docs)], [12500, "Akreditasi Unggul", "Dr. Rina (Kaprodi)", { surat: { s: "selesai", d: plus(-20) }, bipartit: { s: "proses", d: "" } }]);
   const [G] = (await call("/api/galeri?id=" + gid, { ck: GANI })).j;
-  assert.deepEqual(G.log.map((l) => [l.st, l.text, l.by]), [["penjajakan", "Kenalan dengan dekan FEB", "Gani"], ["proposal", "", "Gani"], ["mou", "MoU ditandatangani rektor", "Gani"]], "riwayat progres");
+  assert.deepEqual(G.log.map((l) => [l.st, l.text, l.by]), [["penjajakan", "Kenalan dengan dekan FEB", "Gani"], ["proposal", "", "Gani"], ["mou", "MoU ditandatangani rektor", "Gani"],
+    ["mou", "Surat permohonan + profil: selesai · PKS bipartit: proses", "Gani"]], "riwayat progres (+ perubahan dokumen)");
+  assert.equal((await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Konten x", date: wib, docs: { surat: { s: "selesai" } } } })).status, 200);
+  assert.ok(!(await call(`/api/items?from=${wib}&to=${wib}`, { ck: COPY })).j.find((i) => i.title === "Konten x").docs, "jenis lain tanpa dokumen");
   assert.ok((await call(`/api/items?from=${wib}&to=${wib}`, { ck: GANI })).j.some((i) => i.id === gid), "kalender regional memuat rencana galeri");
   assert.equal((await call("/api/galeri", { ck: COPY })).j.length, 1, "tim pusat juga bisa menarik laporannya");
+  // impor dari sheet galeri: nama yang sudah ada diperbarui (kolom kosong tidak menimpa, dokumen digabung), yang baru dibuat;
+  // regional dari cabang in charge, cabang di luar daftar dikosongkan; Remarks masuk riwayat dengan tanggal Last Update
+  r = await call("/api/galeri/import", { ck: GANI, body: { rows: [
+    { title: "galeri investasi unair", status: "mou", docs: { tripartit: { s: "proses", d: "" } }, progress: "Menunggu TTD BEI", log_date: plus(-3) },
+    { title: "Galeri Investasi ITS", partner: "Institut Teknologi Sepuluh Nopember", branch: "Cabang Surabaya", result_num: "9000", status: "proposal", progress: "Surat permohonan dikirim", log_date: plus(-10) },
+    { title: "Galeri Investasi Antah", branch: "Cabang Antah", region: "Jawa Timur" },
+    { title: "Galeri tanpa regional" }, { title: "" }] } });
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  assert.deepEqual([r.j.added, r.j.updated, r.j.errors.map((e) => e.row), r.j.warn.map((w) => w.row)], [2, 1, [4, 5], [3]], JSON.stringify(r.j));
+  {
+    const L = (await call("/api/galeri", { ck: GANI })).j, un = L.find((i) => i.id === gid), its = L.find((i) => i.title === "Galeri Investasi ITS");
+    assert.deepEqual([un.partner, un.result_num, JSON.parse(un.docs).surat.s, JSON.parse(un.docs).tripartit.s, un.log.slice(-1)[0].text, un.log.slice(-1)[0].at.slice(0, 10)],
+      ["Universitas Airlangga", 12500, "selesai", "proses", "Menunggu TTD BEI · PKS tripartit: proses", plus(-3)], "galeri lama diperbarui, isian lain tetap");
+    assert.deepEqual([its.region, its.branch, its.result_num, its.status, its.owner, its.log[0].text, its.log[0].at.slice(0, 10)], ["Jawa Timur", "Cabang Surabaya", 9000, "proposal", "Gani", "Surat permohonan dikirim", plus(-10)]);
+    assert.equal(L.find((i) => i.title === "Galeri Investasi Antah").branch, "");
+  }
+  // impor ulang sheet yang sama: tanpa perubahan, riwayat tidak dobel
+  r = await call("/api/galeri/import", { ck: GANI, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Surat permohonan dikirim" }] } });
+  assert.deepEqual([r.j.added, r.j.updated, r.j.same], [0, 0, 1]);
+  assert.equal((await call("/api/galeri/import", { ck: COPY, body: { rows: [] } })).status, 400);
   // usulan ke admin Tool Hub: sudah MoU, belum ada di daftar; setelah masuk daftar, hilang dari usulan
   const usul = (h) => planner.fetch(new Request(BASE + "/__hub/galeri", { headers: h }), env).then((x) => x.status === 200 ? x.json() : x.status);
   assert.equal(await usul({}), 403, "usulan galeri hanya untuk Tool Hub");
