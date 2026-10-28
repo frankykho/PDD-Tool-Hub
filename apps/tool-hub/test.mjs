@@ -371,8 +371,21 @@ r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, fo
 assert.equal(r.status, 400); assert.match(await r.text(), /tidak ada baris yang terbaca[\s\S]*Jakarta Cabang Sudirman<\/textarea>/, "isi yang salah format dikembalikan ke kotak");
 assert.equal(env.HUB_KV.m.get("cfg:cabang"), undefined);
 r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur\tCabang Surabaya\nbaris tanpa cabang\nJakarta | galeri blok m\n" } });
-assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 2 cabang di 2 regional[\s\S]*1 baris dilewati karena tidak ada tanda \|: <code>baris tanpa cabang<\/code>/);
-assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v), [{ r: "Jakarta", c: "Galeri Blok M" }, { r: "Jawa Timur", c: "Cabang Surabaya" }], "tab Excel diterima, duplikat & baris rusak dilewati");
+assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 1 cabang dan 1 galeri di 2 regional[\s\S]*1 baris dilewati karena tidak ada tanda \|: <code>baris tanpa cabang<\/code>/);
+assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v), [{ r: "Jakarta", c: "Galeri Blok M", t: "galeri" }, { r: "Jawa Timur", c: "Cabang Surabaya", t: "cabang" }], "tab Excel diterima, duplikat & baris rusak dilewati, jenis ditebak dari nama");
+// jenis ditulis di tengah untuk galeri yang namanya tidak berawalan "Galeri"; ditulis ulang di kotak hanya kalau perlu
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur | Galeri | Pojok ITS\nJawa Timur\tCabang Surabaya" } });
+{ const h = await r.text(); assert.match(h, /Tersimpan: 1 cabang dan 2 galeri/); assert.match(h, />Jakarta \| Galeri Blok M\nJawa Timur \| Galeri \| Pojok ITS\nJawa Timur \| Cabang Surabaya<\/textarea>/); assert.match(h, /<td>Pojok ITS<\/td><td><small>Galeri investasi/); }
+// usulan galeri baru dari Planner (rencana yang sudah MoU, belum ada di daftar) -> satu klik masuk daftar
+plannerEnv.DB.db.prepare("INSERT INTO items (id, date, title, kind, status, region, place, partner, owner) VALUES ('g1', '2026-10-01', 'Galeri Investasi Unair', 'galeri', 'mou', 'Jawa Timur', 'Surabaya', 'Universitas Airlangga', 'Gani')").run();
+assert.match(await (await call("/admin", { cookie: admin })).text(), /1 usulan galeri baru/);
+{ const h = await (await call("/admin/cabang", { cookie: admin })).text(); assert.match(h, /Usulan galeri baru \(1\)[\s\S]*Galeri Investasi Unair[\s\S]*Universitas Airlangga · Surabaya[\s\S]*MoU ditandatangani[\s\S]*name="add" value="g1"/); }
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { add: "g1", list: "isi kotak yang belum disimpan" } });
+assert.match(await r.text(), /Galeri Investasi Unair ditambahkan ke regional Jawa Timur/);
+assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v).slice(-1), [{ r: "Jawa Timur", c: "Galeri Investasi Unair", t: "galeri" }]);
+assert.doesNotMatch(await (await call("/admin", { cookie: admin })).text(), /usulan galeri baru/, "sudah masuk daftar: tidak diusulkan lagi");
+assert.equal((await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { add: "g1" } })).status, 400, "usulan yang sudah tidak ada");
+r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur\tCabang Surabaya" } });
 {
   const html = await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text();
   assert.match(html, /<optgroup label="Jawa Timur"><option value="Cabang Surabaya">/);
@@ -388,7 +401,7 @@ r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, fo
 assert.equal(r.status, 200);
 assert.deepEqual((({ job, region, branch }) => [job, region, branch])(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v)), ["sales", "Jawa Timur", "Cabang Surabaya"]);
 assert.deepEqual({ ...plannerEnv.DB.db.prepare("SELECT role, branch FROM users WHERE email = 'user@acme.test'").get() }, { role: "sales", branch: "Cabang Surabaya" }, "cabang ikut ke Planner");
-assert.equal(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'branches'").get().v).length, 2, "daftar cabang ikut ke Planner");
+assert.deepEqual(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'branches'").get().v).map((x) => x.t), ["galeri", "cabang"], "daftar cabang (+ jenisnya) ikut ke Planner");
 r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "sales", branch: "Cabang Antah", a_planner: "1" } });
 assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).branch, "Cabang Surabaya", "cabang di luar daftar diabaikan");
 r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "none", branch: "none", a_fund: "viewer", a_planner: "1" } });

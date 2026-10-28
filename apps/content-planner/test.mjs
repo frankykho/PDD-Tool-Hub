@@ -423,10 +423,45 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   // halaman: jenis kegiatan & cabang bawaan
   const html = await planner.fetch(new Request(BASE + "/paket", { headers: { cookie: SALES } }), env, { waitUntil() { } }).then((x) => x.text());
   const PLc = JSON.parse(html.match(/window\.PL=(\{.*?\});<\/script>/)[1]);
-  assert.deepEqual([PLc.mode, Object.keys(PLc.kinds), PLc.me.reg, PLc.me.branch, PLc.branches.length], ["kalender", ["cabang"], true, "Galeri Blok M", 1]);
+  assert.deepEqual([PLc.mode, Object.keys(PLc.kinds), PLc.me.reg, PLc.me.branch, PLc.branches], ["kalender", ["cabang", "galeri"], true, "Galeri Blok M", [{ r: "Jawa Timur", c: "Cabang Surabaya", t: "cabang" }]]);
   // beranda Tool Hub: tim regional melihat kegiatan cabang hari ini, tim pusat tidak
   assert.ok((await today("?email=sari@acme.test")).today.every((i) => i.kind === "cabang"));
   assert.ok((await today("?email=cici@acme.test")).today.every((i) => i.kind !== "cabang"));
+}
+
+/* ---------- rencana galeri baru: tahap + riwayat progres, usulan ke daftar Tool Hub ---------- */
+{
+  const GANI = await cookie({ e: "gani@acme.test", n: "Gani", j: "galeri", c: "Cabang Surabaya" });
+  await seen(env, { e: "gani@acme.test", n: "Gani", j: "galeri", c: "Cabang Surabaya" });
+  r = await hub("/__hub/users", { users: [{ email: "gani@acme.test", name: "Gani", job: "galeri", branch: "Cabang Surabaya" }, { email: "cici@acme.test", name: "Cici", job: "copy" }],
+    branches: [{ r: "Jawa Timur", c: "Cabang Surabaya" }, { r: "Jawa Timur", c: "Galeri Investasi UB" }, { r: "Jawa Timur", c: "Pojok ITS", t: "galeri" }] });
+  assert.equal(r.status, 200);
+  const PLg = JSON.parse((await planner.fetch(new Request(BASE + "/", { headers: { cookie: GANI } }), env, { waitUntil() { } }).then((x) => x.text())).match(/window\.PL=(\{.*?\});<\/script>/)[1]);
+  assert.deepEqual(PLg.branches.map((x) => x.t), ["cabang", "galeri", "galeri"], "jenis cabang / galeri: tertulis, atau ditebak dari nama");
+  const g = { kind: "galeri", title: "Galeri Investasi Unair", date: wib, channel: "Kampus / universitas", status: "penjajakan", partner: "Universitas Airlangga", place: "Surabaya", region: "jawa timur", end_date: plus(60) };
+  assert.equal((await call("/api/items", { ck: GANI, body: { ...g, region: "" } })).status, 400, "regional wajib");
+  assert.equal((await call("/api/items", { ck: GANI, body: { ...g, region: "Bali" } })).status, 400, "regional di luar daftar ditolak");
+  assert.equal((await call("/api/items", { ck: GANI, body: { ...g, branch: "Cabang Antah" } })).status, 400, "cabang pendamping di luar daftar ditolak");
+  const gid = (await call("/api/items", { ck: GANI, body: { ...g, branch: "cabang surabaya", progress: "Kenalan dengan dekan FEB" } })).j.id;
+  let gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
+  assert.deepEqual([gi.region, gi.branch, gi.partner, gi.place, gi.end_date, gi.program_id, gi.d_need], ["Jawa Timur", "Cabang Surabaya", "Universitas Airlangga", "Surabaya", plus(60), "", 0]);
+  // simpan tanpa perubahan tahap & tanpa update: tidak menambah riwayat; pindah tahap tercatat walau tanpa catatan
+  await call("/api/items", { ck: GANI, body: { ...gi, note: "catatan umum", base: gi.updated_at } });
+  gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
+  await call("/api/items", { ck: GANI, body: { ...gi, status: "proposal", base: gi.updated_at } });
+  gi = (await call("/api/items?id=" + gid, { ck: GANI })).j;
+  await call("/api/items", { ck: GANI, body: { ...gi, status: "mou", progress: "MoU ditandatangani rektor", base: gi.updated_at } });
+  const [G] = (await call("/api/galeri?id=" + gid, { ck: GANI })).j;
+  assert.deepEqual(G.log.map((l) => [l.st, l.text, l.by]), [["penjajakan", "Kenalan dengan dekan FEB", "Gani"], ["proposal", "", "Gani"], ["mou", "MoU ditandatangani rektor", "Gani"]], "riwayat progres");
+  assert.ok((await call(`/api/items?from=${wib}&to=${wib}`, { ck: GANI })).j.some((i) => i.id === gid), "kalender regional memuat rencana galeri");
+  assert.equal((await call("/api/galeri", { ck: COPY })).j.length, 1, "tim pusat juga bisa menarik laporannya");
+  // usulan ke admin Tool Hub: sudah MoU, belum ada di daftar; setelah masuk daftar, hilang dari usulan
+  const usul = (h) => planner.fetch(new Request(BASE + "/__hub/galeri", { headers: h }), env).then((x) => x.status === 200 ? x.json() : x.status);
+  assert.equal(await usul({}), 403, "usulan galeri hanya untuk Tool Hub");
+  assert.deepEqual(await usul({ "x-hub-key": SECRET }), [{ id: gid, r: "Jawa Timur", c: "Galeri Investasi Unair", city: "Surabaya", partner: "Universitas Airlangga", status: "mou", by: "Gani" }]);
+  await hub("/__hub/users", { users: [{ email: "gani@acme.test", name: "Gani", job: "galeri" }], branches: [{ r: "Jawa Timur", c: "Galeri Investasi Unair", t: "galeri" }] });
+  assert.deepEqual(await usul({ "x-hub-key": SECRET }), []);
+  assert.ok((await today("?email=cici@acme.test")).today.every((i) => i.kind !== "galeri"), "beranda tim pusat tanpa rencana galeri");
 }
 
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");

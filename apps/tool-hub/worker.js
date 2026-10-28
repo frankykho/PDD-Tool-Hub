@@ -10,7 +10,7 @@
 //   FIREBASE_SA   (Secret, opsional) seluruh isi berkas kunci service account Firebase proyek tutorial; hanya untuk tab Tutorial.
 // Disuntikkan scripts/deploy.mjs: PROFILE (nama brand, alamat semua tool), HUB_URL, GITHUB_REPO ("pemilik/repo").
 import { profile, appUrl, title } from "../../shared/profile.js";
-import { JOBS, OPS_ALERTS, REGIONAL, parseBranches } from "../../shared/jobs.js";
+import { JOBS, OPS_ALERTS, REGIONAL, parseBranches, branchType, branchLine } from "../../shared/jobs.js";
 import SHELL from "./shell.html";
 
 // cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
@@ -150,8 +150,18 @@ async function getUser(env, email) {
   return u;
 }
 const meta = u => ({ role: u.role, status: u.status, name: u.name || '', why: u.why || '', at: u.at || '', reg: !!u.hash, un: u.username || '', apps: Object.keys(u.access || {}).join(','), want: (u.want || []).join(','), job: u.job || '', br: u.branch || '' });
-/** Regional & cabang / galeri investasi: [{ r, c }], diatur admin di /admin/cabang. Akun tim regional memilih salah satunya (u.region, u.branch). */
-const getBranches = async env => (await env.HUB_KV.get('cfg:cabang', 'json')) || [];
+/** Regional & cabang / galeri investasi: [{ r, c, t: cabang|galeri }], diatur admin di /admin/cabang. Akun tim regional memilih salah satunya (u.region, u.branch).
+ *  Daftar lama tanpa t: jenisnya ditebak dari nama (branchType). */
+const getBranches = async env => ((await env.HUB_KV.get('cfg:cabang', 'json')) || []).map(x => ({ ...x, t: x.t || branchType(x.c) }));
+/** Usulan galeri baru dari Content Planner: rencana kerja sama yang sudah MoU / diresmikan tapi belum ada di daftar. [] kalau Planner tidak menjawab. */
+async function galleryProposals(env) {
+  if (!env.PLANNER) return [];
+  try {
+    const r = await timeout(env.PLANNER.fetch('https://planner/__hub/galeri', { headers: { 'x-hub-key': env.SSO_SECRET } }), 4000, 'Content Planner');
+    const L = r.ok ? await r.json() : [];
+    return Array.isArray(L) ? L : [];
+  } catch (e) { console.error('usulan galeri:', e.message); return []; }
+}
 const jobOpts = cur => Object.keys(JOBS).map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${esc(JOBS[k])}</option>`).join('');
 const saveUser = (env, email, u) => env.HUB_KV.put('u:' + email, JSON.stringify(u), { metadata: meta(u) });
 const fp = u => u.hash.slice(-12);   // sidik password: berubah kalau password diganti/di-reset, jadi sesi lama ikut batal
@@ -391,7 +401,7 @@ const accessLabel = (x, apps) => x.role === 'admin' ? 'semua tool (admin)' : (ap
 
 /** changed = { email, u|null }: hasil aksi barusan, ditimpakan ke daftar karena KV list bisa terlambat sampai ~1 menit. */
 async function adminPage(env, sess, note = '', bad = false, changed = null) {
-  let users = await listUsers(env);
+  let [users, gp] = await Promise.all([listUsers(env), galleryProposals(env)]);
   if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
   users.forEach(x => { if (isMain(env, x.email)) { x.role = 'admin'; x.status = 'approved'; x.main = true; } });
   users.sort((a, b) => a.email < b.email ? -1 : 1);
@@ -404,7 +414,7 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
   const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(JOBS[x.job] || x.job) : 'user biasa'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
   const by = s => users.filter(x => s.includes(x.status));
   return doc('Admin', `<div class="card wide">${topBar(sess, 'Admin &middot; Tool Hub', '/admin')}
-<p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka. <a href="/admin/cabang">Daftar regional &amp; cabang</a> untuk tim regional.</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
+<p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka. <a href="/admin/cabang">Daftar regional &amp; cabang</a> untuk tim regional.${gp.length ? ` <a href="/admin/cabang"><b>${gp.length} usulan galeri baru</b></a> menunggu ditambahkan.` : ''}</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
 ${tbl('Menunggu persetujuan', by(['pending']), 'Tidak ada pengajuan baru.')}${tbl('Disetujui', by(['approved']), 'Belum ada.')}${tbl('Ditolak / dicabut', by(['rejected', 'revoked']), 'Tidak ada.')}
 <h2>Tambahkan langsung</h2><p class="sub">Menyetujui email sebelum orangnya mendaftar. Ia tinggal klik Daftar dengan email itu dan langsung bisa masuk.</p>
 <form method="post" action="/admin/act" class="row"><input type="hidden" name="act" value="add"><label for="addE" class="vh">Email yang disetujui</label><input id="addE" name="email" type="email" required maxlength="120" placeholder="nama@email.com"><button type="submit">Tambahkan</button></form>
@@ -414,7 +424,7 @@ ${tbl('Menunggu persetujuan', by(['pending']), 'Tidak ada pengajuan baru.')}${tb
 
 // pilihan cabang dikelompokkan per regional; cabang lama yang sudah dihapus dari daftar tetap tampil supaya tidak hilang diam-diam
 const brOpts = (cur, B) => (cur && !B.some(x => x.c === cur) ? `<option value="${esc(cur)}" selected>${esc(cur)} (tidak ada lagi di daftar)</option>` : '')
-  + [...new Set(B.map(x => x.r))].map(r => `<optgroup label="${esc(r)}">${B.filter(x => x.r === r).map(x => `<option value="${esc(x.c)}"${x.c === cur ? ' selected' : ''}>${esc(x.c)}</option>`).join('')}</optgroup>`).join('');
+  + [...new Set(B.map(x => x.r))].map(r => `<optgroup label="${esc(r)}">${B.filter(x => x.r === r).map(x => `<option value="${esc(x.c)}"${x.c === cur ? ' selected' : ''}>${esc(x.c)}${x.t === 'galeri' && !/^galeri/i.test(x.c) ? ' (galeri)' : ''}</option>`).join('')}</optgroup>`).join('');
 // akses bawaan tim regional: kalender kegiatan cabang + data produk (Fund Insight lihat saja)
 const REGIONAL_ACCESS = { planner: '1', fund: 'viewer', etf: '1', bond: '1' };
 const regionalJs = `<script>document.getElementById('regAcc').onclick=function(){var A=${JSON.stringify(REGIONAL_ACCESS)};Object.keys(A).forEach(function(k){var el=document.querySelector('[name="a_'+k+'"]');if(!el)return;if(el.tagName==='SELECT')el.value=A[k];else el.checked=true});this.textContent='✓ Content Planner, Fund (lihat saja), ETF & Bond Insight dicentang. Klik Simpan.'}</script>`;
@@ -438,18 +448,22 @@ ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}<input 
 <div style="margin-top:18px" class="row"><button type="submit"${pend ? ' name="approve" value="1"' : ''}>${pend ? 'Setujui dengan akses ini' : 'Simpan akses'}</button><a href="/admin" style="flex:none;align-self:center">Kembali ke daftar</a></div>
 <p class="sub" style="margin:14px 0 0">Perubahan berlaku paling lambat 2 jam kemudian di tool yang sedang dibuka orangnya, atau langsung setelah ia keluar lalu masuk lagi.</p></form>${regionalJs}`);
 }
-/** Daftar regional & cabang / galeri investasi: diketik atau ditempel dari Excel (2 kolom), satu cabang per baris. */
-function branchPage(sess, B, users, note = '', err = '', raw = null) {
-  const n = c => users.filter(x => x.status === 'approved' && x.br === c).length, R = [...new Set(B.map(x => x.r))];
+/** Daftar regional & cabang / galeri investasi: diketik atau ditempel dari Excel (2–3 kolom), satu per baris.
+ *  P = usulan galeri baru dari Content Planner (tombol "Tambahkan ke daftar" di form yang sama: name=add). */
+function branchPage(sess, B, users, note = '', err = '', raw = null, P = []) {
+  const n = c => users.filter(x => x.status === 'approved' && x.br === c).length, R = [...new Set(B.map(x => x.r))], G = B.filter(x => x.t === 'galeri').length;
+  const ST = { mou: 'MoU ditandatangani', resmi: 'Diresmikan' };
   return doc('Regional & cabang', `<form class="card wide" method="post" action="/admin/cabang">${topBar(sess, 'Regional &amp; cabang', '/admin/cabang')}
-<p class="sub">Dipakai tim regional (Sales &amp; Pengelola Galeri Investasi) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional atau per cabang. Cabang tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
+<p class="sub">Dipakai tim regional (Sales &amp; Pengelola Galeri Investasi) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional, per cabang, atau per galeri. Cabang / galeri tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
 ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
-<label for="brList">Satu cabang per baris: <b>Regional | Cabang / galeri</b>. Bisa juga tempel 2 kolom dari Excel.</label>
-<p class="sub" style="margin:2px 0 6px">Contoh penulisan: <code>Jakarta | Cabang Sudirman</code> &middot; <code>Jawa Timur | Cabang Surabaya</code></p>
-<textarea id="brList" name="list" rows="14" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font:13px/1.6 ui-monospace,monospace" placeholder="Ketik atau tempel daftar cabang di sini">${esc(raw ?? B.map(x => `${x.r} | ${x.c}`).join('\n'))}</textarea>
+${P.length ? `<h2>Usulan galeri baru (${P.length})</h2><p class="sub" style="margin:0 0 6px">Dari rencana kerja sama galeri di Content Planner yang sudah MoU atau diresmikan, tapi belum ada di daftar.</p>
+<div class="scroll"><table><tr><th>Regional</th><th>Galeri</th><th>Mitra &middot; kota</th><th>Tahap</th><th></th></tr>${P.map(p => `<tr><td>${esc(p.r)}</td><td><b>${esc(p.c)}</b><small>PIC: ${esc(p.by || '–')}</small></td><td>${esc([p.partner, p.city].filter(Boolean).join(' · ') || '–')}</td><td>${esc(ST[p.status] || p.status)}</td><td><button type="submit" class="ghost" name="add" value="${esc(p.id)}" formnovalidate>Tambahkan ke daftar</button></td></tr>`).join('')}</table></div>` : ''}
+<label for="brList">Satu per baris: <b>Regional | Cabang / galeri</b>. Bisa juga tempel 2 kolom dari Excel. Nama berawalan &ldquo;Galeri&rdquo; otomatis tercatat sebagai galeri investasi.</label>
+<p class="sub" style="margin:2px 0 6px">Contoh penulisan: <code>Jakarta | Cabang Sudirman</code> &middot; <code>Jawa Timur | Galeri Investasi Unair</code>. Galeri yang namanya tidak berawalan &ldquo;Galeri&rdquo;: tulis jenisnya di tengah, <code>Jawa Timur | Galeri | Pojok Investasi ITS</code>.</p>
+<textarea id="brList" name="list" rows="14" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font:13px/1.6 ui-monospace,monospace" placeholder="Ketik atau tempel daftar cabang di sini">${esc(raw ?? B.map(branchLine).join('\n'))}</textarea>
 <div style="margin-top:10px" class="row"><button type="submit">Simpan daftar</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
 <p class="sub" style="margin:10px 0 0">Mengganti nama cabang tidak mengubah kegiatan yang sudah tercatat dengan nama lama. Orang yang cabangnya dihapus dari daftar tetap memakai cabang lamanya sampai diganti di Atur akses.</p>
-${B.length ? `<h2>${R.length} regional &middot; ${B.length} cabang</h2><div class="scroll"><table><tr><th>Regional</th><th>Cabang / galeri</th><th>Anggota</th></tr>${R.map(r => B.filter(x => x.r === r).map((x, i) => `<tr><td>${i ? '' : `<b>${esc(r)}</b>`}</td><td>${esc(x.c)}</td><td><small>${n(x.c) || '–'}</small></td></tr>`).join('')).join('')}</table></div>` : ''}</form>`);
+${B.length ? `<h2>${R.length} regional &middot; ${B.length - G} cabang &middot; ${G} galeri</h2><div class="scroll"><table><tr><th>Regional</th><th>Cabang / galeri</th><th>Jenis</th><th>Anggota</th></tr>${R.map(r => B.filter(x => x.r === r).map((x, i) => `<tr><td>${i ? '' : `<b>${esc(r)}</b>`}</td><td>${esc(x.c)}</td><td><small>${x.t === 'galeri' ? 'Galeri investasi' : 'Cabang'}</small></td><td><small>${n(x.c) || '–'}</small></td></tr>`).join('')).join('')}</table></div>` : ''}</form>`);
 }
 const readAccess = f => { const out = {}; APPS.forEach(a => { const vals = f.getAll('a_' + a.id).map(String);
   if (a.tabs) { const t = vals.includes('*') ? ['*'] : vals.filter(v => a.tabs[v]); if (t.length) out[a.id] = t; }
@@ -478,20 +492,31 @@ async function admin(request, env, url, sess) {
   if (sess.role !== 'admin') return page(403, doc('Tidak diizinkan', `<div class="card"><h1>Khusus admin</h1><p class="sub">Akun Anda tidak punya akses ke halaman ini.</p><a href="/">Kembali ke beranda</a></div>`));
   const post = request.method === 'POST', path = url.pathname;
   if (!post && path === '/admin/user') { const e = (url.searchParams.get('e') || '').toLowerCase(), u = await getUser(env, e); return u ? page(200, userPage(sess, e, u, '', await getBranches(env))) : page(404, await adminPage(env, sess, 'Akun tidak ditemukan.', true)); }
-  if (!post && path === '/admin/cabang') return page(200, branchPage(sess, await getBranches(env), await listUsers(env)));
+  if (!post && path === '/admin/cabang') return page(200, branchPage(sess, await getBranches(env), await listUsers(env), '', '', null, await galleryProposals(env)));
   if (!post) return page(200, await adminPage(env, sess));
   if (request.headers.get('origin') !== url.origin) return page(403, 'Permintaan ditolak.');          // cegah form dari situs lain (CSRF)
   const f = await form(request), email = fv(f, 'email').toLowerCase(), act = fv(f, 'act');
   if (path === '/admin/cabang') {
-    const raw = fv(f, 'list'), B = parseBranches(raw), old = await getBranches(env), users = await listUsers(env);
+    const old = await getBranches(env), users = await listUsers(env), P = await galleryProposals(env), add = fv(f, 'add');
+    // "Tambahkan ke daftar" pada usulan galeri: diambil ulang dari Planner (bukan dari isian form), isi kotak yang belum disimpan diabaikan
+    if (add) {
+      const p = P.find(x => x.id === add), r = String((p && p.r) || '').slice(0, 60), c = String((p && p.c) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (!p || !r || !c) return page(400, branchPage(sess, old, users, '', 'Usulan ini sudah tidak ada. Mungkin sudah ditambahkan atau tahapnya diubah di Content Planner.', null, P));
+      if (old.some(x => x.c.toLowerCase() === c.toLowerCase())) return page(200, branchPage(sess, old, users, `${esc(c)} sudah ada di daftar.`, '', null, P));
+      const B = [...old, { r, c, t: 'galeri' }];
+      await env.HUB_KV.put('cfg:cabang', JSON.stringify(B)); await syncPlanner(env);
+      return page(200, branchPage(sess, B, users, `${esc(c)} ditambahkan ke regional ${esc(r)} sebagai galeri investasi. Atur pengelolanya lewat Admin &rarr; Atur akses.`, '', null, P.filter(x => x.id !== add)));
+    }
+    const raw = fv(f, 'list'), B = parseBranches(raw);
     const lines = raw.split(/\r?\n/).filter(l => l.trim()), odd = lines.filter(l => !/\S\s*[|\t]\s*\S/.test(l));
     // Kotak kosong, atau ada isi tapi tak satu pun terbaca: jangan simpan (daftar lama tetap).
     if (!B.length) return page(400, branchPage(sess, old, users, '', lines.length
       ? 'Belum tersimpan: tidak ada baris yang terbaca. Tiap baris berisi regional, tanda <b>|</b>, lalu nama cabang, misalnya <code>Jakarta | Cabang Sudirman</code>.'
-      : 'Belum tersimpan: kotak kosong. Daftar lama tidak dihapus; untuk menghapus satu cabang, hapus barisnya saja lalu simpan.', raw));
+      : 'Belum tersimpan: kotak kosong. Daftar lama tidak dihapus; untuk menghapus satu cabang, hapus barisnya saja lalu simpan.', raw, P));
     await env.HUB_KV.put('cfg:cabang', JSON.stringify(B)); await syncPlanner(env);
     const skip = odd.length ? ` ${odd.length} baris dilewati karena tidak ada tanda |: ${odd.slice(0, 3).map(l => `<code>${esc(l.trim().slice(0, 60))}</code>`).join(', ')}${odd.length > 3 ? ', …' : ''}.` : '';
-    return page(200, branchPage(sess, B, users, `Tersimpan: ${B.length} cabang di ${new Set(B.map(x => x.r)).size} regional. Pilihan cabang di Content Planner ikut diperbarui.${skip}`));
+    const G = B.filter(x => x.t === 'galeri').length, left = P.filter(p => !B.some(x => x.c.toLowerCase() === String(p.c).toLowerCase()));
+    return page(200, branchPage(sess, B, users, `Tersimpan: ${B.length - G} cabang dan ${G} galeri di ${new Set(B.map(x => x.r)).size} regional. Pilihan cabang di Content Planner ikut diperbarui.${skip}`, '', null, left));
   }
   const bad = note => adminPage(env, sess, note, true).then(h => page(400, h));
   if (path === '/admin/import') { const r = await importUsers(env, fv(f, 'data')); return r.err ? bad(r.err) : page(200, await adminPage(env, sess, `Impor selesai: ${r.added} akun ditambahkan, ${r.skipped} dilewati (sudah ada atau email tidak valid). Daftar di bawah bisa terlambat tampil sampai 1 menit.`)); }

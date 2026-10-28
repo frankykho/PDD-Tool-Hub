@@ -287,10 +287,23 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <div class="fld"><label for="iDate" id="lDate">Tanggal</label><input class="f" type="date" id="iDate" required></div>
       <div class="fld"><label for="iCh" id="lCh">Kanal</label><select class="f" id="iCh"></select>
         <input class="f" id="iChO" maxlength="40" placeholder="Tulis sendiri, mis. Meeting" aria-label="Jenis lainnya (tulis sendiri)" style="margin-top:6px" hidden></div>
-      <div class="fld"><label for="iSt">Status</label><select class="f" id="iSt"></select></div>
+      <div class="fld"><label for="iSt" id="lSt">Status</label><select class="f" id="iSt"></select></div>
     </div>
     <div class="fld" id="gCab"><label for="iBr">Cabang / galeri investasi</label><select class="f" id="iBr"></select>
       <input class="f" id="iBrO" maxlength="60" placeholder="Nama cabang / galeri" aria-label="Nama cabang / galeri" hidden></div>
+    <div class="grp" id="gGal">
+      <span class="lbl">Detail rencana galeri</span>
+      <div class="grid2">
+        <div class="fld"><label for="iGPart">Mitra / institusi</label><input class="f" id="iGPart" maxlength="120" placeholder="mis. Universitas X, Pemkot Y"></div>
+        <div class="fld"><label for="iGCity">Kota</label><input class="f" id="iGCity" maxlength="160" placeholder="mis. Surabaya"></div>
+        <div class="fld"><label for="iGReg">Regional</label><select class="f" id="iGReg"></select><input class="f" id="iGRegO" maxlength="60" placeholder="Nama regional" aria-label="Regional" hidden></div>
+        <div class="fld" id="fGBr"><label for="iGBr">Cabang pendamping (opsional)</label><select class="f" id="iGBr"></select></div>
+        <div class="fld"><label for="iGEnd">Target peresmian (opsional)</label><input class="f" type="date" id="iGEnd"></div>
+      </div>
+      <div class="fld"><label for="iGUpd">Update progres</label><textarea class="f" id="iGUpd" rows="2" maxlength="1000" placeholder="mis. Proposal sudah diterima wakil rektor, presentasi dijadwalkan minggu depan"></textarea>
+        <p class="muted small" style="margin:4px 0 0">Tersimpan ke riwayat bersama tahap saat ini. Pindah tahap juga tercatat otomatis.</p></div>
+      <span class="lbl">Riwayat progres</span><div class="coms" id="iGLog" style="margin-top:6px"></div>
+    </div>
     <div class="grp" id="gEdu">
       <span class="lbl">Detail acara</span>
       <div class="grid3">
@@ -408,7 +421,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 <dialog id="rep">
   <div class="dlg">
     <h2>Laporan</h2>
-    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button></div></div>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
@@ -429,10 +442,12 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 const PL=window.PL||{},P=window.PROFILE||{},B=P.brand||{},K=PL.kinds||{};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit",rencana:"Rencana",konfirmasi:"Konfirmasi",berjalan:"Berjalan",selesai:"Selesai",batal:"Batal"};
-const SCL={ide:1,rencana:1,draf:2,konfirmasi:2,review:3,berjalan:3,terbit:4,selesai:4,batal:5};
+const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit",rencana:"Rencana",konfirmasi:"Konfirmasi",berjalan:"Berjalan",selesai:"Selesai",batal:"Batal",penjajakan:"Penjajakan",proposal:"Proposal",negosiasi:"Negosiasi",mou:"MoU",resmi:"Diresmikan"};
+// tahap rencana galeri baru (label panjang di form & laporan)
+const GSL={penjajakan:"Penjajakan",proposal:"Proposal dikirim",negosiasi:"Negosiasi",mou:"MoU ditandatangani",resmi:"Galeri diresmikan",batal:"Batal"};
+const SCL={ide:1,rencana:1,penjajakan:1,draf:2,konfirmasi:2,proposal:2,review:3,berjalan:3,negosiasi:3,mou:3,terbit:4,selesai:4,resmi:4,batal:5};
 const DSL={belum:"Belum mulai",proses:"Dikerjakan",revisi:"Revisi",selesai:"Selesai"},DCL={belum:1,proses:2,revisi:3,selesai:4};
-const ICON={konten:"📱",artikel:"📝",edukasi:"🎤",program:"🤝",cabang:"🏢"};
+const ICON={konten:"📱",artikel:"📝",edukasi:"🎤",program:"🤝",cabang:"🏢",galeri:"🏛️"};
 // label isian per jenis kegiatan
 const LAB={
   konten:{title:"Ide / judul konten",date:"Tanggal tayang",ch:"Kanal",link:"Link postingan",note:"Ide / caption / catatan",res:"Jangkauan / views",ph:"mis. Edukasi: apa itu NAB?"},
@@ -440,19 +455,29 @@ const LAB={
   edukasi:{title:"Judul acara / materi",date:"Tanggal acara",ch:"Format",link:"Link materi / dokumentasi",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Webinar mengenal reksa dana"},
   program:{title:"Nama program / kegiatan kerja sama",date:"Tanggal (mulai)",ch:"Jenis kerja sama",link:"Link proposal / notulen / dokumentasi",note:"Catatan (hasil meeting, langkah berikutnya)",res:"Jumlah peserta",ph:"mis. Meeting dengan AM bahas program bersama"},
   cabang:{title:"Nama kegiatan",date:"Tanggal kegiatan",ch:"Jenis kegiatan",link:"Link dokumentasi (foto, absensi, materi)",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Gathering nasabah: outlook pasar semester 2"},
+  galeri:{title:"Nama galeri (rencana)",date:"Tanggal mulai penjajakan",ch:"Jenis mitra",link:"Link dokumen (proposal, MoU, foto)",note:"Catatan umum",res:"",ph:"mis. Galeri Investasi Universitas X"},
 };
 // penjelasan singkat tiap jenis kegiatan, tampil di bawah pilihan jenis
 const HINT={konten:"Postingan media sosial: IG, TikTok, YouTube, WhatsApp.",artikel:"Tulisan untuk website, blog, newsletter, atau media partner.",
   edukasi:"Acara edukasi: webinar, seminar, kelas, atau tim jadi narasumber.",
   program:"Semua kerja sama dengan pihak luar: meeting dengan AM / APERD, program bersama, kampus, komunitas, korporasi. Jenisnya tidak ada di pilihan? Pilih “Lainnya” lalu tulis sendiri.",
-  cabang:"Acara tim regional di cabang atau galeri investasi: gathering nasabah, seminar, open booth, kunjungan. Isi hasilnya (peserta, leads, akun baru, transaksi) setelah acara."};
+  cabang:"Acara tim regional di cabang atau galeri investasi: gathering nasabah, seminar, open booth, kunjungan. Isi hasilnya (peserta, leads, akun baru, transaksi) setelah acara.",
+  galeri:"Rencana galeri investasi baru bersama mitra. Ubah tahapnya dari penjajakan sampai diresmikan dan tulis update progres setiap ada kemajuan; semuanya masuk ke riwayat dan laporan. Setelah MoU / diresmikan, admin Tool Hub tinggal menambahkannya ke daftar galeri."};
 const KIND_OF_ROLE={partnership:"program",is:"edukasi",copy:"artikel",sosmed:"konten",design:"konten",lain:"konten",sales:"cabang",galeri:"cabang"};
-// regional & cabang dari Tool Hub: [{r,c}]; filter "r:Regional" (semua cabangnya) atau "c:Cabang"
-const BR=PL.branches||[],REGS=[...new Set(BR.map(x=>x.r))];
+// jenis yang dicatat tim regional
+const REGK=["cabang","galeri"];
+// regional & cabang / galeri dari Tool Hub: [{r,c,t}]; filter "r:Regional", "c:Cabang", atau "t:galeri" / "t:cabang" (semua galeri / semua cabang)
+const BR=PL.branches||[],REGS=[...new Set(BR.map(x=>x.r))],GAL=BR.some(x=>x.t==="galeri")&&BR.some(x=>x.t!=="galeri");
 const regionOf=c=>(BR.find(x=>x.c===c)||{}).r||"";
-const brOk=(i,f)=>!f||(f.startsWith("r:")?(i.region||regionOf(i.branch))===f.slice(2):i.branch===f.slice(2));
-const brLabel=f=>!f?"":f.startsWith("r:")?"Regional "+f.slice(2):f.slice(2);
-const brOpts=all=>`<option value="">${all}</option>`+REGS.map(r=>`<optgroup label="${esc(r)}"><option value="r:${esc(r)}">Seluruh regional ${esc(r)}</option>${BR.filter(x=>x.r===r).map(x=>`<option value="c:${esc(x.c)}">${esc(x.c)}</option>`).join("")}</optgroup>`).join("");
+const typeOf=c=>(BR.find(x=>x.c===c)||{}).t||(/^galeri/i.test(c||"")?"galeri":"cabang");
+const brOk=(i,f)=>!f||(f.startsWith("r:")?(i.region||regionOf(i.branch))===f.slice(2):f.startsWith("t:")?kindOf(i)==="cabang"&&typeOf(i.branch)===f.slice(2):i.branch===f.slice(2));
+const brLabel=f=>!f?"":f.startsWith("r:")?"Regional "+f.slice(2):f==="t:galeri"?"Semua galeri investasi":f==="t:cabang"?"Semua cabang":f.slice(2);
+const brName=x=>x.c+(x.t==="galeri"&&!/^galeri/i.test(x.c)?" (galeri)":"");
+const brOpts=all=>`<option value="">${all}</option>`+(GAL?'<option value="t:cabang">Semua cabang</option><option value="t:galeri">Semua galeri investasi</option>':"")+REGS.map(r=>`<optgroup label="${esc(r)}"><option value="r:${esc(r)}">Seluruh regional ${esc(r)}</option>${BR.filter(x=>x.r===r).map(x=>`<option value="c:${esc(x.c)}">${esc(brName(x))}</option>`).join("")}</optgroup>`).join("");
+// tempat kegiatan di kalender: cabang / galeri, atau mitra & kota untuk rencana galeri
+const whereOf=i=>kindOf(i)==="galeri"?[i.partner,i.place||i.region].filter(Boolean).join(" · "):i.branch||"";
+// tanggal (WIB) dari waktu simpan ISO
+const dayOf=at=>iso(new Date(Date.parse(at)+7*3600e3));
 const MON=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const DAY=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 const iso=d=>d.toISOString().slice(0,10);
@@ -495,7 +520,7 @@ const progName=id=>{const p=PROGS.find(x=>x.id===id);return p?p.title:""};
 /* =================== KALENDER =================== */
 let cur=todayIso().slice(0,8)+"01",view="month",items=[],range={from:"",to:""},MOMS=[];
 function fillSelects(){
-  $("fKind").insertAdjacentHTML("beforeend",Object.keys(K).map(k=>`<option value="${k}">${ICON[k]} ${esc(K[k].label)}</option>`).join("")+'<option value="desain">🎨 Butuh visual</option>');
+  $("fKind").insertAdjacentHTML("beforeend",Object.keys(K).map(k=>`<option value="${k}">${ICON[k]} ${esc(K[k].label)}</option>`).join("")+(PL.me.reg?"":'<option value="desain">🎨 Butuh visual</option>'));
   const st=[...new Set(Object.values(K).flatMap(k=>k.statuses))];
   $("fSt").insertAdjacentHTML("beforeend",opts(st,STL));
   // program hanya bisa dibuat Partnership & admin
@@ -504,8 +529,8 @@ function fillSelects(){
   // semua role bisa menerima tugas, termasuk Partnership (dari sesama Partnership atau admin)
   $("tJob").innerHTML=Object.keys(PL.roles).map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
   $("fBr").innerHTML=brOpts("Semua regional & cabang");$("fBr").dataset.on=K.cabang&&BR.length?"1":"";
-  // tim regional: kalender kegiatan cabang saja (Bulan / Daftar), tanpa momen konten
-  if(PL.me.reg)["vDesign","vTasks","vDaily","vPerf","momBtn","fKind"].forEach(id=>$(id).hidden=true);
+  // tim regional: kalender kegiatan cabang & rencana galeri saja (Bulan / Daftar), tanpa momen konten
+  if(PL.me.reg)["vDesign","vTasks","vDaily","vPerf","momBtn"].forEach(id=>$(id).hidden=true);
   const v=recall("pl_view");
   view=v==="list"||v==="month"||(!PL.me.reg&&(v==="design"||v==="tasks"||v==="perf"||v==="daily"))?v:PL.me.role==="design"?"design":PL.me.role==="partnership"?"tasks":"month";
   if(view==="month"&&matchMedia("(max-width:640px)").matches)view="list";
@@ -552,11 +577,11 @@ async function loadCal(){
 const kindOf=i=>K[i.kind]?i.kind:"konten";
 function chip(i){
   const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
-  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${i.branch?esc(i.branch)+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
+  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
   $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
-  ["fKind","fSt","fOw","fBr"].forEach(id=>$(id).hidden=view==="tasks"||view==="daily"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design")||(id==="fBr"&&(view==="design"||!$("fBr").dataset.on))||(id==="fKind"&&!!PL.me.reg));$("calHelp").hidden=view!=="month"&&view!=="list";
+  ["fKind","fSt","fOw","fBr"].forEach(id=>$(id).hidden=view==="tasks"||view==="daily"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design")||(id==="fBr"&&(view==="design"||!$("fBr").dataset.on)));$("calHelp").hidden=view!=="month"&&view!=="list";
   if(view==="tasks")return renderTasksView();
   if(view==="daily")return renderDaily();
   const list=shown(),mStart=cur,mEnd=monthEnd(cur),t=todayIso();
@@ -821,13 +846,14 @@ function setKind(k){
   $("kHint").textContent=HINT[k]||"";
   const ch=$("iCh").value,st=$("iSt").value;
   $("iCh").innerHTML=opts(cfg.channels);$("iCh").value=cfg.channels.includes(ch)?ch:cfg.channels[0];chOther();
-  $("iSt").innerHTML=opts(cfg.statuses,STL);$("iSt").value=cfg.statuses.includes(st)?st:cfg.statuses[0];
-  const cb=k==="cabang";
-  $("gEdu").hidden=k!=="edukasi"&&!cb;$("fRole").hidden=cb;$("fRole").parentNode.classList.toggle("g2w",cb);$("gCab").hidden=!cb;$("lOw").textContent=k==="edukasi"?"Narasumber / penanggung jawab":k==="program"?"PIC program":cb?"PIC (sales / pengelola galeri)":"Penanggung jawab";
+  $("iSt").innerHTML=opts(cfg.statuses,k==="galeri"?GSL:STL);$("iSt").value=cfg.statuses.includes(st)?st:cfg.statuses[0];
+  const cb=k==="cabang",gl=k==="galeri";$("gGal").hidden=!gl;$("lSt").textContent=gl?"Tahap":"Status";
+  $("gEdu").hidden=k!=="edukasi"&&!cb;$("fRole").hidden=cb;$("fRole").parentNode.classList.toggle("g2w",cb);$("gCab").hidden=!cb;$("lOw").textContent=k==="edukasi"?"Narasumber / penanggung jawab":k==="program"?"PIC program":cb?"PIC (sales / pengelola galeri)":gl?"PIC (pengelola galeri / sales)":"Penanggung jawab";
   $("lAud").textContent=cb?"Sasaran peserta":"Penyelenggara / audiens";$("iAud").placeholder=cb?"mis. Nasabah prioritas, karyawan PT X, mahasiswa":"mis. Komunitas investor kampus X";$("iPlace").placeholder=cb?"Galeri, kantor nasabah, mal, …":"Zoom, kampus X, …";
   // tim regional tidak melihat program & papan desain: tanpa kaitan program dan permintaan visual
-  const pr=k==="program",rg=!!PL.me.reg;$("gProg").hidden=!pr;$("gBiz").hidden=!pr&&!cb;$("gTask").hidden=!pr;$("gLink").hidden=pr||rg;$("lNeed").hidden=pr||rg;$("gDes").hidden=pr||rg||!$("iNeed").checked;
-  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten";
+  // rencana galeri: tanpa kaitan program, permintaan visual, dan angka hasil (yang dilaporkan tahap & progresnya)
+  const pr=k==="program",rg=!!PL.me.reg||gl;$("gProg").hidden=!pr;$("gBiz").hidden=!pr&&!cb;$("gTask").hidden=!pr;$("gLink").hidden=pr||rg;$("lNeed").hidden=pr||rg;$("gDes").hidden=pr||rg||!$("iNeed").checked;
+  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten"||gl;
   showMet();renderChk();
 }
 // cabang: pilihan dari daftar Tool Hub; daftar belum diisi -> ketik sendiri. Cabang lama yang sudah dihapus dari daftar tetap terpilih.
@@ -839,6 +865,22 @@ function setBr(v){
   $("iBr").value=v;
 }
 const brVal=()=>BR.length?$("iBr").value:$("iBrO").value.trim();
+// rencana galeri: regional dari daftar (atau ketik sendiri kalau daftar belum diisi), cabang pendamping dari daftar cabang
+function setGal(it){
+  const r=it?it.region||"":regionOf(PL.me.branch),b=it?it.branch||"":"";
+  $("iGReg").hidden=!REGS.length;$("iGRegO").hidden=!!REGS.length;$("iGRegO").value=REGS.length?"":r;$("fGBr").hidden=!BR.length;
+  $("iGReg").innerHTML='<option value="">Pilih regional…</option>'+(r&&!REGS.includes(r)?`<option value="${esc(r)}">${esc(r)} (tidak ada lagi di daftar)</option>`:"")+REGS.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");$("iGReg").value=r;
+  $("iGBr").innerHTML='<option value="">Tanpa cabang pendamping</option>'+(b&&!BR.some(x=>x.c===b)?`<option value="${esc(b)}">${esc(b)} (tidak ada lagi di daftar)</option>`:"")+
+    REGS.map(x=>`<optgroup label="${esc(x)}">${BR.filter(y=>y.r===x).map(y=>`<option value="${esc(y.c)}">${esc(brName(y))}</option>`).join("")}</optgroup>`).join("");$("iGBr").value=b;
+  $("iGPart").value=it?it.partner||"":"";$("iGCity").value=it?it.place||"":"";$("iGEnd").value=it?it.end_date||"":"";$("iGUpd").value="";
+}
+const galRow=(l,first)=>`<div class="com"><b>${esc(GSL[l.st]||l.st)}</b> <span class="muted">${esc(l.by||"")} · ${when(l.at)}</span><div>${l.text?esc(l.text):`<span class="muted">${first?"Rencana dicatat":"Pindah tahap"}</span>`}</div></div>`;
+async function loadGalLog(){
+  const it=editing;$("iGLog").innerHTML="";if(!it||kindOf(it)!=="galeri"){$("iGLog").innerHTML='<p class="muted small" style="margin:0">Riwayat mulai tercatat setelah disimpan.</p>';return}
+  let L=[];try{L=((await api("/api/galeri?id="+encodeURIComponent(it.id)))[0]||{}).log||[]}catch(e){}
+  if(editing!==it)return;
+  $("iGLog").innerHTML=L.length?L.map((l,n)=>galRow(l,!n)).reverse().join(""):'<p class="muted small" style="margin:0">Belum ada riwayat.</p>';
+}
 // "Lainnya" -> kotak isian bebas; kanal yang ditulis sendiri disimpan apa adanya
 const chOther=()=>{$("iChO").hidden=$("iCh").value!=="Lainnya"};
 const chVal=()=>$("iCh").value==="Lainnya"&&$("iChO").value.trim()?$("iChO").value.trim():$("iCh").value;
@@ -921,7 +963,7 @@ function openForm(it,date,preset){
   if(it){$("iCh").value=own?"Lainnya":it.channel;$("iSt").value=it.status;}
   chOther();
   $("iTime").value=v("time");$("iRole").value=v("role",PL.eduRoles[0]);$("iPlace").value=v("place");$("iAud").value=v("audience");
-  setBr(it?v("branch"):PL.me.branch);
+  setBr(it?v("branch"):PL.me.branch);setGal(it&&kindOf(it)==="galeri"?it:null);
   $("iOw").value=it?v("owner"):PL.me.name;$("iLink").value=v("link");$("iNote").value=v("note");
   $("iRes").value=it&&it.result_num!=null?it.result_num:"";$("iResN").value=v("result_note");
   $("iNeed").checked=!!(it&&it.d_need);$("gDes").hidden=!$("iNeed").checked;
@@ -940,7 +982,7 @@ function openForm(it,date,preset){
   MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
   $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkTarget").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
   if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
-  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();
+  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadGalLog();
   $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
@@ -990,7 +1032,9 @@ const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
   program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
   reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
-  copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value]))});
+  copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
+  // rencana galeri: isian sendiri menggantikan partner / tempat / tanggal selesai / regional / cabang
+  ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value}:{})});
 // konflik: kegiatan sudah diubah orang lain sejak form dibuka -> pilih muat versi terbaru atau tetap simpan versi sendiri
 function showConflict(err){
   const d=err.data||{};showErr("dlgErr",err);
@@ -1070,10 +1114,11 @@ const KEG=["edukasi","artikel","konten","program","cabang"];
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=t!=="keg"||!BR.length;
+  $("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
   $("rHelp").innerHTML=(t==="mon"?"Monthly Report: ringkasan, lalu per tim (role pekerjaan) hasil program, kegiatan kalender, dan pekerjaan harian anggotanya."
+    :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
     :"Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan."+(BR.length?" Memilih regional / cabang membuat laporan hanya berisi kegiatan cabang di sana.":""))+pdf;
 }
@@ -1081,9 +1126,9 @@ $("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(
 function openRep(){
   $("rFrom").value=cur;$("rTo").value=monthEnd(cur);
   $("rProg").innerHTML='<option value="">Semua program di periode ini</option>'+PROGS.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");
-  // tim regional: hanya laporan Kegiatan (kegiatan cabang), bawaannya semua orang di regionalnya sendiri
-  [...$("rType").children].forEach(b=>b.hidden=!!PL.me.reg&&b.dataset.t!=="keg");
-  setRT(PL.me.role==="partnership"?"prog":"keg");
+  // tim regional: laporan Kegiatan (kegiatan cabang) & Kerja sama galeri, bawaannya semua orang di regionalnya sendiri
+  [...$("rType").children].forEach(b=>b.hidden=!!PL.me.reg&&b.dataset.t!=="keg"&&b.dataset.t!=="gal");
+  setRT(PL.me.role==="partnership"?"prog":PL.me.role==="galeri"&&RT==="gal"?"gal":"keg");
   $("rWho").innerHTML=`<option value="">Semua orang</option>`+USERS.map(u=>`<option value="${esc(u.email)}">${esc(u.name)}${u.role?" · "+esc(PL.roles[u.role]):""}</option>`).join("");
   $("rWho").value=PL.me.reg?"":PL.me.role&&PL.me.role!=="lain"&&!PL.me.adm?PL.me.email:"";
   const myR=regionOf(PL.me.branch);$("rBr").innerHTML=brOpts("Semua (tanpa filter)");$("rBr").value=PL.me.reg&&myR?"r:"+myR:"";
@@ -1194,7 +1239,7 @@ const PCOLS={
 };
 const progInfo=p=>[["Partner",p.partner||"–"],["Jenis",p.channel||"–"],["Periode",perOf(p)],["Status",STL[p.status]||p.status],["PIC",p.owner||"–"],["Tujuan",p.goal||"–"],["Target",p.target||"–"],["Catatan hasil",p.result_note||"–"]];
 /* ---------- tahap kegiatan di laporan: tiap jenis punya alur status sendiri, diringkas jadi selesai / berjalan / rencana / batal ---------- */
-const STAGE={terbit:"selesai",selesai:"selesai",draf:"berjalan",review:"berjalan",konfirmasi:"berjalan",berjalan:"berjalan",ide:"rencana",rencana:"rencana",batal:"batal"};
+const STAGE={terbit:"selesai",selesai:"selesai",resmi:"selesai",draf:"berjalan",review:"berjalan",konfirmasi:"berjalan",berjalan:"berjalan",proposal:"berjalan",negosiasi:"berjalan",mou:"berjalan",ide:"rencana",rencana:"rencana",penjajakan:"rencana",batal:"batal"};
 const stageOf=i=>STAGE[i.status]||"rencana";
 const dStage=i=>i.d_status==="selesai"?"selesai":i.d_status==="proses"||i.d_status==="revisi"?"berjalan":"rencana";
 const stageSum=(L,f=stageOf)=>{const c=s=>L.filter(i=>f(i)===s).length;return ["selesai","berjalan","rencana"].map(s=>c(s)?`${c(s)} ${s}`:"").filter(Boolean).join(" · ")||"belum ada"};
@@ -1204,10 +1249,51 @@ const stLate=i=>(STL[i.status]||i.status||"–")+(stageOf(i)==="berjalan"&&kindO
 // progres terakhir = pekerjaan harian terakhir yang dikaitkan ke kegiatan ini
 const lastLog=(logs,id)=>{const L=logs.filter(l=>l.item_id===id);if(!L.length)return "Belum ada pekerjaan harian yang dikaitkan";
   const l=L[L.length-1];return `${fmtShort(l.date)} · ${l.name||nameOf(l.email)||l.email}: ${l.text}${l.note?` (${l.note})`:""}${L.length>1?` · ${L.length} catatan`:""}`};
-// kegiatan cabang tidak dikaitkan ke pekerjaan harian (tim regional tidak mengisinya): kolom terakhir = catatannya
-const runBlock=(L,logs,pic,st)=>{const cb=i=>kindOf(i)==="cabang",all=L.every(cb);
-  return {t:"table",h3:`Sedang berjalan (${L.length})`,cols:[["Tanggal / periode",14],["Kegiatan",25],["PIC",13],["Status",11],[all?"Catatan":"Progres terakhir (pekerjaan harian)",37]],
-  rows:[...L].sort((a,b)=>a.date.localeCompare(b.date)).map(i=>[perI(i),`${ICON[kindOf(i)]||""} ${i.title}`,pic(i),st(i),cb(i)?[i.branch,i.note].filter(Boolean).join(" · ")||"–":lastLog(logs,i.id)]),empty:"Tidak ada kegiatan yang sedang berjalan."}};
+// kegiatan tim regional tidak dikaitkan ke pekerjaan harian: kolom terakhir = catatan (kegiatan cabang) atau update progres terakhir (rencana galeri)
+const runBlock=(L,logs,pic,st)=>{const all=L.every(i=>REGK.includes(kindOf(i)));
+  const last=i=>kindOf(i)==="cabang"?[i.branch,i.note].filter(Boolean).join(" · ")||"–":kindOf(i)==="galeri"?galLast(i):lastLog(logs,i.id);
+  return {t:"table",h3:`Sedang berjalan (${L.length})`,cols:[["Tanggal / periode",14],["Kegiatan",25],["PIC",13],["Status",11],[all?"Catatan / progres terakhir":"Progres terakhir (pekerjaan harian)",37]],
+  rows:[...L].sort((a,b)=>a.date.localeCompare(b.date)).map(i=>[perI(i),`${ICON[kindOf(i)]||""} ${i.title}`,pic(i),st(i),last(i)]),empty:"Tidak ada kegiatan yang sedang berjalan."}};
+/* ---------- laporan kerja sama galeri baru ---------- */
+const GAL_FLOW=["penjajakan","proposal","negosiasi","mou","resmi"],GAL_END=["resmi","batal"];
+// tanggal rencana mencapai tahap akhirnya (riwayat terakhir dengan tahap itu; data lama: waktu terakhir diubah)
+const galEndDay=i=>{const l=(i.log||[]).filter(x=>x.st===i.status).slice(-1)[0];return dayOf((l&&l.at)||i.updated_at||i.date+"T00:00:00Z")};
+// ikut periode: sudah mulai sebelum akhir periode, dan masih berproses atau baru selesai / batal di dalam periode
+const galIn=(i,from,to)=>i.date<=to&&(!GAL_END.includes(i.status)||galEndDay(i)>=from);
+const galLog=(i,from,to)=>(i.log||[]).filter(l=>{const d=dayOf(l.at);return d>=from&&d<=to});
+const galLast=i=>{const l=(i.log||[]).filter(x=>x.text).slice(-1)[0];return l?`${fmtShort(dayOf(l.at))} · ${l.by||"–"}: ${l.text}`:"Belum ada update progres"};
+const galSt=i=>(GSL[i.status]||i.status)+(!GAL_END.includes(i.status)&&i.end_date&&i.end_date<todayIso()?" · lewat target":"");
+// filter regional / cabang: rencana galeri ikut regionalnya; "c:" = cabang pendampingnya; "t:" tidak menyaring
+const galBr=(i,f)=>!f||f.startsWith("t:")||(f.startsWith("r:")?i.region===f.slice(2):i.branch===f.slice(2));
+function galKpis(L,from,to,h3){
+  const open=L.filter(i=>!GAL_END.includes(i.status)),c=s=>L.filter(i=>i.status===s).length,U=L.flatMap(i=>galLog(i,from,to)),late=open.filter(i=>i.end_date&&i.end_date<todayIso()).length;
+  return {t:"kpis",h3:h3||"Rencana galeri baru",items:[["Rencana galeri",int(L.length),`${new Set(L.map(i=>i.region)).size} regional${c("batal")?` · ${c("batal")} batal`:""}`],
+    ["Masih berproses",int(open.length),`${c("penjajakan")} penjajakan · ${c("proposal")} proposal · ${c("negosiasi")} negosiasi`],
+    ["MoU & diresmikan",int(c("mou")+c("resmi")),`${c("mou")} MoU · ${c("resmi")} diresmikan`],
+    ["Update progres",int(U.length),`${new Set(L.filter(i=>galLog(i,from,to).length).map(i=>i.id)).size} galeri diperbarui${late?` · ${late} lewat target`:""}`]]};
+}
+async function galData(){
+  const from=$("rFrom").value,to=$("rTo").value;
+  if(!from||!to||from>to)throw new Error("Periode belum benar.");
+  const who=$("rWho").value,br=$("rBrF").hidden?"":$("rBr").value,all=await api("/api/galeri");
+  const L=all.filter(i=>galIn(i,from,to)&&(!who||i.owner_email===who)&&galBr(i,br));
+  if(!L.length)throw new Error("Belum ada rencana galeri baru pada periode ini"+(br&&!br.startsWith("t:")?" di "+brLabel(br):"")+(who?" untuk orang ini":"")+".");
+  const u=USERS.find(x=>x.email===who);
+  const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
+  return {from,to,per,who:[br.startsWith("t:")?"":brLabel(br),u?u.name:"Semua anggota"].filter(Boolean).join(" · "),L};
+}
+function galDoc(R){
+  const L=[...R.L].sort((a,b)=>(a.region||"").localeCompare(b.region||"")||GAL_FLOW.indexOf(b.status)-GAL_FLOW.indexOf(a.status)||a.date.localeCompare(b.date));
+  const S=[...GAL_FLOW,"batal"],Rg=[...new Set(L.map(i=>i.region||"–"))].sort(),cnt=(X,s)=>String(X.filter(i=>i.status===s).length);
+  const U=L.filter(i=>galLog(i,R.from,R.to).length);
+  return {div:R.div,per:R.per,blocks:[{t:"cover",lines:["Laporan Kerja Sama Galeri",R.per],sub:[R.div,R.who].join(" · ")},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.who}`},galKpis(L,R.from,R.to,""),
+    {t:"table",h3:"Tahap per regional",cols:[["Regional",22],...S.map(s=>[STL[s],13,1])],rows:[...Rg.map(r=>{const X=L.filter(i=>(i.region||"–")===r);return [r,...S.map(s=>cnt(X,s))]}),...(Rg.length>1?[["Total",...S.map(s=>cnt(L,s))]]:[])]},
+    {t:"table",h3:`Daftar rencana galeri (${L.length})`,cols:[["Galeri (rencana)",19],["Mitra · kota",16],["Regional",11],["PIC",11],["Tahap",12],["Mulai",9],["Target resmi",9],["Update terakhir",13]],
+      rows:L.map(i=>[`${ICON.galeri} ${i.title}`,[i.partner,i.place].filter(Boolean).join(" · ")||"–",i.region||"–",i.owner||"–",galSt(i),fmtShort(i.date),i.end_date?fmtShort(i.end_date):"–",galLast(i)])},
+    {t:"page",h2:"Update progres",sub:`${R.per} · ${U.length} galeri diperbarui`},
+    {t:"table",h3:`Update progres periode ini (${U.reduce((a,i)=>a+galLog(i,R.from,R.to).length,0)})`,cols:[["Tanggal",11],["Tahap",15],["Update",56],["Oleh",18]],empty:"Belum ada update progres pada periode ini.",
+      rows:U.flatMap(i=>[{grp:[i.title,i.region,i.partner].filter(Boolean).join(" · ")},...galLog(i,R.from,R.to).map(l=>[fmtShort(dayOf(l.at)),GSL[l.st]||l.st,l.text||(l===i.log[0]?"Rencana dicatat":"Pindah ke tahap "+(GSL[l.st]||l.st)),l.by||"–"])])}]};
+}
 /* ---------- Template laporan divisi (PDF & PPT): halaman 16:9, logo + "Divisi Report | periode" + garis hijau di kepala,
    sampul judul besar. Isi tiap laporan disusun sekali sebagai daftar blok, lalu digambar ke PDF (pdfDoc) atau PPT (pptDoc):
      {t:"cover",lines,sub} · {t:"page",h2,sub} (halaman baru) · {t:"kpis",h3?,items:[[judul,nilai,keterangan]]}
@@ -1303,7 +1389,9 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const [its,logs,wa]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[])]);
+  const [its0,logs,wa,gal]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]),api("/api/galeri").catch(()=>[])]);
+  // rencana galeri: yang masih berproses di periode ini (walau mulai lebih awal), lengkap dengan riwayat progresnya
+  const its=[...its0.filter(i=>kindOf(i)!=="galeri"),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to))];
   const order=Object.keys(PL.roles),T={};
   const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[]};
   (Array.isArray(wa)?wa:[]).forEach(w=>{const t=team(teamOf(w.job,w.email));t.wa.push(w);if(!t.members.has(w.email))t.members.set(w.email,w.name||nameOf(w.email)||w.email)});
@@ -1337,6 +1425,7 @@ function monDoc(R){
     {t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.teams.length} tim · ${members} anggota`},{t:"kpis",items:mrKpis(R.logs,allItems,"",members)},
     ...(R.teams.some(t=>t.wa.length)?[waKpis(R.teams.flatMap(t=>t.wa))]:[]),
     ...(allItems.some(i=>kindOf(i)==="cabang")?[cabKpis(allItems.filter(i=>kindOf(i)==="cabang"))]:[]),
+    ...(allItems.some(i=>kindOf(i)==="galeri")?[galKpis(allItems.filter(i=>kindOf(i)==="galeri"),R.from,R.to)]:[]),
     {t:"table",h3:"Per tim",cols:[["Tim",22],["Anggota",8,1],["Pekerjaan harian",11,1],["Selesai",8,1],["Berjalan",8,1],["Kendala",8,1],["Kegiatan kalender",12,1],["Keg. selesai",11,1],["Keg. berjalan",12,1]],
       rows:R.teams.map(t=>{const c=s=>t.logs.filter(l=>l.status===s).length,g=s=>t.items.filter(i=>mrStage(i,t.key)===s).length;
         return [t.name,t.members.size,t.logs.length,c("selesai"),c("berjalan"),c("kendala"),t.items.filter(i=>mrStage(i,t.key)!=="batal").length,g("selesai"),g("berjalan")].map(String)})},
@@ -1344,14 +1433,15 @@ function monDoc(R){
       rows:kd.map(l=>[fmtShort(l.date),PL.roles[teamOf(l.job,l.email)]||"Lainnya",l.name||nameOf(l.email),l.text,l.note||"–"]),empty:"Tidak ada kendala yang tercatat pada periode ini."}];
   // per tim: (hasil program) lalu kegiatan kalender lalu pekerjaan harian per orang
   for(const t of R.teams){
-    // tim yang hanya punya kegiatan cabang (tim regional, tanpa pekerjaan harian): langsung ke hasil kegiatan cabang
-    const cabOnly=!t.logs.length&&!t.wa.length&&t.items.every(i=>kindOf(i)==="cabang");
+    // tim yang hanya punya kegiatan cabang / rencana galeri (tim regional, tanpa pekerjaan harian): langsung ke hasilnya
+    const cabOnly=!t.logs.length&&!t.wa.length&&t.items.every(i=>REGK.includes(kindOf(i)));
     Bk.push({t:"page",h2:`Tim ${t.name}`,sub:"Anggota: "+([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")},...(cabOnly?[]:[{t:"kpis",items:mrKpis(t.logs,t.items,t.key,t.members.size)}]));
     // posting WA Channel tim ini: total & per jenis, lalu per orang
     if(t.wa.length){Bk.push(waKpis(t.wa));if(new Set(t.wa.map(w=>w.email)).size>1)Bk.push(waTable(t.wa,"Posting WA Channel per orang"))}
     // kegiatan cabang tim ini (tim regional): hasil & rekap per cabang; rinciannya tetap di tabel kegiatan kalender
     const cab=t.items.filter(i=>kindOf(i)==="cabang"&&mrOwn(i,t.key));
     if(cab.length){Bk.push(cabKpis(cab));if(new Set(cab.map(i=>i.branch)).size>1)Bk.push(cabRekap(cab))}
+    const gal=t.items.filter(i=>kindOf(i)==="galeri"&&mrOwn(i,t.key));if(gal.length)Bk.push(galKpis(gal,R.from,R.to));
     const byDate=(a,b)=>a.date.localeCompare(b.date),progs=t.items.filter(i=>kindOf(i)==="program").sort(byDate);
     // yang masih berjalan dilaporkan tersendiri dengan progres terakhirnya; tabel kegiatan kalender memuat sisanya
     const run=t.items.filter(i=>mrStage(i,t.key)==="berjalan"),others=t.items.filter(i=>kindOf(i)!=="program"&&mrStage(i,t.key)!=="berjalan").sort(byDate);
@@ -1365,7 +1455,7 @@ function monDoc(R){
     if(run.length)Bk.push(runBlock(run,R.logs,i=>mrOwn(i,t.key)?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",i=>mrOwn(i,t.key)?stLate(i):"Visual: "+(DSL[i.d_status]||"–")));
     if(others.length||!(progs.length||run.length))Bk.push({t:"table",h3:`${progs.length||run.length?"Kegiatan kalender lainnya":"Project & kegiatan kalender"} (${others.length})`,cols:[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
       rows:others.map(i=>{const own=mrOwn(i,t.key),res=own&&i.result_num!=null&&i.result_num!==""?int(i.result_num):"",href=own?i.link:i.d_link;
-        return [fmtShort(i.date),`${ICON[kindOf(i)]||""} ${i.title}`,[(K[kindOf(i)]||{}).label,i.channel,i.branch].filter(Boolean).join(" · "),own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",
+        return [fmtShort(i.date),`${ICON[kindOf(i)]||""} ${i.title}`,[(K[kindOf(i)]||{}).label,i.channel,whereOf(i)].filter(Boolean).join(" · "),own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",
           own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"),href?{t:res,href}:res||"–"]}),empty:"Tidak ada kegiatan kalender tim ini pada periode ini."});
     const byP={};t.logs.forEach(l=>(byP[l.email]=byP[l.email]||[]).push(l));
     if(!cabOnly)Bk.push({t:"table",h3:`Pekerjaan harian (${t.logs.length})`,cols:[["Tanggal",10],["Pekerjaan",36],["Kegiatan terkait",22],["Status",10],["Catatan / kendala",22]],empty:"Belum ada pekerjaan harian yang dicatat tim ini.",
@@ -1515,7 +1605,7 @@ function mrPrint(html,name,tab){
   addEventListener("afterprint",done);window.print();setTimeout(()=>{if(document.body.classList.contains("mrprint"))done()},1500);
 }
 // jenis laporan -> data, isi (blok), nama file
-const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
+const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
 const repDiv=()=>{const d=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",d);return d};
 const repFile=(X,R)=>`${X.name.replace(/\s+/g,"-")}-${R.from}_${R.to}`;
 $("rPdf").onclick=async()=>{

@@ -34,7 +34,7 @@ import { title, profileScript, appUrl, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
-import { JOBS, canAssign, isRegional } from "../../shared/jobs.js";
+import { JOBS, canAssign, isRegional, branchType } from "../../shared/jobs.js";
 import { complianceScript } from "../../shared/compliance.js";
 import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
 import PAGE from "./page.html";
@@ -98,7 +98,14 @@ export const KINDS = {
   program: { label: "Program partnership", channels: ["Manajer investasi (AM)", "APERD / agen penjual", "Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
   // dicatat tim regional (sales & pengelola galeri investasi): acara di cabang / galeri, dengan cabang (+ regionalnya) dari daftar Tool Hub
   cabang: { label: "Kegiatan cabang", channels: ["Gathering nasabah", "Edukasi / seminar", "Open booth / pameran", "Kunjungan korporasi / komunitas", "Sosialisasi produk", "Kunjungan kampus / sekolah", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
+  // rencana galeri investasi baru bersama mitra (pengelola galeri / sales): tahap demi tahap, tiap update progres tercatat di riwayat (comments, kind "progres:<tahap>")
+  galeri: { label: "Kerja sama galeri baru", channels: ["Kampus / universitas", "Sekolah", "Komunitas", "Korporasi", "Pemerintah daerah", "Lainnya"], statuses: ["penjajakan", "proposal", "negosiasi", "mou", "resmi", "batal"] },
 };
+/** Jenis kegiatan yang dilihat & dicatat tim regional. */
+export const REG_KINDS = ["cabang", "galeri"];
+const REG_SQL = "kind IN ('cabang', 'galeri')";
+// rencana galeri yang sudah sampai tahap ini diusulkan ke admin Tool Hub untuk masuk ke daftar cabang / galeri
+const GAL_DONE = ["mou", "resmi"];
 // kanal / jenis di luar pilihan boleh ditulis sendiri (pilih "Lainnya" di form); kosong -> "Lainnya"
 export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
 export const DESIGN_STATUSES = ["belum", "proses", "revisi", "selesai"];
@@ -204,6 +211,14 @@ export function cleanItem(b) {
     if (!it.branch) return { error: "Cabang / galeri belum dipilih." };
     for (const k of PROGRAM_NUMS) it[k] = numOf(b[k]);
   }
+  // rencana galeri: mitra, kota, regional (wajib; dicek saveItem terhadap daftar), cabang pendamping (opsional), target peresmian
+  if (kind === "galeri") {
+    it.partner = s(b.partner, 120); it.place = s(b.place, 160); it.region = s(b.region, 60); it.branch = s(b.branch, 60);
+    if (!it.region) return { error: "Regional belum dipilih." };
+    const end = s(b.end_date, 10);
+    it.end_date = ISO.test(end) && end >= it.date ? end : "";
+    it.program_id = ""; it.d_need = 0;
+  }
   if (kind === "program") {
     // program tidak bisa menjadi bagian dari program lain; pekerjaan untuk orang lain lewat tugas, bukan permintaan visual
     it.program_id = ""; it.d_need = 0;
@@ -227,8 +242,8 @@ const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) A
 async function listItems(env, from, to, overlap, reg) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to)) return [];
-  // tim regional hanya melihat kegiatan cabang
-  const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ?${reg ? " AND kind = 'cabang'" : ""} ORDER BY date, time, created_at`).bind(from, to).all()).results;
+  // tim regional hanya melihat kegiatan cabang & rencana galeri
+  const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ?${reg ? " AND " + REG_SQL : ""} ORDER BY date, time, created_at`).bind(from, to).all()).results;
   if (!overlap || reg) return L;
   const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date`).bind(from, from).all()).results;
   return [...run, ...L];
@@ -239,11 +254,11 @@ async function designItems(env, from, to) {
   return (await env.DB.prepare("SELECT * FROM items WHERE d_need = 1 AND (COALESCE(d_status, 'belum') <> 'selesai' OR COALESCE(d_due, date) BETWEEN ? AND ?) ORDER BY COALESCE(d_due, date), created_at LIMIT 500")
     .bind(ISO.test(from) ? from : "0000-00-00", ISO.test(to) ? to : "9999-12-31").all()).results;
 }
-/** Daftar regional & cabang [{ r, c }] yang dikirim Tool Hub (kosong = belum diatur: cabang boleh diketik bebas). */
+/** Daftar regional & cabang / galeri [{ r, c, t }] yang dikirim Tool Hub (kosong = belum diatur: cabang boleh diketik bebas). */
 export async function branches(env) {
   await ensure(env);
   const r = await env.DB.prepare("SELECT v FROM cfg WHERE k = 'branches'").first();
-  try { const L = JSON.parse((r && r.v) || "[]"); return Array.isArray(L) ? L : []; } catch { return []; }
+  try { const L = JSON.parse((r && r.v) || "[]"); return Array.isArray(L) ? L.map((x) => ({ ...x, t: x.t === "galeri" || x.t === "cabang" ? x.t : branchType(x.c) })) : []; } catch { return []; }
 }
 async function saveItem(env, me, b) {
   await ensure(env);
@@ -254,7 +269,7 @@ async function saveItem(env, me, b) {
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
   const job = await jobOf(env, me);
   if (isRegional(job, me.adm)) {
-    if (it.kind !== "cabang" || (prev && prev.kind !== "cabang")) return { error: "Tim regional hanya bisa mencatat kegiatan cabang." };
+    if (!REG_KINDS.includes(it.kind) || (prev && !REG_KINDS.includes(prev.kind))) return { error: "Tim regional hanya bisa mencatat kegiatan cabang dan rencana galeri baru." };
     it.program_id = ""; it.d_need = 0;   // program & permintaan visual tidak terlihat oleh tim regional
   }
   if (it.kind === "cabang") {
@@ -263,6 +278,14 @@ async function saveItem(env, me, b) {
     if (hit) { it.branch = hit.c; it.region = hit.r; }
     else if (kept) it.region = prev.region || "";
     else if (B.length) return { error: "Cabang “" + it.branch + "” tidak ada di daftar. Pilih dari daftar, atau minta admin Tool Hub menambahkannya." };
+  }
+  if (it.kind === "galeri") {
+    // regional dari daftar (galeri barunya sendiri belum ada di daftar); cabang pendamping boleh kosong
+    const B = await branches(env), reg = B.find((x) => lower(x.r) === lower(it.region)), hit = it.branch && B.find((x) => lower(x.c) === lower(it.branch));
+    if (reg) it.region = reg.r;
+    else if (B.length && !(prev && prev.region === it.region)) return { error: "Regional “" + it.region + "” tidak ada di daftar. Pilih dari daftar, atau minta admin Tool Hub menambahkannya." };
+    if (hit) it.branch = hit.c;
+    else if (it.branch && B.length && !(prev && prev.branch === it.branch)) return { error: "Cabang pendamping “" + it.branch + "” tidak ada di daftar." };
   }
   const vals = EDIT.map((k) => it[k] ?? null);
   // updated_at selalu naik (juga bila dua simpanan jatuh di milidetik yang sama), supaya cek base di bawah tidak terlewat
@@ -285,6 +308,10 @@ async function saveItem(env, me, b) {
     const cols = ["id", ...EDIT, ...SERVER_COLS, "created_by", "created_email", "created_at", "updated_by", "updated_at"];
     await env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(id, ...vals, ...svals, by, meE, now, by, now).run();
   }
+  // rencana galeri: tiap pindah tahap atau ada update progres -> satu baris riwayat (tahap saat itu + catatannya)
+  const upd = String(b.progress ?? "").trim().slice(0, 1000);
+  if (it.kind === "galeri" && (upd || !prev || prev.status !== it.status))
+    await env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(id, now, by, meE, "progres:" + it.status, upd).run();
   await notify(env, [...itemNotifs(prev, it, id, meE, by), ...ap.notifs.map((n) => ({ ...n, item_id: id }))]).catch((e) => console.error("notify:", e.message));
   return { id };
 }
@@ -512,6 +539,22 @@ export async function seen(env, p) {
     + "role = CASE WHEN excluded.active = 1 THEN COALESCE(excluded.role, role) ELSE NULL END, active = CASE WHEN excluded.active = 1 THEN active ELSE 0 END, branch = COALESCE(NULLIF(excluded.branch, ''), branch)")
     .bind(email, String(p.n || p.u || email).slice(0, 60), job, new Date().toISOString(), member, String(p.c || "").slice(0, 60)).run();
 }
+/** Rencana galeri (semua tanggal, paling banyak 500) + riwayat progresnya [{ at, by, st, text }], urut regional lalu tanggal mulai. id = satu rencana saja. */
+async function galleries(env, id) {
+  await ensure(env);
+  const L = (await env.DB.prepare(`SELECT * FROM items WHERE kind = 'galeri'${id ? " AND id = ?" : ""} ORDER BY region, date LIMIT 500`).bind(...(id ? [String(id)] : [])).all()).results;
+  if (!L.length) return [];
+  const C = (await env.DB.prepare(`SELECT item_id, at, by_name, kind, text FROM comments WHERE kind LIKE 'progres:%' AND item_id IN (${L.map(() => "?").join(",")}) ORDER BY id`).bind(...L.map((i) => i.id)).all()).results;
+  const by = {}; C.forEach((c) => (by[c.item_id] = by[c.item_id] || []).push({ at: c.at, by: c.by_name, st: c.kind.slice(8), text: c.text || "" }));
+  return L.map((i) => ({ ...i, log: by[i.id] || [] }));
+}
+/** GET /__hub/galeri (Tool Hub, halaman admin): rencana galeri yang sudah MoU / diresmikan tapi namanya belum ada di daftar cabang / galeri. */
+async function galleryProposals(env) {
+  await ensure(env);
+  const B = new Set((await branches(env)).map((x) => lower(x.c)));
+  const L = (await env.DB.prepare(`SELECT id, title, region, place, partner, status, owner, created_by FROM items WHERE kind = 'galeri' AND status IN (${GAL_DONE.map(() => "?").join(",")}) ORDER BY region, title LIMIT 100`).bind(...GAL_DONE).all()).results;
+  return L.filter((i) => i.region && !B.has(lower(i.title))).map((i) => ({ id: i.id, r: i.region, c: i.title, city: i.place || "", partner: i.partner || "", status: i.status, by: i.owner || i.created_by || "" }));
+}
 async function users(env) {
   await ensure(env);
   return (await env.DB.prepare("SELECT email, name, role, COALESCE(branch, '') AS branch FROM users WHERE COALESCE(active, 1) = 1 ORDER BY name").all()).results;
@@ -523,7 +566,7 @@ async function syncUsers(env, list, brs) {
   const L = (Array.isArray(list) ? list : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: JOBS[u && u.job] ? u.job : null, branch: String((u && u.branch) || "").slice(0, 60) }))
     .filter((u) => EMAIL.test(u.email)).slice(0, 500);
   if (!L.length) return { error: "Daftar anggota kosong." };   // jangan sampai semua anggota hilang karena kiriman yang keliru
-  const B = Array.isArray(brs) ? brs.map((x) => ({ r: String((x && x.r) || "").slice(0, 60), c: String((x && x.c) || "").slice(0, 60) })).filter((x) => x.r && x.c).slice(0, 300) : null;
+  const B = Array.isArray(brs) ? brs.map((x) => ({ r: String((x && x.r) || "").slice(0, 60), c: String((x && x.c) || "").slice(0, 60), t: x && (x.t === "galeri" || x.t === "cabang") ? x.t : branchType(x && x.c) })).filter((x) => x.r && x.c).slice(0, 300) : null;
   await env.DB.batch([env.DB.prepare("UPDATE users SET active = 0"), ...L.map((u) => env.DB.prepare("INSERT INTO users (email, name, role, active, branch) VALUES (?, ?, ?, 1, ?) ON CONFLICT(email) DO UPDATE SET name = CASE WHEN excluded.name <> '' THEN excluded.name ELSE name END, role = COALESCE(excluded.role, role), active = 1, branch = excluded.branch").bind(u.email, u.name || u.email, u.job, u.branch)),
     ...(B ? [env.DB.prepare("INSERT INTO cfg (k, v) VALUES ('branches', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify(B))] : [])]);
   return { ok: true, n: L.length };
@@ -760,9 +803,9 @@ async function hubToday(env, email) {
   const today = wib(), until = addDays(today, 6), me = EMAIL.test(email) ? email.toLowerCase() : "";
   const cols = "id, kind, date, time, title, channel, status, owner, d_due, d_status";
   const done = "('terbit', 'selesai', 'batal')";
-  // "kegiatan tim hari ini": tim regional melihat kegiatan cabang saja, tim pusat tanpa kegiatan cabang
+  // "kegiatan tim hari ini": tim regional melihat kegiatan cabang & rencana galeri saja, tim pusat tanpa keduanya
   const u = me ? await env.DB.prepare("SELECT role FROM users WHERE email = ?").bind(me).first() : null;
-  const scope = isRegional(u && u.role, false) ? "kind = 'cabang'" : "COALESCE(kind, '') <> 'cabang'";
+  const scope = isRegional(u && u.role, false) ? REG_SQL : "COALESCE(kind, '') NOT IN ('cabang', 'galeri')";
   const [team, mine, design, tasks] = await Promise.all([
     env.DB.prepare(`SELECT ${cols} FROM items WHERE date = ? AND ${scope} ORDER BY time, created_at LIMIT 20`).bind(today).all(),
     me ? env.DB.prepare(`SELECT ${cols} FROM items WHERE owner_email = ? AND date BETWEEN ? AND ? AND COALESCE(status, '') NOT IN ${done} ORDER BY date, time LIMIT 20`).bind(me, today, until).all() : null,
@@ -906,21 +949,22 @@ async function page(env, me, mode) {
   const [job, gl, B, u] = await Promise.all([jobOf(env, me), mode === "kalender" ? glossary(env) : [], branches(env),
     env.DB.prepare("SELECT branch FROM users WHERE email = ?").bind(lower(me.e)).first().catch(() => null)]);
   const etf = (profile(env).tools || {}).etf || {}, reg = isRegional(job, me.adm);
-  // tim regional: hanya jenis "Kegiatan cabang" (tanpa paket mingguan, tugas, harian, performa)
+  // tim regional: hanya "Kegiatan cabang" & "Kerja sama galeri baru" (tanpa paket mingguan, tugas, harian, performa)
   const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm), reg, branch: (u && u.branch) || me.c || "" },
-    branches: B, kinds: reg ? { cabang: KINDS.cabang } : KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
+    branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
 // API yang boleh dipakai tim regional; selebihnya kosong (GET) atau ditolak
-const REG_GET = ["/api/items", "/api/users", "/api/moments"], REG_POST = ["/api/items", "/api/items/delete"];
+const REG_GET = ["/api/items", "/api/users", "/api/moments", "/api/galeri"], REG_POST = ["/api/items", "/api/items/delete"];
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
     if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get("email") || "")) : new Response("forbidden", { status: 403 });
+    if (path === "/__hub/galeri") return hubFeedAllowed(request, env) ? json(await galleryProposals(env)) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/members") return hubFeedAllowed(request, env) ? json(await users(env)) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/item") {
       // atas nama orang yang menekan tombol di tool asal: dia jadi pembuat kegiatan, dan notifikasi (mis. ke desainer) tetap jalan
@@ -951,7 +995,7 @@ export default {
       });
     }
     try {
-      // tim regional: hanya kalender kegiatan cabang (lihat, tambah, ubah, hapus milik sendiri) + daftar anggota & momen
+      // tim regional: hanya kalender kegiatan cabang & rencana galeri (lihat, tambah, ubah, hapus milik sendiri) + daftar anggota & momen
       const reg = isRegional(await jobOf(env, me), me.adm);
       if (reg && !(request.method === "GET" ? REG_GET : REG_POST).includes(path))
         return request.method === "GET" && !["/api/weekly", "/api/program-report"].includes(path) ? json([]) : json({ error: "Tidak tersedia untuk tim regional." }, 403);
@@ -960,10 +1004,11 @@ export default {
         if (path === "/api/items" && url.searchParams.get("id")) {
           await ensure(env);
           const it = await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE id=?`).bind(url.searchParams.get("id")).first();
-          return it && !(reg && it.kind !== "cabang") ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
+          return it && !(reg && !REG_KINDS.includes(it.kind)) ? json(it) : json({ error: "Kegiatan ini sudah dihapus." }, 404);
         }
         if (path === "/api/items") return json(await (url.searchParams.has("design") ? (reg ? [] : designItems(env, from, to)) : listItems(env, from, to, url.searchParams.has("overlap"), reg)));
         if (path === "/api/users") return json(await users(env));
+        if (path === "/api/galeri") return json(await galleries(env, url.searchParams.get("id") || ""));
         if (path === "/api/tasks") return json(await listTasks(env, me, { item: url.searchParams.get("item") || "", all: url.searchParams.has("all") }));
         if (path === "/api/programs") return json(await programs(env));
         if (path === "/api/program-report") return json(await programReport(env, from, to, url.searchParams.get("id") || ""));
