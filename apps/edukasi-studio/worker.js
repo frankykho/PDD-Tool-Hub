@@ -22,6 +22,7 @@ import { profile, appUrl } from '../../shared/profile.js';
 import { ai, AiError } from '../../shared/ai.js';
 import { withCron } from '../../shared/cron.js';
 import { HUB_FEED, hubFeedAllowed } from '../../shared/hubfeed.js';
+import { GLASS_CSS } from '../../shared/theme.js';
 
 const APP_ID = 'edukasi';
 // User-Agent bot menyertakan alamat tool ini (dari profil) supaya pemilik situs tahu asalnya
@@ -644,7 +645,7 @@ const setupPage = env => `<!doctype html><html lang="id"><head><meta charset="ut
 function appPage(env, token, me) {
   const boot = JSON.stringify({ token, me: { email: me.e, name: me.n, admin: !!me.adm }, topics: TOPICS }).replace(/</g, '\\u003c'), short = esc(profile(env).brand.short);
   return `<!doctype html><html lang="id" data-theme="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>Edukasi Studio</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f5e4b'/%3E%3Cpath d='M9 22l3-1 10-10-2-2-10 10z' fill='%23fff'/%3E%3C/svg%3E"><style>${CSS}</style></head><body>
+<title>Edukasi Studio</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f5e4b'/%3E%3Cpath d='M9 22l3-1 10-10-2-2-10 10z' fill='%23fff'/%3E%3C/svg%3E"><style>${GLASS_CSS}${CSS}${GLASS}</style></head><body>
 <header class="top"><div><h1>Edukasi Studio</h1><p class="sub">Riset artikel edukasi &rarr; konten orisinal${short ? ' ' + short : ''}</p></div>
 <nav class="tabs" role="tablist"><button data-tab="bank" class="on">Bank Artikel</button><button data-tab="tulis">Tulis</button><button data-tab="draf">Draf</button><button data-tab="sumber">Sumber</button></nav></header>
 <main>
@@ -720,7 +721,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin:12px 
 .meta{font-size:12px;color:var(--mut);margin-top:2px}.ex{font-size:12.5px;color:var(--mut);margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .tag.new{background:#fde68a;color:#78350f}.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--brand2);color:var(--brand);font-weight:600}
 .notes{white-space:pre-wrap;font-size:12.5px;background:var(--bg);border-radius:8px;padding:10px;margin-top:8px}
-.addurl{margin:8px 0 4px;font-size:13px}.addurl summary{cursor:pointer;color:var(--brand);font-weight:600}.addurl .row{margin-top:8px}.addurl select{max-width:180px}.selbar{position:sticky;bottom:12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--brand);border-radius:12px;padding:10px 12px;margin-top:12px;box-shadow:0 8px 24px #0002}.selbar span{flex:1;font-weight:600}
+.addurl{margin:8px 0 4px;font-size:13px}.addurl summary{cursor:pointer;color:var(--brand);font-weight:600}.addurl .row{margin-top:8px}.addurl select{max-width:180px}.selbar{position:sticky;bottom:12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--brand);border-radius:12px;padding:10px 12px;margin-top:12px;box-shadow:0 8px 24px #0002}.selbar[hidden]{display:none}.selbar span{flex:1;font-weight:600}
 .picked{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.pk{display:flex;gap:8px;align-items:center;background:var(--bg);border-radius:8px;padding:7px 9px;font-size:13px}.pk span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pk span.tag{flex:none}.pk button{padding:3px 8px;font-size:12px}
 .hint{font-size:12px;color:var(--mut);margin:8px 0 0}.seg{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:9px}.seg button{flex:1;background:transparent;color:var(--mut);padding:8px}.seg button.on{background:var(--card);color:var(--brand);box-shadow:0 1px 3px #0002}.seg.small{width:max-content;margin:10px 0 8px}.seg.small button{flex:none;padding:5px 12px}
 .prog{margin-top:12px;font-size:13px;color:var(--mut)}.prog div:before{content:"• "}.prog .now{color:var(--brand);font-weight:600}
@@ -737,6 +738,33 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;p
 #addCard input,#addCard select{margin-bottom:8px}#addCard .row{align-items:center}.switch{display:inline-flex;align-items:center;gap:6px;font-size:12px}.switch input{width:auto}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#1f2d26;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw}#toast.on{opacity:1}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}@media(max-width:600px){main{padding:10px}.top{padding:12px}.tabs{width:100%}.tabs button{flex:1;padding:8px 4px;font-size:12px}.row{flex-wrap:wrap}.bar select,.bar input{width:100%}}`;
+
+// Liquid glass (token --hg-* dari GLASS_CSS di shared/theme.js; terang, gelap & "system" ikut data-theme halaman ini).
+// Panel tembus pandang di atas latar gradasi; hasil tulisan, tabel sumber, dan isian tetap di permukaan padat (--hg-solid).
+// Blur hanya untuk yang melayang: header lengket (lewat ::before), bilah pilihan, dan toast. Tidak ada elemen ber-blur yang punya anak position:fixed.
+const G = 'html[data-theme]';
+const GLASS = `
+${G}{background:var(--hg-base)}${G} body{background:transparent}
+${G} body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+${G} .top{top:10px;margin:10px 12px 0;border:0;border-radius:var(--hg-r-lg);background:transparent;isolation:isolate}
+${G} .top::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow)}
+${G} .tabs,${G} .seg{background:var(--hg-glass);box-shadow:inset 0 0 0 1px var(--hg-edge)}
+${G} .tabs button.on,${G} .seg button.on{background:var(--hg-solid);box-shadow:var(--hg-hl),0 1px 3px rgba(0,0,0,.1)}
+${G} .card{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} #outCard,${G} #t-sumber .card{background:var(--hg-solid)}
+${G} .item{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl),0 1px 2px rgba(16,32,22,.04);transition:background-color .2s,box-shadow .2s}
+${G} .item:hover{background:var(--hg-glass-hover);box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} .item.sel{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand),var(--hg-shadow)}
+${G} .chips button:not(.on){background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .chips button:not(.on):not(.ghost),${G} .tab .seg button:not(.ghost){color:var(--mut)}
+${G} .tab .seg button.on:not(.ghost){color:var(--brand)}
+${G} .chips button:not(.on):hover{background:var(--hg-glass-hover)}
+${G} button:not(.ghost):not(.tabs button):not(.seg button):not(.chips button:not(.on)){background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+${G} .bar input,${G} .bar select{border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .selbar{background:var(--hg-float);border-radius:var(--hg-r-lg);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
+${G} #toast{-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-shadow-lg)}
+${G} td,${G} th{border-bottom-color:var(--hg-edge)}
+@media(max-width:600px){${G} .top{margin:8px 8px 0;top:8px}}`;
 
 // Kode browser. Ditulis tanpa backtick dan tanpa "${" supaya aman di dalam template.
 const CLIENT = String.raw`(function(){

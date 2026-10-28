@@ -1,6 +1,44 @@
 // Tema gelap Email Studio (tampilan bawaan terang). Aktif saat Tool Hub memilih tema gelap; lihat shared/theme.js.
 // Preview email (#frame) sengaja tetap putih: itu tampilan asli email di kotak masuk penerima.
 const D = 'html[data-theme="dark"]';
+const G = 'html[data-theme]';
+
+// Liquid glass (token --hg-* dari shared/theme.js, terang & gelap): hanya di dalam Tool Hub. Panel tembus pandang di atas latar gradasi;
+// isian form tetap di permukaan padat (--hg-solid), preview email (#frame) & kode HTML tidak diubah. Blur hanya untuk yang melayang
+// (menu Lainnya, laci Periksa & ekspor); tidak ada elemen ber-blur yang punya anak position:fixed.
+const GLASS = `
+${G}{background:var(--hg-base)}
+${G} body{background:transparent}
+${G} body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+${G} header.top{margin:10px 12px 0;border:0;border-radius:var(--hg-r-lg);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 8px 24px rgba(5,24,15,.16)}
+${G} main{gap:12px;padding:12px}
+${G} .railwrap,${G} .pane{background:var(--hg-glass);border:1px solid var(--hg-edge);border-radius:var(--hg-r-lg);overflow:hidden;box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} .railbar,${G} .bar{background:transparent;border-color:var(--hg-edge)}
+${G} .stage{background:transparent}
+${G} .railtools button,${G} .bar>button:not(.pri),${G} .more summary,${G} .hrow button,${G} .df button:not(.pri),${G} .seg{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+${G} .railtools button:hover,${G} .bar>button:not(.pri):hover,${G} .more summary:hover,${G} .hrow button:hover,${G} .df button:not(.pri):hover{background:var(--hg-glass-hover)}
+${G} .seg{border-radius:9px}
+${G} .seg button:not(.on){background:transparent}
+${G} .seg button.on,${G} .bar .pri,${G} .hb.pri,${G} .df button.pri,${G} summary .tog{background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+${G} .hb.pri{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 14px rgba(57,230,154,.18)}
+${G} .more>div{background:var(--hg-float);border-color:var(--hg-edge);border-radius:var(--hg-r);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
+${G} .tips,${G} .teambar{border-radius:var(--hg-r)}
+${G} #rail details{background:var(--hg-solid);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl),0 1px 2px rgba(16,32,22,.04)}
+${G} #rail details[open]>summary{border-bottom-color:var(--hg-edge)}
+${G} .home{background:var(--hg-mesh)}
+${G} .gallery-hero{margin-top:18px;border-radius:var(--hg-r-lg);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 10px 30px rgba(5,24,15,.16)}
+${G} .cont{border-radius:var(--hg-r-lg);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 8px 24px rgba(15,72,44,.16)}
+${G} .tcard,${G} .hist{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+${G} .tcard{transition:background-color .2s,box-shadow .2s,transform .2s}
+${G} .tcard:hover{background:var(--hg-glass-hover);border-color:var(--hg-edge);transform:translateY(-2px);box-shadow:var(--hg-hl),var(--hg-lift)}
+${G} .hrow{border-top-color:var(--hg-edge)}
+${G} .drawer{background:var(--hg-float);border-left:1px solid var(--hg-edge);border-radius:var(--hg-r-lg) 0 0 var(--hg-r-lg);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
+${G} .dh,${G} .df,${G} .ck{border-color:var(--hg-edge)}
+${G} .veil{background:rgba(6,16,10,.26);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+${D} .veil{background:rgba(0,0,0,.42)}
+@media(max-width:480px){${G} .drawer{border-radius:0}}
+@media(prefers-reduced-motion:reduce){${G} .tcard{transition:none}${G} .tcard:hover{transform:none}}
+`;
 
 export const EMAIL_THEME_CSS = `
 ${D}{color-scheme:dark;--bg:#0F1713;--panel:#16201B;--ink:#E4ECE7;--mut:#9DB0A5;--line:#2A3A31;--brand:#1B6B47;--brand2:#39E69A;--tint:#163024}
@@ -12,6 +50,7 @@ ${D} summary .st.ok{color:#86EFAC;background:#14321F}
 ${D} summary .st.no{color:#FDBA74;background:#3A1E0E}
 ${D} .home{background:var(--bg);color:var(--ink)}
 ${D} .home h2{color:var(--mut)}
+${D} .home .gallery-copy h2{color:#fff}
 ${D} .tcard{background:var(--panel);border-color:var(--line);box-shadow:none}
 ${D} .tcard:before{border-bottom-color:var(--line)}
 ${D} .tcard b{color:var(--ink)}
@@ -44,4 +83,4 @@ ${D} .pane{background:#0C120F}
 ${D} .stage{background:linear-gradient(135deg,#0F1713,#0B110E)}
 ${D} #frame{border-color:var(--line);box-shadow:0 5px 20px rgba(0,0,0,.45)}
 ${D} #xpChecks>p[style]{filter:brightness(1.7)}
-`;
+${GLASS}`;

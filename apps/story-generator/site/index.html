@@ -3890,6 +3890,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 .sf-bar{position:sticky;bottom:-120px;margin:18px -16px -120px;background:#fff;border-top:1px solid var(--border);padding:10px 16px 12px;box-shadow:0 -6px 18px rgba(0,0,0,.06);z-index:20}
 .sf-bar .sf-row{display:flex;gap:8px;align-items:center}.sf-bar .sf-cnt{font-size:12px;color:var(--t2);flex:1}.sf-bar .sf-cnt b{color:var(--t1)}
 .sf-bar button{border:0;border-radius:8px;padding:9px 12px;font:700 12px 'Inter',sans-serif;cursor:pointer;white-space:nowrap}.sf-bar .p{background:var(--blue);color:#fff}.sf-bar .s{background:var(--bg);color:var(--t1);border:1px solid var(--border)}
+/* di HP bar menempel di dasar layar; aturan sticky di atas menimpa versi fixed di blok <style> pertama, jadi diulang di sini */
+@media(max-width:760px){.sf-bar{position:fixed;bottom:0;left:0;right:0;margin:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:16px 16px 0 0}}
 .sf-saved{font-size:11px;color:var(--t3);margin-top:6px}.sf-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;line-height:1.5}.sf-warn span{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.sf-warn button{border:1px solid #fdba74!important;background:#fff!important;color:#9a3412!important;padding:5px 9px!important;font-size:11.5px!important}
 </style>
 <section class="sf-home" id="sfHome" aria-label="Konten hari ini"><div class="sf-in" id="sfHomeIn"></div></section>

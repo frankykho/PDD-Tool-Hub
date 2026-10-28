@@ -15,7 +15,7 @@
 
 import { profile, title, profileScript } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
-import { BOND_THEME_CSS } from "./theme.js";
+import { BOND_THEME_CSS, BOND_GLASS_CSS } from "./theme.js";
 import { newsFor } from "../../shared/news.js";
 import { withCron } from "../../shared/cron.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
@@ -240,7 +240,7 @@ const json = (obj, status = 200, extra = {}) =>
 
 // HTML + judul berawalan brand + window.PROFILE (profil untuk kode klien)
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const html = (env, extra = "") => HTML.replace("<title>Bond Insight</title>", `<title>${esc(title(env, "Bond Insight"))}</title>${profileScript(env)}${themeHead(BOND_THEME_CSS)}${extra}`);
+const html = (env, extra = "") => HTML.replace("<title>Bond Insight</title>", `<title>${esc(title(env, "Bond Insight"))}</title>${profileScript(env)}${themeHead(BOND_THEME_CSS + BOND_GLASS_CSS)}${extra}`);
 
 const page = (env) =>
   new Response(html(env), {

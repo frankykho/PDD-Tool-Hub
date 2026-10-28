@@ -182,6 +182,30 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
   body.mrprint{background:#f7f7f5!important}
   body.mrprint #mrArea{display:block}
 }
+/* ---------- liquid glass (hanya di dalam Tool Hub: html[data-theme] + token --hg-* dari shared/theme.js; hanya layar, cetak/PDF/PPT tidak berubah) ----------
+   Hanya komponen di .wrap & dialog; halaman laporan (.mr-host, #mrArea) di luar keduanya. Kalender, tabel, angka KPI, draf teks,
+   dan kartu tugas tetap di permukaan padat. Blur di dialog (top layer, tanpa anak position:fixed) dan ::backdrop-nya. */
+@media screen{
+html[data-theme]{background:var(--hg-base)}
+html[data-theme] body{background:transparent}
+html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+html[data-theme] .wrap .card,html[data-theme] .wrap .col{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .card:has(table),html[data-theme] .wrap .card.draft,html[data-theme] .wrap .list.card{background:var(--hg-solid)}
+html[data-theme] .wrap .kpi{background:var(--hg-solid);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .task{background:var(--hg-solid);border-color:var(--hg-edge);box-shadow:var(--hg-hl);transition:box-shadow .2s,transform .2s}
+html[data-theme] .wrap .task:hover{transform:translateY(-1px);box-shadow:var(--hg-hl),var(--hg-lift)}
+html[data-theme] .wrap .cal{border-radius:var(--hg-r-lg);box-shadow:var(--hg-shadow)}
+html[data-theme] .wrap .stat{background:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .seg,html[data-theme] dialog .seg{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .btn,html[data-theme] dialog .btn{border-radius:var(--hg-r)}
+html[data-theme] .wrap .btn.sm,html[data-theme] dialog .btn.sm{border-radius:10px}
+html[data-theme] .wrap .btn:not(.pri),html[data-theme] dialog .btn:not(.pri){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .btn:not(.pri):hover,html[data-theme] dialog .btn:not(.pri):hover{background-color:var(--hg-glass-hover);border-color:var(--g)}
+html[data-theme] .wrap .btn.pri,html[data-theme] dialog .btn.pri{background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 14px rgba(11,33,23,.16)}
+html[data-theme] .wrap .f,html[data-theme] dialog .f{background:var(--hg-solid)}
+html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);border-radius:20px;box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow-lg)}
+html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-filter:blur(8px) saturate(140%);backdrop-filter:blur(8px) saturate(140%)}
+}
 </style>
 </head>
 <body>

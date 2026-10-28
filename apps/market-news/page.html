@@ -85,6 +85,27 @@ table.fin td b{font-size:14.5px}table.fin .num{white-space:nowrap}table.fin .num
 details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
 .srcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin-top:8px;font-size:12.5px}
 @media(max-width:760px){.it{grid-template-columns:1fr}.bar h1{font-size:19px}}
+/* ---------- liquid glass (hanya di dalam Tool Hub: html[data-theme] + token --hg-* dari shared/theme.js; tidak berlaku saat cetak) ----------
+   Kartu tembus pandang di atas latar gradasi. Angka pasar, tabel laporan keuangan, dan kolom isian tetap di permukaan padat.
+   Blur hanya di dialog (lapisan melayang; .dlg tidak punya anak position:fixed). Halaman publik /p bukan iframe -> tidak berubah. */
+@media screen{
+html[data-theme]{background:var(--hg-base)}
+html[data-theme] body{background:transparent}
+html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+html[data-theme] .card{background:var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .card.it{transition:background-color .2s,box-shadow .2s}
+html[data-theme] .card.it:hover{background:var(--hg-glass-hover);box-shadow:var(--hg-hl),var(--hg-lift)}
+html[data-theme] .card:has(table.fin){background:var(--hg-solid)}
+html[data-theme] .mk .grid>div{background:var(--hg-solid);border-radius:var(--hg-r);box-shadow:0 0 0 1px var(--hg-edge)}
+html[data-theme] .btn{border-radius:var(--hg-r)}
+html[data-theme] .btn:not(.pri),html[data-theme] .chip:not(.on){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .btn:not(.pri):hover,html[data-theme] .chip:not(.on):hover{background-color:var(--hg-glass-hover);border-color:var(--g)}
+html[data-theme] .btn.pri,html[data-theme] .chip.on{background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 14px rgba(11,33,23,.16)}
+html[data-theme] .fld input,html[data-theme] .fld textarea{background:var(--hg-solid);border-radius:var(--hg-r)}
+html[data-theme] .dlg{background:rgba(6,16,10,.3);-webkit-backdrop-filter:blur(8px) saturate(140%);backdrop-filter:blur(8px) saturate(140%)}
+html[data-theme] .dlg .card{background:var(--hg-float);border-radius:20px;box-shadow:var(--hg-hl),var(--hg-shadow-lg)}
+html[data-theme] .toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)}
+}
 </style>
 </head>
 <body>
