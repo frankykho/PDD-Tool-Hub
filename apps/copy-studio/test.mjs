@@ -73,7 +73,11 @@ assert.equal(prompt("nope", {}), null);
 // What's New: nama fitur atau catatan wajib; langkah kasar tetap per baris; hasil dirapikan (nomor langkah dibuang, paragraf dipisah)
 assert.equal(prompt("wn", { name: " ", notes: "" }), null);
 { const u = prompt("wn", { name: "Auto-invest", steps: "buka menu RD\n\npilih auto-invest", version: "3.12" }).user;
-  assert.match(u, /Nama fitur: Auto-invest/); assert.match(u, /buka menu RD\npilih auto-invest/); assert.match(u, /versi 3\.12/); assert.match(u, /\[nama menu\]/); }
+  assert.match(u, /Nama fitur: Auto-invest/); assert.match(u, /buka menu RD\npilih auto-invest/); assert.match(u, /versi 3\.12/); assert.match(u, /\[nama menu\]/);
+  // gaya bawaan = gabungan product + marketing; "info" = teks informasi tanpa gaya promosi
+  assert.match(u, /gabungan product dan marketing/); assert.doesNotMatch(u, /bukan iklan/);
+  const ui = prompt("wn", { name: "Auto-invest", style: "info" }).user;
+  assert.match(ui, /bukan iklan/); assert.doesNotMatch(ui, /gabungan product dan marketing/); }
 { const r = parse("wn", '{"title":"Auto-invest","short":"Investasi rutin otomatis.","long":"Paragraf satu.\\n\\nParagraf dua.","manual":{"intro":"Begini caranya.","steps":["1. Buka menu Reksa Dana","Langkah 2) Pilih Auto-invest",""],"notes":["Minimal Rp100 ribu"]},"faq":[{"q":"Bisa dihentikan?","a":"Bisa kapan saja."},{"q":"","a":"x"}],"check":["Nama menu"]}');
   assert.deepEqual(r.long, ["Paragraf satu.", "Paragraf dua."]); assert.deepEqual(r.manual.steps, ["Buka menu Reksa Dana", "Pilih Auto-invest"]);
   assert.equal(r.faq.length, 1); assert.deepEqual(r.check, ["Nama menu"]); }

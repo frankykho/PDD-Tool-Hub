@@ -198,7 +198,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       <div class="row"><label class="grow">Letak di aplikasi (opsional)<input type="text" id="wnWhere" maxlength="300" placeholder="Mis. Menu Reksa Dana › Auto-invest"></label></div>
       <div class="row"><label class="grow">Siapa yang bisa memakai (opsional)<input type="text" id="wnWho" maxlength="300" placeholder="Mis. nasabah dengan rekening reksa dana aktif"></label></div>
       <label class="small muted" style="font-weight:600">Langkah pemakaian (opsional): satu langkah per baris, AI merapikannya jadi manual<textarea id="wnSteps" style="min-height:90px" placeholder="Buka menu Reksa Dana&#10;Pilih Auto-invest&#10;Atur nominal dan tanggal"></textarea></label>
-      <div class="row"><label>Nada<select id="wnTone" data-tone></select></label></div>
+      <div class="row"><label>Gaya<select id="wnStyle"><option value="mix">Produk + marketing</option><option value="info">Informasi produk saja</option></select></label><label>Nada<select id="wnTone" data-tone></select></label></div>
       <div class="row"><button class="btn pri" id="wnGo" type="button">Buat What's New</button><span class="muted small">AI hanya memakai fakta dari isian; nama menu yang tidak disebut ditandai [ … ].</span></div>
     </div>
     <div class="card stack" id="wnOut"><div class="empty">Deskripsi singkat, deskripsi lengkap, dan manual muncul di sini. Semuanya bisa diedit sebelum disalin.</div></div>
@@ -358,7 +358,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       ["Tulis <b>Brief</b>: promo, produk, atau berita yang mau diumumkan (sertakan tanggal, angka, dan syaratnya).", "Isi <b>Tujuan</b> bila ada (mis. orang membuka halaman produk).", "Klik <b>Buat teks</b>: keluar 3 push notif dan 3 banner.", "Periksa label panjang tiap judul & isi, lalu <b>Salin</b> yang dipakai dan serahkan ke tim aplikasi."],
       ["Judul push maks. ±40 karakter supaya tidak terpotong di layar kunci.", "Promo wajib menyebut “S&K berlaku”.", "Hindari kata mendesak berlebihan (buruan, kesempatan terakhir)."]],
     wn: ["Menulis What's New untuk fitur baru di aplikasi: judul fitur, deskripsi singkat, deskripsi lengkap, manual langkah demi langkah, dan FAQ, lengkap dengan cek panjang & kepatuhan.",
-      ["Isi <b>Nama fitur</b> dan tempel <b>Catatan rilis / poin fitur</b> dari tim produk atau IT apa adanya.", "Bila ada, isi <b>Letak di aplikasi</b>, <b>Siapa yang bisa memakai</b>, dan <b>Langkah pemakaian</b> (satu langkah per baris) supaya manualnya tepat.", "Klik <b>Buat What's New</b>.", "Edit langsung di kolom hasil; label panjang dan hasil cek ikut berubah. Ganti penanda <b>[ … ]</b> dengan nama menu/tombol yang benar.", "Konfirmasi poin di kotak kuning ke tim produk, lalu <b>Salin</b> per bagian atau <b>Salin semua</b> untuk diserahkan ke tim aplikasi."],
+      ["Isi <b>Nama fitur</b> dan tempel <b>Catatan rilis / poin fitur</b> dari tim produk atau IT apa adanya.", "Bila ada, isi <b>Letak di aplikasi</b>, <b>Siapa yang bisa memakai</b>, dan <b>Langkah pemakaian</b> (satu langkah per baris) supaya manualnya tepat.", "Pilih <b>Gaya</b>: <b>Produk + marketing</b> (fakta fitur ditulis dengan gaya copywriting yang mengajak mencoba) atau <b>Informasi produk saja</b> (lugas, tanpa gaya promosi).", "Klik <b>Buat What's New</b>.", "Edit langsung di kolom hasil; label panjang dan hasil cek ikut berubah. Ganti penanda <b>[ … ]</b> dengan nama menu/tombol yang benar.", "Konfirmasi poin di kotak kuning ke tim produk, lalu <b>Salin</b> per bagian atau <b>Salin semua</b> untuk diserahkan ke tim aplikasi."],
       ["AI hanya memakai fakta dari isian: semakin lengkap catatan rilisnya, semakin sedikit penanda yang perlu diisi.", "Isian tersimpan di browser ini, jadi aman kalau pindah tab dulu.", "Batas panjang yang dipakai masih batas wajar (singkat ±120, lengkap ±800 karakter) sampai ada ketentuan dari tim aplikasi."]],
     kit: ["Satu produk (reksa dana, obligasi/sukuk, atau ETF) langsung jadi paket konten: caption feed, frame story, WhatsApp, email, push notif, FAQ untuk CS/sales, brief visual untuk desainer, dan catatan compliance. Angka diambil otomatis dari Fund, Bond, dan ETF Insight.",
       ["Pilih <b>Jenis</b> produk, cari namanya, lalu klik produk di daftar. Fakta produk tampil di bawahnya; cek angkanya.", "Pilih <b>Mode</b>: <b>Peluncuran / promosi</b>, atau <b>Co-marketing</b> bila kampanye bersama manajer investasi/mitra (nama mitra terisi otomatis dari MI produk).", "Isi <b>Target pembaca</b> dan <b>Tujuan</b> (opsional, tapi membuat hasil lebih tepat).", "Klik <b>Buat paket</b>.", "Tiap bagian punya <b>Salin</b> dan <b>Cek</b>. <b>Salin semua</b> / <b>Unduh .txt</b> untuk dibagikan ke tim, desainer, dan CS."],
@@ -513,7 +513,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   };
 
   /* ---------- WHAT'S NEW: deskripsi singkat, deskripsi lengkap, manual (hasil AI jadi kolom yang bisa diedit) ---------- */
-  var WN_IN = ["wnName", "wnVer", "wnNotes", "wnWhere", "wnWho", "wnSteps"];
+  var WN_IN = ["wnName", "wnVer", "wnNotes", "wnWhere", "wnWho", "wnSteps", "wnStyle"];
   try { var wn0 = JSON.parse(localStorage.getItem("cs_wn") || "{}"); WN_IN.forEach(function (id) { if (wn0[id]) $(id).value = wn0[id]; }); } catch (e) {}
   WN_IN.forEach(function (id) { $(id).addEventListener("input", function () { var o = {}; WN_IN.forEach(function (k) { o[k] = $(k).value; }); try { localStorage.setItem("cs_wn", JSON.stringify(o)); } catch (e) {} }); });
   // [label, kunci platform cek panjang/kepatuhan, tinggi kolom]
@@ -530,7 +530,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     var btn = this, name = $("wnName").value.trim(), notes = $("wnNotes").value.trim();
     if (!name && !notes) return toast("Isi nama fitur atau catatan rilisnya dulu");
     busy(btn, true);
-    api("/api/ai", { kind: "wn", name: name, version: $("wnVer").value, notes: notes, where: $("wnWhere").value, who: $("wnWho").value, steps: $("wnSteps").value, tone: $("wnTone").value }).then(function (j) {
+    api("/api/ai", { kind: "wn", name: name, version: $("wnVer").value, notes: notes, where: $("wnWhere").value, who: $("wnWho").value, steps: $("wnSteps").value, style: $("wnStyle").value, tone: $("wnTone").value }).then(function (j) {
       var t = wnText(j.result);
       $("wnOut").innerHTML = Object.keys(WN_F).map(function (k) {
         var f = WN_F[k];
