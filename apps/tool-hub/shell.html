@@ -95,6 +95,8 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .theme-seg button[aria-pressed="true"]{background:var(--side-2);color:var(--side-strong)}
 .theme-seg svg.ic{width:15px;height:15px}
 .theme-one{display:none}
+.lang-seg{margin-top:6px}
+.iconbtn.lang{font-size:11px;font-weight:700;letter-spacing:.04em}
 .app.rail .side{padding:18px 10px 14px}
 .app.rail .side-head{flex-direction:column;padding:0;gap:10px}
 .app.rail .brand{justify-content:center;flex:none}
@@ -490,6 +492,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       <span class="sp"></span>
       <button class="iconbtn" id="appSearch" type="button" aria-label="Cari (Ctrl K)" title="Cari (Ctrl K)"></button>
       <button class="iconbtn" id="theme2" type="button" aria-label="Ganti tema" title="Ganti tema"></button>
+      <button class="iconbtn lang" id="lang2" type="button" translate="no"></button>
     </div>
     <div class="appframe" id="appframe"><div class="ld" id="ld"><span class="spin"></span>Memuat tool…</div></div>
   </section>
@@ -525,6 +528,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
     monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -684,7 +688,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     $("#searchBtn").innerHTML = icon("search") + "<span>Cari tool, halaman, atau aksi…</span><kbd>" + (mac ? "⌘ K" : "Ctrl K") + "</kbd>";
     $("#palIn").insertAdjacentHTML("afterbegin", icon("search")); $("#palClear").innerHTML = icon("x");
     $("#acctBtn").textContent = initials; $("#acctBtn").setAttribute("aria-label", "Menu akun " + (H.me.name || H.me.email));
-    $("#acctMenu").innerHTML = '<div class="mh"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email + (H.me.job ? " · " + H.me.job : "")) + "</small></div>" +
+    $("#acctMenu").innerHTML = '<div class="mh"><b translate="no">' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email + (H.me.job ? " · " + H.me.job : "")) + "</small></div>" +
       '<a role="menuitem" href="/akun">' + icon("key") + "Ganti password</a>" +
       (H.me.admin ? '<a role="menuitem" href="/admin">' + icon("shield") + "Admin" + (H.pending ? '<span class="badge st-warn">' + H.pending + " menunggu</span>" : "") + "</a>" : "") +
       '<a role="menuitem" href="/logout">' + icon("logout") + "Keluar</a>";
@@ -692,8 +696,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       '<button type="button" data-theme="light" title="Tema terang">' + icon("sun") + "Terang</button>" +
       '<button type="button" data-theme="dark" title="Tema gelap">' + icon("moon") + "Gelap</button>" +
       '<button type="button" data-theme="system" title="Ikuti sistem">' + icon("monitor") + "Sistem</button></div>" +
+      '<div class="theme-seg lang-seg" role="group" aria-label="Bahasa" translate="no"><button type="button" data-lang="id" title="Bahasa Indonesia">Indonesia</button><button type="button" data-lang="en" title="English">English</button></div>' +
       '<div class="theme-one"><button class="iconbtn" type="button" id="theme3" aria-label="Ganti tema"></button></div>' +
-      '<div class="side-user"><span class="avatar" aria-hidden="true">' + esc(initials) + '</span><span class="who"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email) + "</small></span></div>";
+      '<div class="theme-one"><button class="iconbtn lang" type="button" id="lang3" translate="no"></button></div>' +
+      '<div class="side-user"><span class="avatar" aria-hidden="true">' + esc(initials) + '</span><span class="who" translate="no"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email) + "</small></span></div>";
     var h = new Date().getHours(), first = (H.me.name || "").trim().split(/\s+/)[0];
     $("#greet").textContent = (h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam") + (first ? ", " + first : "");
     var d = new Date(); $("#greetSub").textContent = HARI[d.getDay()] + ", " + d.getDate() + " " + BLN[d.getMonth()] + " " + d.getFullYear() + " · Apa yang ingin kamu kerjakan hari ini?";
@@ -710,6 +716,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     Object.keys(frames).forEach(function (k) { try { frames[k].contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (e) { } });
   }
   function setTheme(t) { theme = t; applyTheme(); }
+
+  /* ---------- bahasa (Indonesia / English) ---------- */
+  // Teks hub & tool ditulis dalam bahasa Indonesia; shared/i18n.js menerjemahkannya saat bahasa = en. Pilihan disimpan di "hub_lang".
+  var lang = window.hubLang ? window.hubLang() : "id";
+  function applyLang() {
+    if (window.hubSetLang) window.hubSetLang(lang);
+    [].forEach.call(document.querySelectorAll("[data-lang]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === lang)); });
+    ["#lang2", "#lang3"].forEach(function (s) { var b = $(s); if (b) { b.textContent = lang === "en" ? "EN" : "ID"; b.title = lang === "en" ? "Language: English. Klik untuk Bahasa Indonesia." : "Bahasa: Indonesia. Click for English."; b.setAttribute("aria-label", b.title); } });
+    Object.keys(frames).forEach(function (k) { try { frames[k].contentWindow.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (e) { } });
+  }
+  function setLang(l) { lang = l === "en" ? "en" : "id"; applyLang(); }
+  function toggleLang() { setLang(lang === "en" ? "id" : "en"); }
   function cycleTheme() { setTheme(theme === "system" ? "dark" : theme === "dark" ? "light" : "system"); }
 
   /* ---------- ringkasan hari ini ---------- */
@@ -738,15 +756,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     var el = $("#planBody"); if (!el) return;
     if (!r || !r.ok) { el.innerHTML = errBox("Tugas dari Content Planner tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
     var d = r.data, kinds = d.kinds || {};
-    var item = function (it, when) { return '<div class="row"><div class="m"><b>' + esc(it.title) + "</b><small>" + esc([when, kinds[it.kind] || it.kind, it.channel].filter(Boolean).join(" · ")) + '</small></div><span class="badge cap ' + (PST[it.status] || "st-muted") + '">' + esc(it.status || "-") + "</span></div>"; };
-    var design = function (it) { return '<div class="row"><div class="m"><b>' + esc(it.title) + "</b><small>Desain · tenggat " + esc(hari(it.d_due || it.date)) + '</small></div><span class="badge cap ' + (PST[it.d_status] || "st-muted") + '">' + esc(it.d_status || "belum") + "</span></div>"; };
+    var item = function (it, when) { return '<div class="row"><div class="m"><b translate="no">' + esc(it.title) + "</b><small>" + esc([when, kinds[it.kind] || it.kind, it.channel].filter(Boolean).join(" · ")) + '</small></div><span class="badge cap ' + (PST[it.status] || "st-muted") + '">' + esc(it.status || "-") + "</span></div>"; };
+    var design = function (it) { return '<div class="row"><div class="m"><b translate="no">' + esc(it.title) + "</b><small>Desain · tenggat " + esc(hari(it.d_due || it.date)) + '</small></div><span class="badge cap ' + (PST[it.d_status] || "st-muted") + '">' + esc(it.d_status || "belum") + "</span></div>"; };
     // kegiatan hari ini yang berjam sudah ada di Ritme hari ini; di sini yang tanpa jam, milikmu ke depan, dan tugas desain
     var loose = d.today.filter(function (x) { return !/^\d{2}:\d{2}/.test(x.time || ""); }), mine = d.mine.filter(function (x) { return x.date !== d.date; }).slice(0, 4), des = d.design.slice(0, 4), html = "";
     // tugas dari Partnership (program), paling atas karena ada yang menunggu hasilnya
     var tasks = d.tasks || [], td = todayIso();
     if (tasks.length) html += '<div class="subh">Tugas program untukmu · ' + tasks.length + '</div><div class="rows">' + tasks.slice(0, 4).map(function (x) {
       var late = x.due < td;
-      return '<div class="row"><button type="button" class="m" data-pitem="' + esc(x.item_id) + '"><b>' + esc(x.title) + "</b><small>" + esc([x.item_title, (late ? "lewat tenggat " : "tenggat ") + hari(x.due), x.by_name ? "dari " + x.by_name : ""].filter(Boolean).join(" · ")) +
+      return '<div class="row"><button type="button" class="m" data-pitem="' + esc(x.item_id) + '"><b translate="no">' + esc(x.title) + "</b><small>" + esc([x.item_title, (late ? "lewat tenggat " : "tenggat ") + hari(x.due), x.by_name ? "dari " + x.by_name : ""].filter(Boolean).join(" · ")) +
         '</small></button><span class="badge cap ' + (late ? "st-err" : PST[x.status] || "st-muted") + '">' + esc(TSL[x.status] || x.status || "belum") + "</span></div>";
     }).join("") + "</div>";
     if (loose.length) html += '<div class="subh">Hari ini, tanpa jam · ' + loose.length + '</div><div class="rows">' + loose.slice(0, 4).map(function (it) { return item(it, ""); }).join("") + "</div>";
@@ -1047,7 +1065,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     var f = frames[id];
     if (!f) {
       f = document.createElement("iframe"); f.title = a.name; f.style.display = "block"; f.dataset.cur = page || a.src; f.setAttribute("allow", "clipboard-write; web-share"); // web-share: tombol bagikan (gambar + teks) di dalam tool
-      f.onload = function () { f.dataset.loaded = "1"; if (curId === id) loader.classList.remove("on"); try { f.contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (e) { } };
+      f.onload = function () { f.dataset.loaded = "1"; if (curId === id) loader.classList.remove("on"); try { f.contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); f.contentWindow.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (e) { } };
       framebox.appendChild(f); frames[id] = f; f.src = page || a.src;
     } else if (page && f.dataset.cur !== page) { f.dataset.cur = page; f.dataset.loaded = ""; f.src = page; }
     loader.classList.toggle("on", !f.dataset.loaded); subnav(a); touch(id);
@@ -1064,6 +1082,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       if (typeof d.hubPrintTitle === "string" && d.hubPrintTitle.length <= 120) document.title = d.hubPrintTitle || T0;
       if (typeof d.hubShareUrl === "string" && d.hubShareUrl.length <= 500 && d.hubShareUrl.indexOf(e.origin + "/") === 0) SH[k] = d.hubShareUrl;
       if (d.type === "toolhub-theme-request") try { e.source.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (x) { }
+      if (d.type === "toolhub-lang-request") try { e.source.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (x) { }
     }
   });
 
@@ -1087,6 +1106,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     out.push({ g: "Aksi", t: "Tema terang", s: "Tampilan", ic: "sun", h: "tema terang light mode", run: function () { setTheme("light"); } });
     out.push({ g: "Aksi", t: "Tema gelap", s: "Tampilan", ic: "moon", h: "tema gelap dark mode", run: function () { setTheme("dark"); } });
     out.push({ g: "Aksi", t: "Tema ikuti sistem", s: "Tampilan", ic: "monitor", h: "tema sistem system auto", run: function () { setTheme("system"); } });
+    out.push({ g: "Aksi", t: lang === "en" ? "Bahasa Indonesia" : "English", s: "Bahasa", ic: "globe", h: "bahasa language english inggris indonesia", run: toggleLang });
     out.push({ g: "Aksi", t: "Ganti password", s: "Akun", ic: "key", h: "ganti password akun kata sandi", run: function () { location.href = "/akun"; } });
     if (H.me.admin) out.push({ g: "Aksi", t: "Admin", s: H.pending ? H.pending + " permintaan akses menunggu" : "Pengguna & hak akses", ic: "shield", h: "admin pengguna akses persetujuan approval", run: function () { location.href = "/admin"; } });
     out.push({ g: "Aksi", t: "Keluar", s: "Akun", ic: "logout", h: "keluar logout sign out", run: function () { location.href = "/logout"; } });
@@ -1142,7 +1162,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
 
   /* ---------- event ---------- */
   document.addEventListener("click", function (e) {
-    var t = e.target.closest("[data-open],[data-fav],[data-chip],[data-palette],[data-retry],[data-clearq],[data-page],[data-theme]");
+    var t = e.target.closest("[data-open],[data-fav],[data-chip],[data-palette],[data-retry],[data-clearq],[data-page],[data-theme],[data-lang]");
     if (!e.target.closest("#acct")) acct(false);
     if (!e.target.closest("#bell")) bell(false);
     var pi = e.target.closest("[data-pitem]"); if (pi) { openPlanner("?item=" + encodeURIComponent(pi.dataset.pitem)); return; }
@@ -1155,6 +1175,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     else if (t.hasAttribute("data-clearq")) { toolsState.q = ""; var i = $("#tq"); if (i) { i.value = ""; i.focus(); } renderToolsGrid(); }
     else if (t.dataset.page) openPage(t.dataset.page, t.dataset.url);
     else if (t.dataset.theme) setTheme(t.dataset.theme);
+    else if (t.dataset.lang) setLang(t.dataset.lang);
   });
   document.addEventListener("input", function (e) { if (e.target.id === "tq") { toolsState.q = e.target.value; renderToolsGrid(); } });
   document.addEventListener("change", function (e) {
@@ -1203,14 +1224,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   $("#drawerClose").addEventListener("click", closeDrawer); $("#scrim").addEventListener("click", closeDrawer);
   $("#railBtn").addEventListener("click", function () { var on = !app.classList.contains("rail"); setRail(on); if (!curId) { railPref = on; LS("toolhub-rail", on ? "1" : "0"); } });
   $("#back").addEventListener("click", function () { go(lastView || "#/"); });
-  $("#theme2").addEventListener("click", cycleTheme);
+  $("#theme2").addEventListener("click", cycleTheme); $("#lang2").addEventListener("click", toggleLang);
   $("#nav").addEventListener("click", function (e) { var a = e.target.closest("a"); if (a && a.getAttribute("href").charAt(0) === "#") { e.preventDefault(); go(a.getAttribute("href")); } });
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (theme === "system") applyTheme(); }); } catch (e) { }
   window.addEventListener("hashchange", route);
 
   /* ---------- mulai ---------- */
-  renderChrome(); document.addEventListener("click", function (e) { if (e.target.closest("#theme3")) cycleTheme(); });
-  setRail(railPref); applyTheme(); renderNav(); renderToday(); renderMine();
+  renderChrome(); document.addEventListener("click", function (e) { if (e.target.closest("#theme3")) cycleTheme(); if (e.target.closest("#lang3")) toggleLang(); });
+  setRail(railPref); applyTheme(); applyLang(); renderNav(); renderToday(); renderMine();
   if (!apps.length) $("#vHome").innerHTML = '<div class="empty"><b>Belum ada tool yang bisa kamu buka</b>Admin perlu memberikan akses ke akunmu. Hubungi admin tim.</div>';
   route();
   if (Object.keys(H.today).some(function (k) { return H.today[k]; })) {

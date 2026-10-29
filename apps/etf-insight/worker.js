@@ -15,6 +15,7 @@ import { profile, title, profileScript } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import PAGE from "./page.html";
+import EN from "./i18n.js";
 import { newsFor } from "../../shared/news.js";
 
 // Berita (internal): ETF & indeks yang diikuti (MSCI Indonesia, IDX30; didahulukan), plus penggerak bursa (IHSG, BEI, dana asing)
@@ -387,7 +388,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 function page(env, mode, code, extra = "") {
   const name = mode === "share" ? `${code} · ${title(env, "ETF Insight")}` : title(env, "ETF Insight");
   const cfg = `<script>window.ETF_MODE=${JSON.stringify(mode)};window.ETF_CODE=${JSON.stringify(code || "")};${extra}</script>`;
-  return PAGE.replace("<title>ETF Insight</title>", () => `<title>${esc(name)}</title>${profileScript(env)}${themeHead("")}${cfg}`);
+  // kamus bahasa Inggris hanya untuk aplikasi internal; halaman & PDF nasabah tetap bahasa Indonesia
+  return PAGE.replace("<title>ETF Insight</title>", () => `<title>${esc(name)}</title>${profileScript(env)}${themeHead("", mode === "app" ? EN : null)}${cfg}`);
 }
 const htmlRes = (body, headers = {}) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex", ...headers } });
 

@@ -32,6 +32,8 @@
 //   Story Generator (GitHub): agenda makro (data/macro.js + public/calendar.json), sama seperti agenda di Fund Insight
 import { title, profileScript, appUrl, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
+import { i18nHead } from "../../shared/i18n.js";
+import EN from "./i18n.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
 import { JOBS, canAssign, isRegional, branchType } from "../../shared/jobs.js";
@@ -1010,7 +1012,7 @@ async function page(env, me, mode) {
   const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(job, me.adm), reg, branch: (u && u.branch) || me.c || "" },
     branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, galDocs: GAL_DOCS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: ROLES, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
-  const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("")}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+  const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("", EN)}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Content Planner</title>", () => head);
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
@@ -1045,7 +1047,8 @@ export default {
     const me = await HUBSSO.user(request, env);
     const isPage = path === "/" || path === "/index.html" || path === "/paket";
     if (!me) return isPage || path === "/ig-sync" ? HUBSSO.login(request, env) : json({ error: "Belum login atau sesi habis. Muat ulang halaman dari Tool Hub." }, 401);
-    if (path === "/ig-sync") return new Response(IG_SYNC, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": "frame-ancestors 'none'", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
+    // jendela /ig-sync dibuka dari tab Instagram (bukan bingkai Tool Hub): bahasa dari ?lang=en yang dipasang tombol bookmark
+    if (path === "/ig-sync") return new Response(IG_SYNC.replace("<meta charset=\"utf-8\">", (m) => m + i18nHead(EN)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": "frame-ancestors 'none'", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
     if (isPage) {
       return new Response(await page(env, me, path === "/paket" ? "paket" : "kalender"), {
         headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" },

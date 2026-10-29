@@ -264,7 +264,7 @@ export default function Radar() {
             <span className="dim small">Kriteria saya:</span>
             {saved.map((s) => (
               <span key={s.id} className="chip saved">
-                <button type="button" onClick={() => setC(criteriaFromQuery(new URLSearchParams(s.q)))}>
+                <button type="button" translate="no" onClick={() => setC(criteriaFromQuery(new URLSearchParams(s.q)))}>
                   {s.name}
                 </button>
                 <button type="button" aria-label={`Hapus ${s.name}`} className="chip-x" onClick={() => remove(s.id)}>

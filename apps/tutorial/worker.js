@@ -13,6 +13,7 @@ import { injectProfile, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { TUTORIAL_THEME_CSS } from "./theme.js";
+import EN from "./i18n.js";
 
 const te = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -159,9 +160,9 @@ export default {
     const req = new Request(request);
     req.headers.delete("if-none-match");
     const res = injectProfile(await env.ASSETS.fetch(req), env);
-    // tema dari Tool Hub (berlaku hanya di dalam Hub). fetch() dari tombol export (Sec-Fetch-Dest: empty) tidak disisipi,
+    // tema & bahasa dari Tool Hub (di luar Hub bawaannya tema terang & bahasa Indonesia). fetch() dari tombol export (Sec-Fetch-Dest: empty) tidak disisipi,
     // supaya file tutorial offline tetap bersih
     if (request.headers.get("sec-fetch-dest") === "empty" || !(res.headers.get("content-type") || "").includes("text/html")) return res;
-    return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(TUTORIAL_THEME_CSS), { html: true }); } }).transform(res);
+    return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(TUTORIAL_THEME_CSS, EN), { html: true }); } }).transform(res);
   },
 };

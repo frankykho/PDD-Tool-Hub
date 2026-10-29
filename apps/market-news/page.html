@@ -293,7 +293,7 @@ function channel(x){
   var fn="berita-"+String(x.title||"pasar").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".jpg";
   var wa=esc(textOf(x)).replace(/^\*([^*\n]+)\*/,"<b>$1</b>").replace(/(https?:\/\/\S+)$/,'<a href="$1" target="_blank" rel="noopener">$1</a>');
   $("chBox").innerHTML='<h2 id="chH">Kirim manual (chat, grup, atau Channel)</h2>'
-   +'<div class="wa"><div class="bub">'+(hasPic(x)?'<img id="chImg" alt="">':"")+"<div>"+wa+"</div></div></div>"
+   +'<div class="wa" translate="no"><div class="bub">'+(hasPic(x)?'<img id="chImg" alt="">':"")+"<div>"+wa+"</div></div></div>"
    +'<ol class="steps">'
    +(hasPic(x)?'<li>Ambil gambarnya.<div class="acts">'+(canCopyImg&&!mobile?'<button class="btn sm pri" type="button" data-copyimg="'+esc(x.id)+'">Salin gambar</button>':"")+'<button class="btn sm'+(canCopyImg&&!mobile?"":" pri")+'" type="button" data-dl="'+esc(x.id)+'" data-fn="'+esc(fn)+'">Unduh gambar</button></div></li>':"")
    +'<li>Salin teksnya (judul, ringkasan, link sumber).<div class="acts"><button class="btn sm pri" type="button" data-copy="'+esc(textOf(x))+'" data-what="Teks">Salin teks</button></div></li>'
@@ -318,7 +318,7 @@ function teamCard(x){
   return'<article class="card it" data-id="'+esc(x.id)+'">'+teamBan(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"–")+"</span>"+(x.theme?'<span class="tag" style="background:var(--bg);color:var(--t2)">'+esc(x.theme)+"</span>":"")+tks(x)
    +'<span title="skor hype">🔥 '+nf(x.score||0,0)+" · "+(1+(x.sources||[]).length)+" media</span><span>"+esc(x.src)+" · "+esc(ago(x.at||x.seen_at))+"</span><span>"+st+"</span>"+(pubd?'<span class="tag">Terbit · '+esc(x.published_by||"")+"</span>":"")+"</div>"
    +'<label class="fld">Judul<input data-f="title" value="'+esc(x.title)+'"'+ro+"></label>"
-   +(x.raw_title&&x.raw_title!==x.title?'<div class="muted small">Judul asli: '+esc(x.raw_title)+"</div>":"")
+   +(x.raw_title&&x.raw_title!==x.title?'<div class="muted small">Judul asli: <span translate="no">'+esc(x.raw_title)+"</span></div>":"")
    +'<label class="fld">Ringkasan<textarea data-f="summary" placeholder="Klik “Ringkas dengan AI” atau tulis 2–3 kalimat fakta utama"'+ro+">"+esc(x.summary||"")+"</textarea></label>"
    +'<label class="fld">Mengapa penting (opsional)<input data-f="why" value="'+esc(x.why||"")+'"'+ro+"></label>"
    +also(x)
@@ -381,7 +381,7 @@ function finRowsHtml(){
   return finBar()+'<div style="overflow-x:auto"><table class="fin"><thead><tr><th><input type="checkbox" id="finAll" aria-label="Pilih semua yang tampil"'+(all?" checked":"")+'></th><th>Rilis</th><th>Emiten</th><th>Periode</th><th>Pendapatan</th><th>Laba bersih</th><th>Catatan</th><th>Sumber</th><th></th></tr></thead><tbody>'
    +L.map(function(f){return'<tr><td><input type="checkbox" data-finsel="'+esc(finKey(f))+'" aria-label="Pilih '+esc(f.code)+'"'+(finSel[finKey(f)]?" checked":"")+"></td><td class=\"muted\" style=\"white-space:nowrap\">"+esc(ago(f.at))+"</td><td><b>"+esc(f.code)+'</b><div class="muted small">'+esc(f.company||"")+"</div></td><td style=\"white-space:nowrap\">"+esc(f.period)+"</td>"
      +'<td class="num">'+fm(f.revenue,f.currency)+fy(f.revenue_yoy)+'</td><td class="num"><b>'+fm(f.net_profit,f.currency)+"</b>"+fy(f.net_profit_yoy)+"</td>"
-     +'<td class="small">'+esc(f.note||"")+'</td><td class="small">'+f.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join("<br>")+"</td>"
+     +'<td class="small" translate="no">'+esc(f.note||"")+'</td><td class="small">'+f.sources.map(function(s){return'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.src)+"</a>"}).join("<br>")+"</td>"
      +'<td style="white-space:nowrap"><button class="btn sm" type="button" data-copy="'+esc(finTextC(f))+'" data-what="Teks">Salin</button> <a class="btn sm" href="https://wa.me/?text='+encodeURIComponent(finTextC(f))+'" target="_blank" rel="noopener">WhatsApp</a></td></tr>'}).join("")
    +"</tbody></table></div>";
 }

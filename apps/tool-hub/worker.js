@@ -12,6 +12,8 @@
 import { profile, appUrl, title } from "../../shared/profile.js";
 import { JOBS, OPS_ALERTS, REGIONAL, parseBranches, branchType, branchLine } from "../../shared/jobs.js";
 import SHELL from "./shell.html";
+import { i18nHead } from "../../shared/i18n.js";
+import EN from "./i18n.js";
 
 // cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
 // ai = baris singkat kalau tool memakai AI (label "Memakai AI" di halaman detail, ikut dicari); kw = kata kunci tambahan untuk pencarian.
@@ -76,6 +78,8 @@ const THEME_CSS = `<style id="hub-theme-style">
 :root{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}html[data-theme="system"]{color-scheme:light dark}
 #hub-theme-toggle{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid #b8c9c1;border-radius:999px;background:#fff;color:#174d3c;box-shadow:0 6px 24px rgba(0,0,0,.16);font:600 12px system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
 #hub-theme-toggle:focus-visible{outline:3px solid #5dd62c;outline-offset:3px}
+#hub-lang-toggle{position:fixed;right:16px;bottom:62px;z-index:2147483000;padding:9px 12px;border:1px solid #b8c9c1;border-radius:999px;background:#fff;color:#174d3c;box-shadow:0 6px 24px rgba(0,0,0,.16);font:700 11px system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.04em;cursor:pointer}
+html[data-theme="dark"] #hub-lang-toggle{background:#1a2420;color:#e7eee9;border-color:#34463d}
 html[data-theme="dark"] body{background:#101714!important;color:#e7eee9!important}
 html[data-theme="dark"] .card,html[data-theme="dark"] .tile,html[data-theme="dark"] .empty,html[data-theme="dark"] .acct .menu{background:#1a2420!important;color:#e7eee9!important;border-color:#34463d!important}
 html[data-theme="dark"] h1,html[data-theme="dark"] .tile b{color:#a8e8c4!important}
@@ -93,7 +97,10 @@ html[data-theme="dark"] .acct .menu a{color:#e7eee9!important}
 </style>`;
 const THEME_BUTTON = `<button id="hub-theme-toggle" type="button" aria-label="Ganti tema">◐ Tema sistem</button>`;
 const THEME_SCRIPT = `<script>(function(){var k='toolhub-theme-v2',v='system';try{v=localStorage.getItem(k)||'system'}catch(e){}if(['light','dark','system'].indexOf(v)<0)v='system';var root=document.documentElement;function apply(n){v=n;root.setAttribute('data-theme',v);try{localStorage.setItem(k,v)}catch(e){}var b=document.getElementById('hub-theme-toggle');if(b){b.textContent=v==='dark'?'☀ Tema terang':v==='light'?'☾ Tema gelap':'◐ Tema sistem';b.title='Tema aktif: '+v+' — klik untuk mengganti';b.setAttribute('aria-label','Tema aktif: '+v+'. Klik untuk mengganti.')}try{document.querySelectorAll('iframe').forEach(function(f){f.contentWindow.postMessage({type:'toolhub-theme',theme:v},'*')})}catch(e){}}root.setAttribute('data-theme',v);var b=document.getElementById('hub-theme-toggle');if(b){b.onclick=function(){apply(v==='system'?'light':v==='light'?'dark':'system')};apply(v)}window.addEventListener('message',function(e){if(e.data&&e.data.type==='toolhub-theme-request'&&e.source){try{e.source.postMessage({type:'toolhub-theme',theme:v},e.origin)}catch(err){}}});})();</script>`;
-const themedHtml = body => { if (typeof body !== 'string' || !/<html[\s>]/i.test(body)) return body; let out = body; if (!out.includes('id="hub-theme-style"')) out = out.replace(/<\/head>/i, THEME_CSS + '</head>'); if (!out.includes('hub-theme-v2')) { if (!out.includes('id="hub-theme-toggle"')) out = out.replace(/<\/body>/i, THEME_BUTTON + THEME_SCRIPT + '</body>'); else out = out.replace(/<\/body>/i, THEME_SCRIPT + '</body>'); } return out; };
+// Tombol bahasa di halaman hub yang berdiri sendiri (login, akun, admin). Di dashboard, pilihan bahasa ada di sidebar.
+// Penanda mesin bahasa sudah ada = "__i18o" (hanya ada di skrip shared/i18n.js; shell.html sendiri memuat teks "toolhub-lang-request").
+const LANG_BUTTON = `<button id="hub-lang-toggle" type="button" translate="no" onclick="hubSetLang(hubLang()==='en'?'id':'en');this.textContent=hubLang()==='en'?'ID':'EN';this.title=hubLang()==='en'?'Bahasa Indonesia':'English'">EN</button><script>(function(){var b=document.getElementById('hub-lang-toggle');if(b&&window.hubLang&&hubLang()==='en'){b.textContent='ID';b.title='Bahasa Indonesia'}else if(b)b.title='English'})()</script>`;
+const themedHtml = body => { if (typeof body !== 'string' || !/<html[\s>]/i.test(body)) return body; let out = body; if (!out.includes('__i18o')) out = out.replace(/<\/head>/i, () => i18nHead(EN) + '</head>'); if (!out.includes('id="hub-lang-toggle"') && !out.includes('id="lang2"')) out = out.replace(/<\/body>/i, () => LANG_BUTTON + '</body>'); if (!out.includes('id="hub-theme-style"')) out = out.replace(/<\/head>/i, THEME_CSS + '</head>'); if (!out.includes('hub-theme-v2')) { if (!out.includes('id="hub-theme-toggle"')) out = out.replace(/<\/body>/i, THEME_BUTTON + THEME_SCRIPT + '</body>'); else out = out.replace(/<\/body>/i, THEME_SCRIPT + '</body>'); } return out; };
 const page = (status, body, extra = {}) => new Response(themedHtml(body), { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "frame-ancestors 'self'", ...extra } });
 const redirect = (to, extra = {}) => new Response(null, { status: 303, headers: { location: to, 'cache-control': 'no-store', ...extra } });
 // SameSite=None: tool yang beralamat di situs lain (domain berbeda dari hub) melempar pengguna ke /sso dari DALAM bingkai dashboard.

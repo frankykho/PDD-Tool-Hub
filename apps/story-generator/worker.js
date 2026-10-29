@@ -12,6 +12,7 @@
 import { title, profileScript } from '../../shared/profile.js';
 import { themeHead } from '../../shared/theme.js';
 import { STORY_THEME_CSS } from './theme.js';
+import EN from './i18n.js';
 
 const TABS = {
   morning:   ['pw-m1', 'pw-m2', 'pw-m3', 'pw-m4'],
@@ -120,7 +121,7 @@ export default {
 
     let rw = new HTMLRewriter().on('head', { element(el) {
       el.prepend(profileScript(env), { html: true });
-      el.append(themeHead(STORY_THEME_CSS), { html: true });   // setelah CSS halaman: tema gelap dari Tool Hub
+      el.append(themeHead(STORY_THEME_CSS, EN), { html: true });   // setelah CSS halaman: tema gelap & bahasa dari Tool Hub
       // dibuka di luar dashboard -> pindah ke tab-nya di hub; email & Keluar sudah ada di bilah dashboard
       el.append(`<script>if(window.top===window.self)location.replace(${JSON.stringify(hub + '/#' + APP)});window.HUB_USER=${JSON.stringify({ email: sess.e, tabs }).replace(/</g, '\\u003c')};</script><style>.tb-user{display:none!important}</style>`, { html: true });
     } }).on('title', { element(el) { el.setInnerContent(title(env, 'Story Generator')); } });

@@ -176,8 +176,9 @@ textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:v
   <nav class="side" id="side"></nav>
   <main id="main"><div class="sess empty muted">Memuat…</div></main>
 </div>
-<div id="stage"></div>
-<div id="a4"></div>
+<!-- slide PNG & laporan A4 = materi nasabah: tidak diterjemahkan -->
+<div id="stage" translate="no"></div>
+<div id="a4" translate="no"></div>
 <script>
 const C = window.RC, P = window.PROFILE || {}, B = P.brand || {}, TEAM = C.mode === "team";
 const SES = { s1: "Sesi 1", close: "Penutupan" };
@@ -433,10 +434,10 @@ function section(r) {
   return `<section class="sess" data-s="${r.session}">
     <div class="sh"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
       <button class="btn" data-a="png">Unduh PNG</button><button class="btn" data-a="pdf" title="Laporan A4: teks lengkap, angka kunci, grafik, tabel, dan berita">Unduh PDF A4</button><button class="btn" data-a="pdfslide" title="Slide carousel 1080×1080, satu per halaman">PDF slide</button></div>
-    <div class="slides">${slides(r).join("")}</div>
+    <div class="slides" translate="no">${slides(r).join("")}</div>
     ${TEAM && C.canEdit ? `<div class="edit"><textarea class="f" aria-label="Teks ${SES[r.session]}">${esc(r.narrative)}</textarea>
       <small class="muted">Satu baris per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); setelah "NARASI:" teks untuk halaman web. Slide di atas ikut berubah saat diketik.</small></div>`
-      : `<div class="nar" style="margin-top:14px">${p.paras.map((x) => `<p>${esc(x)}</p>`).join("")}</div>`}
+      : `<div class="nar" translate="no" style="margin-top:14px">${p.paras.map((x) => `<p>${esc(x)}</p>`).join("")}</div>`}
     ${failed ? `<p class="warn">Teks AI gagal dibuat (${esc(r.model.replace(/^gagal: /, ""))}); slide memakai judul otomatis. Tulis manual atau klik Susun ulang.</p>` : ""}
     ${TEAM ? `<div class="acts">${C.canEdit ? `<button class="btn" data-a="save">Simpan</button>
       <button class="btn pri" data-a="publish">${r.status === "published" ? "Tarik dari publik" : "Terbitkan"}</button>

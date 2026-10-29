@@ -237,9 +237,10 @@ export default function StrategyLab() {
                 {t.name}
               </button>
             ))}
+            {/* nama simpanan pengguna tidak diterjemahkan */}
             {saved.map((x) => (
               <span key={x.id} className="chip saved">
-                <button type="button" onClick={() => { const v = decodeStrategy(x.s); if (v) setS(v); }}>★ {x.name}</button>
+                <button type="button" translate="no" onClick={() => { const v = decodeStrategy(x.s); if (v) setS(v); }}>★ {x.name}</button>
                 <button type="button" className="chip-x" aria-label={`Hapus ${x.name}`} onClick={() => remove(x.id)}>×</button>
               </span>
             ))}

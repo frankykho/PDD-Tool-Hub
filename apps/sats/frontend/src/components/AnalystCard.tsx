@@ -24,7 +24,8 @@ function AiText({ text }: { text: string }) {
     else { flush(); out.push(<p key={`p${out.length}`}>{inline(l)}</p>); }
   }
   flush();
-  return <div className="ai-text">{out}</div>;
+  // hasil AI tetap bahasa aslinya (tidak ikut diterjemahkan mesin bahasa)
+  return <div className="ai-text" translate="no">{out}</div>;
 }
 
 type News = { judul: string; sumber: string; tanggal: string; tautan?: string };
@@ -46,7 +47,7 @@ function Result({ a, old }: { a: Analysis; old?: boolean }) {
           <ul>
             {news.map((n, i) => (
               <li key={i}>
-                <a href={n.tautan} target="_blank" rel="noreferrer">
+                <a href={n.tautan} target="_blank" rel="noreferrer" translate="no">
                   {n.judul}
                 </a>{" "}
                 <span className="dim small">

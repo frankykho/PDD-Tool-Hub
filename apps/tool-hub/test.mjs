@@ -383,7 +383,8 @@ assert.match(await (await call("/admin", { cookie: admin })).text(), /1 usulan g
 r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { add: "g1", list: "isi kotak yang belum disimpan" } });
 assert.match(await r.text(), /Galeri Investasi Unair ditambahkan ke regional Jawa Timur/);
 assert.deepEqual(JSON.parse(env.HUB_KV.m.get("cfg:cabang").v).slice(-1), [{ r: "Jawa Timur", c: "Galeri Investasi Unair", t: "galeri" }]);
-assert.doesNotMatch(await (await call("/admin", { cookie: admin })).text(), /usulan galeri baru/, "sudah masuk daftar: tidak diusulkan lagi");
+// isi <script> diabaikan: kamus bahasa Inggris di <head> (shared/i18n.js) juga memuat teks "usulan galeri baru"
+assert.doesNotMatch((await (await call("/admin", { cookie: admin })).text()).replace(/<script>[\s\S]*?<\/script>/g, ""), /usulan galeri baru/, "sudah masuk daftar: tidak diusulkan lagi");
 assert.equal((await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { add: "g1" } })).status, 400, "usulan yang sudah tidak ada");
 r = await call("/admin/cabang", { method: "POST", cookie: admin, origin: HUB, form: { list: "Jakarta | Galeri Blok M\nJawa Timur\tCabang Surabaya" } });
 {

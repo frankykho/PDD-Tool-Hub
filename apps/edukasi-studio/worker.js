@@ -23,6 +23,8 @@ import { ai, AiError } from '../../shared/ai.js';
 import { withCron } from '../../shared/cron.js';
 import { HUB_FEED, hubFeedAllowed } from '../../shared/hubfeed.js';
 import { GLASS_CSS } from '../../shared/theme.js';
+import { i18nHead } from '../../shared/i18n.js';
+import EN from './i18n.js';
 
 const APP_ID = 'edukasi';
 // User-Agent bot menyertakan alamat tool ini (dari profil) supaya pemilik situs tahu asalnya
@@ -634,7 +636,7 @@ async function api(request, env, url, me) {
 }
 
 /* ---------- Halaman ---------- */
-const setupPage = env => `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edukasi Studio</title>
+const setupPage = env => `<!doctype html><html lang="id"><head><meta charset="utf-8">${i18nHead(EN)}<meta name="viewport" content="width=device-width,initial-scale=1"><title>Edukasi Studio</title>
 <style>body{font-family:system-ui,sans-serif;background:#f1f4f3;color:#14201c;padding:24px}.c{max-width:560px;margin:6vh auto;background:#fff;border-radius:14px;padding:28px}h1{font-size:19px;color:#1f5e4b}td{padding:8px;vertical-align:top;border-bottom:1px solid #e5e7eb}small{color:#64716c;display:block}</style></head><body><div class="c">
 <h1>Edukasi Studio belum dikonfigurasi</h1><p>Di Cloudflare buka Worker ini &rarr; <b>Settings</b>, lalu lengkapi:</p><table>
 <tr><td>${hubOrigin(env) ? '&#9989;' : '&#10060;'}</td><td><b>HUB_URL</b><small>Variables and Secrets &rarr; alamat Tool Hub (diisi otomatis oleh scripts/deploy.mjs)</small></td></tr>
@@ -644,7 +646,7 @@ const setupPage = env => `<!doctype html><html lang="id"><head><meta charset="ut
 
 function appPage(env, token, me) {
   const boot = JSON.stringify({ token, me: { email: me.e, name: me.n, admin: !!me.adm }, topics: TOPICS }).replace(/</g, '\\u003c'), short = esc(profile(env).brand.short);
-  return `<!doctype html><html lang="id" data-theme="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+  return `<!doctype html><html lang="id" data-theme="system"><head><meta charset="utf-8">${i18nHead(EN)}<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Edukasi Studio</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f5e4b'/%3E%3Cpath d='M9 22l3-1 10-10-2-2-10 10z' fill='%23fff'/%3E%3C/svg%3E"><style>${GLASS_CSS}${CSS}${GLASS}</style></head><body>
 <header class="top"><div><h1>Edukasi Studio</h1><p class="sub">Riset artikel edukasi &rarr; konten orisinal${short ? ' ' + short : ''}</p></div>
 <nav class="tabs" role="tablist"><button data-tab="bank" class="on">Bank Artikel</button><button data-tab="tulis">Tulis</button><button data-tab="draf">Draf</button><button data-tab="sumber">Sumber</button></nav></header>
@@ -676,7 +678,7 @@ function appPage(env, token, me) {
     <div id="outWrap" hidden>
       <div id="simBox" class="sim"></div>
       <div class="seg small" id="view"><button data-v="edit" class="on">Edit</button><button data-v="preview">Pratinjau</button></div>
-      <textarea id="out" rows="22" spellcheck="false"></textarea><div id="prev" class="prev" hidden></div>
+      <textarea id="out" rows="22" spellcheck="false"></textarea><div id="prev" class="prev" hidden translate="no"></div>
       <div class="actions"><button id="recheck" class="ghost">Cek ulang kemiripan</button><button id="rewrite" class="ghost">Tulis ulang kalimat yang ditandai</button>
       <button id="toFeed" class="ghost">Jadikan feed</button><button id="toStory" class="ghost">Jadikan story</button>
       <button id="copy" class="ghost">Salin</button><button id="dl" class="ghost">Unduh .md</button><button id="save">Simpan draf</button></div>
@@ -770,6 +772,8 @@ ${G} td,${G} th{border-bottom-color:var(--hg-edge)}
 const CLIENT = String.raw`(function(){
 var B=window.BOOT,TOKEN=B.token,ME=B.me,TOPICS=B.topics,STATE={topic:'',source:'',q:'',offset:0,sel:{},picked:[],fmt:'web',refs:[],model:'',draftId:null,texts:{},flagged:[],extra:[],bank:0,struct:[]};
 var $=function(id){return document.getElementById(id)};
+// terjemahan teks yang disusun di luar mesin halaman (shared/i18n.js); tanpa mesin = teks asli
+var T=function(s){return window.hubT?window.hubT(s):s};
 function h(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3200)}
 function api(path,opt){opt=opt||{};return fetch(path,{method:opt.method||'GET',headers:{authorization:'Bearer '+TOKEN,'content-type':'application/json'},body:opt.body?JSON.stringify(opt.body):undefined}).then(function(r){if(r.status===401){location.reload();throw new Error('Sesi habis')}return r.json().catch(function(){throw new Error('Cloudflare membalas halaman galat (HTTP '+r.status+'), biasanya karena batas CPU paket gratis terlampaui')}).then(function(j){if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));return j})})}
@@ -794,16 +798,16 @@ function loadList(reset){if(reset)STATE.offset=0;var p='/api/articles?topic='+en
     if(!j.total){L.innerHTML='<div class="emptybox">Belum ada artikel'+(STATE.q||STATE.topic||STATE.source?' yang cocok':'. Buka tab <b>Sumber</b> lalu klik <b>Perbarui sekarang</b>')+'.</div>'}
     j.rows.forEach(function(r){L.appendChild(itemEl(r))});STATE.offset+=j.rows.length;$('more').hidden=STATE.offset>=j.total;$('bankInfo').textContent=j.total+' artikel'}).catch(function(e){toast(e.message)})}
 function itemEl(r){var d=document.createElement('div');d.className='item'+(STATE.sel[r.id]?' sel':'');
-  d.innerHTML='<input type="checkbox" aria-label="Pilih artikel"'+(STATE.sel[r.id]?' checked':'')+'><div class="b"><a class="t" href="'+h(r.url)+'" target="_blank" rel="noopener">'+h(r.title||r.url)+'</a>'+(Date.now()-r.scraped_at<864e5?' <span class="tag new">Baru</span>':'')+'<div class="meta"><span class="tag">'+h(TOPICS[r.topic]||r.topic)+'</span> '+h(SRCNAME[r.source]||r.source)+' · '+r.words+' kata'+(r.published?' · '+h(r.published.slice(0,10)):'')+'</div><div class="ex">'+h(String(r.excerpt||'').replace(/^## /gm,''))+'</div><button class="ghost sm nb">'+(r.has_notes?'Lihat catatan fakta':'Buat catatan fakta')+'</button><div class="nwrap"></div></div>';
+  d.innerHTML='<input type="checkbox" aria-label="Pilih artikel"'+(STATE.sel[r.id]?' checked':'')+'><div class="b"><a class="t" translate="no" href="'+h(r.url)+'" target="_blank" rel="noopener">'+h(r.title||r.url)+'</a>'+(Date.now()-r.scraped_at<864e5?' <span class="tag new">Baru</span>':'')+'<div class="meta"><span class="tag">'+h(TOPICS[r.topic]||r.topic)+'</span> '+h(SRCNAME[r.source]||r.source)+' · '+r.words+' kata'+(r.published?' · '+h(r.published.slice(0,10)):'')+'</div><div class="ex" translate="no">'+h(String(r.excerpt||'').replace(/^## /gm,''))+'</div><button class="ghost sm nb">'+(r.has_notes?'Lihat catatan fakta':'Buat catatan fakta')+'</button><div class="nwrap"></div></div>';
   var cb=d.querySelector('input');cb.onchange=function(){if(cb.checked){if(Object.keys(STATE.sel).length>=5){cb.checked=false;return toast('Maksimal 5 artikel sekaligus.')}STATE.sel[r.id]=r}else delete STATE.sel[r.id];d.classList.toggle('sel',cb.checked);selBar()};
-  var nb=d.querySelector('.nb'),nw=d.querySelector('.nwrap');nb.onclick=function(){if(nw.innerHTML){nw.innerHTML='';return}nb.disabled=true;nb.textContent='Membuat catatan…';api('/api/notes',{method:'POST',body:{id:r.id}}).then(function(j){nw.innerHTML='<div class="notes">'+h(j.notes)+'</div>';r.has_notes=1}).catch(function(e){toast(e.message)}).then(function(){nb.disabled=false;nb.textContent=r.has_notes?'Tutup / lihat catatan':'Buat catatan fakta'})};
+  var nb=d.querySelector('.nb'),nw=d.querySelector('.nwrap');nb.onclick=function(){if(nw.innerHTML){nw.innerHTML='';return}nb.disabled=true;nb.textContent='Membuat catatan…';api('/api/notes',{method:'POST',body:{id:r.id}}).then(function(j){nw.innerHTML='<div class="notes" translate="no">'+h(j.notes)+'</div>';r.has_notes=1}).catch(function(e){toast(e.message)}).then(function(){nb.disabled=false;nb.textContent=r.has_notes?'Tutup / lihat catatan':'Buat catatan fakta'})};
   return d}
 function selBar(){var n=Object.keys(STATE.sel).length;$('selbar').hidden=!n;$('selCount').textContent=n+' artikel dipilih'}
 $('selClear').onclick=function(){STATE.sel={};document.querySelectorAll('.item').forEach(function(x){x.classList.remove('sel');x.querySelector('input').checked=false});selBar()};
 $('selGo').onclick=function(){STATE.picked=Object.keys(STATE.sel).map(function(k){return STATE.sel[k]});renderPicked();showTab('tulis')};
 // ---- tulis ----
 function renderPicked(){var P=$('picked');P.innerHTML=STATE.picked.length?'':'<div class="hint" style="margin:0">Belum ada artikel. Pilih di Bank Artikel, atau pakai “Pilih otomatis”.</div>';
-  STATE.picked.forEach(function(r,i){var d=document.createElement('div');d.className='pk';d.innerHTML='<span class="tag">'+h(TOPICS[r.topic]||r.topic)+'</span><span title="'+h(r.title)+'">'+h(r.title)+' <small style="color:var(--mut)">· '+h(SRCNAME[r.source]||r.source)+'</small></span><button class="ghost" aria-label="Hapus">✕</button>';d.querySelector('button').onclick=function(){STATE.picked.splice(i,1);renderPicked()};P.appendChild(d)})}
+  STATE.picked.forEach(function(r,i){var d=document.createElement('div');d.className='pk';d.innerHTML='<span class="tag">'+h(TOPICS[r.topic]||r.topic)+'</span><span translate="no" title="'+h(r.title)+'">'+h(r.title)+' <small style="color:var(--mut)">· '+h(SRCNAME[r.source]||r.source)+'</small></span><button class="ghost" aria-label="Hapus">✕</button>';d.querySelector('button').onclick=function(){STATE.picked.splice(i,1);renderPicked()};P.appendChild(d)})}
 $('autoBtn').onclick=function(){var b=this;b.disabled=true;api('/api/pick?topic='+at.value+'&q='+encodeURIComponent($('autoQ').value)).then(function(j){if(!j.rows.length)toast('Belum ada artikel untuk topik ini. Perbarui sumber dulu.');STATE.picked=j.rows;renderPicked()}).catch(function(e){toast(e.message)}).then(function(){b.disabled=false})};
 $('fmt').querySelectorAll('button').forEach(function(b){b.onclick=function(){STATE.fmt=b.dataset.v;$('fmt').querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});$('lenWrap').style.visibility=STATE.fmt==='web'?'visible':'hidden'}});
 function prog(lines,cur){var P=$('prog');P.hidden=false;P.innerHTML=lines.map(function(l,i){return '<div class="'+(i===cur?'now':'')+'">'+h(l)+'</div>'}).join('')}
@@ -813,7 +817,7 @@ $('goBtn').onclick=function(){if(!STATE.picked.length)return toast('Pilih artike
     prog(steps,i);return api('/api/generate',{method:'POST',body:{ids:STATE.picked.map(function(r){return r.id}),format:STATE.fmt,title:$('title').value,angle:$('angle').value,audience:$('aud').value,length:$('len').value,topic:STATE.picked[0].topic}})}
   next().then(function(j){prog(steps,steps.length-1);STATE.refs=j.refs;STATE.model=j.model;STATE.draftId=null;STATE.curFmt=STATE.fmt;return showResult(j.body)}).then(function(){$('prog').hidden=true}).catch(function(e){$('prog').innerHTML='<div class="err">'+h(e.message)+'</div>'}).then(function(){btn.disabled=false})};
 function showResult(body){$('empty').hidden=true;$('outWrap').hidden=false;$('out').value=body;$('modelTag').textContent=STATE.model?'AI: '+STATE.model:'';
-  $('refList').innerHTML=(STATE.refs||[]).map(function(r){return '<li><a href="'+h(r.url)+'" target="_blank" rel="noopener">'+h(r.title)+'</a> <small>· '+h(SRCNAME[r.source]||r.source)+'</small></li>'}).join('');
+  $('refList').innerHTML=(STATE.refs||[]).map(function(r){return '<li><a translate="no" href="'+h(r.url)+'" target="_blank" rel="noopener">'+h(r.title)+'</a> <small>· '+h(SRCNAME[r.source]||r.source)+'</small></li>'}).join('');
   $('toFeed').hidden=$('toStory').hidden=STATE.curFmt!=='web';
   return loadTexts().then(runCheck).then(bankCheck)}
 function loadTexts(){var need=(STATE.refs||[]).map(function(r){return r.id}).filter(function(id){return !STATE.texts[id]});if(!need.length)return Promise.resolve();return api('/api/texts?ids='+need.join(',')).then(function(j){for(var k in j.texts)STATE.texts[k]=j.texts[k]})}
@@ -831,7 +835,7 @@ function runCheck(){var src=(STATE.refs||[]).concat(STATE.extra||[]),G=new Map()
   var cls=fl.length?(score<15?'warn':'bad'):st.length?'warn':'ok';var box=$('simBox');box.className='sim '+cls;
   var nb=(STATE.extra||[]).length,bank=STATE.bank==='load'?' · cek ke seluruh bank artikel sedang berjalan…':STATE.bank==='err'?' · cek ke seluruh bank artikel gagal, klik Cek ulang':STATE.bank?' · dicek juga ke seluruh bank artikel ('+STATE.bank+' frasa)'+(nb?': '+nb+' artikel lain memuat frasa yang sama':': tidak ada artikel lain yang sama'):'';
   box.innerHTML='<b>'+(fl.length?'✗ '+fl.length+' kalimat sama persis dengan sumber':'✓ 0 kalimat mirip')+'</b> · kemiripan '+score+'%'+(st.length?' · <b>struktur mirip</b> '+st.map(function(x){return h(name(x.r.id))+' ('+x.k+' dari '+dh.length+' subjudul)'}).join(', '):dh.length>=2?' · struktur berbeda dari semua sumber':'')
-    +(fl.length?'<ol>'+fl.map(function(f){return '<li>'+h(f.s)+'<small style="display:block;opacity:.8">sama dengan '+f.by.map(function(id){return h(name(id))}).join('; ')+'</small></li>'}).join('')+'</ol><div>Tulis ulang kalimat yang ditandai dulu. Draf baru bisa disimpan setelah 0 kalimat mirip.</div>':'')
+    +(fl.length?'<ol>'+fl.map(function(f){return '<li><span translate="no">'+h(f.s)+'</span><small style="display:block;opacity:.8">sama dengan '+f.by.map(function(id){return h(name(id))}).join('; ')+'</small></li>'}).join('')+'</ol><div>Tulis ulang kalimat yang ditandai dulu. Draf baru bisa disimpan setelah 0 kalimat mirip.</div>':'')
     +(st.length?'<div>Ubah urutan atau sudut subjudul supaya tidak mengikuti satu artikel sumber.</div>':'')
     +'<div style="font-size:11.5px;margin-top:6px;opacity:.85">Dicek terhadap '+(STATE.refs||[]).length+' artikel bahan'+bank+'. Ini cek internal, bukan jaminan lolos alat cek plagiat lain; tetap sunting sebelum terbit.</div>';
   $('rewrite').disabled=!fl.length;$('save').disabled=!!fl.length;$('save').title=fl.length?'Masih ada kalimat yang sama persis dengan sumber':'';renderPrev()}
@@ -853,7 +857,7 @@ $('dl').onclick=function(){var v=$('out').value,t=(v.match(/^(?:# |JUDUL KONTEN:
 $('save').onclick=function(){var b=this;if(STATE.flagged.length)return toast('Tulis ulang kalimat yang ditandai dulu.');b.disabled=true;api('/api/drafts',{method:'POST',body:{id:STATE.draftId,format:STATE.curFmt||STATE.fmt,body:$('out').value,refs:STATE.refs,score:STATE.score,model:STATE.model}}).then(function(j){STATE.draftId=j.id;toast('Draf tersimpan.')}).catch(function(e){toast(e.message)}).then(function(){b.disabled=false})};
 var FN={web:'Artikel',feed:'Feed',story:'Story'};
 function loadDrafts(){api('/api/drafts').then(function(j){var D=$('drafts');D.innerHTML=j.rows.length?'':'<div class="emptybox">Belum ada draf.</div>';j.rows.forEach(function(r){var d=document.createElement('div');d.className='item';
-  d.innerHTML='<div class="b"><a class="t" href="#">'+h(r.title)+'</a><div class="meta"><span class="tag">'+FN[r.format]+'</span> '+h(r.author)+' · '+fmtDate(r.created_at)+' · kemiripan '+(r.score||0)+'%</div></div>'+(r.author===ME.email||ME.admin?'<button class="ghost sm del">Hapus</button>':'');
+  d.innerHTML='<div class="b"><a class="t" translate="no" href="#">'+h(r.title)+'</a><div class="meta"><span class="tag">'+FN[r.format]+'</span> '+h(r.author)+' · '+fmtDate(r.created_at)+' · kemiripan '+(r.score||0)+'%</div></div>'+(r.author===ME.email||ME.admin?'<button class="ghost sm del">Hapus</button>':'');
   d.querySelector('a').onclick=function(e){e.preventDefault();api('/api/drafts?id='+r.id).then(function(x){STATE.refs=JSON.parse(x.refs||'[]');STATE.model=x.model;STATE.draftId=x.id;STATE.curFmt=x.format;showTab('tulis');return showResult(x.body)}).catch(function(e){toast(e.message)})};
   var del=d.querySelector('.del');if(del)del.onclick=function(){if(!confirm('Hapus draf ini?'))return;api('/api/drafts?id='+r.id,{method:'DELETE'}).then(loadDrafts).catch(function(e){toast(e.message)})};D.appendChild(d)})}).catch(function(e){toast(e.message)})}
 // ---- sumber ----
@@ -866,13 +870,13 @@ function loadStats(){return api('/api/stats').then(function(j){var cnt={},nw={},
       var rb=document.createElement('button');rb.className='ghost sm';rb.textContent='Cek ulang';rb.onclick=function(){api('/api/source/refresh',{method:'POST',body:{id:s.id}}).then(function(){toast('Sumber dicek ulang saat Perbarui berikutnya.');loadStats()})};c.appendChild(rb);
       if(!s.builtin){var db=document.createElement('button');db.className='ghost sm';db.textContent='Hapus';db.onclick=function(){if(confirm('Hapus sumber ini?'))api('/api/source/delete',{method:'POST',body:{id:s.id}}).then(loadStats).catch(function(e){toast(e.message)})};c.appendChild(db)}}
     else c.textContent=s.enabled?'aktif':'nonaktif';T.appendChild(tr)})})}
-var running=false;$('runBtn').onclick=function(){var b=this;if(running){running=false;b.textContent='Perbarui sekarang';return}running=true;b.textContent='Berhenti';var L=$('runLog');L.hidden=false;L.textContent='Mulai…\n';var n=0,saved=0,errs=0;
+var running=false;$('runBtn').onclick=function(){var b=this;if(running){running=false;b.textContent='Perbarui sekarang';return}running=true;b.textContent='Berhenti';var L=$('runLog');L.hidden=false;L.textContent=T('Mulai…')+'\n';var n=0,saved=0,errs=0;
   function loop(){if(!running||n>=150){fin();return}n++;api('/api/step',{method:'POST',body:{}}).then(function(j){errs=0;
-    if(j.did==='idle'){L.textContent+='Selesai. Semua sumber sudah dicek dalam 24 jam terakhir.\n';fin();return}
-    if(j.did==='discover')L.textContent+='Cek '+j.source+': +'+j.added+' URL'+(j.err?' ('+j.err+')':'')+'\n';
-    if(j.did==='fetch')j.items.forEach(function(it){if(it.status==='done')saved++;L.textContent+=(it.status==='done'?'✓ ':it.status==='skip'?'– ':'✗ ')+it.url.replace(/^https?:\/\//,'').slice(0,80)+' · '+it.info+'\n'});
-    L.scrollTop=L.scrollHeight;setTimeout(loop,300)}).catch(function(e){errs++;L.textContent+='Galat: '+e.message+(errs<3?' · lanjut ke langkah berikutnya\n':'\n');L.scrollTop=L.scrollHeight;if(errs>=3){L.textContent+='Berhenti setelah 3 galat berturut-turut.\n';fin()}else setTimeout(loop,1500)})}
-  function fin(){running=false;b.textContent='Perbarui sekarang';L.textContent+='Artikel baru tersimpan: '+saved+'\n';loadStats();loadList(true)}loop()};
+    if(j.did==='idle'){L.textContent+=T('Selesai. Semua sumber sudah dicek dalam 24 jam terakhir.')+'\n';fin();return}
+    if(j.did==='discover')L.textContent+=T('Cek '+j.source+': +'+j.added+' URL'+(j.err?' ('+j.err+')':''))+'\n';
+    if(j.did==='fetch')j.items.forEach(function(it){if(it.status==='done')saved++;L.textContent+=T((it.status==='done'?'✓ ':it.status==='skip'?'– ':'✗ ')+it.url.replace(/^https?:\/\//,'').slice(0,80)+' · '+it.info)+'\n'});
+    L.scrollTop=L.scrollHeight;setTimeout(loop,300)}).catch(function(e){errs++;L.textContent+=T('Galat: '+e.message+(errs<3?' · lanjut ke langkah berikutnya':''))+'\n';L.scrollTop=L.scrollHeight;if(errs>=3){L.textContent+=T('Berhenti setelah 3 galat berturut-turut.')+'\n';fin()}else setTimeout(loop,1500)})}
+  function fin(){running=false;b.textContent='Perbarui sekarang';L.textContent+=T('Artikel baru tersimpan: '+saved)+'\n';loadStats();loadList(true)}loop()};
 if(ME.admin){$('addCard').hidden=false;$('nsBtn').onclick=function(){api('/api/source/add',{method:'POST',body:{name:$('nsName').value,kind:$('nsKind').value,url:$('nsUrl').value,include:$('nsInc').value}}).then(function(){toast('Sumber ditambahkan.');$('nsName').value=$('nsUrl').value=$('nsInc').value='';loadStats()}).catch(function(e){toast(e.message)})}}
 renderPicked();loadStats().then(function(){loadList(true)});
 })();`;

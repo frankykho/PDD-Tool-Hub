@@ -301,7 +301,7 @@ export default function Screener() {
             <span className="dim small">Preset saya:</span>
             {saved.map((s) => (
               <span key={s.id} className="chip saved">
-                <button type="button" onClick={() => applySaved(s)}>
+                <button type="button" translate="no" onClick={() => applySaved(s)}>
                   {s.name}
                 </button>
                 <button type="button" aria-label={`Hapus ${s.name}`} className="chip-x" onClick={() => deleteSaved(s.id)}>

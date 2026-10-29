@@ -458,7 +458,7 @@
           <div class="ask-out" id="ask-out" aria-live="polite"></div>
           <p class="help-note">Jawaban disusun AI dari isi tutorial di sini. Jangan tulis PIN, password, OTP, atau data pribadi.</p>
         </div>
-        <div class="faq" id="faq-box" hidden><div class="list-label" style="margin-bottom:6px">Pertanyaan yang sering ditanyakan</div><div id="faq-list"></div></div>
+        <div class="faq" id="faq-box" hidden><div class="list-label" style="margin-bottom:6px">Pertanyaan yang sering ditanyakan</div><div id="faq-list" translate="no"></div></div>
       </div>
       <a class="btn-app" id="btn-app" hidden target="_blank" rel="noopener">Buka aplikasi</a>
       <div class="disclaimer">
@@ -475,7 +475,7 @@
       <header class="green-head submenu-topbar">
         <button class="icon-btn" id="btn-submenu-back" aria-label="Kembali ke daftar kategori">‹</button>
         <div>
-          <h2 class="submenu-heading-title" id="submenu-title" tabindex="-1">Kategori</h2>
+          <h2 class="submenu-heading-title" id="submenu-title" tabindex="-1" translate="no">Kategori</h2>
           <div class="submenu-heading-sub" id="submenu-sub"></div>
         </div>
       </header>
@@ -487,7 +487,7 @@
       <div class="tut-topbar">
         <button class="icon-btn" id="btn-back" aria-label="Kembali ke daftar topik">‹</button>
         <div class="tut-heading">
-          <h2 class="tut-heading-title" id="tut-title" tabindex="-1">Judul Tutorial</h2>
+          <h2 class="tut-heading-title" id="tut-title" tabindex="-1" translate="no">Judul Tutorial</h2>
           <div class="tut-heading-sub" id="tut-step-label" aria-live="polite"></div>
         </div>
         <button class="share-btn" id="btn-steps" aria-controls="steps" aria-expanded="false" aria-label="Daftar langkah" title="Lompat ke langkah tertentu">
@@ -694,13 +694,14 @@ function focusLater(el){
 }
 
 /* ========================= LEVEL 1: KATEGORI + PENCARIAN ========================= */
-function rowHtml({ icon, tint, title, sub }){
+// sub = teks UI (jumlah topik/langkah); subData = isian admin (deskripsi / judul kategori), tidak diterjemahkan
+function rowHtml({ icon, tint, title, sub, subData }){
   const bg = safeColor(tint);
   return `
     <div class="row-icon"${bg ? ` style="background:${bg}"` : ''} aria-hidden="true">${esc(icon || '📄')}</div>
     <div class="row-body">
-      <div class="row-title">${esc(title)}</div>
-      ${sub ? `<div class="row-sub">${esc(sub)}</div>` : ''}
+      <div class="row-title" translate="no">${esc(title)}</div>
+      ${sub || subData ? `<div class="row-sub">${subData ? `<span translate="no">${esc(subData)}</span>` : ''}${sub && subData ? ' · ' : ''}${esc(sub || '')}</div>` : ''}
     </div>
     <div class="row-chevron" aria-hidden="true">›</div>`;
 }
@@ -711,7 +712,7 @@ function renderPopular(){
     const [c, t] = k.split('/'), cat = CATEGORIES.find(x => x.id === c), tp = cat && cat.items.find(x => x.id === t);
     return tp ? { cat, tp } : null;
   }).filter(Boolean).slice(0, 6);
-  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><b>${esc(tp.title)}</b><small>${esc(cat.title)} · ${(tp.slides || []).length} langkah</small></button>`).join('');
+  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><b translate="no">${esc(tp.title)}</b><small><span translate="no">${esc(cat.title)}</span> · ${(tp.slides || []).length} langkah</small></button>`).join('');
   $('popular').hidden = L.length < 2 || !!searchInput.value.trim();
 }
 $('pop-list').addEventListener('click', (e) => {
@@ -735,7 +736,7 @@ function renderMenu(){
       btn.className = 'row';
       btn.innerHTML = rowHtml({
         icon: cat.icon, tint: cat.tint, title: cat.title,
-        sub: cat.desc || `${n} topik`
+        subData: cat.desc, sub: cat.desc ? '' : `${n} topik`
       });
       btn.addEventListener('click', () => navigate(buildHash(cat.id)));
       menuList.appendChild(btn);
@@ -763,7 +764,7 @@ function renderMenu(){
     btn.className = 'row';
     btn.innerHTML = rowHtml({
       icon: cat.icon, tint: cat.tint, title: t.title,
-      sub: `${cat.title} · ${(t.slides || []).length} langkah`
+      subData: cat.title, sub: `${(t.slides || []).length} langkah`
     });
     btn.addEventListener('click', () => navigate(buildHash(cat.id, t.id, 1)));
     menuList.appendChild(btn);
@@ -823,8 +824,8 @@ const stepsBox = $('steps'), stepsList = $('steps-list'), stepsBg = $('steps-bg'
 function buildSteps(){
   const slides = currentTutorial.slides || [];
   stepsList.innerHTML = slides.map((s, i) => {
-    const body = s.text !== undefined ? `<p class="slide-desc">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc">${formatDesc(s.desc)}</p>` : '');
-    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t">${esc(stepTitle(s, i))}</span></button>`
+    const body = s.text !== undefined ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>` : '');
+    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t"${String(s.title || slideText(s) || '').trim() ? ' translate="no"' : ''}>${esc(stepTitle(s, i))}</span></button>`
       + `<div class="step-body">${body}${i === slides.length - 1 ? endHtml() : ''}</div></li>`;
   }).join('');
 }
@@ -853,11 +854,11 @@ function buildSlides(){
     const img = safeUrl(s.image);
     const alt = s.title ? `Langkah ${i + 1}: ${s.title}` : `Screenshot langkah ${i + 1}`;
     const imgHtml = img
-      ? `<img src="${esc(img)}" alt="${esc(alt)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom>`
+      ? `<img translate="no" src="${esc(img)}" alt="${esc(alt)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom>`
       : `<div class="slide-image-placeholder" aria-hidden="true"><div style="font-size:28px">🖼️</div>Gambar untuk langkah ini belum tersedia</div>`;
     const textHtml = s.text !== undefined
-      ? `<p class="slide-desc">${formatDesc(s.text)}</p>`
-      : `<h3 class="slide-title">${esc(s.title)}</h3><p class="slide-desc">${formatDesc(s.desc)}</p>`;
+      ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>`
+      : `<h3 class="slide-title" translate="no">${esc(s.title)}</h3><p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>`;
     const endNote = i === total - 1 ? endHtml() : '';
     el.innerHTML = `
       <div class="slide-image-wrap${img ? ' has-image' : ''}">${imgHtml}</div>
@@ -1114,8 +1115,8 @@ $('ask-form').addEventListener('submit', async (e) => {
     const r = await post('/api/ask', { q, ctx: ctx.map(({ t, title, text }) => ({ t, title, text })) });
     const links = (r.topics || []).map(t => ctx.find(x => x.t === t)).filter(Boolean);
     const none = !r.found || !r.answer;
-    out.innerHTML = `<div class="ans">${none ? 'Belum ada tutorial untuk pertanyaan ini.' + (CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : '') : esc(r.answer).replace(/\n/g, '<br>')}</div>`
-      + links.map(x => `<button type="button" class="tl" data-go="${esc(x.t)}">📄 ${esc(x.title)}</button>`).join('');
+    out.innerHTML = `<div class="ans"${none ? '' : ' translate="no"'}>${none ? 'Belum ada tutorial untuk pertanyaan ini.' + (CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : '') : esc(r.answer).replace(/\n/g, '<br>')}</div>`
+      + links.map(x => `<button type="button" class="tl" translate="no" data-go="${esc(x.t)}">📄 ${esc(x.title)}</button>`).join('');
   }catch(err){ out.innerHTML = `<div class="ans">${esc(err.message || 'Asisten belum bisa menjawab.')}</div>`; }
   finally{ btn.disabled = false; }
 });
@@ -1181,7 +1182,7 @@ function waText(){
 $('btn-konten').addEventListener('click', () => {
   if(!currentTutorial) return;
   const bg = document.createElement('div'); bg.className = 'kn-bg';
-  bg.innerHTML = `<div class="kn" role="dialog" aria-modal="true" aria-label="Jadikan konten"><h3>Jadikan konten</h3><small>${esc(currentTutorial.title)} · ${(currentTutorial.slides || []).length} langkah</small>
+  bg.innerHTML = `<div class="kn" role="dialog" aria-modal="true" aria-label="Jadikan konten"><h3>Jadikan konten</h3><small><span translate="no">${esc(currentTutorial.title)}</span> · ${(currentTutorial.slides || []).length} langkah</small>
     <button type="button" data-k="feed">🖼️ Carousel feed 4:5 (PNG)</button><button type="button" data-k="story">📱 Story 9:16 (PNG)</button><button type="button" data-k="wa">💬 Salin teks WhatsApp</button>
     <small>Gambar = sampul + tiap langkah + penutup. Cek ulang isi & sensor data pribadi sebelum diunggah.</small><button type="button" class="pri" data-k="x">Tutup</button></div>`;
   document.body.appendChild(bg);

@@ -458,7 +458,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <p class="muted small" id="rHelp" style="margin:10px 0 0"></p>
   </div>
 </dialog>
-<div id="mrArea"></div>
+<div id="mrArea" translate="no"></div>
 
 <script>
 (function(){
@@ -600,7 +600,7 @@ async function loadCal(){
 const kindOf=i=>K[i.kind]?i.kind:"konten";
 function chip(i){
   const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
-  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b>${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
+  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b translate="no">${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
   $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
@@ -633,11 +633,11 @@ function renderBoard(list,t){
   $("stats").innerHTML=`<span class="stat">${L.filter(i=>i.d_status!=="selesai").length} belum selesai</span><span class="stat c5">${L.filter(i=>i.d_status!=="selesai"&&(i.d_due||i.date)<t).length} lewat tenggat</span>`;
   $("calBox").innerHTML=`<div class="board">${PL.designStatuses.map(s=>{const C=L.filter(i=>(i.d_status||"belum")===s);
     return `<div class="col"><h3><span>${DSL[s]}</span><span class="muted">${C.length}</span></h3>${C.map(i=>{const due=i.d_due||i.date,late=s!=="selesai"&&due<t;
-      return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b>${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small>${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain">${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
+      return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b translate="no">${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small translate="no">${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain">${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
 }
 /* ---------- Momen ---------- */
 const MT=PL.momentTypes||{};
-const momChip=n=>{const m=MOMS[n];return `<button type="button" class="mom ${esc(m.type)}" data-mom="${n}" title="${esc(m.name)}${m.idea?" · "+esc(m.idea):""}${m.approx?" (tanggal perkiraan)":""}">✨ ${esc(m.name)}</button>`};
+const momChip=n=>{const m=MOMS[n];return `<button type="button" class="mom ${esc(m.type)}" data-mom="${n}" title="${esc(m.name)}${m.idea?" · "+esc(m.idea):""}${m.approx?" (tanggal perkiraan)":""}"${m.type==="tim"?' translate="no"':""}>✨ ${esc(m.name)}</button>`};
 // kegiatan baru dari momen: judul & catatan terisi ide kontennya
 const fromMoment=m=>openForm(null,m.date<todayIso()?todayIso():m.date,{title:m.name,note:`Momen: ${m.name}${m.approx?" (tanggal perkiraan, cek ketetapan pemerintah)":""}\nIde: ${m.idea||""}`});
 let MOMP=[];
@@ -650,7 +650,7 @@ async function loadMoments(){
 function renderMoments(){
   const pay=recall("pl_pay")==="1",L=MOMP.map((m,n)=>[m,n]).filter(([m])=>pay||!m.payday);
   $("momBox").innerHTML=`<div class="bar" style="margin:0 0 6px"><h2>✨ Momen 60 hari ke depan</h2><span class="sp"></span><label class="chk small" style="margin:0"><input type="checkbox" id="momPay"${pay?" checked":""}> Tanggal gajian</label></div>`+
-    (L.length?L.map(([m,n])=>`<div class="mrow"><span class="d">${fmtDate(m.date)}</span><div class="ti"><b>${esc(m.name)}</b><span class="tag">${esc(MT[m.type]||m.type)}</span>${m.approx?'<span class="tag" title="Kalender Hijriah perkiraan, bisa bergeser ±1 hari">perkiraan</span>':""}${m.syariah?'<span class="tag">syariah</span>':""}${m.idea?`<small>${esc(m.idea)}</small>`:""}${m.created_by?`<small>Ditambahkan ${esc(m.created_by)}</small>`:""}</div><button type="button" class="btn sm" data-mp="${n}">+ Kegiatan</button>${m.id&&(PL.me.adm||m.created_email===PL.me.email)?`<button type="button" class="btn sm danger" data-mdel="${esc(m.id)}" aria-label="Hapus momen ${esc(m.name)}">✕</button>`:""}</div>`).join(""):'<p class="muted small">Tidak ada momen.</p>')+
+    (L.length?L.map(([m,n])=>`<div class="mrow"><span class="d">${fmtDate(m.date)}</span><div class="ti"><b${m.type==="tim"?' translate="no"':""}>${esc(m.name)}</b><span class="tag">${esc(MT[m.type]||m.type)}</span>${m.approx?'<span class="tag" title="Kalender Hijriah perkiraan, bisa bergeser ±1 hari">perkiraan</span>':""}${m.syariah?'<span class="tag">syariah</span>':""}${m.idea?`<small${m.type==="tim"?' translate="no"':""}>${esc(m.idea)}</small>`:""}${m.created_by?`<small>Ditambahkan ${esc(m.created_by)}</small>`:""}</div><button type="button" class="btn sm" data-mp="${n}">+ Kegiatan</button>${m.id&&(PL.me.adm||m.created_email===PL.me.email)?`<button type="button" class="btn sm danger" data-mdel="${esc(m.id)}" aria-label="Hapus momen ${esc(m.name)}">✕</button>`:""}</div>`).join(""):'<p class="muted small">Tidak ada momen.</p>')+
     `<form id="momAdd" class="grid3" style="margin-top:12px;align-items:end"><div class="fld" style="margin:0"><label for="maDate">Momen tim: tanggal</label><input class="f" type="date" id="maDate" required></div><div class="fld" style="margin:0"><label for="maName">Nama</label><input class="f" id="maName" maxlength="100" required placeholder="mis. Masa penawaran SR025"></div><div class="fld" style="margin:0"><label for="maIdea">Ide konten</label><input class="f" id="maIdea" maxlength="300"></div><div class="acts" style="grid-column:1/-1;margin:0"><button class="btn sm pri">+ Tambah momen tim</button><span class="muted small" id="maMsg"></span></div></form>`+
     `<p class="muted small" style="margin:10px 0 0">Hari besar Islam memakai kalender Hijriah perkiraan dan bisa bergeser ±1 hari dari ketetapan pemerintah. Tambahkan momen tim seperti masa penawaran SBN ritel, HUT perusahaan, atau jadwal program.</p>`;
 }
@@ -680,12 +680,14 @@ function renderPerf(month){
   const rows=[...L].sort((a,b)=>(+b.m_reach||+b.m_views||0)-(+a.m_reach||+a.m_views||0));
   $("calBox").innerHTML=`<div class="perf"><div class="kpis">${kpi("Konten terbit",int(L.length))}${kpi("Views",int(sum("m_views")))}${kpi("Jangkauan",int(sum("m_reach")))}${kpi("Interaksi",int(L.reduce((a,i)=>a+inter(i),0)))}${kpi("Engagement rate",pct2(erOf(L)))}${kpi("Klik link",int(sum("clicks")))}${kpi("Pengikut baru",int(sum("m_follows")))}</div>`+
     `<div class="card"><h2>Per kanal</h2><div class="scroll"><table class="t"><thead><tr><th>Kanal</th><th class="n">Konten</th><th class="n">Views</th><th class="n">Jangkauan</th><th class="n">Interaksi</th><th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${Object.keys(ch).sort((a,b)=>ch[b].length-ch[a].length).map(k=>{const C=ch[k],s=f=>C.reduce((a,i)=>a+(+f(i)||0),0);return `<tr><td>${esc(k)}</td><td class="n">${C.length}</td><td class="n">${int(s(i=>i.m_views))}</td><td class="n">${int(s(i=>i.m_reach))}</td><td class="n">${int(s(inter))}</td><td class="n">${pct2(erOf(C))}</td><td class="n">${int(s(i=>i.clicks))}</td></tr>`}).join("")||'<tr><td colspan="7" class="muted">Belum ada konten terbit bulan ini.</td></tr>'}</tbody></table></div></div>`+
-    `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,6).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td>${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,6).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="11" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan) ÷ jangkauan.</p></div>`+
+    `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,6).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td translate="no">${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,6).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="11" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan) ÷ jangkauan.</p></div>`+
     `<div class="card"><h2>Impor angka dari Meta Business Suite</h2><p class="muted small" style="margin:0 0 8px">Di Meta Business Suite: Insights → Konten → Ekspor data (CSV). Baris dicocokkan dengan kegiatan lewat link postingan (kolom Permalink), jadi isi <b>Link postingan</b> di setiap konten.</p>`+
     `<div class="acts"><input type="file" id="csvF" accept=".csv,text/csv"><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
     `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), gulir sampai postingan yang ingin diambil terlihat, lalu klik bookmark-nya. Suka, komentar, dan views tiap postingan (maks. 60) dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Bisa juga dari satu halaman postingan.</p>`+
     `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div></div>`;
-  $("bmLink").href="javascript:"+encodeURIComponent("("+plBookmark.toString()+")("+JSON.stringify(location.origin)+")");
+  let bm=plBookmark.toString();
+  if(isEn())bm=bm.replace(/alert\("([^"]+)"\)/g,(m,x)=>"alert("+JSON.stringify(T(x))+")").replace('"/ig-sync?n="','"/ig-sync?lang=en&n="');
+  $("bmLink").href="javascript:"+encodeURIComponent("("+bm+")("+JSON.stringify(location.origin)+")");
 }
 // Kode tombol bookmark. Dijalankan di tab Instagram, membuka jendela /ig-sync di Planner, lalu mengirim angka per postingan lewat postMessage.
 function plBookmark(W){
@@ -757,7 +759,7 @@ const canEditTask=t=>PL.me.adm||t.who===PL.me.email||t.by_email===PL.me.email;
 function taskRow(t,mineCol,extra="",inForm=false){
   const today=todayIso(),late=t.status!=="selesai"&&t.due<today;
   const who=mineCol?`dari ${esc(t.by_name||"?")}`:`untuk ${esc(t.who_name||t.who)}${t.job?" · "+esc(PL.roles[t.job]||t.job):""}`;
-  return `<div class="trow"><div class="ti"><b>${esc(t.title)}</b>${inForm?"":`<small><button type="button" class="lnk" data-prog="${esc(t.item_id)}">🤝 ${esc(t.item_title||"Program")}</button></small>`}<small class="${late?"late":""}">Tenggat ${fmtDate(t.due)}${late?" · lewat":""} · ${who}</small>${t.brief?`<small>${esc(t.brief.slice(0,140))}${t.brief.length>140?"…":""}</small>`:""}${t.link?`<small><a href="${esc(t.link)}" target="_blank" rel="noopener">Hasil ↗</a></small>`:""}</div>`+
+  return `<div class="trow"><div class="ti"><b translate="no">${esc(t.title)}</b>${inForm?"":`<small translate="no"><button type="button" class="lnk" data-prog="${esc(t.item_id)}">🤝 ${esc(t.item_title||"Program")}</button></small>`}<small class="${late?"late":""}">Tenggat ${fmtDate(t.due)}${late?" · lewat":""} · ${who}</small>${t.brief?`<small translate="no">${esc(t.brief.slice(0,140))}${t.brief.length>140?"…":""}</small>`:""}${t.link?`<small><a href="${esc(t.link)}" target="_blank" rel="noopener">Hasil ↗</a></small>`:""}</div>`+
     (canEditTask(t)?`<select class="f" data-tstat="${esc(t.id)}" aria-label="Status tugas ${esc(t.title)}">${opts(PL.taskStatuses,DSL).replace(`value="${t.status||"belum"}"`,`value="${t.status||"belum"}" selected`)}</select>`:`<span class="stat c${DCL[t.status]||1}">${DSL[t.status]||"–"}</span>`)+extra+"</div>";
 }
 function renderTasksView(){
@@ -765,7 +767,7 @@ function renderTasksView(){
   const forMe=L.filter(x=>x.who===me),other=L.filter(x=>x.who!==me&&(TV.all||x.by_email===me));
   $("stats").innerHTML=`<span class="stat">${open.filter(x=>x.who===me).length} tugas untukmu belum selesai</span><span class="stat c5">${open.filter(x=>x.due<t).length} lewat tenggat</span>`;
   const col=(title,list,mineCol,empty)=>`<div class="col"><h3><span>${title}</span><span class="muted">${list.length}</span></h3>${list.length?list.map(x=>taskRow(x,mineCol)).join(""):`<p class="muted small" style="margin:4px">${empty}</p>`}</div>`;
-  const apCol=TV.ap.length?`<div class="col"><h3><span>Menunggu persetujuanmu</span><span class="muted">${TV.ap.length}</span></h3>${TV.ap.map(x=>`<div class="trow"><div class="ti"><b>${ICON[x.kind]||""} ${esc(x.title)}</b><small>${esc(x.channel)} · tayang ${fmtDate(x.date)}${x.owner?" · "+esc(x.owner):""}</small>${x.approval_note?`<small>${esc(x.approval_note)}</small>`:""}</div><button type="button" class="btn sm" data-open="${esc(x.id)}">Periksa</button></div>`).join("")}</div>`:"";
+  const apCol=TV.ap.length?`<div class="col"><h3><span>Menunggu persetujuanmu</span><span class="muted">${TV.ap.length}</span></h3>${TV.ap.map(x=>`<div class="trow"><div class="ti"><b translate="no">${ICON[x.kind]||""} ${esc(x.title)}</b><small>${esc(x.channel)} · tayang ${fmtDate(x.date)}${x.owner?" · "+esc(x.owner):""}</small>${x.approval_note?`<small translate="no">${esc(x.approval_note)}</small>`:""}</div><button type="button" class="btn sm" data-open="${esc(x.id)}">Periksa</button></div>`).join("")}</div>`:"";
   $("calBox").innerHTML=`<div class="tasks">${apCol}${col("Untukmu",forMe,true,"Belum ada tugas untukmu.")}`+
     (PL.me.assign||other.length?col(TV.all?"Tugas tim lainnya":"Kamu berikan",other,false,PL.me.assign?"Buka sebuah program, lalu beri tugas di bagian Tugas tim.":"Tidak ada."):"")+"</div>"+
     (PL.me.assign?`<label class="chk small" style="margin-top:10px"><input type="checkbox" id="tAll"${TV.all?" checked":""}> Tampilkan semua tugas tim</label>`:"")+
@@ -788,14 +790,14 @@ async function loadDaily(){
   }catch(e){DV.logs=[];showErr("calErr",e)}
   renderCal();
 }
-const logRow=(l,own)=>`<div class="trow"><span class="ap c${WCL[l.status]||1}">${esc(WS[l.status]||l.status||"–")}</span><div class="ti"><b>${esc(l.text)}</b>`+
-  (l.item_id&&l.item_title?`<small><button type="button" class="lnk" data-open="${esc(l.item_id)}">${ICON[l.item_kind]||""} ${esc(l.item_title)}</button></small>`:"")+
-  (l.note?`<small${l.status==="kendala"?' class="late"':""}>${l.status==="kendala"?"⚠ ":""}${esc(l.note)}</small>`:"")+
+const logRow=(l,own)=>`<div class="trow"><span class="ap c${WCL[l.status]||1}">${esc(WS[l.status]||l.status||"–")}</span><div class="ti"><b translate="no">${esc(l.text)}</b>`+
+  (l.item_id&&l.item_title?`<small translate="no"><button type="button" class="lnk" data-open="${esc(l.item_id)}">${ICON[l.item_kind]||""} ${esc(l.item_title)}</button></small>`:"")+
+  (l.note?`<small translate="no"${l.status==="kendala"?' class="late"':""}>${l.status==="kendala"?"⚠ ":""}${esc(l.note)}</small>`:"")+
   (l.link?`<small><a href="${esc(l.link)}" target="_blank" rel="noopener">Hasil ↗</a></small>`:"")+"</div>"+
   (own?`<button type="button" class="btn sm" data-ledit="${esc(l.id)}">Ubah</button><button type="button" class="x" data-ldel="${esc(l.id)}" aria-label="Hapus catatan ${esc(l.text)}">×</button>`:"")+"</div>";
 function dailyForm(){
   const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit)||{},me=PL.me.email;
-  const mine=i=>i.owner_email===me||i.d_who===me,lab=i=>`<option value="${esc(i.id)}">${ICON[kindOf(i)]} ${esc(i.title)} · ${esc(fmtDate(i.date))}</option>`;
+  const mine=i=>i.owner_email===me||i.d_who===me,lab=i=>`<option value="${esc(i.id)}" translate="no">${ICON[kindOf(i)]} ${esc(i.title)} · ${esc(fmtDate(i.date))}</option>`;
   const near=DV.items.slice().sort((a,b)=>Math.abs(D(a.date)-D(DV.date))-Math.abs(D(b.date)-D(DV.date))).slice(0,80),my=near.filter(mine),rest=near.filter(i=>!mine(i));
   return `<form id="dvForm" class="dvf"><input class="f" id="dvText" maxlength="500" required placeholder="Apa yang dikerjakan? mis. Revisi caption promo RDPU" value="${esc(ed.text||"")}" aria-label="Pekerjaan">
     <div class="grid3"><select class="f" id="dvSt" aria-label="Status">${opts(Object.keys(WS),WS)}</select>
@@ -836,7 +838,7 @@ function renderDaily(){
   const missing={};if(work)USERS.filter(u=>u.email!==me&&u.role&&!who.has(u.email)).forEach(u=>(missing[u.role]=missing[u.role]||[]).push(u.name));
   const keys=order.filter(k=>T[k]||missing[k]);
   const team=`<div class="card"><h2>Tim${d===t?" hari ini":""}</h2>`+(keys.length?keys.map(k=>`<div class="dteam"><h3>${esc(PL.roles[k]||"Lainnya")}</h3>`+
-    (T[k]?[...T[k].people].map(([e,n])=>`<div class="dperson">${esc(n)}</div>`+T[k].logs.filter(l=>l.email===e).map(l=>logRow(l,false)).join("")).join(""):"")+
+    (T[k]?[...T[k].people].map(([e,n])=>`<div class="dperson" translate="no">${esc(n)}</div>`+T[k].logs.filter(l=>l.email===e).map(l=>logRow(l,false)).join("")).join(""):"")+
     (missing[k]?`<p class="muted small" style="margin:6px 0 0">Belum mengisi: ${missing[k].map(esc).join(", ")}</p>`:"")+"</div>").join(""):`<p class="muted small" style="margin:4px 0">Belum ada catatan dari anggota lain.</p>`)+"</div>";
   $("calBox").innerHTML=`<div class="daily">${my}${team}</div>`;
   const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit);
@@ -905,7 +907,7 @@ function setGal(it){
   $("iGPart").value=it?it.partner||"":"";$("iGCity").value=it?it.place||"":"";$("iGEnd").value=it?it.end_date||"":"";$("iGUpd").value="";
   $("iGPic").value=it?it.audience||"":"";$("iGRank").value=it?it.target||"":"";$("iGStud").value=it&&it.result_num!=null?it.result_num:"";setDocs(it);
 }
-const galRow=(l,first)=>`<div class="com"><b>${esc(GSL[l.st]||l.st)}</b> <span class="muted">${esc(l.by||"")} · ${when(l.at)}</span><div>${l.text?esc(l.text):`<span class="muted">${first?"Rencana dicatat":"Pindah tahap"}</span>`}</div></div>`;
+const galRow=(l,first)=>`<div class="com"><b>${esc(GSL[l.st]||l.st)}</b> <span class="muted">${esc(l.by||"")} · ${when(l.at)}</span><div>${l.text?`<span translate="no">${esc(l.text)}</span>`:`<span class="muted">${first?"Rencana dicatat":"Pindah tahap"}</span>`}</div></div>`;
 async function loadGalLog(){
   const it=editing;$("iGLog").innerHTML="";if(!it||kindOf(it)!=="galeri"){$("iGLog").innerHTML='<p class="muted small" style="margin:0">Riwayat mulai tercatat setelah disimpan.</p>';return}
   let L=[];try{L=((await api("/api/galeri?id="+encodeURIComponent(it.id)))[0]||{}).log||[]}catch(e){}
@@ -926,19 +928,19 @@ function renderChk(){
   const box=$("iChk"),t=$("iCopy").value;
   if(!window.Compliance||!t.trim()||$("gCopy").hidden){box.innerHTML="";return}
   const r=Compliance.check(t,{platform:platOf(),glossary:PL.glossary||[],allow:PL.allow||[]}),L=r.issues.filter(i=>i.level!=="info"||i.id==="risiko");
-  box.innerHTML=`<p class="muted small" style="margin:0 0 4px">${int(r.len)}${r.max<1e5?" / "+int(r.max):""} karakter · ${r.tags} hashtag</p><ul class="chk-list">${L.length?L.slice(0,8).map(i=>`<li class="${i.level}">${esc(i.msg)}${i.match?` <i>“${esc(i.match)}”</i>`:""}</li>`).join(""):'<li class="ok">Lolos cek otomatis.</li>'}</ul>`;
+  box.innerHTML=`<p class="muted small" style="margin:0 0 4px">${int(r.len)}${r.max<1e5?" / "+int(r.max):""} karakter · ${r.tags} hashtag</p><ul class="chk-list">${L.length?L.slice(0,8).map(i=>`<li class="${i.level}">${esc(i.msg)}${i.match?` <i translate="no">“${esc(i.match)}”</i>`:""}</li>`).join(""):'<li class="ok">Lolos cek otomatis.</li>'}</ul>`;
 }
 function renderAp(){
   const it=editing,name=$("iAppr").value.trim(),em=emailOf(name),ap=it&&it.approver_email&&it.approver_email===em?it.approval||"":"";
   $("iApSt").innerHTML=!name?'<span class="muted">Tanpa persetujuan</span>':!em?'<span class="late">Pilih nama dari daftar anggota.</span>':!ap?'<span class="muted">Ubah status ke Review lalu Simpan untuk meminta persetujuan.</span>':
-    `<span class="ap ${ap==="disetujui"?"c4":ap==="revisi"?"c5":"c2"}">${esc(PL.approval[ap]||ap)}</span>${ap==="disetujui"&&it.approved_by?` <span class="muted">oleh ${esc(it.approved_by)}, ${when(it.approved_at)}</span>`:""}${it.approval_note?`<div class="muted" style="margin-top:4px">${esc(it.approval_note)}</div>`:""}`;
+    `<span class="ap ${ap==="disetujui"?"c4":ap==="revisi"?"c5":"c2"}">${esc(PL.approval[ap]||ap)}</span>${ap==="disetujui"&&it.approved_by?` <span class="muted">oleh ${esc(it.approved_by)}, ${when(it.approved_at)}</span>`:""}${it.approval_note?`<div class="muted" translate="no" style="margin-top:4px">${esc(it.approval_note)}</div>`:""}`;
   $("iDec").hidden=!(it&&it.approval==="menunggu"&&(it.approver_email===PL.me.email||PL.me.adm));
 }
 async function loadComs(){
   const it=editing;$("iComBox").hidden=!it;$("iComs").innerHTML="";if(!it)return;
   let L=[];try{L=await api("/api/comments?item="+encodeURIComponent(it.id))}catch(e){}
   if(editing!==it)return;
-  $("iComs").innerHTML=L.length?L.map(c=>`<div class="com ${esc(c.kind)}"><b>${esc(c.by_name)}</b> <span class="muted">${c.kind==="disetujui"?"menyetujui · ":c.kind==="revisi"?"meminta revisi · ":""}${when(c.at)}</span>${c.text?`<div>${esc(c.text)}</div>`:""}</div>`).join(""):'<p class="muted small" style="margin:0">Belum ada komentar.</p>';
+  $("iComs").innerHTML=L.length?L.map(c=>`<div class="com ${esc(c.kind)}"><b>${esc(c.by_name)}</b> <span class="muted">${c.kind==="disetujui"?"menyetujui · ":c.kind==="revisi"?"meminta revisi · ":""}${when(c.at)}</span>${c.text?`<div translate="no">${esc(c.text)}</div>`:""}</div>`).join(""):'<p class="muted small" style="margin:0">Belum ada komentar.</p>';
 }
 async function loadLinks(){
   const it=editing;$("lkList").innerHTML="";$("lkAddRow").hidden=!it;$("lkNote").hidden=!!it;if(!it)return;
@@ -1381,12 +1383,41 @@ function progDoc(R){
   const tb=(h3,C,L,empty)=>({t:"table",h3,cols:pctCols(C.map(c=>[c[0],c[3],c[2]])),rows:L.map(x=>C.map(c=>cell(c[1](x)))),empty});
   const Bk=[{t:"cover",lines:["Laporan Program Partnership",R.per],sub:[R.div,R.P.length>1?`${R.P.length} program`:[R.P[0].title,R.P[0].partner].filter(Boolean).join(" · ")].join(" · ")}];
   if(R.P.length>1)Bk.push({t:"page",h2:"Rekap program",sub:`${R.per} · ${R.P.length} program`},tb("Semua program",PCOLS.rekap,R.P,""));
-  for(const p of R.P)Bk.push({t:"page",h2:p.title,sub:[p.partner,p.channel,perOf(p),stLate(p),stageOf(p)==="berjalan"?"hasil sementara":""].filter(Boolean).join(" · ")},
+  for(const p of R.P)Bk.push({t:"page",h2:p.title,raw:1,sub:[p.partner,p.channel,perOf(p),stLate(p),stageOf(p)==="berjalan"?"hasil sementara":""].filter(Boolean).join(" · ")},
     {t:"table",h3:"Detail program",cols:[["Keterangan",20],["Isi",80]],rows:progInfo(p).map(r=>[r[0],r[1]])},{t:"kpis",items:pk(p)},
     tb(`Kegiatan terkait (${p.items.length})`,PCOLS.items,p.items,"Belum ada kegiatan yang dikaitkan ke program ini."),tb(`Tugas tim (${p.tasks.length})`,PCOLS.tasks,p.tasks,"Belum ada tugas."));
   Bk.push({t:"page",h2:"Benchmark promo reksa dana kompetitor",sub:"Dari Competitor Intelligence · promo yang berjalan di periode yang sama"},
     tb(`Promo kompetitor (${R.bench.length})`,PCOLS.bench,R.bench,"Tidak ada promo reksa dana kompetitor yang tercatat di periode ini."));
   return {div:R.div,per:R.per,blocks:Bk};
+}
+/* ---------- bahasa laporan: saat Tool Hub berbahasa Inggris, laporan internal (PDF, PPT, Excel, nama file) ikut diterjemahkan lewat
+   window.hubT (kamus apps/content-planner/i18n.js). Kolom data pengguna (judul, nama, mitra, catatan) tidak, kecuali tanggal & angka rekapnya. ---------- */
+const T=s=>window.hubT?window.hubT(s):s;
+const isEn=()=>!!(window.hubLang&&window.hubLang()==="en");
+// teks gabungan " · " diterjemahkan per bagian (pola kamus tidak menelan bagian sebelahnya); kurung yang memuat " · " tetap utuh
+const TP=s=>typeof s!=="string"?s:/\([^)]* · /.test(s)?T(s):s.split(" · ").map(T).join(" · ");
+// judul kolom (bahasa Indonesia) yang isinya data pengguna
+const RAW=new Set(["No","Acara / materi","Judul","Konten","Program","Partner","Narasumber","PIC","Penulis","Diminta","Desainer","Cabang","Cabang / galeri","Penyelenggara / tempat","Link","Visual untuk","Kegiatan","Kegiatan terkait",
+  "Mitra Kerjasama","Galeri Investasi","Cabang In Charge","Rank","PIC Coordinator","Remarks","Regional","Kota","PIC internal","Jenis mitra","Nama","Orang","Pekerjaan","Kendala","Catatan / kendala","Catatan / progres terakhir","Progres terakhir (pekerjaan harian)",
+  "Update","Oleh","Tugas","Kompetitor","Promo","Reward maks.","Masa tahan","Isi"]);
+// di data pengguna hanya bagian berupa tanggal, angka rekap ("2 selesai"), atau label bawaan yang diterjemahkan
+const RAWT=new Set(["Total","Belum ada update progres","Belum ada pekerjaan harian yang dikaitkan","Rencana dicatat"]);
+const TR=s=>typeof s!=="string"?s:s.split(" · ").map(x=>/^\d{1,2} \p{L}{3,9} \d{4}$|^[\d.]+ (selesai|catatan|pekerjaan)$|^(Regional|Pindah ke tahap) /u.test(x)||RAWT.has(x)?T(x):x).join(" · ");
+const trCell=(c,raw)=>c==null||typeof c!=="object"?(raw?TR:TP)(c):c.st?c:{...c,t:(raw?TR:TP)(c.t)};
+function trDoc(doc){
+  if(!isEn())return doc;
+  // nilai KPI "3 dari 5": pola "{a} dari {b}" terlalu umum untuk kamus
+  const val=v=>typeof v==="string"&&/^[\d.]+ dari [\d.]+$/.test(v)?v.replace(" dari "," of "):TP(v);
+  return {...doc,per:T(doc.per),blocks:doc.blocks.map(b=>{
+    if(b.t==="cover")return {...b,lines:b.lines.map(TP),sub:TP(b.sub||"")};
+    if(b.t==="page")return {...b,h2:b.raw?b.h2:TP(b.h2),sub:b.sub&&TP(b.sub)};
+    if(b.t==="kpis")return {...b,h3:b.h3&&TP(b.h3),items:b.items.map(x=>[TP(x[0]),val(x[1]),TP(x[2]||"")])};
+    if(b.t!=="table")return b;
+    // "Isi" di Detail program: baris Jenis / Periode / Status berisi label, bukan data pengguna
+    const raw=(r,i)=>{const h=(b.cols[i]||[])[0];return RAW.has(h)&&!(h==="Isi"&&/^(Jenis|Periode|Status)$/.test(r[0]))};
+    return {...b,h3:TP(b.h3),empty:b.empty&&TP(b.empty),cols:b.cols.map(c=>[T(c[0]),...c.slice(1)]),
+      rows:b.rows.map(r=>r.grp!==undefined?{grp:TR(r.grp)}:r.map((c,i)=>trCell(c,raw(r,i))))};
+  })};
 }
 let pptLib=null;
 const loadPpt=()=>pptLib||(pptLib=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";s.onload=()=>window.PptxGenJS?ok():no(new Error("Library PPT gagal dimuat."));s.onerror=()=>{pptLib=null;no(new Error("Library PPT gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
@@ -1511,9 +1542,9 @@ async function pdfDoc(doc){
   await mrFonts();
   const logo=new URL(MR_LOGO,location.href).href,hasLogo=await mrImg(logo);
   if(!$("mrCss")){const s=document.createElement("style");s.id="mrCss";s.textContent=MR_CSS;document.head.appendChild(s)}
-  const host=document.createElement("div");host.className="mr-host";document.body.appendChild(host);
+  const host=document.createElement("div");host.className="mr-host";host.setAttribute("translate","no");document.body.appendChild(host);
   const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(doc.div)} Report | ${esc(doc.per)}</span></div>`;
-  const foot=`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`;
+  const foot=TP(`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`);
   let body=null;
   const page=cls=>{const p=document.createElement("section");p.className="mr-page"+(cls?" "+cls:"");p.innerHTML=head+`<div class="mr-body"></div><div class="mr-foot"><span>${esc(foot)}</span><span class="pn"></span></div>`;host.appendChild(p);body=p.querySelector(".mr-body")};
   const over=()=>body.scrollHeight>body.clientHeight+1;
@@ -1523,7 +1554,7 @@ async function pdfDoc(doc){
   const table=(title,cols,rows,empty)=>{
     if(!rows.length)return put(`${title}<p class="mr-note">${esc(empty)}</p>`);
     const thead=`<thead><tr>${cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead>`;
-    const start=cont=>{const els=frag((cont?title.replace(/<\/h3>$/,' <span class="mr-cont">(lanjutan)</span></h3>'):title)+`<table class="mr-t">${thead}<tbody></tbody></table>`);els.forEach(e=>body.appendChild(e));return els};
+    const start=cont=>{const els=frag((cont?title.replace(/<\/h3>$/,` <span class="mr-cont">${esc(T("(lanjutan)"))}</span></h3>`):title)+`<table class="mr-t">${thead}<tbody></tbody></table>`);els.forEach(e=>body.appendChild(e));return els};
     let els=start(false),tb=els[els.length-1].tBodies[0],n=0;
     for(const r of rows){
       tb.insertAdjacentHTML("beforeend",r);
@@ -1542,8 +1573,8 @@ async function pdfDoc(doc){
   };
   const td=(c,num)=>{
     if(c===null||typeof c!=="object")return `<td${num?' class="n"':""}>${esc(c)}</td>`;
-    let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(WS[c.st]||c.st)}</span>`:esc(c.t||"");
-    if(c.href)h+=`${h?" ":""}<a href="${esc(c.href)}">buka</a>`;
+    let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(T(WS[c.st]||c.st))}</span>`:esc(c.t||"");
+    if(c.href)h+=`${h?" ":""}<a href="${esc(c.href)}">${esc(T("buka"))}</a>`;
     return `<td${num?' class="n"':""}>${h||"–"}</td>`;
   };
   for(const b of doc.blocks){
@@ -1564,7 +1595,7 @@ async function pptDoc(doc,fileName){
   const logo=await logoData(),pp=new window.PptxGenJS();pp.layout="LAYOUT_WIDE";pp.title=fileName;
   const C={g:"3F8A66",a:"2F7A55",t:"2B2B2B",m:"5F6B7A",s:"8A94A0",bg:"F7F7F5",h:"E6F0EA",l:"E2E6E3",grp:"F1F4F2",th:"24372C"},F="Inter",X=.62,W=+(13.333-2*X).toFixed(3),BOT=6.95;
   const ST={selesai:["E1F5E9","1D6B41"],berjalan:["FFF4DC","8A5A00"],kendala:["FDE8E6","A5352A"]};
-  const foot=`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`;
+  const foot=TP(`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`);
   let s=null,y=0;
   const slide=cover=>{
     s=pp.addSlide();s.background={color:C.bg};
@@ -1587,12 +1618,12 @@ async function pptDoc(doc,fileName){
     y+=rows*.98+.1;
   };
   // perkiraan tinggi baris: ±14 karakter per inci di 9 pt
-  const txt=c=>c===null||typeof c!=="object"?String(c??"–"):c.st?WS[c.st]||c.st:(c.t?c.t+" ":"")+(c.href?"buka":"");
+  const txt=c=>c===null||typeof c!=="object"?String(c??"–"):c.st?T(WS[c.st]||c.st):(c.t?c.t+" ":"")+(c.href?T("buka"):"");
   const lines=(t,w)=>String(t).split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/Math.max(4,w*14))),0);
   const pcell=(c,num)=>{
     const o={fontFace:F,fontSize:9,color:C.t,align:num?"right":"left",valign:"top"};
     if(c===null||typeof c!=="object")return {text:String(c??"–"),options:o};
-    if(c.st){const z=ST[c.st]||[C.h,C.t];return {text:WS[c.st]||c.st,options:{...o,bold:true,color:z[1],fill:{color:z[0]}}}}
+    if(c.st){const z=ST[c.st]||[C.h,C.t];return {text:T(WS[c.st]||c.st),options:{...o,bold:true,color:z[1],fill:{color:z[0]}}}}
     if(c.href)return {text:txt(c),options:{...o,color:C.a,hyperlink:{url:c.href}}};
     return {text:String(c.t||"–"),options:o};
   };
@@ -1603,7 +1634,7 @@ async function pptDoc(doc,fileName){
     let i=0,cont=false;
     while(i<b.rows.length){
       if(y+.34+.3+rh(b.rows[i])+(b.rows[i].grp!==undefined&&b.rows[i+1]?rh(b.rows[i+1]):0)>BOT)slide();
-      h3(b.h3+(cont?" (lanjutan)":""));
+      h3(b.h3+(cont?" "+T("(lanjutan)"):""));
       const rows=[hdr],hs=[.3];let yy=y+.3;
       while(i<b.rows.length){
         const r=b.rows[i],h=rh(r);if(yy+h>BOT&&rows.length>1)break;
@@ -1633,10 +1664,10 @@ const mobileFramed=()=>parent!==window&&(/Android|iPhone|iPad|iPod|Mobile/i.test
 function mrPrint(html,name,tab){
   if(tab){
     tab.document.open();
-    tab.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=1340"><title>${esc(name)}</title><link rel="stylesheet" href="${MR_FONT}"><style>${MR_CSS}
+    tab.document.write(`<!doctype html><html lang="${isEn()?"en":"id"}"><head><meta charset="utf-8"><meta name="viewport" content="width=1340"><title>${esc(name)}</title><link rel="stylesheet" href="${MR_FONT}"><style>${MR_CSS}
 @page{size:13.333in 7.5in;margin:0}body{margin:0}
 @media screen{body{background:#dfe5e2;padding:64px 0 24px}.mr-page{margin:0 auto 14px;box-shadow:0 2px 12px rgba(0,0,0,.18)}.pbar{position:fixed;top:0;left:0;right:0;z-index:9;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px;background:#2f7a55;color:#fff;font:600 15px system-ui,sans-serif}.pbar button{font:inherit;padding:8px 16px;border-radius:8px;border:0;background:#fff;color:#2f7a55}}
-@media print{.pbar{display:none!important}}</style></head><body><div class="pbar">${esc(name)} <button onclick="print()">Simpan PDF / Cetak</button></div>${html}<script>setTimeout(function(){print()},900)<\/script></body></html>`);
+@media print{.pbar{display:none!important}}</style></head><body><div class="pbar">${esc(name)} <button onclick="print()">${esc(T("Simpan PDF / Cetak"))}</button></div>${html}<script>setTimeout(function(){print()},900)<\/script></body></html>`);
     tab.document.close();return;
   }
   $("mrArea").innerHTML=html;
@@ -1655,16 +1686,19 @@ async function galXls(R,name){
   const rows=L.map((i,n)=>GCOLS.map(c=>c[0]==="No"?n+1:c[0]==="Number Of Students"?(i.result_num==null||i.result_num===""?"":+i.result_num):plain(c[1](i,n+1))));
   const head=[...GCOLS.map(c=>c[0]),"Regional","Kota","Jenis mitra","PIC internal","Mulai","Target peresmian"];
   const ext=L.map(i=>[i.region||"",i.place||"",i.channel||"",i.owner||"",fmtShort(i.date),i.end_date?fmtShort(i.end_date):""]);
-  const ws=XLSX.utils.aoa_to_sheet([head,...rows.map((r,n)=>[...r,...ext[n]])]);ws["!cols"]=head.map(h=>({wch:/Remarks/.test(h)?50:/Mitra|Galeri|PIC/.test(h)?28:16}));
+  // bahasa Inggris: judul kolom, label status / tahap / dokumen, tanggal, dan nama sheet ikut diterjemahkan (data pengguna tetap)
+  const xl=(H,rows)=>[H.map(T),...rows.map(r=>r.map((v,j)=>(RAW.has(H[j])?TR:TP)(v)))];
+  const ws=XLSX.utils.aoa_to_sheet(xl(head,rows.map((r,n)=>[...r,...ext[n]])));ws["!cols"]=head.map(h=>({wch:/Remarks/.test(h)?50:/Mitra|Galeri|PIC/.test(h)?28:16}));
   const U=L.flatMap(i=>galLog(i,R.from,R.to).map(l=>[fmtShort(dayOf(l.at)),i.title,i.region||"",GSL[l.st]||l.st,l.text||"",l.by||""]));
-  const wu=XLSX.utils.aoa_to_sheet([["Tanggal","Galeri Investasi","Regional","Tahap","Update","Oleh"],...U]);wu["!cols"]=[12,30,16,18,60,18].map(w=>({wch:w}));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Galeri");XLSX.utils.book_append_sheet(wb,wu,"Update progres");XLSX.writeFile(wb,name+".xlsx");
+  const wu=XLSX.utils.aoa_to_sheet(xl(["Tanggal","Galeri Investasi","Regional","Tahap","Update","Oleh"],U));wu["!cols"]=[12,30,16,18,60,18].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,T("Galeri"));XLSX.utils.book_append_sheet(wb,wu,T("Update progres"));XLSX.writeFile(wb,name+".xlsx");
 }
 /* =================== IMPOR GALERI (sheet laporan galeri -> rencana galeri) =================== */
 // judul kolom sheet -> isian; "d:<kunci>" = dokumen kerja sama. Urutan penting (yang lebih khusus dulu).
-const IMPH=[[/^no\.?$/,""],[/mitra/,"partner"],[/^galeri/,"title"],[/cabang/,"branch"],[/student|mahasiswa|siswa/,"result_num"],[/^rank/,"target"],[/pic.*coord|koordinator/,"audience"],
-  [/surat|permohonan/,"d:surat"],[/bipartit/,"d:bipartit"],[/tripartit/,"d:tripartit"],[/^(status|tahap)/,"status"],[/remark|catatan|keterangan/,"progress"],[/last ?update|update terakhir/,"log_date"],
-  [/^regional/,"region"],[/^kota/,"place"],[/jenis mitra/,"channel"],[/^pic( internal)?$/,"owner"],[/^mulai/,"date"],[/^target/,"end_date"]];
+// judul kolom bahasa Inggris ikut dikenali (Partner, Investment Gallery, Branch In Charge, Region, City, Partner type, Internal PIC, Start, …)
+const IMPH=[[/^no\.?$/,""],[/jenis mitra|partner type/,"channel"],[/mitra|^partners?( name)?$/,"partner"],[/^(galeri|investment gallery|gallery)/,"title"],[/cabang|branch/,"branch"],[/student|mahasiswa|siswa/,"result_num"],[/^rank/,"target"],[/pic.*coord|koordinator/,"audience"],
+  [/surat|permohonan|letter/,"d:surat"],[/bipartit/,"d:bipartit"],[/tripartit/,"d:tripartit"],[/^(status|tahap|stage)/,"status"],[/remark|catatan|keterangan|^notes?$/,"progress"],[/last ?update|update terakhir/,"log_date"],
+  [/^(regional|region)/,"region"],[/^(kota|city)/,"place"],[/^pic( internal)?$|^internal pic$/,"owner"],[/^(mulai|start)/,"date"],[/^target/,"end_date"]];
 const impKey=h=>{h=String(h||"").replace(/\s+/g," ").trim().toLowerCase();const m=IMPH.find(([re])=>re.test(h));return m?m[1]:null};
 // teks tempelan Excel (tab) atau CSV (koma / titik koma), sel berkutip boleh berisi baris baru
 function parseSheet(t){
@@ -1725,7 +1759,7 @@ function impPreview(R){
   try{IMP.rows=impRows(R);showErr("impErr")}catch(e){IMP.rows=[];showErr("impErr",e)}
   const L=IMP.rows,dc=d=>d?Object.keys(GDOC).map(k=>({"":"·",proses:"◐",selesai:"●"})[(d[k]||{}).s||""]).join(" "):"";
   $("impPrev").innerHTML=L.length?`<p class="small" style="margin:0 0 6px"><b>${L.length} galeri</b> terbaca: ${L.filter(r=>!IMP.have.has(r.title.toLowerCase())).length} baru, ${L.filter(r=>IMP.have.has(r.title.toLowerCase())).length} diperbarui${L.some(r=>!r.region)?` · <span class="late">${L.filter(r=>!r.region).length} tanpa regional (pilih “Regional bila kosong”)</span>`:""}</p>
-    <div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="imptbl small"><tr><th>Galeri</th><th>Mitra</th><th>Regional</th><th>Tahap</th><th title="Surat · Bipartit · Tripartit (● selesai ◐ proses)">Dok.</th><th></th></tr>${L.map(r=>`<tr><td>${esc(r.title)}</td><td>${esc(r.partner||"–")}</td><td>${r.region?esc(r.region):'<span class="late">–</span>'}</td><td>${esc(GSL[r.status])}</td><td>${dc(r.docs)}</td><td>${IMP.have.has(r.title.toLowerCase())?"perbarui":"baru"}</td></tr>`).join("")}</table></div>`:"";
+    <div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="imptbl small"><tr><th>Galeri</th><th>Mitra</th><th>Regional</th><th>Tahap</th><th title="Surat · Bipartit · Tripartit (● selesai ◐ proses)">Dok.</th><th></th></tr>${L.map(r=>`<tr><td translate="no">${esc(r.title)}</td><td translate="no">${esc(r.partner||"–")}</td><td translate="no">${r.region?esc(r.region):'<span class="late">–</span>'}</td><td>${esc(GSL[r.status])}</td><td>${dc(r.docs)}</td><td>${IMP.have.has(r.title.toLowerCase())?"perbarui":"baru"}</td></tr>`).join("")}</table></div>`:"";
   $("impGo").disabled=!L.length;$("impGo").textContent=L.length?`Impor ${L.length} galeri`:"Impor";
 }
 $("impTx").addEventListener("input",()=>{$("impFileN").textContent="";impPreview(parseSheet($("impTx").value))});
@@ -1755,14 +1789,15 @@ const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galDa
 const repDiv=()=>{const d=$("rDiv").value.trim()||"Product & Digital Development";store("pl_div",d);return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
 // Monthly Report: "<divisi> Report - <periode>". Karakter yang tidak boleh di nama file dibuang.
-const repFile=(X,R)=>(RT==="mon"?[R.div+" Report",R.per]:[X.name,R.tag,R.per]).filter(Boolean).join(" - ").replace(/·/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120);
+// bahasa Inggris: judul, filter & periode ikut diterjemahkan ("Activity Report - Jakarta Region - October 2026")
+const repFile=(X,R)=>(RT==="mon"?[R.div+" Report",T(R.per)]:[T(X.name),TP(R.tag),T(R.per)]).filter(Boolean).join(" - ").replace(/·/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,120);
 $("rPdf").onclick=async()=>{
   const tab=mobileFramed()?window.open("","_blank"):null;
-  if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laporan</title><p style="font:16px system-ui,sans-serif;padding:24px">Menyiapkan PDF…</p>');
+  if(tab)tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(T("Laporan"))+'</title><p style="font:16px system-ui,sans-serif;padding:24px">'+esc(T("Menyiapkan PDF…"))+'</p>');
   $("rPdf").disabled=true;$("repMsg").textContent="Menyusun PDF…";
   try{
     const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
-    mrPrint(await pdfDoc(X.doc(R)),repFile(X,R),tab);
+    mrPrint(await pdfDoc(trDoc(X.doc(R))),repFile(X,R),tab);
     $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
   }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
   finally{$("rPdf").disabled=false}
@@ -1777,7 +1812,7 @@ $("rPpt").onclick=async()=>{
   $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
   try{
     const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
-    await pptDoc(X.doc(R),repFile(X,R));
+    await pptDoc(trDoc(X.doc(R)),repFile(X,R));
     $("repMsg").textContent="✓ PPT diunduh.";
   }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
   finally{$("rPpt").disabled=false}

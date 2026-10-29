@@ -31,6 +31,7 @@ import { shariaCached } from "../../../../shared/sharia.js";
 import { withCron } from "../../../../shared/cron.js";
 import { themeHead } from "../../../../shared/theme.js";
 import { SATS_THEME_CSS } from "./theme";
+import EN from "./i18n";
 import { analystRoute, type AnalystEnv } from "./analyst";
 import { ownersRoute } from "./owners";
 import { flowRoute, flowUpload } from "./flowApi";
@@ -531,8 +532,8 @@ async function serveAsset(request: Request, env: Env): Promise<Response> {
   if (!(out.headers.get("content-type") || "").includes("text/html")) return out;
   out.headers.delete("etag");
   out.headers.delete("content-length");
-  // tema terang/gelap mengikuti tombol tema Tool Hub (shared/theme.js)
-  return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(SATS_THEME_CSS), { html: true }); } }).transform(out);
+  // tema terang/gelap & bahasa (Indonesia/Inggris, kamus di i18n.ts) mengikuti tombol Tool Hub (shared/theme.js)
+  return new HTMLRewriter().on("head", { element(el) { el.append(themeHead(SATS_THEME_CSS, EN), { html: true }); } }).transform(out);
 }
 
 // ───────────────────────────── watchlist (per user)

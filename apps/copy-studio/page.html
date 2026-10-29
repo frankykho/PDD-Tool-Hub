@@ -150,15 +150,15 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       </div>
       <div id="ckFixBox" class="stack" hidden>
         <h3 style="margin:0">Usulan perbaikan AI</h3>
-        <div class="hl" id="ckFixText"></div>
+        <div class="hl" id="ckFixText" translate="no"></div>
         <div class="row"><button class="btn pri sm" id="ckFixUse" type="button">Pakai teks ini</button><span class="muted small" id="ckFixInfo"></span></div>
       </div>
     </div>
     <div class="card stack">
       <div><h2>Hasil cek</h2><p class="muted small" style="margin:0">Saran otomatis menurut aturan iklan produk investasi dan panduan gaya tim. Review compliance tetap berlaku.</p></div>
-      <div id="ckFold" class="fold" hidden><b>Terlihat sebelum "lainnya"</b><span></span></div>
+      <div id="ckFold" class="fold" hidden><b>Terlihat sebelum "lainnya"</b><span translate="no"></span></div>
       <ul class="issues" id="ckIssues"></ul>
-      <div><h3>Penanda di teks</h3><div class="hl" id="ckHl"></div></div>
+      <div><h3>Penanda di teks</h3><div class="hl" id="ckHl" translate="no"></div></div>
     </div>
   </section>
 
@@ -308,7 +308,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     </div>
     <div class="card stack">
       <div><h2>Glosarium</h2><p class="muted small" style="margin:0">Kata yang ditandai saat cek caption. Kosongkan kolom "benar" untuk kata yang dilarang sama sekali.</p></div>
-      <div class="scroll"><table><thead><tr><th>Salah / dilarang</th><th>Benar</th><th>Catatan</th><th></th></tr></thead><tbody id="stGl"></tbody></table></div>
+      <div class="scroll"><table><thead><tr><th>Salah / dilarang</th><th>Benar</th><th>Catatan</th><th></th></tr></thead><tbody id="stGl" translate="no"></tbody></table></div>
       <div class="row"><button class="btn sm" id="stAdd" type="button">+ Tambah kata</button></div>
     </div>
   </section>
@@ -379,11 +379,16 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       ["Tulis <b>Panduan gaya</b>: nada, sapaan, panjang kalimat, aturan angka & sumber, emoji, dan CTA.", "Di <b>Glosarium</b>, isi kata yang sering salah dan bentuk benarnya (mis. reksadana → reksa dana).", "Kosongkan kolom <b>Benar</b> untuk kata yang dilarang sama sekali; tambahkan alasannya di Catatan.", "Klik <b>Simpan panduan</b>. Perubahan langsung dipakai semua anggota tim."],
       ["Hanya Editor dan admin yang bisa mengubah; anggota lain bisa membaca.", "Tulis panduan dalam kalimat perintah yang jelas; AI mengikutinya apa adanya.", "Glosarium tidak menandai kata di dalam tagar (mis. #reksadana)."]],
   };
+  // T: terjemahan kalimat utuh ber-<b> (shared/i18n.js); mesin halaman hanya mencocokkan teks per potongan
   function guideHtml(id) {
-    var g = GUIDE[id];
-    return '<details class="guide" data-guide="' + id + '"><summary>Cara pakai</summary><p style="margin-top:6px">' + g[0] + '</p><div class="gb"><div><h4>Langkah</h4><ol>' + g[1].map(function (x) { return "<li>" + x + "</li>"; }).join("") +
-      '</ol></div><div><h4>Tips</h4><ul>' + g[2].map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul></div></div></details>";
+    var g = GUIDE[id], T = window.hubT || String;
+    return '<details class="guide" data-guide="' + id + '"><summary>' + T("Cara pakai") + '</summary><p style="margin-top:6px">' + T(g[0]) + '</p><div class="gb"><div><h4>' + T("Langkah") + '</h4><ol>' + g[1].map(function (x) { return "<li>" + T(x) + "</li>"; }).join("") +
+      '</ol></div><div><h4>' + T("Tips") + '</h4><ul>' + g[2].map(function (x) { return "<li>" + T(x) + "</li>"; }).join("") + "</ul></div></div></details>";
   }
+  // bahasa berganti: isi panduan disusun ulang (status buka/tutup tetap)
+  window.addEventListener("hub-lang", function () {
+    document.querySelectorAll("details.guide").forEach(function (d) { var x = document.createElement("div"); x.innerHTML = guideHtml(d.dataset.guide); d.innerHTML = x.firstChild.innerHTML; });
+  });
   // terbuka saat menu pertama kali dibuka; setelah ditutup, tetap tertutup (diingat per browser)
   document.querySelectorAll("section[data-tab]").forEach(function (s) {
     var id = s.dataset.tab; if (!GUIDE[id]) return;
@@ -420,7 +425,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     if (!text.trim()) { ul.innerHTML = '<li class="muted small">Tulis atau tempel teks untuk mulai.</li>'; $("ckHl").innerHTML = ""; return r; }
     ul.innerHTML = r.issues.length ? r.issues.map(function (i, n) {
       var lv = { error: "Perbaiki", warn: "Periksa", info: "Saran" }[i.level];
-      return '<li class="issue ' + i.level + '" data-n="' + n + '"><span class="lv">' + lv + "</span>" + esc(i.msg) + (i.match && i.at >= 0 ? ' <q>' + esc(i.match) + "</q>" : "") + "</li>";
+      return '<li class="issue ' + i.level + '" data-n="' + n + '"><span class="lv">' + lv + "</span>" + esc(i.msg) + (i.match && i.at >= 0 ? ' <q translate="no">' + esc(i.match) + "</q>" : "") + "</li>";
     }).join("") : '<li class="ok">Tidak ada masalah yang terdeteksi.</li>';
     ul.onclick = function (e) {
       var li = e.target.closest(".issue"); if (!li) return; var i = r.issues[+li.dataset.n]; if (!i || i.at < 0) return;
@@ -476,7 +481,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     api("/api/ai", { kind: "ab", type: $("abType").value, platform: $("abPlat").value, n: $("abN").value, tone: $("abTone").value, brief: brief }).then(function (j) {
       abItems = j.result.items || []; var plat = $("abPlat").value;
       $("abOut").innerHTML = abItems.length ? abItems.map(function (x, n) {
-        return '<div class="var"><div class="row"><b>' + String.fromCharCode(65 + n) + '</b>' + (x.angle ? '<span class="tag">' + esc(x.angle) + "</span>" : "") + '<span style="flex:1"></span><button class="btn sm" data-c="' + n + '" type="button">Salin</button><button class="btn sm" data-k="' + n + '" type="button">Cek</button></div><div class="tx">' + esc(x.text) + "</div>" + (x.why ? '<div class="muted small">' + esc(x.why) + "</div>" : "") + "<div>" + badge(x.text, plat) + "</div></div>";
+        return '<div class="var"><div class="row"><b>' + String.fromCharCode(65 + n) + '</b>' + (x.angle ? '<span class="tag" translate="no">' + esc(x.angle) + "</span>" : "") + '<span style="flex:1"></span><button class="btn sm" data-c="' + n + '" type="button">Salin</button><button class="btn sm" data-k="' + n + '" type="button">Cek</button></div><div class="tx" translate="no">' + esc(x.text) + "</div>" + (x.why ? '<div class="muted small" translate="no">' + esc(x.why) + "</div>" : "") + "<div>" + badge(x.text, plat) + "</div></div>";
       }).join("") + '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + "</p>" : '<div class="empty">AI tidak memberi variasi. Coba lagi.</div>';
       $("abCopyAll").hidden = !abItems.length;
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
@@ -493,10 +498,10 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     api("/api/ai", { kind: "app", brief: brief, goal: $("apGoal").value, tone: $("apTone").value }).then(function (j) {
       apRes = j.result; var appName = esc(B.app || P.app && P.app.name || "Aplikasi");
       var push = (apRes.push || []).map(function (x, n) {
-        return '<div class="stack" style="gap:6px"><div class="mock"><div class="app"><span>' + appName + "</span><span>sekarang</span></div><div class=\"tt\">" + esc(x.title) + "</div><div>" + esc(x.body) + '</div></div><div class="row small">Judul ' + badge(x.title, "push_title") + '</div><div class="row small">Isi ' + badge(x.body, "push_body") + '</div><div class="row"><button class="btn sm" data-p="' + n + '" type="button">Salin</button></div></div>';
+        return '<div class="stack" style="gap:6px"><div class="mock" translate="no"><div class="app"><span>' + appName + "</span><span>sekarang</span></div><div class=\"tt\">" + esc(x.title) + "</div><div>" + esc(x.body) + '</div></div><div class="row small">Judul ' + badge(x.title, "push_title") + '</div><div class="row small">Isi ' + badge(x.body, "push_body") + '</div><div class="row"><button class="btn sm" data-p="' + n + '" type="button">Salin</button></div></div>';
       }).join("");
       var inapp = (apRes.inapp || []).map(function (x, n) {
-        return '<div class="stack" style="gap:6px"><div class="banner"><div class="tt">' + esc(x.title) + "</div><div>" + esc(x.body) + "</div>" + (x.cta ? '<span class="cta">' + esc(x.cta) + "</span>" : "") + '</div><div class="row small">Judul ' + badge(x.title, "inapp_title") + '</div><div class="row small">Isi ' + badge(x.body, "inapp_body") + '</div><div class="row"><button class="btn sm" data-i="' + n + '" type="button">Salin</button></div></div>';
+        return '<div class="stack" style="gap:6px"><div class="banner" translate="no"><div class="tt">' + esc(x.title) + "</div><div>" + esc(x.body) + "</div>" + (x.cta ? '<span class="cta">' + esc(x.cta) + "</span>" : "") + '</div><div class="row small">Judul ' + badge(x.title, "inapp_title") + '</div><div class="row small">Isi ' + badge(x.body, "inapp_body") + '</div><div class="row"><button class="btn sm" data-i="' + n + '" type="button">Salin</button></div></div>';
       }).join("");
       $("apOut").innerHTML = "<h2>Push notification</h2>" + (push || '<div class="empty">Tidak ada.</div>') + "<h2>Banner in-app</h2>" + (inapp || '<div class="empty">Tidak ada.</div>') + '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + "</p>";
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
@@ -532,7 +537,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
         return '<div class="stack" style="gap:6px"><div class="row"><b>' + f[0] + '</b><span class="small" data-wb="' + k + '">' + badge(t[k], f[1]) + '</span><span style="flex:1"></span><button class="btn sm" data-wc="' + k + '" type="button">Salin</button></div>' +
           (f[2] ? '<textarea data-wf="' + k + '" style="min-height:' + f[2] + 'px">' + esc(t[k]) + "</textarea>" : '<input type="text" data-wf="' + k + '" value="' + esc(t[k]) + '">') + "</div>";
       }).join("") +
-        ((j.result.check || []).length ? '<div class="note small"><b>Konfirmasi ke tim produk sebelum terbit:</b><ul style="margin:4px 0 0;padding-left:18px">' + j.result.check.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + "</ul></div>" : "") +
+        ((j.result.check || []).length ? '<div class="note small"><b>Konfirmasi ke tim produk sebelum terbit:</b><ul style="margin:4px 0 0;padding-left:18px" translate="no">' + j.result.check.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + "</ul></div>" : "") +
         '<div class="row"><button class="btn" id="wnAll" type="button">Salin semua</button><span class="muted small">Model: ' + esc(j.model) + "</span></div>";
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
   };
@@ -586,16 +591,16 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     var mode = $("kMode").value; if (mode === "comarketing" && !$("kPartner").value.trim()) return toast("Isi nama mitra");
     busy(btn, true, "Menyusun paket…");
     api("/api/ai", { kind: "kit", product: kSel, mode: mode, partner: $("kPartner").value, audience: $("kAud").value, goal: $("kGoal").value, tone: $("kTone").value }).then(function (j) {
-      var k = kRes = j.result, blk = function (title, text, plat, extra) { return '<div class="var"><div class="row"><b>' + title + '</b><span style="flex:1"></span><button class="btn sm" type="button" data-kc="' + esc(text) + '">Salin</button>' + (plat ? '<button class="btn sm" type="button" data-kk="' + esc(text) + '" data-kp="' + plat + '">Cek</button>' : "") + '</div><div class="hl">' + esc(text) + "</div>" + (plat ? "<div>" + badge(text, plat) + "</div>" : "") + (extra || "") + "</div>"; };
-      $("kOut").innerHTML = '<div class="row"><h2 style="flex:1">' + esc(k.headline || kSel.name) + '</h2><button class="btn sm" id="kAll" type="button">Salin semua</button><button class="btn sm" id="kDl" type="button">Unduh .txt</button></div>' +
-        (k.key_message ? '<p class="muted small" style="margin:0">' + esc(k.key_message) + "</p>" : "") +
+      var k = kRes = j.result, blk = function (title, text, plat, extra) { return '<div class="var"><div class="row"><b>' + title + '</b><span style="flex:1"></span><button class="btn sm" type="button" data-kc="' + esc(text) + '">Salin</button>' + (plat ? '<button class="btn sm" type="button" data-kk="' + esc(text) + '" data-kp="' + plat + '">Cek</button>' : "") + '</div><div class="hl" translate="no">' + esc(text) + "</div>" + (plat ? "<div>" + badge(text, plat) + "</div>" : "") + (extra || "") + "</div>"; };
+      $("kOut").innerHTML = '<div class="row"><h2 style="flex:1" translate="no">' + esc(k.headline || kSel.name) + '</h2><button class="btn sm" id="kAll" type="button">Salin semua</button><button class="btn sm" id="kDl" type="button">Unduh .txt</button></div>' +
+        (k.key_message ? '<p class="muted small" style="margin:0" translate="no">' + esc(k.key_message) + "</p>" : "") +
         blk("Caption feed Instagram", k.feed, "ig") +
         blk("Story (" + k.story.length + " frame)", k.story.map(function (s, i) { return (i + 1) + ". " + s; }).join("\n")) +
         blk("WhatsApp", k.wa, "wa") +
         blk("Email · subject", k.email.subject, "email_subject") + blk("Email · preheader", k.email.preheader, "email_pre") + blk("Email · isi", k.email.body, "artikel") +
         blk("Push notif · judul", k.push.title, "push_title") + blk("Push notif · isi", k.push.body, "push_body") +
         blk("FAQ untuk CS / sales", k.faq.map(function (f) { return "T: " + f.q + "\nJ: " + f.a; }).join("\n\n")) +
-        blk("Brief visual untuk desainer", k.visual_brief) + (k.notes ? '<div class="fold"><b>Catatan compliance</b>' + esc(k.notes) + "</div>" : "") +
+        blk("Brief visual untuk desainer", k.visual_brief) + (k.notes ? '<div class="fold"><b>Catatan compliance</b><span translate="no">' + esc(k.notes) + "</span></div>" : "") +
         '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + ". Periksa angka & tanggal data sebelum terbit.</p>";
       $("kAll").onclick = function () { copy(kitText(k)); };
       $("kDl").onclick = function () { download(new Blob([kitText(k)], { type: "text/plain" }), "paket-" + slug(kSel.code || kSel.name) + ".txt"); };
@@ -621,15 +626,15 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     api("/api/ai", { kind: "reels", topic: topic, source: src, platform: $("rsPlat").value, duration: $("rsDur").value, audience: $("rsAud").value, tone: $("rsTone").value }).then(function (j) {
       rs = j.result; var plat = $("rsPlat").value === "tiktok" ? "tiktok" : "ig", cap = rs.caption + (rs.hashtags.length ? "\n\n" + rs.hashtags.join(" ") : "");
       var words = (rs.scenes || []).map(function (s) { return s.voiceover; }).join(" ").split(/\s+/).filter(Boolean).length;
-      $("rsOut").innerHTML = '<div class="row"><h2 style="flex:1">' + esc(rs.title || "Naskah") + '</h2><button class="btn sm" id="rsCopy" type="button">Salin naskah</button><button class="btn sm" id="rsDl" type="button">Unduh .txt</button></div>' +
-        '<div class="fold"><b>Hook (0–3 detik)</b>' + esc(rs.hook) + "</div>" +
-        (rs.hooks && rs.hooks.length ? '<div class="fold"><b>Hook alternatif untuk diuji</b>' + rs.hooks.map(function (h) { return "• " + esc(h.text) + (h.pattern ? ' <span class="tag">' + esc(h.pattern) + "</span>" : ""); }).join("<br>") + "</div>" : "") +
-        '<div class="scroll"><table><thead><tr><th>Waktu</th><th>Visual</th><th>Voice over</th><th>Teks layar</th></tr></thead><tbody>' +
+      $("rsOut").innerHTML = '<div class="row"><h2 style="flex:1" translate="no">' + esc(rs.title || "Naskah") + '</h2><button class="btn sm" id="rsCopy" type="button">Salin naskah</button><button class="btn sm" id="rsDl" type="button">Unduh .txt</button></div>' +
+        '<div class="fold"><b>Hook (0–3 detik)</b><span translate="no">' + esc(rs.hook) + "</span></div>" +
+        (rs.hooks && rs.hooks.length ? '<div class="fold"><b>Hook alternatif untuk diuji</b>' + rs.hooks.map(function (h) { return '<span translate="no">• ' + esc(h.text) + (h.pattern ? ' <span class="tag">' + esc(h.pattern) + "</span>" : "") + "</span>"; }).join("<br>") + "</div>" : "") +
+        '<div class="scroll"><table><thead><tr><th>Waktu</th><th>Visual</th><th>Voice over</th><th>Teks layar</th></tr></thead><tbody translate="no">' +
         (rs.scenes || []).map(function (s) { return "<tr><td>" + esc(s.time) + "</td><td>" + esc(s.visual) + "</td><td>" + esc(s.voiceover) + "</td><td><b>" + esc(s.onscreen) + "</b></td></tr>"; }).join("") + "</tbody></table></div>" +
         '<p class="muted small" style="margin:0">' + words + " kata voice over ≈ " + Math.round(words / 2.5) + " detik bicara.</p>" +
-        '<div class="fold"><b>CTA</b>' + esc(rs.cta) + "</div>" +
-        '<div><h3>Caption</h3><div class="hl">' + esc(cap) + '</div><div class="row" style="margin-top:6px">' + badge(cap, plat) + '<button class="btn sm" id="rsCheck" type="button">Cek caption</button></div></div>' +
-        (rs.notes ? '<div class="fold"><b>Catatan produksi</b>' + esc(rs.notes) + "</div>" : "") + '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + "</p>";
+        '<div class="fold"><b>CTA</b><span translate="no">' + esc(rs.cta) + "</span></div>" +
+        '<div><h3>Caption</h3><div class="hl" translate="no">' + esc(cap) + '</div><div class="row" style="margin-top:6px">' + badge(cap, plat) + '<button class="btn sm" id="rsCheck" type="button">Cek caption</button></div></div>' +
+        (rs.notes ? '<div class="fold"><b>Catatan produksi</b><span translate="no">' + esc(rs.notes) + "</span></div>" : "") + '<p class="muted small" style="margin:0">Model: ' + esc(j.model) + "</p>";
       $("rsCopy").onclick = function () { copy(scriptText(rs)); };
       $("rsDl").onclick = function () { download(new Blob([scriptText(rs)], { type: "text/plain" }), "naskah-" + slug(rs.title || topic) + ".txt"); };
       $("rsCheck").onclick = function () { toCheck(cap, plat); };
@@ -655,19 +660,19 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       yt = j.result; var desc = ytDesc(yt);
       $("ytOut").innerHTML = '<div class="row"><h2 style="flex:1">Naskah YouTube</h2><button class="btn sm" id="ytCopy" type="button">Salin naskah</button><button class="btn sm" id="ytDl" type="button">Unduh .txt</button></div>' +
         '<p class="muted small" style="margin:0">' + yt.words + " kata diucapkan ≈ " + ts(yt.seconds) + " durasi bicara · " + (yt.chapters || []).length + " bab · Model: " + esc(j.model) + "</p>" +
-        "<h3>Judul</h3><div class=\"vars\">" + (yt.titles || []).map(function (t, n) { return '<div class="var"><div class="row"><b>' + (n + 1) + '</b><span style="flex:1"></span><button class="btn sm" data-yc="t' + n + '" type="button">Salin</button></div><div class="tx">' + esc(t.text) + "</div>" + (t.why ? '<div class="muted small">' + esc(t.why) + "</div>" : "") + "<div>" + badge(t.text, "yt_title") + "</div></div>"; }).join("") + "</div>" +
-        (yt.thumbnails && yt.thumbnails.length ? '<div class="fold"><b>Teks thumbnail</b>' + yt.thumbnails.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join(" ") + "</div>" : "") +
-        '<div class="fold"><b>Hook · 0:00</b>' + esc(yt.hook) + "</div>" +
+        "<h3>Judul</h3><div class=\"vars\">" + (yt.titles || []).map(function (t, n) { return '<div class="var"><div class="row"><b>' + (n + 1) + '</b><span style="flex:1"></span><button class="btn sm" data-yc="t' + n + '" type="button">Salin</button></div><div class="tx" translate="no">' + esc(t.text) + "</div>" + (t.why ? '<div class="muted small" translate="no">' + esc(t.why) + "</div>" : "") + "<div>" + badge(t.text, "yt_title") + "</div></div>"; }).join("") + "</div>" +
+        (yt.thumbnails && yt.thumbnails.length ? '<div class="fold"><b>Teks thumbnail</b>' + yt.thumbnails.map(function (t) { return '<span class="tag" translate="no">' + esc(t) + "</span>"; }).join(" ") + "</div>" : "") +
+        '<div class="fold"><b>Hook · 0:00</b><span translate="no">' + esc(yt.hook) + "</span></div>" +
         "<h3>Naskah per bab</h3><div class=\"vars\">" + (yt.chapters || []).map(function (c, n) {
-          return '<div class="var"><div class="row"><span class="tag">' + ts(c.start) + "</span><b>" + esc(c.title) + "</b></div>" + (c.goal ? '<div class="muted small">Inti: ' + esc(c.goal) + "</div>" : "") +
-            '<div style="white-space:pre-wrap">' + esc(c.voiceover) + "</div>" + (c.visual ? '<div class="small"><b>Visual:</b> ' + esc(c.visual) + "</div>" : "") + (c.onscreen ? '<div class="small"><b>Teks layar:</b> ' + esc(c.onscreen) + "</div>" : "") + "</div>";
+          return '<div class="var"><div class="row"><span class="tag">' + ts(c.start) + "</span><b translate=\"no\">" + esc(c.title) + "</b></div>" + (c.goal ? '<div class="muted small">Inti: <span translate="no">' + esc(c.goal) + "</span></div>" : "") +
+            '<div style="white-space:pre-wrap" translate="no">' + esc(c.voiceover) + "</div>" + (c.visual ? '<div class="small"><b>Visual:</b> <span translate="no">' + esc(c.visual) + "</span></div>" : "") + (c.onscreen ? '<div class="small"><b>Teks layar:</b> <span translate="no">' + esc(c.onscreen) + "</span></div>" : "") + "</div>";
         }).join("") + "</div>" +
-        (yt.cta_mid ? '<div class="fold"><b>CTA di tengah video</b>' + esc(yt.cta_mid) + "</div>" : "") +
-        (yt.outro ? '<div class="fold"><b>Penutup</b><span style="white-space:pre-wrap">' + esc(yt.outro) + "</span></div>" : "") +
-        '<div><div class="row"><h3 style="flex:1">Deskripsi</h3><button class="btn sm" data-yc="d" type="button">Salin deskripsi</button><button class="btn sm" data-yc="k" type="button">Cek</button></div><div class="hl">' + esc(desc) + '</div><div style="margin-top:6px">' + badge(desc, "yt_desc") + "</div></div>" +
-        (yt.tags && yt.tags.length ? '<div class="fold"><b>Tag</b>' + esc(yt.tags.join(", ")) + ' <button class="btn sm" data-yc="g" type="button">Salin tag</button></div>' : "") +
-        (yt.pinned ? '<div class="fold"><b>Komentar sematan</b>' + esc(yt.pinned) + "</div>" : "") +
-        (yt.notes ? '<div class="fold"><b>Catatan produksi</b>' + esc(yt.notes) + "</div>" : "");
+        (yt.cta_mid ? '<div class="fold"><b>CTA di tengah video</b><span translate="no">' + esc(yt.cta_mid) + "</span></div>" : "") +
+        (yt.outro ? '<div class="fold"><b>Penutup</b><span style="white-space:pre-wrap" translate="no">' + esc(yt.outro) + "</span></div>" : "") +
+        '<div><div class="row"><h3 style="flex:1">Deskripsi</h3><button class="btn sm" data-yc="d" type="button">Salin deskripsi</button><button class="btn sm" data-yc="k" type="button">Cek</button></div><div class="hl" translate="no">' + esc(desc) + '</div><div style="margin-top:6px">' + badge(desc, "yt_desc") + "</div></div>" +
+        (yt.tags && yt.tags.length ? '<div class="fold"><b>Tag</b><span translate="no">' + esc(yt.tags.join(", ")) + '</span> <button class="btn sm" data-yc="g" type="button">Salin tag</button></div>' : "") +
+        (yt.pinned ? '<div class="fold"><b>Komentar sematan</b><span translate="no">' + esc(yt.pinned) + "</span></div>" : "") +
+        (yt.notes ? '<div class="fold"><b>Catatan produksi</b><span translate="no">' + esc(yt.notes) + "</span></div>" : "");
       $("ytCopy").onclick = function () { copy(ytText(yt)); };
       $("ytDl").onclick = function () { download(new Blob([ytText(yt)], { type: "text/plain" }), "naskah-youtube-" + slug((yt.titles[0] && yt.titles[0].text) || topic) + ".txt"); };
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });

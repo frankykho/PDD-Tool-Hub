@@ -15,6 +15,7 @@
 // Narasi ditulis AI (shared/ai.js) hanya dari data di atas dan disimpan sebagai draf; tim yang menerbitkan.
 import { title, profileScript, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
+import EN from "./i18n.js";
 import { newsFor } from "../../shared/news.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { ai, AiError } from "../../shared/ai.js";
@@ -239,8 +240,9 @@ async function narrate(env, data) {
    HALAMAN
    ========================================================= */
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// bahasa Inggris (tombol bahasa Tool Hub) hanya di halaman tim; halaman publik /p = materi nasabah, tetap bahasa Indonesia
 function page(env, cfg, inHub) {
-  const head = `<title>${esc(title(env, "Market Recap"))}</title>${profileScript(env)}${themeHead("")}<script>${inHub ? HUBSSO.onlyInHub(env) : ""}window.RC=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+  const head = `<title>${esc(title(env, "Market Recap"))}</title>${profileScript(env)}${themeHead("", cfg.mode === "team" ? EN : undefined)}<script>${inHub ? HUBSSO.onlyInHub(env) : ""}window.RC=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Market Recap</title>", () => head);
 }
 const html = (body, extra = {}) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "x-robots-tag": "noindex", ...extra } });

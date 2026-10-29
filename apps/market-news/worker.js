@@ -13,6 +13,7 @@
 // Data pasar IHSG/sektor/penggerak/komoditas dibaca dari tabel recaps Market Recap (binding RECAP_DB, hanya baca).
 import { title, profileScript, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
+import EN from "./i18n.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
 import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
@@ -317,8 +318,9 @@ const pub = (x) => ({ id: x.id, url: x.url, src: x.src, title: x.ai_title || x.t
   summary: x.summary, why: x.why, sources: x.sources ? JSON.parse(x.sources) : [], img: x.has_img && !x.no_img ? "/img/" + x.id : "", published_at: x.published_at });
 // saham syariah (anggota ISSI/JII70/JII) -> label "Syariah" di kode saham; kosong kalau TradingView tidak terjangkau
 const syMap = (ctx) => shariaCached(ctx).then((s) => Object.fromEntries(Object.entries(s.codes).map(([c, t]) => [c, shariaLabel(t)]))).catch(() => ({}));
+// bahasa Inggris (tombol bahasa Tool Hub) hanya di halaman tim; halaman publik /p & /n = materi nasabah, tetap bahasa Indonesia
 function page(env, cfg, head = "", inHub = false) {
-  const h = `<title>${esc(cfg.title || title(env, "Market News"))}</title>${head}${profileScript(env)}${themeHead("")}<script>${inHub ? HUBSSO.onlyInHub(env) : ""}window.MN=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+  const h = `<title>${esc(cfg.title || title(env, "Market News"))}</title>${head}${profileScript(env)}${themeHead("", cfg.mode === "team" ? EN : undefined)}<script>${inHub ? HUBSSO.onlyInHub(env) : ""}window.MN=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Market News</title>", () => h);
 }
 const html = (body, extra = {}, status = 200) => new Response(body, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...extra } });

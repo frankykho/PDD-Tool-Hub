@@ -263,6 +263,7 @@ onSnapshot(query(collection(db, 'categories'), orderBy('order')), (snap) => {
     const opt = document.createElement('option');
     opt.value = cat.id;
     opt.textContent = cat.title;
+    opt.setAttribute("translate", "no");   // judul kategori = data, tidak diterjemahkan
     catSelect.appendChild(opt);
   });
   catSelect.value = categoriesCache.some(c => c.id === current) ? current : '';

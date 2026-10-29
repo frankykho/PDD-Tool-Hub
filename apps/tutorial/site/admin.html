@@ -431,13 +431,13 @@ function renderPendingCard(id, data){
       imgHtml = `<img src="${escapeHtml(image)}" alt="Langkah ${i + 1}" class="pending-step-img" data-full="${escapeHtml(image)}" onerror="this.style.display='none'">`;
     }
     const titleHtml = title ? `<b class="pending-step-title">${escapeHtml(title)}</b>` : '';
-    return `<li>${imgHtml}<div><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div></li>`;
+    return `<li>${imgHtml}<div translate="no"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div></li>`;
   }).join('');
 
   card.innerHTML = `
     <div class="pending-meta">${meta}</div>
-    <span class="pending-cat">${escapeHtml(data.categoryTitle || 'Kategori tidak diketahui')}</span>
-    <h3 class="pending-title">${escapeHtml(data.topicTitle || '(tanpa judul)')}</h3>
+    <span class="pending-cat"${data.categoryTitle ? ' translate="no"' : ''}>${escapeHtml(data.categoryTitle || 'Kategori tidak diketahui')}</span>
+    <h3 class="pending-title"${data.topicTitle ? ' translate="no"' : ''}>${escapeHtml(data.topicTitle || '(tanpa judul)')}</h3>
     <ul class="pending-steps">${stepsHtml}</ul>
     <div class="pending-actions">
       <button class="btn-approve">✓ Setujui &amp; Tayangkan</button>
@@ -628,11 +628,11 @@ async function loadStats(){
     const d = await adminApi('/api/stats');
     const T = d.topics || [], low = T.filter(x => x.up + x.down >= 3).map(x => ({ ...x, pct: x.up / (x.up + x.down) * 100 })).filter(x => x.pct < 70).sort((a, b) => a.pct - b.pct);
     const tbl = (head, rows) => `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${head.map(h => `<th style="text-align:left;border-bottom:1px solid #e4ece7;padding:6px">${h}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${head.length}" style="padding:6px;color:#5f7268">Belum ada data.</td></tr>`}</table></div>`;
-    const td = (v) => `<td style="border-bottom:1px solid #f0f4f1;padding:6px;vertical-align:top">${v}</td>`;
-    box.innerHTML = `<h3 style="margin:10px 0 6px;">Paling sering dibuka</h3>` + tbl(['Tutorial', 'Dibuka', '👍', '👎', 'Membantu'], T.slice(0, 15).map(x => `<tr>${td(escS(topicName(x.topic)))}${td(x.views)}${td(x.up)}${td(x.down)}${td(x.up + x.down ? Math.round(x.up / (x.up + x.down) * 100) + '%' : '–')}</tr>`))
-      + `<h3 style="margin:16px 0 6px;">Perlu diperbaiki (dinilai membantu &lt; 70%, min. 3 penilaian)</h3>` + tbl(['Tutorial', 'Membantu', 'Penilaian'], low.map(x => `<tr>${td(escS(topicName(x.topic)))}${td(Math.round(x.pct) + '%')}${td(x.up + x.down)}</tr>`))
-      + `<h3 style="margin:16px 0 6px;">Masukan "kurang membantu"</h3>` + tbl(['Waktu', 'Tutorial', 'Masukan'], (d.notes || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(topicName(x.topic)))}${td(escS(x.text))}</tr>`))
-      + `<h3 style="margin:16px 0 6px;">Pertanyaan ke asisten</h3>` + tbl(['Waktu', 'Pertanyaan', 'Ketemu?'], (d.asks || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(x.q))}${td(x.found ? '✓ ' + escS(String(x.topics || '').split(',').filter(Boolean).map(topicName).join(', ')) : '<b style="color:#b3261e">belum ada tutorial</b>')}</tr>`));
+    const td = (v, data) => `<td${data ? ' translate="no"' : ''} style="border-bottom:1px solid #f0f4f1;padding:6px;vertical-align:top">${v}</td>`;
+    box.innerHTML = `<h3 style="margin:10px 0 6px;">Paling sering dibuka</h3>` + tbl(['Tutorial', 'Dibuka', '👍', '👎', 'Membantu'], T.slice(0, 15).map(x => `<tr>${td(escS(topicName(x.topic)), 1)}${td(x.views)}${td(x.up)}${td(x.down)}${td(x.up + x.down ? Math.round(x.up / (x.up + x.down) * 100) + '%' : '–')}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Perlu diperbaiki (dinilai membantu &lt; 70%, min. 3 penilaian)</h3>` + tbl(['Tutorial', 'Membantu', 'Penilaian'], low.map(x => `<tr>${td(escS(topicName(x.topic)), 1)}${td(Math.round(x.pct) + '%')}${td(x.up + x.down)}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Masukan "kurang membantu"</h3>` + tbl(['Waktu', 'Tutorial', 'Masukan'], (d.notes || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(topicName(x.topic)), 1)}${td(escS(x.text), 1)}</tr>`))
+      + `<h3 style="margin:16px 0 6px;">Pertanyaan ke asisten</h3>` + tbl(['Waktu', 'Pertanyaan', 'Ketemu?'], (d.asks || []).map(x => `<tr>${td(new Date(x.at).toLocaleString('id-ID'))}${td(escS(x.q), 1)}${x.found ? td('✓ ' + escS(String(x.topics || '').split(',').filter(Boolean).map(topicName).join(', ')), 1) : td('<b style="color:#b3261e">belum ada tutorial</b>')}</tr>`));
     st.textContent = 'Pertanyaan bertanda "belum ada tutorial" bisa dijadikan topik baru atau FAQ.';
   }catch(e){ st.textContent = '✗ ' + e.message; }
 }
@@ -683,7 +683,7 @@ function renderSlideDetailHtml(slide, i, topicId){
     <li class="slide-detail-row" data-new-image="${escapeHtml(image)}">
       <div class="slide-view-mode">
         ${imgHtml}
-        <div class="slide-view-text"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div>
+        <div class="slide-view-text" translate="no"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div>
         <button type="button" class="btn-edit-slide" data-topic-id="${escapeHtml(topicId)}" data-slide-index="${i}">Edit</button>
       </div>
       <div class="slide-edit-mode" style="display:none;">
@@ -715,7 +715,7 @@ function renderManageCategory(catId, cat, index, allDocs){
   const items = cat.items || [];
   const catOptionsHtml = allDocs
     .filter(d => d.id !== catId)
-    .map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.data().title || '(tanpa judul)')}</option>`)
+    .map(d => `<option translate="no" value="${escapeHtml(d.id)}">${escapeHtml(d.data().title || '(tanpa judul)')}</option>`)
     .join('');
 
   const topicsHtml = items.length
@@ -723,7 +723,7 @@ function renderManageCategory(catId, cat, index, allDocs){
         <li class="manage-topic-row">
           <div class="manage-topic-row-head">
             <div class="topic-title-view">
-              <span>${escapeHtml(it.title || '(tanpa judul)')} <span style="color:var(--sub);">(${(it.slides || []).length} langkah)</span></span>
+              <span><span${it.title ? ' translate="no"' : ''}>${escapeHtml(it.title || '(tanpa judul)')}</span> <span style="color:var(--sub);">(${(it.slides || []).length} langkah)</span></span>
               <button class="btn-edit-topic-title" data-topic-id="${escapeHtml(it.id)}">Edit Judul</button>
             </div>
             <div class="topic-title-edit" style="display:none;">
@@ -753,7 +753,7 @@ function renderManageCategory(catId, cat, index, allDocs){
 
   box.innerHTML = `
     <div class="manage-cat-head">
-      <button type="button" class="manage-cat-title manage-cat-toggle" aria-expanded="${openCats.has(catId)}" title="Buka / tutup daftar topik"><span class="manage-cat-caret" aria-hidden="true">▸</span><span class="manage-cat-icon">${escapeHtml(cat.icon || '📁')}</span>${escapeHtml(cat.title || '(tanpa judul)')} <span class="manage-cat-count">${items.length} topik</span></button>
+      <button type="button" class="manage-cat-title manage-cat-toggle" aria-expanded="${openCats.has(catId)}" title="Buka / tutup daftar topik"><span class="manage-cat-caret" aria-hidden="true">▸</span><span class="manage-cat-icon">${escapeHtml(cat.icon || '📁')}</span><span${cat.title ? ' translate="no"' : ''}>${escapeHtml(cat.title || '(tanpa judul)')}</span> <span class="manage-cat-count">${items.length} topik</span></button>
       <div style="display:flex; gap:6px;">
         <button class="btn-move-cat" data-dir="-1" ${index === 0 ? 'disabled' : ''}>↑</button>
         <button class="btn-move-cat" data-dir="1" ${index === allDocs.length - 1 ? 'disabled' : ''}>↓</button>

@@ -13,6 +13,7 @@ import { ai, AiError } from "../../shared/ai.js";
 import { hubFeedAllowed } from "../../shared/hubfeed.js";
 import { complianceScript, PLATFORMS, RULES_PROMPT } from "../../shared/compliance.js";
 import PAGE from "./page.html";
+import EN from "./i18n.js";
 
 /* =========================================================
    LOGIN LEWAT TOOL HUB
@@ -403,7 +404,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const html = (body, extra = {}) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "x-robots-tag": "noindex", ...extra } });
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
 function page(env, cfg) {
-  const head = `<title>${esc(title(env, "Copy Studio"))}</title>${profileScript(env)}${themeHead("")}${complianceScript()}<script>${HUBSSO.onlyInHub(env)}window.CS=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+  const head = `<title>${esc(title(env, "Copy Studio"))}</title>${profileScript(env)}${themeHead("", EN)}${complianceScript()}<script>${HUBSSO.onlyInHub(env)}window.CS=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Copy Studio</title>", () => head);
 }
 /** Kode produk sendiri yang boleh disebut bersama ajakan "beli" (ETF di profil + tools.copy.allow). */
