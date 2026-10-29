@@ -206,7 +206,8 @@ function runtime(D) {
   if (lang === "en") { doc.documentElement.setAttribute("lang", "en"); if (doc.readyState !== "loading") apply(); else doc.addEventListener("DOMContentLoaded", apply); }
 }
 
-const RUNTIME = `(${runtime.toString()})`;
+// wrangler (esbuild keepNames) menyisipkan __name(fn, "nama") ke dalam fungsi; di browser helper itu tidak ada, jadi disediakan di sini.
+const RUNTIME = `(function(){var __name=function(f){return f};return (${runtime.toString()})})()`;
 const cache = new WeakMap();
 const UNSAFE = new RegExp("[<" + String.fromCharCode(0x2028, 0x2029) + "]", "g");
 /** Skrip <head> untuk dua bahasa. dict = kamus tool (Indonesia -> Inggris), digabung dengan COMMON_EN. */
