@@ -81,7 +81,8 @@ function runtime(D) {
     if (!/[a-z]/i.test(s) || !DATE_RE.test(s) || !/\d/.test(s) && !/^(senin|selasa|rabu|kamis|jumat|sabtu|minggu)$/i.test(s)) return null;
     return s.replace(/s\.d\.|s\/d|jum'at|[a-z]+/gi, function (w) { var t = MON[w.toLowerCase()]; return t == null ? w : t; });
   }
-  function cap(v, like) { var c = like.charAt(0); return c && c === c.toUpperCase() && c !== c.toLowerCase() ? v.charAt(0).toUpperCase() + v.slice(1) : c && c !== c.toUpperCase() ? v.charAt(0).toLowerCase() + v.slice(1) : v; }
+  // huruf pertama mengikuti teks asli; singkatan di awal terjemahan (AUM, NAV, IDX) tidak dikecilkan
+  function cap(v, like) { var c = like.charAt(0); return c && c === c.toUpperCase() && c !== c.toLowerCase() ? v.charAt(0).toUpperCase() + v.slice(1) : c && c !== c.toUpperCase() && !/^[A-Z]{2}/.test(v) ? v.charAt(0).toLowerCase() + v.slice(1) : v; }
   function word(s) {
     var v = exact.get(s); if (v != null) return v;
     v = lower.get(s.toLowerCase()); return v != null ? cap(v, s) : null;
