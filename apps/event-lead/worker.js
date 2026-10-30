@@ -5,7 +5,11 @@
 // - "/__hub/users" (POST) -> anggota, daftar cabang, dan tim & role dari Tool Hub
 // Hak akses: admin hub semua event; Head tim regional semua event regional; Sales / GI coordinator event cabangnya;
 // pemegang akses di luar tim regional hanya event buatannya (+ Head timnya).
-import { hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
+import { hubPushAllowed } from "../../shared/hubfeed.js";
+import { title, profileScript, appUrl } from "../../shared/profile.js";
+import { themeHead } from "../../shared/theme.js";
+import EN from "./i18n.js";
+import PAGE from "./page.html";
 import { cleanOrg, roleIn, teamIn, isRegional } from "../../shared/jobs.js";
 
 /* =========================================================
@@ -256,7 +260,7 @@ async function regBlocked(env, ev, phone = "") {
   return null;
 }
 
-const PUB_CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#17231B;background:#F1F7F3}
+const PUB_CSS = `*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#17231B;background:#F1F7F3}
 main{max-width:560px;margin:0 auto;padding:20px 16px 48px}.logo{display:block;height:40px;width:auto;margin:4px 0 20px}
 .card{background:#fff;border:1px solid #DCE7E0;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(16,32,22,.06)}
 h1{font-size:22px;line-height:1.3;margin:0 0 10px}.meta{margin:0 0 4px;color:#3C4A41}.meta b{color:#17231B}.descr{margin:12px 0 0;color:#3C4A41;white-space:pre-line}
@@ -519,6 +523,15 @@ async function saveConsent(env, b) {
   await cfgPut(env, "consent", c).run();
   return { consent: c };
 }
+/** Halaman tim: data awal (window.EV) + tema & bahasa dari Tool Hub. */
+async function page(env, me, org, origin) {
+  const reg = isRegional(org, me.j, me.adm), head = !!(roleIn(org, me.j) || {}).head, B = await getBranches(env);
+  const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, reg, head, branch: me.c || "", canDelete: canDelete(me, org) },
+    // pilihan cabang di form: Sales / GI coordinator hanya cabangnya; Head regional & admin semua; lainnya tanpa cabang
+    branches: reg && !head ? B.filter((x) => x.c === me.c) : reg || me.adm ? B : [], pub: appUrl(env, "event") || origin, statuses: STATUSES, waDefault: WA_DEFAULT };
+  const head_ = `<title>${esc(title(env, "Event & Lead"))}</title>${profileScript(env)}${themeHead("", EN)}<script>${HUBSSO.onlyInHub(env)}window.EV=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
+  return PAGE.replace("<title>Event & Lead</title>", () => head_);
+}
 /** Hasil fungsi API -> respons JSON (status dari { status } atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 
@@ -551,6 +564,8 @@ export default {
     if (!sess) return path.startsWith("/api/") ? json({ error: "Sesi habis. Muat ulang halaman." }, 401) : HUBSSO.login(request, env);
     await ensure(env);
     const me = await whoAmI(env, sess), org = await getOrg(env);
+    if (path === "/" || path === "/index.html") return new Response(await page(env, me, org, url.origin), {
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" } });
     try {
       if (request.method === "GET") {
         if (path === "/api/events") return json(await listEvents(env, me, org));

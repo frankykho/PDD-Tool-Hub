@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Event & Lead</title>
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--bad:#b42318;
+  --s1:#eef1f4;--s1-t:#4a5560;--s2:#fff4dc;--s2-t:#8a5a00;--s3:#e7efff;--s3-t:#2a4fa8;--s4:#e1f5e9;--s4-t:#1d6b41;--s5:#fde8e6;--s5-t:#a5352a;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#a3b0a8;--g:#4fc285;--g2:#1d3327;--bad:#ef6b5e;
+  --s1:#242c33;--s1-t:#b8c2cc;--s2:#3a2f15;--s2-t:#f0c66b;--s3:#1d2a47;--s3-t:#9cb6f5;--s4:#173726;--s4-t:#7fdba6;--s5:#3a1d1a;--s5-t:#f2a097;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:var(--g)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.2px}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-flex;align-items:center;gap:6px;min-height:38px}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn.sm{padding:5px 9px;font-size:12.5px;min-height:32px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.evc:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);flex-wrap:wrap}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;font-weight:600;color:var(--t2);min-height:36px}
+.seg button.on{background:var(--g2);color:var(--g)}
+.f{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;min-width:0;width:100%;min-height:38px}
+textarea.f{resize:vertical}
+.muted{color:var(--t2)}
+.small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.msg{padding:10px 12px;border-radius:10px;background:var(--s2);color:var(--s2-t);margin:10px 0}
+.msg.err{background:var(--s5);color:var(--s5-t)}
+.msg.ok{background:var(--s4);color:var(--s4-t)}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px}
+.c1{background:var(--s1);color:var(--s1-t)}.c2{background:var(--s2);color:var(--s2-t)}.c3{background:var(--s3);color:var(--s3-t)}.c4{background:var(--s4);color:var(--s4-t)}.c5{background:var(--s5);color:var(--s5-t)}
+/* daftar event */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.evc{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;color:inherit;font:inherit;width:100%}
+.evc h3{margin:0;font-size:15.5px;line-height:1.35}
+.evc .nums{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+.num b{display:block;font-size:18px;line-height:1.2}
+.num span{font-size:12px;color:var(--t2)}
+.empty{padding:28px;text-align:center;color:var(--t2)}
+/* form */
+.form{display:grid;gap:12px;max-width:760px}
+.fld{display:grid;gap:5px}
+.fld>label,.lbl{font-weight:600;font-size:13px}
+.row2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.chk{display:flex;align-items:center;gap:8px;min-height:38px}
+.chk input{width:18px;height:18px;accent-color:var(--g)}
+.hint{font-size:12.5px;color:var(--t2)}
+/* detail */
+.head h2{margin:0 0 4px;font-size:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.kpi b{display:block;font-size:22px;line-height:1.2}
+.kpi span{font-size:12.5px;color:var(--t2)}
+.shares{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.share{display:flex;gap:14px;align-items:flex-start}
+.qr{width:132px;height:132px;flex:none;background:#fff;border-radius:8px;padding:6px}
+.qr svg{width:100%;height:100%;display:block}
+.share h3{margin:0 0 4px;font-size:15px}
+.share .link{font-size:12.5px;overflow-wrap:anywhere;margin:0 0 8px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.tools .f{width:auto;flex:1 1 200px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 11px;cursor:pointer;font-weight:600;font-size:12.5px;color:var(--t2);min-height:32px}
+.chip.on{background:var(--g2);border-color:var(--g);color:var(--g)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--t2);font-weight:700}
+td .f{width:auto;min-height:32px;padding:4px 6px}
+.ml{display:none}
+details summary{cursor:pointer;font-weight:600}
+dialog{border:0;border-radius:16px;padding:20px;width:min(520px,calc(100vw - 32px));background:var(--card);color:var(--t);box-shadow:0 20px 50px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(6,16,10,.35)}
+dialog h3{margin:0 0 12px}
+@media (max-width:900px){.shares{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  .row2{grid-template-columns:minmax(0,1fr)}
+  .btn,.seg button,.f,.chk{min-height:44px}.btn.sm,.chip,td .f{min-height:44px}
+  .share{flex-direction:column}
+  table,thead,tbody,tr,td{display:block}thead{display:none}
+  tr{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;margin-bottom:10px;background:var(--card)}
+  td{border:0;padding:4px 0}
+  .ml{display:inline;color:var(--t2);font-size:12px}.ml::after{content:": "}
+}
+/* liquid glass (di dalam Tool Hub: token --hg-* dari shared/theme.js) */
+html[data-theme]{background:var(--hg-base)}
+html[data-theme] body{background:transparent}
+html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+html[data-theme] .wrap .card,html[data-theme] .wrap .kpi{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .card:has(table){background:var(--hg-solid)}
+html[data-theme] .wrap .seg,html[data-theme] .wrap .chip{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .btn:not(.pri),html[data-theme] dialog .btn:not(.pri){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .f,html[data-theme] dialog .f{background:var(--hg-solid)}
+html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow-lg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="vList">
+    <div class="bar"><h1>Event &amp; Lead</h1>
+      <div class="seg" role="group" aria-label="Filter event"><button type="button" data-f="next" class="on">Mendatang</button><button type="button" data-f="past">Selesai</button><button type="button" data-f="all">Semua</button></div>
+      <span class="sp"></span><button type="button" class="btn" id="bSet" hidden>Persetujuan data</button><a class="btn pri" href="#/new">+ Buat event</a></div>
+    <div id="lMsg"></div>
+    <div id="evList" class="grid" aria-live="polite"></div>
+  </div>
+
+  <div id="vForm" hidden>
+    <div class="bar"><a class="btn sm" href="#/">← Kembali</a><h1 id="fTitle">Buat event</h1></div>
+    <form class="form card" id="fEv" novalidate>
+      <div class="fld" id="gLink"><label for="iLink">Sambungkan ke kegiatan Content Planner</label><select class="f" id="iLink"></select>
+        <span class="hint">Peserta (hadir) dan Leads (pendaftar) di kegiatan itu terisi otomatis dari event ini.</span></div>
+      <p class="hint" id="hLinked" hidden></p>
+      <div class="fld"><label for="iTitle">Judul acara</label><input class="f" id="iTitle" maxlength="160" required></div>
+      <div class="fld"><span class="lbl" id="lMode">Jenis acara</span><div class="seg" role="group" aria-labelledby="lMode"><button type="button" data-m="tatap" class="on">Tatap muka</button><button type="button" data-m="online">Online</button></div></div>
+      <div class="row2">
+        <div class="fld"><label for="iDate">Tanggal</label><input class="f" type="date" id="iDate" required></div>
+        <div class="fld"><label for="iStart">Jam mulai</label><input class="f" type="time" id="iStart" required></div>
+        <div class="fld"><label for="iEnd">Jam selesai</label><input class="f" type="time" id="iEnd" required></div>
+      </div>
+      <div class="fld" id="gPlace"><label for="iPlace">Lokasi</label><input class="f" id="iPlace" maxlength="200" placeholder="mis. Hotel Majapahit, Ruang Anggrek"></div>
+      <div class="fld" id="gUrl" hidden><label for="iUrl">Link acara online</label><input class="f" id="iUrl" maxlength="500" placeholder="https://zoom.us/j/…"><span class="hint">Tidak tampil di halaman publik. Peserta melihatnya setelah mendaftar dan di teks WhatsApp.</span></div>
+      <div class="fld" id="gBranch"><label for="iBranch">Cabang / galeri</label><select class="f" id="iBranch"></select></div>
+      <div class="fld"><label for="iDescr">Deskripsi singkat</label><textarea class="f" id="iDescr" rows="3" maxlength="2000"></textarea></div>
+      <div class="row2">
+        <div class="fld"><label for="iQuota">Kuota peserta</label><input class="f" id="iQuota" inputmode="numeric" maxlength="6" placeholder="kosong = tanpa batas"></div>
+        <div class="fld"><span class="lbl">Pendaftaran</span><label class="chk"><input type="checkbox" id="iOpen" checked> Dibuka</label></div>
+        <div class="fld" id="gStatus" hidden><label for="iStatus">Status event</label><select class="f" id="iStatus"><option value="aktif">Aktif</option><option value="batal">Dibatalkan</option></select></div>
+      </div>
+      <div id="fMsg"></div>
+      <div class="acts"><button class="btn pri" type="submit" id="bSave">Simpan</button><a class="btn" href="#/">Kembali</a></div>
+    </form>
+  </div>
+
+  <div id="vDetail" hidden>
+    <div class="bar"><a class="btn sm" href="#/">← Kembali</a><span class="sp"></span><a class="btn" id="bEdit">Ubah event</a></div>
+    <div id="dBody"></div>
+  </div>
+</div>
+
+<dialog id="dlgP"><form id="fP" method="dialog" novalidate>
+  <h3 id="pTitle">Tambah peserta</h3>
+  <div class="form">
+    <div class="fld"><label for="pName">Nama</label><input class="f" id="pName" maxlength="80" required></div>
+    <div class="fld"><label for="pPhone">Nomor HP (WhatsApp)</label><input class="f" id="pPhone" inputmode="tel" required placeholder="08xx"></div>
+    <div class="fld"><label for="pEmail">Email</label><input class="f" id="pEmail" type="email" maxlength="120"></div>
+    <div class="fld"><span class="lbl">Sudah nasabah KISI?</span><label class="chk"><input type="radio" name="pIc" value="1"> Ya</label><label class="chk"><input type="radio" name="pIc" value="0" checked> Belum</label></div>
+    <div class="fld" id="gCode" hidden><label for="pCode">Kode nasabah</label><input class="f" id="pCode" maxlength="30"></div>
+    <div id="pMsg"></div>
+    <div class="acts"><button class="btn pri" type="submit">Simpan</button><button class="btn" type="button" id="pCancel">Tutup</button></div>
+  </div>
+</form></dialog>
+
+<dialog id="dlgS"><form id="fS" method="dialog" novalidate>
+  <h3>Teks persetujuan data pribadi</h3>
+  <p class="hint">Tampil di form daftar dan absen walk-in. Setiap kali diganti, versinya naik dan peserta baru menyetujui versi terbaru. Sebaiknya dicek tim legal / compliance.</p>
+  <textarea class="f" id="sText" rows="6" maxlength="2000"></textarea>
+  <p class="hint" id="sVer"></p>
+  <div id="sMsg"></div>
+  <div class="acts"><button class="btn pri" type="submit">Simpan</button><button class="btn" type="button" id="sCancel">Tutup</button></div>
+</form></dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const EV=window.EV,ME=EV.me,ST=EV.statuses,SCL={terdaftar:1,dikonfirmasi:2,hadir:4,batal:5,tidak_bisa:3};
+const T=s=>window.hubT?window.hubT(s):s;
+async function api(path,body){
+  const r=await fetch(path,body?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{cache:"no-store"});
+  const j=await r.json().catch(()=>({error:"Respons tidak terbaca (HTTP "+r.status+")"}));
+  if(!r.ok||j.error){const e=new Error(j.error||("HTTP "+r.status));e.status=r.status;throw e}
+  return j;
+}
+const showMsg=(box,m,cls="err")=>{$(box).innerHTML=m?`<div class="msg ${cls}" role="${cls==="err"?"alert":"status"}">${esc(m)}</div>`:""};
+const HARI=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"],BULAN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const tanggal=s=>{const d=new Date(String(s)+"T00:00:00Z");return isNaN(d)?String(s||""):`${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BULAN[d.getUTCMonth()]} ${d.getUTCFullYear()}`};
+const jam=ev=>[ev.time_start,ev.time_end].filter(Boolean).map(t=>t.replace(":",".")).join("–")+(ev.time_start?" WIB":"");
+const todayIso=()=>new Date(Date.now()+7*3600e3).toISOString().slice(0,10);
+const hp=p=>p&&p.startsWith("62")?"0"+p.slice(2):p||"";
+const when=s=>{const d=new Date(s);return isNaN(d)?"":d.toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"})};
+const where=ev=>ev.mode==="online"?"Online":ev.place||"";
+// sama dengan waText di worker.js
+function waText(tpl,ev,p){const on=ev.mode==="online",link=on?String(ev.online_url||""):"";
+  const V={nama:p.name||"",acara:ev.title||"",tanggal:tanggal(ev.date),jam:jam(ev),tempat:on?"online":ev.place||"",link};const t=String(tpl||EV.waDefault);
+  return t.replace(/\{(nama|acara|tanggal|jam|tempat|link)\}/g,(_,k)=>V[k])+(link&&!t.includes("{link}")?"\nLink acara: "+link:"")}
+const pubUrl=(ev,kind)=>(EV.pub||location.origin)+"/"+kind+"/"+(kind==="d"?ev.code:ev.acode);
+
+/* =================== DAFTAR EVENT =================== */
+let EVENTS=[],FILTER="next";
+function show(v){["vList","vForm","vDetail"].forEach(x=>$(x).hidden=x!==v);window.scrollTo(0,0)}
+async function list(){
+  show("vList");$("bSet").hidden=!ME.adm;
+  try{EVENTS=await api("/api/events");showMsg("lMsg","")}catch(e){showMsg("lMsg",e.message);return}
+  drawList();
+}
+function drawList(){
+  const t=todayIso(),L=EVENTS.filter(e=>FILTER==="all"||(FILTER==="next"?e.date>=t:e.date<t));
+  if(FILTER==="next")L.sort((a,b)=>(a.date+a.time_start).localeCompare(b.date+b.time_start));
+  document.querySelectorAll("[data-f]").forEach(b=>b.classList.toggle("on",b.dataset.f===FILTER));
+  $("evList").innerHTML=L.length?L.map(e=>`<a class="card evc" href="#/e/${esc(e.id)}"><h3 translate="no">${esc(e.title)}</h3>
+    <span class="muted small">${esc(tanggal(e.date))} · ${esc(jam(e))}</span><span class="muted small">${e.mode==="online"?"Online":esc(e.branch||e.place)}</span>
+    <span>${e.status==="batal"?'<span class="tag c5">Dibatalkan</span> ':""}${e.open?"":'<span class="tag c1">Pendaftaran ditutup</span>'}</span>
+    <span class="nums"><span class="num"><b>${e.n_reg}</b><span>Pendaftar</span></span><span class="num"><b>${e.n_conf}</b><span>Dikonfirmasi</span></span><span class="num"><b>${e.n_hadir}</b><span>Hadir</span></span></span></a>`).join("")
+    :`<div class="card empty">${FILTER==="next"?"Belum ada event mendatang. Klik Buat event untuk mulai.":"Belum ada event."}</div>`;
+}
+document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{FILTER=b.dataset.f;drawList()});
+
+/* =================== FORM EVENT =================== */
+let CUR=null,MODE="tatap",CHOICES=[];
+const setMode=m=>{MODE=m;document.querySelectorAll("[data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===m));$("gPlace").hidden=m!=="tatap";$("gUrl").hidden=m!=="online"};
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+async function loadChoices(){
+  const linked=CUR&&CUR.item_id&&!CUR.item_gone;$("gLink").hidden=!!linked;$("hLinked").hidden=!linked;
+  if(linked){$("hLinked").textContent=T("Tersambung ke kegiatan Content Planner. Judul, tanggal, jam, tempat, cabang, dan pembatalan ikut diperbarui di sana.");return}
+  const sel=$("iLink"),keep=sel.value;sel.innerHTML=`<option value="__new">${esc(T("Buat kegiatan baru di Content Planner"))}</option>`;
+  try{CHOICES=await api("/api/planner-items?branch="+encodeURIComponent($("iBranch").value||""))}catch(e){CHOICES=[]}
+  sel.innerHTML+=CHOICES.map(c=>`<option value="${esc(c.id)}">${esc(c.title)} · ${esc(tanggal(c.date))}</option>`).join("");
+  if(CHOICES.some(c=>c.id===keep))sel.value=keep;
+}
+$("iLink").onchange=()=>{const c=CHOICES.find(x=>x.id===$("iLink").value);if(!c)return;
+  $("iTitle").value=c.title||$("iTitle").value;if(c.date)$("iDate").value=c.date;if(c.time)$("iStart").value=c.time;if(c.place&&c.place!=="Online")$("iPlace").value=c.place};
+$("iBranch").onchange=()=>{if(!CUR||!CUR.item_id||CUR.item_gone)loadChoices()};
+async function form(id){
+  show("vForm");showMsg("fMsg","");CUR=null;
+  if(id){CUR=EVENTS.find(e=>e.id===id)||(await api("/api/people?event="+encodeURIComponent(id)).catch(()=>({}))).event||null;if(!CUR){showMsg("fMsg","Event tidak ditemukan.");return}}
+  const e=CUR||{};$("fTitle").textContent=T(id?"Ubah event":"Buat event");
+  $("iTitle").value=e.title||"";setMode(e.mode||"tatap");$("iDate").value=e.date||"";$("iStart").value=e.time_start||"";$("iEnd").value=e.time_end||"";
+  $("iPlace").value=e.place||"";$("iUrl").value=e.online_url||"";$("iDescr").value=e.descr||"";$("iQuota").value=e.quota||"";$("iOpen").checked=e.open!==0;
+  $("gStatus").hidden=!id;$("iStatus").value=e.status||"aktif";
+  // cabang: Sales / GI coordinator terkunci ke cabangnya; Head regional & admin memilih; lainnya tanpa cabang
+  const B=EV.branches,canPick=ME.adm||(ME.reg&&ME.head);$("gBranch").hidden=!B.length&&!ME.reg;
+  $("iBranch").innerHTML=(ME.adm&&!ME.reg?`<option value="">${esc(T("Tanpa cabang"))}</option>`:"")+B.map(x=>`<option value="${esc(x.c)}">${esc(x.c)} (${esc(x.r)})</option>`).join("")+(ME.reg&&!B.length?`<option value="${esc(ME.branch)}">${esc(ME.branch||T("Cabang belum diatur"))}</option>`:"");
+  $("iBranch").value=e.branch||(ME.reg?ME.branch:"")||"";$("iBranch").disabled=!canPick;
+  await loadChoices();
+}
+$("fEv").onsubmit=async ev=>{
+  ev.preventDefault();const b=$("bSave");b.disabled=true;showMsg("fMsg","");
+  const link=$("gLink").hidden?null:$("iLink").value==="__new"?{create:true}:{item_id:$("iLink").value};
+  const body={...(CUR||{}),title:$("iTitle").value,mode:MODE,date:$("iDate").value,time_start:$("iStart").value,time_end:$("iEnd").value,place:$("iPlace").value,online_url:$("iUrl").value,
+    branch:$("gBranch").hidden?"":$("iBranch").value,descr:$("iDescr").value,quota:$("iQuota").value,open:$("iOpen").checked,status:$("iStatus").value,link};
+  if(!CUR)delete body.id;
+  try{const r=await api("/api/events",body);if(r.warn)sessionStorage.setItem("ev_warn",r.warn);location.hash="#/e/"+r.id}
+  catch(e){showMsg("fMsg",e.message)}finally{b.disabled=false}
+};
+
+/* =================== DETAIL EVENT =================== */
+let D=null,PF="",PQ="";
+async function detail(id){
+  show("vDetail");$("bEdit").href="#/edit/"+id;
+  try{D=await api("/api/people?event="+encodeURIComponent(id))}catch(e){$("dBody").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  const w=sessionStorage.getItem("ev_warn");sessionStorage.removeItem("ev_warn");drawDetail(w);
+}
+function drawDetail(warn){
+  const e=D.event,P=D.people,cl=P.filter(p=>p.is_client).length;$("bEdit").hidden=!!e.purged;
+  const shareBox=(k,h,sub)=>`<div class="card share"><div class="qr" id="qr_${k}" aria-label="Kode QR ${esc(h)}"></div><div><h3>${esc(h)}</h3><p class="hint">${esc(sub)}</p>
+    <p class="link" translate="no"><a href="${esc(pubUrl(e,k))}" target="_blank" rel="noopener">${esc(pubUrl(e,k))}</a></p>
+    <div class="acts"><button type="button" class="btn sm" data-copy="${k}">Salin link</button><button type="button" class="btn sm" data-png="${k}">Unduh QR</button></div></div></div>`;
+  $("dBody").innerHTML=(warn?`<div class="msg">${esc(warn)}</div>`:"")+`<div class="head"><h2 translate="no">${esc(e.title)}</h2>
+    <p class="muted" style="margin:0">${esc(tanggal(e.date))} · ${esc(jam(e))} · <span translate="no">${esc(where(e))}</span>${e.branch?` · <span translate="no">${esc(e.branch)}</span>`:""}</p>
+    <p style="margin:6px 0 0">${e.status==="batal"?'<span class="tag c5">Dibatalkan</span> ':""}${e.open?'<span class="tag c4">Pendaftaran dibuka</span>':'<span class="tag c1">Pendaftaran ditutup</span>'}${e.quota?` <span class="tag c1">${esc(T("Kuota"))} ${e.quota}</span>`:""}
+    ${e.item_id&&!e.item_gone?' <span class="tag c3">Tersambung ke Content Planner</span>':e.item_gone?' <span class="tag c5">Tidak tersambung ke Content Planner</span>':""}</p>
+    ${e.item_gone?'<p class="hint">Kegiatannya sudah dihapus di Content Planner. Angka event tetap tersimpan di sini.</p>':""}</div>
+    <div class="kpis"><div class="kpi"><b>${e.n_reg}</b><span>Pendaftar</span></div><div class="kpi"><b>${e.n_conf}</b><span>Dikonfirmasi</span></div><div class="kpi"><b>${e.n_hadir}</b><span>Hadir</span></div>
+    <div class="kpi"><b>${e.n_walkin}</b><span>Walk-in</span></div>${e.purged?"":`<div class="kpi"><b>${cl}</b><span>Sudah nasabah</span></div><div class="kpi"><b>${P.length-cl}</b><span>Belum nasabah</span></div>`}</div>`
+    +(e.purged?`<div class="card"><p style="margin:0">Data peserta sudah dihapus (lebih dari 12 bulan).</p></div>`:
+    `<div class="shares">${shareBox("d","Link & QR pendaftaran","Untuk poster, story, atau dibagikan ke nasabah.")}${shareBox("h","Link & QR absen","Pasang di meja registrasi, atau bagikan saat acara online. Dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai.")}</div>
+    <div class="card" style="margin-bottom:12px"><details><summary>Template teks WhatsApp</summary>
+      <p class="hint">Bisa memakai {nama} {acara} {tanggal} {jam} {tempat} {link}. Teks masih bisa diedit di WhatsApp sebelum dikirim.</p>
+      <textarea class="f" id="waTpl" rows="4" maxlength="1000" translate="no">${esc(e.wa_tpl||D.waDefault)}</textarea>
+      <div class="acts" style="margin-top:8px"><button type="button" class="btn sm pri" id="bWaSave">Simpan template</button><button type="button" class="btn sm" id="bWaReset">Kembalikan bawaan</button><span id="waMsg" class="hint"></span></div></details></div>
+    <div class="card"><div class="tools"><input class="f" id="pq" type="search" placeholder="Cari nama, HP, email, kode nasabah" aria-label="Cari peserta" value="${esc(PQ)}">
+      <button type="button" class="btn sm pri" id="bAdd">+ Tambah peserta</button><button type="button" class="btn sm" id="bXls">Ekspor Excel</button></div>
+      <div class="tools" role="group" aria-label="Filter status">${[["","Semua"],...Object.entries(ST)].map(([k,l])=>`<button type="button" class="chip${PF===k?" on":""}" data-pf="${k}">${esc(l)} <span>${k?P.filter(p=>p.status===k).length:P.length}</span></button>`).join("")}</div>
+      <div id="tMsg"></div><div id="pList"></div></div>`);
+  if(e.purged)return;
+  qr("d");qr("h");drawPeople();
+  $("pq").oninput=()=>{PQ=$("pq").value;drawPeople()};
+  document.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{PF=b.dataset.pf;document.querySelectorAll("[data-pf]").forEach(x=>x.classList.toggle("on",x===b));drawPeople()});
+  document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>navigator.clipboard.writeText(pubUrl(e,b.dataset.copy)).then(()=>{b.textContent=T("Tersalin");setTimeout(()=>b.textContent=T("Salin link"),1500)}));
+  document.querySelectorAll("[data-png]").forEach(b=>b.onclick=()=>qrPng(b.dataset.png));
+  $("bAdd").onclick=()=>personForm(null);$("bXls").onclick=()=>exportXls().catch(x=>showMsg("tMsg",x.message));
+  $("bWaSave").onclick=()=>saveTpl($("waTpl").value);$("bWaReset").onclick=()=>{$("waTpl").value=D.waDefault;saveTpl("")};
+}
+function drawPeople(){
+  const e=D.event,q=PQ.trim().toLowerCase(),L=D.people.filter(p=>(!PF||p.status===PF)&&(!q||[p.name,hp(p.phone),p.phone,p.email,p.client_code].some(x=>String(x||"").toLowerCase().includes(q))));
+  if(!L.length){$("pList").innerHTML=`<p class="empty">${D.people.length?"Tidak ada peserta yang cocok.":"Belum ada peserta. Bagikan link pendaftaran ke nasabah."}</p>`;return}
+  $("pList").innerHTML=`<table><thead><tr><th>Nama</th><th>HP</th><th>Email</th><th>Nasabah (kode)</th><th>Status</th><th>Walk-in</th><th>Terdaftar</th><th><span class="ml">Aksi</span></th></tr></thead><tbody>`
+    +L.map(p=>`<tr><td><b translate="no">${esc(p.name)}</b></td><td><span class="ml">HP</span><span translate="no">${esc(hp(p.phone))}</span></td><td><span class="ml">Email</span><span translate="no">${esc(p.email||"–")}</span></td>
+    <td><span class="ml">Nasabah (kode)</span>${p.is_client?`${esc(T("Ya"))} <span translate="no">(${esc(p.client_code)})</span>`:esc(T("Belum"))}</td>
+    <td><select class="f" data-st="${esc(p.id)}" aria-label="Status ${esc(p.name)}">${Object.entries(ST).map(([k,l])=>`<option value="${k}"${p.status===k?" selected":""}>${esc(l)}</option>`).join("")}</select></td>
+    <td><span class="ml">Walk-in</span>${p.walkin?esc(T("Ya")):"–"}</td><td><span class="ml">Terdaftar</span>${esc(when(p.created_at))}</td>
+    <td><div class="acts"><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${esc(p.phone)}?text=${encodeURIComponent(waText(e.wa_tpl,e,p))}">WhatsApp</a>
+    <button type="button" class="btn sm" data-ed="${esc(p.id)}">Ubah</button>${D.canDelete?`<button type="button" class="btn sm danger" data-del="${esc(p.id)}">Hapus</button>`:""}</div></td></tr>`).join("")+"</tbody></table>";
+  document.querySelectorAll("[data-st]").forEach(s=>s.onchange=async()=>{s.disabled=true;
+    try{await api("/api/people",{id:s.dataset.st,status:s.value});await reload()}catch(x){showMsg("tMsg",x.message);s.disabled=false}});
+  document.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>personForm(D.people.find(p=>p.id===b.dataset.ed)));
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{const p=D.people.find(x=>x.id===b.dataset.del);
+    if(!confirm(T("Hapus data peserta ini? Tidak bisa dibatalkan.")+"\n"+p.name))return;
+    try{await api("/api/people/delete",{id:p.id});await reload()}catch(x){showMsg("tMsg",x.message)}});
+}
+async function reload(){const id=D.event.id;D=await api("/api/people?event="+encodeURIComponent(id));drawDetail()}
+async function saveTpl(t){try{await api("/api/events",{...D.event,wa_tpl:t});D.event.wa_tpl=t;$("waMsg").textContent=T("Tersimpan");drawPeople()}catch(x){$("waMsg").textContent=x.message}}
+
+/* ---------- peserta: tambah / ubah manual ---------- */
+let PED=null;
+const icSync=()=>{$("gCode").hidden=document.querySelector("input[name=pIc]:checked").value!=="1"};
+document.querySelectorAll("input[name=pIc]").forEach(r=>r.onchange=icSync);
+function personForm(p){PED=p;$("pTitle").textContent=T(p?"Ubah peserta":"Tambah peserta");showMsg("pMsg","");
+  $("pName").value=p?p.name:"";$("pPhone").value=p?hp(p.phone):"";$("pEmail").value=p?p.email||"":"";$("pCode").value=p?p.client_code||"":"";
+  document.querySelector(`input[name=pIc][value="${p&&p.is_client?1:0}"]`).checked=true;icSync();$("dlgP").showModal()}
+$("pCancel").onclick=()=>$("dlgP").close();
+$("fP").onsubmit=async ev=>{ev.preventDefault();
+  const body={event_id:D.event.id,name:$("pName").value,phone:$("pPhone").value,email:$("pEmail").value,is_client:document.querySelector("input[name=pIc]:checked").value,client_code:$("pCode").value};
+  if(PED)body.id=PED.id;
+  try{await api("/api/people",body);$("dlgP").close();await reload()}catch(x){showMsg("pMsg",x.message)}};
+
+/* ---------- QR: kotak di layar + PNG 1024 px untuk poster / story ---------- */
+let qrLib;
+const loadQr=()=>qrLib||(qrLib=new Promise((ok,no)=>{if(window.qrcode)return ok();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+  s.onload=()=>window.qrcode?ok():no(new Error("Library QR gagal dimuat."));s.onerror=()=>{qrLib=null;no(new Error("Library QR gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
+const qrOf=t=>{const q=qrcode(0,"M");q.addData(t);q.make();return q};
+async function qr(k){const box=$("qr_"+k);try{await loadQr()}catch(e){box.hidden=true;return}
+  const q=qrOf(pubUrl(D.event,k)),n=q.getModuleCount(),z=2,N=n+z*2;let d="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+z} ${r+z}h1v1h-1z`;
+  box.innerHTML=`<svg viewBox="0 0 ${N} ${N}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect width="${N}" height="${N}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}
+async function qrPng(k){
+  try{await loadQr()}catch(e){showMsg("tMsg",e.message);return}
+  const e=D.event,q=qrOf(pubUrl(e,k)),n=q.getModuleCount(),W=1024,pad=72,cell=Math.floor((W-pad*2)/n),off=Math.floor((W-cell*n)/2);
+  const lines=[],words=String(e.title).split(/\s+/);let cur="";const cv=document.createElement("canvas"),x=cv.getContext("2d");x.font="600 40px Inter,system-ui,sans-serif";
+  for(const w of words){const t=cur?cur+" "+w:w;if(x.measureText(t).width>W-pad*2&&cur){lines.push(cur);cur=w}else cur=t}if(cur)lines.push(cur);
+  const L=lines.slice(0,3),H=W+L.length*52+(k==="h"?60:0)+40;cv.width=W;cv.height=H;
+  x.fillStyle="#fff";x.fillRect(0,0,W,H);x.fillStyle="#000";
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect(off+c*cell,off+r*cell,cell,cell);
+  x.fillStyle="#17231B";x.textAlign="center";x.font="600 40px Inter,system-ui,sans-serif";L.forEach((l,i)=>x.fillText(l,W/2,W+i*52));
+  if(k==="h"){x.font="500 32px Inter,system-ui,sans-serif";x.fillStyle="#5E6A61";x.fillText(T("Pindai untuk absen"),W/2,W+L.length*52+24)}
+  const a=document.createElement("a");a.download=`QR ${k==="d"?T("Daftar"):T("Absen")} - ${e.title}.png`.replace(/[\\/:*?"<>|]/g," ");a.href=cv.toDataURL("image/png");a.click()}
+
+/* ---------- ekspor Excel ---------- */
+let xlsLib;
+const loadXls=()=>xlsLib||(xlsLib=new Promise((ok,no)=>{if(window.XLSX)return ok();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  s.onload=()=>window.XLSX?ok():no(new Error("Library Excel gagal dimuat."));s.onerror=()=>{xlsLib=null;no(new Error("Library Excel gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
+async function exportXls(){
+  await loadXls();const e=D.event;
+  const head=["Nama","HP","Email","Sudah nasabah","Kode nasabah","Status","Walk-in","Sumber","Terdaftar","Persetujuan data"].map(T);
+  const SRC={form:"Form daftar",manual:"Ditambah Sales",absen:"Absen walk-in"};
+  const rows=D.people.map(p=>[p.name,hp(p.phone),p.email||"",T(p.is_client?"Ya":"Belum"),p.client_code||"",T(ST[p.status]||p.status),p.walkin?T("Ya"):"",T(SRC[p.src]||p.src||""),when(p.created_at),p.consent_at?when(p.consent_at):""]);
+  const ws=XLSX.utils.aoa_to_sheet([head,...rows]);ws["!cols"]=[28,16,28,14,16,18,10,16,18,18].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,T("Peserta"));
+  XLSX.writeFile(wb,`${T("Peserta")} - ${e.title} - ${e.date}.xlsx`.replace(/[\\/:*?"<>|]/g," "));
+}
+
+/* ---------- persetujuan data (admin) ---------- */
+$("bSet").onclick=async()=>{showMsg("sMsg","");try{const c=(await api("/api/settings")).consent;$("sText").value=c.text;$("sVer").textContent=T("Versi")+" "+c.ver}catch(x){showMsg("sMsg",x.message)}$("dlgS").showModal()};
+$("sCancel").onclick=()=>$("dlgS").close();
+$("fS").onsubmit=async ev=>{ev.preventDefault();try{const c=(await api("/api/settings",{consent:$("sText").value})).consent;$("sVer").textContent=T("Versi")+" "+c.ver;showMsg("sMsg",T("Tersimpan"),"ok")}catch(x){showMsg("sMsg",x.message)}};
+
+/* =================== ALAMAT (#/ · #/new · #/edit/<id> · #/e/<id>) =================== */
+async function route(){const h=location.hash.replace(/^#/,"")||"/",m=/^\/(e|edit)\/(.+)$/.exec(h);
+  if(h==="/new")return form(null);if(m&&m[1]==="edit"){if(!EVENTS.length)EVENTS=await api("/api/events").catch(()=>[]);return form(m[2])}if(m)return detail(m[2]);return list()}
+addEventListener("hashchange",route);route();
+</script>
+</body>
+</html>

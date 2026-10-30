@@ -118,6 +118,7 @@ assert.equal(p.status, 200);
 assert.match(p.html, /Seminar Reksa Dana/); assert.match(p.html, /Selasa, 3 November 2026/); assert.match(p.html, /09\.00–11\.00 WIB/); assert.match(p.html, /Hotel Majapahit/);
 assert.match(p.html, /\/brand\/ikisi-color\.png/, "logo iKISI");
 assert.match(p.html, /name="website"/, "kolom jebakan");
+assert.match(p.html, /<label id="cc" hidden>/); assert.match(p.html, /\[hidden\]\{display:none!important\}/, "kode nasabah tersembunyi sampai memilih Ya");
 assert.match(p.html, /Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara/, "teks persetujuan bawaan");
 for (const f of ["name", "phone", "email", "is_client", "client_code", "consent"]) assert.match(p.html, new RegExp(`name="${f}"`), "isian " + f);
 assert.equal((await page("/d/tidakada123")).status, 404);
@@ -352,5 +353,20 @@ p = await submit("/d/" + E1.code, { ...REG, phone: "081366660000" });
 assert.match(p.html, /Terima kasih/);
 r = await call("/api/events", { ck: SARI, body: { ...NEW, title: "Saat Planner mati", link: { create: true } } });
 assert.equal(r.status, 200); assert.match(r.j.warn, /Content Planner/);
+
+/* ---------- halaman tim ---------- */
+res = await raw("/", { ck: SARI });
+assert.equal(res.status, 200);
+let html = await res.text();
+assert.match(html, /id="evList"/);
+assert.match(res.headers.get("content-security-policy"), /frame-ancestors 'self' https:\/\/hub\.acme\.test/, "hanya tampil di dalam Tool Hub");
+const cfgOf = (h) => JSON.parse(/window\.EV=(.*?);<\/script>/s.exec(h)[1]);
+const EVCFG = cfgOf(html);
+assert.deepEqual([EVCFG.me.reg, EVCFG.me.branch, EVCFG.me.canDelete, EVCFG.pub], [true, "Cabang Surabaya", false, BASE]);
+assert.deepEqual(EVCFG.branches.map((x) => x.c), ["Cabang Surabaya"], "Sales hanya melihat cabangnya di pilihan");
+assert.equal(cfgOf(await (await raw("/", { ck: HEADRM })).text()).branches.length, BRANCHES.length);
+assert.deepEqual(cfgOf(await (await raw("/", { ck: PIA })).text()).branches, [], "di luar tim regional: tanpa pilihan cabang");
+html = await (await raw("/", { ck: await cookie({ e: "x@acme.test", n: "X</script><b>", j: "copy" }) })).text();
+assert.ok(!html.includes("X</script>"), "nama tidak bisa menutup tag skrip"); assert.equal(cfgOf(html).me.name, "X</script><b>");
 
 console.log("semua cek lolos");
