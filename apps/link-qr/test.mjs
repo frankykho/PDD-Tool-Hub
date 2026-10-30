@@ -54,7 +54,8 @@ assert.deepEqual(KANAL.iklan.slice(1), ["iklan", "ads"]);
 assert.ok(BOT_UA.test("WhatsApp/2.23") && !BOT_UA.test("Mozilla/5.0"));
 assert.equal(wibDay(Date.parse("2026-10-30T18:00:00Z")), "2026-10-31", "hari WIB");
 for (const p of ["/abcdef", "/23456z"]) assert.ok(CODE_RE.test(p), p);
-for (const p of ["/abc", "/ABCDEF", "/abcde1", "/abcdel", "/logout", "/abcdefg"]) assert.ok(!CODE_RE.test(p), p);
+for (const p of ["/abc", "/abcde1", "/abcdel", "/logout", "/LOGOUT", "/abcdefg", "/abcdef//"]) assert.ok(!CODE_RE.test(p), p);
+for (const p of ["/ABCDEF", "/Abcdef", "/abcdef/"]) assert.ok(CODE_RE.test(p), p + " (diketik dari poster: huruf besar / garis miring di akhir)");
 
 /* ---------- sinkron Tool Hub ---------- */
 assert.equal((await call("/__hub/users", { body: { users: [] } })).status, 403, "tanpa kunci hub ditolak");
@@ -81,7 +82,9 @@ const off = await res.text();
 assert.ok(off.includes("Link ini sudah tidak aktif") && off.includes('href="https://kisi.test"') && off.includes("/brand/kisi-color.png"));
 res = await go("/qqqqqq");
 assert.equal(res.status, 404); assert.ok((await res.text()).includes("Link tidak ditemukan"));
-for (const p of ["/abc", "/ABCDEF", "/abcde1"]) assert.notEqual((await go(p)).status, 302, p);
+for (const p of ["/abc", "/abcde1"]) assert.notEqual((await go(p)).status, 302, p);
+for (const p of ["/Abcdef", "/abcdef/"]) assert.equal((await go(p, "WhatsApp/2.23")).headers.get("location"), "https://tujuan.test/a", p);
+assert.equal((await go("/Qqqqqq")).status, 404, "kode tidak ada: halaman pemberitahuan, bukan login");
 // Content Planner mati: tetap dialihkan, klik tetap tercatat di Studio
 const envDown = { ...env, PLANNER: { fetch: () => Promise.reject(new Error("mati")) } };
 res = await go("/abcdef", "Mozilla/5.0", "GET", envDown);

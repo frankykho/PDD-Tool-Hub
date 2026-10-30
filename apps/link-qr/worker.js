@@ -66,9 +66,10 @@ const HUBSSO = (() => {
    ========================================================= */
 // pratinjau link di aplikasi chat & mesin pencari tidak dihitung sebagai klik (sama dengan Content Planner)
 export const BOT_UA = /bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|linkedin|skype|embedly|vkshare|pinterest|google-?inspect|headless/i;
-// kode link: 6 huruf tanpa yang mirip (l, o, 0, 1)
+// kode link: 6 huruf tanpa yang mirip (l, o, 0, 1). Link yang diketik dari poster boleh berhuruf besar (HP sering
+// mengapitalkan huruf pertama) atau diakhiri garis miring; kodenya tetap dicari dalam huruf kecil.
 const ABC = "abcdefghijkmnpqrstuvwxyz23456789";
-export const CODE_RE = /^\/([a-km-np-z2-9]{6})$/;
+export const CODE_RE = /^\/([a-km-np-z2-9]{6})\/?$/i;
 // kanal: [label, utm_source, utm_medium]
 export const KANAL = {
   poster: ["Poster/cetak", "poster", "cetak"], instagram: ["Instagram", "instagram", "social"], whatsapp: ["WhatsApp", "whatsapp", "social"],
@@ -284,7 +285,7 @@ export default {
     const url = new URL(request.url), path = url.pathname;
     // pengalih publik lebih dulu: tanpa login, secepat mungkin
     const m = CODE_RE.exec(path);
-    if (m && (request.method === "GET" || request.method === "HEAD")) return redirect(request, env, ctx, m[1]);
+    if (m && (request.method === "GET" || request.method === "HEAD")) return redirect(request, env, ctx, m[1].toLowerCase());
     if (path === "/__hub/users") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       return json(await syncFromHub(env, await request.json().catch(() => ({}))));
