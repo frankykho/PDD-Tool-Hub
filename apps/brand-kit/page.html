@@ -93,6 +93,34 @@ textarea.f{resize:vertical}
 dialog{border:0;border-radius:16px;padding:20px;width:min(520px,calc(100vw - 32px));background:var(--card);color:var(--t);box-shadow:0 20px 50px rgba(0,0,0,.25)}
 dialog::backdrop{background:rgba(6,16,10,.35)}
 dialog h3{margin:0 0 12px}
+/* admin */
+.tlist{display:grid;gap:10px}
+.trow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.trow h3{margin:0;font-size:15px}
+.dv{display:grid;gap:8px}
+.dv textarea{min-height:90px}
+.hist{font-size:12.5px;color:var(--t2);display:grid;gap:6px;margin-top:6px}
+.hist pre{white-space:pre-wrap;font:inherit;margin:2px 0 0;color:var(--t)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--t2)}
+.ed{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,330px);gap:16px;align-items:start}
+.stage{position:relative;width:100%;max-width:520px;margin:0 auto;user-select:none;touch-action:none}
+.stage canvas{width:100%;height:auto;display:block;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.box{position:absolute;border:2px dashed #f5a623;background:rgba(245,166,35,.10);cursor:move;font:600 11px/1.2 var(--font);color:#8a5a00;display:flex;align-items:flex-start;justify-content:flex-start;padding:2px 4px;overflow:hidden}
+.box.on{border:2px solid #2563eb;background:rgba(37,99,235,.10);color:#1d4ed8;z-index:2}
+.box.lock{border-color:#64748b;color:#334155;background:rgba(100,116,139,.10)}
+.box .hd{position:absolute;right:-2px;bottom:-2px;width:18px;height:18px;background:#2563eb;border:2px solid #fff;border-radius:4px;cursor:nwse-resize}
+.trim{position:absolute;border:1px dashed #e11d48;pointer-events:none}
+.safe{position:absolute;border:1px dotted #0ea5e9;pointer-events:none}
+.pane{display:grid;gap:10px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.g2 label,.g3 label{display:grid;gap:3px;font-size:12px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.szs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.szs .btn.on{border-color:var(--g);background:var(--g2);color:var(--g)}
+input[type=color].f{padding:2px;height:38px}
+@media (max-width:900px){.ed{grid-template-columns:minmax(0,1fr)}}
 .cropbox{width:100%;max-width:300px;aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--g2);touch-action:none;cursor:grab;margin:6px auto}
 .cropbox canvas{width:100%;height:100%;display:block}
 @media (max-width:860px){.fill{grid-template-columns:minmax(0,1fr)}}
@@ -363,6 +391,169 @@ $("fSp").onsubmit=async e=>{e.preventDefault();const b=$("spSave");
     $("dlgSp").close();drawSel();drawPicks();redraw()}catch(x){showMsg("spMsg",x.message)}finally{b.disabled=false}};
 $("spDel").onclick=async()=>{if(!confirm(T("Hapus narasumber ini dari daftar bersama?")))return;
   try{await api("/api/speakers/delete",{id:SPED.id});await loadSpk(true);ST.sel=ST.sel.filter(x=>x.id!==SPED.id);$("dlgSp").close();drawSel();drawPicks();redraw()}catch(x){showMsg("spMsg",x.message)}};
+
+/* =================== ADMIN =================== */
+let ATAB="tpl";
+const KINDS=Object.keys(SIZES),FONTS=BK.fonts,DK=BK.disc,dlabel=k=>(DK.find(x=>x[0]===k)||[k,k])[1];
+const AUTOS=[["","Ketik sendiri"],["branch","Cabang pengguna"],["event.title","Judul event"],["event.date","Tanggal event"],["event.time","Jam event"],["event.place","Tempat event"]];
+window.admin=async function(){
+  show("vAdmin");
+  $("vAdmin").innerHTML=`<div class="bar"><a class="btn sm" href="#/">← Kembali</a><h2>Atur Brand Kit</h2></div>
+    <div class="bar"><div class="seg" role="tablist" aria-label="Bagian admin">${[["tpl","Template"],["disc","Disclaimer"],["drive","Folder Drive"],["use","Pemakaian"]].map(([k,l])=>`<button type="button" role="tab" data-at="${k}" class="${ATAB===k?"on":""}">${esc(T(l))}</button>`).join("")}</div></div>
+    <div id="aMsg"></div><div id="aBody"></div>`;
+  document.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>{ATAB=b.dataset.at;window.admin()});
+  showMsg("aMsg","");
+  try{await({tpl:aTpl,disc:aDisc,drive:aDrive,use:aUse})[ATAB]()}catch(e){showMsg("aMsg",e.message)}
+};
+async function aTpl(){
+  TPLS=null;const L=await loadTpls();
+  $("aBody").innerHTML=`<div class="bar"><input class="f" id="nName" placeholder="${esc(T("Nama template baru, mis. Seminar"))}" aria-label="${esc(T("Nama template baru"))}" style="max-width:320px" maxlength="80"><button type="button" class="btn pri" id="bNew">+ ${esc(T("Template"))}</button></div>
+    <div class="tlist">${L.map(t=>`<div class="card trow"><div style="flex:1;min-width:200px"><h3 translate="no">${esc(t.name)}</h3><div class="chips" style="margin-top:4px"><span class="tag${t.status==="live"?"":" draft"}">${esc(T(t.status==="live"?"Aktif":"Draf"))}</span>${t.sizes.map(s=>`<span class="tag">${esc(T(SIZES[s.kind].label))}</span>`).join("")}</div></div>
+      <a class="btn sm" href="#/edit/${esc(t.id)}">${esc(T("Ubah"))}</a><button type="button" class="btn sm danger" data-del="${esc(t.id)}">${esc(T("Hapus"))}</button></div>`).join("")||`<div class="card empty">${esc(T("Belum ada template."))}</div>`}</div>`;
+  $("bNew").onclick=async()=>{try{const r=await api("/api/templates",{name:$("nName").value});TPLS=null;location.hash="#/edit/"+r.id}catch(e){showMsg("aMsg",e.message)}};
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{if(!confirm(T("Hapus template ini beserta semua ukurannya?")))return;
+    try{await api("/api/templates/delete",{id:b.dataset.del});TPLS=null;aTpl()}catch(e){showMsg("aMsg",e.message)}});
+}
+async function aDisc(){
+  const D=await loadDisc(true),p=D.push;
+  const st=p?`${esc(T("Terakhir dikirim"))} ${esc(new Date(p.at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}))}: Copy Studio ${p.ok.copy?"✓":"✗"} · Edukasi Studio ${p.ok.edukasi?"✓":"✗"}`:esc(T("Belum pernah dikirim ke Copy Studio & Edukasi Studio."));
+  $("aBody").innerHTML=`<div class="card bar"><span class="small">${st}</span><span class="sp"></span><button type="button" class="btn sm" id="bPush">${esc(T("Kirim ulang"))}</button></div>
+    <p class="hint">${esc(T("Versi kosong tidak tampil di mana pun. Template yang memakai versi kosong tidak tampil ke cabang. X-banner selalu memakai versi Singkat."))}</p>
+    <div class="disc">${D.list.map(d=>{const H=D.history.filter(h=>h.key===d.key);return `<div class="card dv"><label class="lbl" for="dt_${d.key}">${esc(T(d.label))}</label>
+      <textarea class="f" id="dt_${d.key}" maxlength="3000" translate="no">${esc(d.text)}</textarea><div class="acts"><button type="button" class="btn sm pri" data-ds="${d.key}">${esc(T("Simpan"))}</button><span class="hint" id="dm_${d.key}"></span></div>
+      ${H.length?`<details><summary class="small">${esc(T("Riwayat"))} (${H.length})</summary><div class="hist">${H.map(h=>`<div>${esc(new Date(h.at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}))} · ${esc(h.by_name)}<pre translate="no">${esc(h.text||T("(kosong)"))}</pre></div>`).join("")}</div></details>`:""}</div>`}).join("")}</div>`;
+  $("bPush").onclick=async()=>{try{await api("/api/disclaimers/push",{});aDisc()}catch(e){showMsg("aMsg",e.message)}};
+  document.querySelectorAll("[data-ds]").forEach(b=>b.onclick=async()=>{const k=b.dataset.ds;b.disabled=true;
+    try{await api("/api/disclaimers",{key:k,text:$("dt_"+k).value});DISC=null;TPLS=null;await aDisc();$("dm_"+k).textContent=T("Tersimpan")}catch(e){showMsg("aMsg",e.message)}finally{b.disabled=false}});
+}
+async function aDrive(){
+  let f={};try{f=await api("/api/files")}catch(e){}
+  $("aBody").innerHTML=`<div class="card form" style="max-width:640px"><div class="fld"><label for="dvF">${esc(T("Link folder Google Drive"))}</label><input class="f" id="dvF" placeholder="https://drive.google.com/drive/folders/…" value="${f.folder?"https://drive.google.com/drive/folders/"+esc(f.folder):""}">
+    <span class="hint">${esc(T("Bagikan folder dengan akses \"siapa saja yang memiliki link bisa melihat\". Setiap subfolder menjadi satu kategori. Daftar file diperbarui paling lambat 10 menit."))}</span></div>
+    <div class="acts"><button type="button" class="btn pri" id="dvSave">${esc(T("Simpan"))}</button><button type="button" class="btn" id="dvRe">${esc(T("Muat ulang daftar file"))}</button></div><div id="dvMsg"></div></div>`;
+  const res=r=>showMsg("dvMsg",r.error?T(r.error):T("Terbaca")+": "+r.categories.length+" "+T("kategori")+", "+r.categories.reduce((n,c)=>n+c.files.length,0)+" "+T("file")+".",r.error?"err":"ok");
+  if(f.error&&f.folder)res(f);
+  $("dvSave").onclick=async()=>{try{await api("/api/drive",{folder:$("dvF").value});FILES=null;res(await api("/api/files?fresh=1"))}catch(e){showMsg("dvMsg",e.message)}};
+  $("dvRe").onclick=async()=>{try{FILES=null;res(await api("/api/files?fresh=1"))}catch(e){showMsg("dvMsg",e.message)}};
+}
+async function aUse(){
+  const U=await api("/api/usage"),tb=(h,rows)=>`<div class="card"><table><thead><tr><th>${esc(T(h))}</th><th>${esc(T("Unduhan"))}</th></tr></thead><tbody>${rows.map(([a,n])=>`<tr><td translate="no">${esc(a)}</td><td>${n}</td></tr>`).join("")||`<tr><td colspan="2" class="muted">${esc(T("Belum ada unduhan."))}</td></tr>`}</tbody></table></div>`;
+  $("aBody").innerHTML=`<p class="hint">${esc(T("Jumlah unduhan 90 hari terakhir."))}</p><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">${tb("Template",U.byTemplate.map(x=>[x.name,x.n]))}${tb("Cabang",U.byBranch.map(x=>[x.branch,x.n]))}</div>`;
+}
+
+/* ---------- editor template ---------- */
+let ET=null,ESZ=null,ESEL=null,EIMG=null,ETIMER=0;
+const clone=o=>JSON.parse(JSON.stringify(o));
+window.editTpl=async function(id){
+  show("vEdit");TPLS=null;let L;
+  try{L=await loadTpls()}catch(e){$("vEdit").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  ET=L.find(t=>t.id===id);if(!ET){$("vEdit").innerHTML=`<div class="msg err">${esc(T("Template tidak ditemukan."))}</div>`;return}
+  if(!ESZ||!ET.sizes.some(s=>s.id===ESZ.id))ESZ=ET.sizes[0]?clone(ET.sizes[0]):null;else ESZ=clone(ET.sizes.find(s=>s.id===ESZ.id));
+  ESEL=null;EIMG=null;drawEditor();
+};
+function drawEditor(){
+  const free=KINDS.filter(k=>!ET.sizes.some(s=>s.kind===k));
+  $("vEdit").innerHTML=`<div class="bar"><a class="btn sm" href="#/admin">← Kembali</a><input class="f" id="eName" value="${esc(ET.name)}" maxlength="80" aria-label="${esc(T("Nama template"))}" style="max-width:300px" translate="no">
+    <button type="button" class="btn sm" id="eNameS">${esc(T("Simpan nama"))}</button><span class="sp"></span>
+    <div class="seg" role="group" aria-label="${esc(T("Status template"))}"><button type="button" data-st="draft" class="${ET.status!=="live"?"on":""}">${esc(T("Draf"))}</button><button type="button" data-st="live" class="${ET.status==="live"?"on":""}">${esc(T("Aktif"))}</button></div></div>
+    <div id="eMsg"></div>
+    <div class="szs bar">${ET.sizes.map(s=>`<button type="button" class="btn sm${ESZ&&ESZ.id===s.id?" on":""}" data-sz="${esc(s.id)}">${esc(T(SIZES[s.kind].label))}${s.has_bg?"":" ⚠"}</button>`).join("")}
+      ${free.length?`<select class="f" id="eKind" style="width:auto">${free.map(k=>`<option value="${k}">${esc(T(SIZES[k].label))}</option>`).join("")}</select><button type="button" class="btn sm" id="eAdd">+ ${esc(T("Ukuran"))}</button>`:""}</div>
+    ${ESZ?`<div class="ed"><div><div class="stage" id="stage"><canvas id="eCv"></canvas><div id="eBoxes"></div></div><p class="hint" style="text-align:center">${esc(T("Geser kotak untuk memindahkan, tarik sudut biru untuk mengubah ukuran."))}${SIZES[ESZ.kind].print?" "+esc(T("Garis merah = garis potong, garis biru = batas aman.")):""}</p></div>
+      <div class="pane card" id="ePane"></div></div>`:`<div class="card empty">${esc(T("Tambahkan ukuran pertama untuk template ini."))}</div>`}`;
+  $("eNameS").onclick=async()=>{try{await api("/api/templates",{id:ET.id,name:$("eName").value});ET.name=$("eName").value.trim();showMsg("eMsg",T("Tersimpan"),"ok")}catch(e){showMsg("eMsg",e.message)}};
+  document.querySelectorAll("[data-st]").forEach(b=>b.onclick=async()=>{try{await api("/api/templates",{id:ET.id,name:ET.name,status:b.dataset.st});ET.status=b.dataset.st;TPLS=null;drawEditor();showMsg("eMsg",T(b.dataset.st==="live"?"Template aktif: tampil ke cabang.":"Template disimpan sebagai draf."),"ok")}catch(e){showMsg("eMsg",e.message)}});
+  document.querySelectorAll("[data-sz]").forEach(b=>b.onclick=()=>{ESZ=clone(ET.sizes.find(s=>s.id===b.dataset.sz));ESEL=null;EIMG=null;drawEditor()});
+  if($("eAdd"))$("eAdd").onclick=async()=>{try{const r=await api("/api/sizes",{template_id:ET.id,kind:$("eKind").value,slots:[]});ESZ={id:r.id};await window.editTpl(ET.id)}catch(e){showMsg("eMsg",e.message)}};
+  if(ESZ){drawPane();drawBoxes();ePaint()}
+}
+const ePx=()=>$("eCv").getBoundingClientRect().width/SIZES[ESZ.kind].w;
+// contoh isi untuk pratinjau admin
+let SAMPLE=null;
+async function sample(){if(SAMPLE)return SAMPLE;const cv=document.createElement("canvas");cv.width=cv.height=200;const x=cv.getContext("2d");x.fillStyle="#9bb7a7";x.fillRect(0,0,200,200);x.fillStyle="#eef5f0";x.beginPath();x.arc(100,82,42,0,7);x.fill();x.beginPath();x.arc(100,210,78,0,7);x.fill();
+  await lib("qr");const q=qrcode(0,"M");q.addData("https://contoh.link/daftar");q.make();
+  return SAMPLE={img:cv,qr:q}}
+function ePaint(){clearTimeout(ETIMER);ETIMER=setTimeout(async()=>{const cv=$("eCv");if(!cv)return;const z=SIZES[ESZ.kind],Rm=await render(),S=await sample();
+  try{if(!EIMG&&ESZ.has_bg)EIMG=await img("/bg/"+ESZ.id+"?t="+(ESZ.bgv||0));}catch(e){}
+  const logo=await img(ESZ.dark?"/brand/kisi-white.png":"/brand/kisi-color.png"),disc=await discText(ESZ.disc.key)||T("(Disclaimer "+dlabel(ESZ.disc.key)+" belum diisi)");
+  await fontsReady(ESZ);const values={};(ESZ.slots||[]).forEach(s=>{if(s.type==="text")values[s.field]=s.def||s.label});
+  const scale=Math.min(1,520/z.w);cv.width=Math.round(z.w*scale);cv.height=Math.round(z.h*scale);
+  Rm.draw(cv.getContext("2d"),{size:ESZ,S:z,bg:EIMG,logo,values,speakers:[1,2,3,4,5,6].map(i=>({name:T("Nama Narasumber"),title:T("Jabatan"),img:S.img,crop:{}})),qr:S.qr,disclaimer:disc,scale});
+  drawBoxes()},120)}
+function drawBoxes(){
+  const z=SIZES[ESZ.kind],k=ePx(),bx=$("eBoxes");if(!bx||!k)return;
+  const px=(x,y,w,h)=>`left:${x*k}px;top:${y*k}px;width:${w*k}px;height:${h*k}px`;
+  let h="";
+  if(z.print){const dpi=z.w/(z.mm[0]/25.4),t=3/25.4*dpi,s2=6/25.4*dpi;h+=`<div class="trim" style="${px(t,t,z.w-2*t,z.h-2*t)}"></div><div class="safe" style="${px(s2,s2,z.w-2*s2,z.h-2*s2)}"></div>`}
+  // lebar logo mengikuti perbandingan file logo (kisi-color.png 1200×206)
+  const lg=ESZ.logo,lw=lg.h*1200/206;h+=`<div class="box lock${ESEL==="logo"?" on":""}" data-b="logo" style="${px((z.w-lw)/2,lg.y,lw,lg.h)}">${esc(T("Logo"))}<span class="hd" data-h="logo"></span></div>`;
+  const d=ESZ.disc;h+=`<div class="box lock${ESEL==="disc"?" on":""}" data-b="disc" style="${px(d.x,d.y,d.w,Math.max(d.size*2.6,40))}">${esc(T("Disclaimer"))}<span class="hd" data-h="disc"></span></div>`;
+  (ESZ.slots||[]).forEach(s=>{const w=s.type==="qr"?s.size:s.w,hh=s.type==="qr"?s.size:s.h;
+    h+=`<div class="box${ESEL===s.id?" on":""}" data-b="${esc(s.id)}" style="${px(s.x,s.y,w,hh)}" translate="no">${esc(s.type==="text"?s.label:s.type==="qr"?"QR":T("Narasumber")+" (maks. "+s.max+")")}<span class="hd" data-h="${esc(s.id)}"></span></div>`});
+  bx.innerHTML=h;
+  bx.querySelectorAll("[data-b]").forEach(el=>el.addEventListener("pointerdown",e=>startDrag(e,el.dataset.b,!!e.target.dataset.h)));
+}
+function target(id){return id==="logo"?ESZ.logo:id==="disc"?ESZ.disc:ESZ.slots.find(s=>s.id===id)}
+function startDrag(e,id,resize){
+  e.preventDefault();const k=ePx(),z=SIZES[ESZ.kind],o=target(id),st={x:e.clientX,y:e.clientY,o:clone(o)};
+  if(ESEL!==id){ESEL=id;drawPane()}
+  const el=e.currentTarget;el.setPointerCapture(e.pointerId);
+  const mv=ev=>{const dx=(ev.clientX-st.x)/k,dy=(ev.clientY-st.y)/k,c=(v,lo,hi)=>Math.round(Math.min(hi,Math.max(lo,v)));
+    if(id==="logo"){if(resize)o.h=c(st.o.h+dy,20,z.h/3);else o.y=c(st.o.y+dy,0,z.h-o.h)}
+    else if(o.type==="qr"){if(resize)o.size=c(st.o.size+Math.max(dx,dy),40,Math.min(z.w-o.x,z.h-o.y));else{o.x=c(st.o.x+dx,0,z.w-o.size);o.y=c(st.o.y+dy,0,z.h-o.size)}}
+    else if(id==="disc"){if(resize)o.w=c(st.o.w+dx,50,z.w-o.x);else{o.x=c(st.o.x+dx,0,z.w-o.w);o.y=c(st.o.y+dy,0,z.h-10)}}
+    else{if(resize){o.w=c(st.o.w+dx,10,z.w-o.x);o.h=c(st.o.h+dy,10,z.h-o.y)}else{o.x=c(st.o.x+dx,0,z.w-o.w);o.y=c(st.o.y+dy,0,z.h-o.h)}}
+    drawBoxes();drawPane();ePaint()};
+  const up=()=>{el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up)};
+  el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
+}
+const num=(id,lbl,v,min,max)=>`<label>${esc(T(lbl))}<input class="f" type="number" data-p="${id}" value="${v}" min="${min}" max="${max}"></label>`;
+const col=(id,lbl,v)=>`<label>${esc(T(lbl))}<input class="f" type="color" data-p="${id}" value="${esc(v)}"></label>`;
+const sel=(id,lbl,v,opts)=>`<label>${esc(T(lbl))}<select class="f" data-p="${id}">${opts.map(([a,b])=>`<option value="${esc(a)}"${String(a)===String(v)?" selected":""}>${esc(T(b))}</option>`).join("")}</select></label>`;
+function drawPane(){
+  const z=SIZES[ESZ.kind],o=ESEL?target(ESEL):null,fonts=FONTS.map(f=>[f,f]),aligns=[["left","Kiri"],["center","Tengah"],["right","Kanan"]];
+  let h=`<div class="fld"><span class="lbl">${esc(T("Gambar latar dari Canva"))} (${z.w}×${z.h} px${z.print?", "+esc(T("dengan bleed 3 mm")):""})</span><input class="f" type="file" id="eBg" accept="image/png,image/jpeg"><span class="hint" id="eBgM">${esc(T(ESZ.has_bg?"Sudah diunggah. Pilih file lain untuk mengganti.":"Belum ada gambar latar."))} ${esc(T("Ekspor tanpa logo dan disclaimer."))}</span></div>
+    <label class="chk"><input type="checkbox" id="eDark"${ESZ.dark?" checked":""}> ${esc(T("Latar gelap (logo putih)"))}</label>
+    <div class="acts"><button type="button" class="btn sm" data-add="text">+ ${esc(T("Kotak teks"))}</button>${ESZ.slots.some(s=>s.type==="speakers")?"":`<button type="button" class="btn sm" data-add="speakers">+ ${esc(T("Area narasumber"))}</button>`}${ESZ.slots.some(s=>s.type==="qr")?"":`<button type="button" class="btn sm" data-add="qr">+ QR</button>`}</div>`;
+  if(o&&ESEL==="logo")h+=`<b>${esc(T("Logo perusahaan"))}</b><div class="g2">${num("y","Jarak dari atas",o.y,0,z.h)}${num("h","Tinggi",o.h,20,z.h/3)}</div><span class="hint">${esc(T("Selalu di tengah. Versi putih dipakai kalau latar gelap."))}</span>`;
+  else if(o&&ESEL==="disc")h+=`<b>${esc(T("Disclaimer"))}</b>${ESZ.kind==="xbanner"?`<span class="hint">${esc(T("X-banner selalu memakai versi Singkat."))}</span>`:sel("key","Versi",o.key,DK.map(([k,l])=>[k,l]))}
+    <div class="g3">${num("x","X",o.x,0,z.w)}${num("y","Y",o.y,0,z.h)}${num("w","Lebar",o.w,50,z.w)}</div><div class="g3">${num("size","Ukuran huruf",o.size,6,200)}${col("color","Warna",o.color)}${sel("align","Rata",o.align,aligns)}</div>`;
+  else if(o&&o.type==="text")h+=`<b>${esc(T("Kotak teks"))}</b><div class="g2"><label>${esc(T("Label di form"))}<input class="f" data-p="label" value="${esc(o.label)}" maxlength="60"></label><label>${esc(T("Kunci isian"))}<input class="f" data-p="field" value="${esc(o.field)}" maxlength="30"></label></div>
+    <span class="hint">${esc(T("Kotak dengan kunci isian yang sama di ukuran lain diisi sekali saja."))}</span>
+    <div class="g2">${sel("auto","Isi otomatis",o.auto,AUTOS)}<label>${esc(T("Isi bawaan"))}<input class="f" data-p="def" value="${esc(o.def)}" maxlength="200"></label></div>
+    <div class="g3">${sel("font","Font",o.font,fonts)}${sel("weight","Tebal",o.weight,[[400,"Biasa"],[600,"Semi tebal"],[700,"Tebal"],[800,"Sangat tebal"]])}${col("color","Warna",o.color)}</div>
+    <div class="g3">${num("size","Ukuran huruf",o.size,8,600)}${num("minSize","Ukuran terkecil",o.minSize,6,o.size)}${num("max","Maks. huruf",o.max,1,200)}</div>
+    <div class="g2">${sel("align","Rata",o.align,aligns)}<label class="chk"><input type="checkbox" data-p="required"${o.required?" checked":""}> ${esc(T("Wajib diisi"))}</label></div>`;
+  else if(o&&o.type==="speakers")h+=`<b>${esc(T("Area narasumber"))}</b><div class="g2">${sel("max","Maks. narasumber",o.max,[1,2,3,4,5,6].map(n=>[n,String(n)]))}${sel("font","Font",o.font,fonts)}</div>
+    <div class="g2">${num("nameSize","Ukuran nama",o.nameSize,8,300)}${col("nameColor","Warna nama",o.nameColor)}</div><div class="g2">${num("titleSize","Ukuran jabatan",o.titleSize,6,300)}${col("titleColor","Warna jabatan",o.titleColor)}</div>
+    <span class="hint">${esc(T("1–3 orang satu baris; 4 = 2+2; 5 = 3+2; 6 = 3+3."))}</span>`;
+  else if(o&&o.type==="qr")h+=`<b>QR</b><div class="g2">${num("size","Ukuran",o.size,40,Math.min(z.w,z.h))}${col("color","Warna",o.color)}</div><span class="hint">${esc(T("Tidak wajib. Cabang bisa mematikan QR atau mengisi link sendiri."))}</span>`;
+  else h+=`<span class="hint">${esc(T("Klik kotak di gambar untuk mengatur isinya. Logo dan disclaimer juga bisa diklik."))}</span>`;
+  if(o&&ESEL!=="logo"&&ESEL!=="disc")h+=`<button type="button" class="btn sm danger" id="eDelSlot">${esc(T("Hapus kotak ini"))}</button>`;
+  h+=`<div id="pMsg"></div><div class="acts"><button type="button" class="btn pri" id="eSave">${esc(T("Simpan ukuran"))}</button><span class="sp"></span><button type="button" class="btn sm danger" id="eDelSz">${esc(T("Hapus ukuran"))}</button></div>`;
+  $("ePane").innerHTML=h;
+  $("ePane").querySelectorAll("[data-p]").forEach(i=>i.addEventListener(i.type==="checkbox"||i.tagName==="SELECT"||i.type==="color"?"change":"input",()=>{
+    const v=i.type==="checkbox"?i.checked:i.type==="number"||["max","weight"].includes(i.dataset.p)?+i.value:i.value;o[i.dataset.p]=v;drawBoxes();ePaint()}));
+  $("eDark").onchange=()=>{ESZ.dark=$("eDark").checked;ePaint()};
+  $("ePane").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const t=b.dataset.add,id=Math.random().toString(36).slice(2,8);
+    const s=t==="text"?{id,type:"text",field:"teks_"+id.slice(0,3),label:T("Teks baru"),x:Math.round(z.w*.08),y:Math.round(z.h*.3),w:Math.round(z.w*.84),h:Math.round(z.w*.06),font:FONTS[0],weight:700,size:Math.round(z.w*.04),minSize:Math.round(z.w*.025),color:ESZ.dark?"#ffffff":"#17251d",align:"left",max:60,required:false,def:"",auto:""}
+      :t==="speakers"?{id,type:"speakers",x:Math.round(z.w*.06),y:Math.round(z.h*.5),w:Math.round(z.w*.88),h:Math.round(z.h*.28),max:3,font:FONTS[1],nameSize:Math.round(z.w*.028),nameColor:"#0b5d3b",titleSize:Math.round(z.w*.02),titleColor:"#4a5a50"}
+      :{id,type:"qr",x:Math.round(z.w*.75),y:Math.round(z.h*.78),size:Math.round(z.w*.17),color:"#000000"};
+    ESZ.slots.push(s);ESEL=id;drawPane();drawBoxes();ePaint()});
+  if($("eDelSlot"))$("eDelSlot").onclick=()=>{ESZ.slots=ESZ.slots.filter(s=>s.id!==ESEL);ESEL=null;drawPane();drawBoxes();ePaint()};
+  $("eBg").onchange=async()=>{const f=$("eBg").files[0];if(!f)return;$("eBgM").textContent=T("Mengunggah…");
+    const u=URL.createObjectURL(f),i=new Image();i.src=u;await new Promise(r=>{i.onload=r;i.onerror=r});
+    const small=i.naturalWidth&&(i.naturalWidth<z.w||i.naturalHeight<z.h);
+    try{const r=await fetch("/bg/"+ESZ.id,{method:"PUT",body:f});const j=await r.json().catch(()=>({}));if(!r.ok||j.error)throw new Error(T(j.error||"HTTP "+r.status));
+      ESZ.has_bg=1;ESZ.bgv=Date.now();EIMG=null;const s=ET.sizes.find(x=>x.id===ESZ.id);if(s)s.has_bg=1;
+      $("eBgM").textContent=T("Gambar latar tersimpan.")+(small?" "+T("Peringatan: gambar lebih kecil dari")+` ${z.w}×${z.h} px; ${T("hasil cetak bisa buram.")}`:"");ePaint()}
+    catch(e){$("eBgM").textContent=e.message}};
+  $("eSave").onclick=async()=>{const b=$("eSave");b.disabled=true;
+    try{await api("/api/sizes",{id:ESZ.id,dark:ESZ.dark,logo:ESZ.logo,disc:ESZ.disc,slots:ESZ.slots});TPLS=null;const L=await loadTpls();ET=L.find(t=>t.id===ET.id);const s=ET.sizes.find(x=>x.id===ESZ.id);
+      ESZ={...clone(s),bgv:ESZ.bgv};showMsg("pMsg",T("Tersimpan"),"ok");drawBoxes();ePaint()}catch(e){showMsg("pMsg",e.message)}finally{b.disabled=false}};
+  $("eDelSz").onclick=async()=>{if(!confirm(T("Hapus ukuran ini beserta gambar latarnya?")))return;try{await api("/api/sizes",{id:ESZ.id,delete:true});ESZ=null;await window.editTpl(ET.id)}catch(e){showMsg("pMsg",e.message)}};
+}
+addEventListener("resize",()=>{if(ESZ&&!$("vEdit").hidden)drawBoxes()});
 
 /* =================== RUTE =================== */
 function route(){const h=location.hash||"#/",m=/^#\/t\/([a-z0-9]+)$/.exec(h);
