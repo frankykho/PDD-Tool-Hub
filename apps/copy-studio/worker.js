@@ -226,11 +226,12 @@ export function prompt(kind, b) {
 ${name ? "Nama fitur: " + name + "\n" : ""}${notes ? "Catatan rilis / poin fitur:\n" + notes + "\n" : ""}${b.where ? "Letak di aplikasi: " + str(b.where, 300) + "\n" : ""}${b.who ? "Siapa yang bisa memakai: " + str(b.who, 300) + "\n" : ""}${steps ? "Langkah pemakaian (kasar):\n" + steps + "\n" : ""}${toneLine(b)}
 ${b.style === "info"
       ? "Ini teks informasi fitur yang dibaca nasabah di dalam aplikasi, bukan iklan: jelas, ramah, dan langsung ke manfaat. Tanpa hook bombastis, tanpa hashtag, tanpa emoji, tanpa tanda seru beruntun."
-      : `Gaya: gabungan product dan marketing. Isinya tetap informasi fitur yang akurat, tetapi ditulis dengan teknik copywriting supaya nasabah ingin mencobanya:
-- title dan short menonjolkan manfaat atau situasi nyata nasabah, bukan sekadar nama fitur; short boleh memakai hook ringan (pertanyaan langsung, "kalau kamu…", sebelum–sesudah).
-- long: paragraf pertama mengangkat kebutuhan nasabah dan bagaimana fitur ini menjawabnya, lalu fakta fiturnya (apa, syarat, letak), ditutup satu ajakan diawali kata kerja (mis. "Coba sekarang di [nama menu]").
-- manual dan faq tetap lugas dan langkahnya persis.
-- Tanpa hashtag, maks. 1 emoji, tanpa tanda seru beruntun, tanpa klaim berlebihan dan tanpa urgensi palsu.`}
+      : `Gaya: informasi produk dengan sentuhan marketing. Tujuan utamanya nasabah paham fiturnya (apa, manfaat, syarat, letak); sentuhan marketing hanya membuat manfaatnya terasa dekat sehingga nasabah tertarik mencoba. Porsinya kira-kira 80% informasi, 20% sentuhan marketing. Cara menulis copy yang menjual di atas (hook, CTA, urgensi) dipakai seperlunya saja; ini bukan iklan.
+- title: nama fitur yang jelas; boleh ditambah manfaat singkat (mis. "Auto-invest: investasi rutin otomatis"), bukan slogan.
+- short: satu kalimat informatif yang menyebut apa fiturnya dan manfaat utamanya; tanpa pertanyaan retoris atau hook.
+- long: buka dengan apa fiturnya dan manfaat konkretnya untuk nasabah (boleh satu kalimat situasi nyata, mis. saat gajian), lalu cara kerja, syarat, dan letaknya; tutup dengan satu ajakan ringan yang informatif (mis. "Fitur ini sudah bisa dipakai di [nama menu].").
+- manual dan faq lugas dan langkahnya persis.
+- Hindari kata superlatif dan bahasa promosi (terbaik, super, praktis banget, wajib coba, jangan lewatkan), pertanyaan retoris, tanda seru, hashtag, dan emoji.`}
 Gunakan HANYA fakta dari bahan di atas. Jangan mengarang nama menu, tombol, syarat, angka, atau biaya; kalau nama menu/tombol tidak ada di bahan, tulis penanda dalam kurung siku, mis. [nama menu], dan sebut di "check".
 - title: nama fitur yang tampil di What's New (maks. 40 karakter).
 - short: deskripsi singkat 1–2 kalimat (maks. 120 karakter): manfaat utama untuk nasabah, untuk daftar What's New atau pop-up.
