@@ -225,6 +225,7 @@ const D = {
   "Angka hasil & biaya": "Results & costs",
   "opsional, isi kalau sudah ada": "optional, fill in when available",
   "Leads": "Leads",
+  "Diisi otomatis dari Event & Lead": "Filled automatically from Event & Lead",
   "Akun baru": "New accounts",
   "Nilai transaksi / AUM (Rp)": "Transaction value / AUM (Rp)",
   "Anggaran (Rp)": "Budget (Rp)",

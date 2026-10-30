@@ -532,4 +532,49 @@ assert.ok(m26.find((m) => m.name === "Idul Adha").date === "2026-05-27" && m26.f
 assert.equal(m26.filter((m) => m.payday).length, 12);
 assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
 
+/* ---------- sambungan Event & Lead: pilih kegiatan, sinkron perubahan, angka Peserta & Leads dikunci ---------- */
+{
+  const { DEFAULT_ORG } = await import("../../shared/jobs.js");
+  await hub("/__hub/users", { users: [{ email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" }, { email: "pia@acme.test", name: "Pia", job: "partnership" }],
+    branches: [{ r: "Jawa Timur", c: "Cabang Surabaya" }, { r: "Jakarta", c: "Cabang Sudirman" }], org: DEFAULT_ORG });
+  const SARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales", c: "Cabang Surabaya" });
+  const hubGet = async (p) => (await call(p, { headers: { "x-hub-key": SECRET } })).j;
+  const mk = async (it, by = { email: "sari@acme.test", name: "Sari", job: "sales" }) => (await hub("/__hub/item", { by, item: it })).j.id;
+  const C1 = await mk({ kind: "cabang", title: "Seminar RD Surabaya", date: plus(5), channel: "Edukasi / seminar", status: "rencana", branch: "Cabang Surabaya" });
+  const C2 = await mk({ kind: "cabang", title: "Gathering Sudirman", date: plus(5), channel: "Gathering nasabah", status: "rencana", branch: "Cabang Sudirman" });
+  const C3 = await mk({ kind: "cabang", title: "Sudah selesai", date: plus(-2), channel: "Lainnya", status: "selesai", branch: "Cabang Surabaya" });
+  const K1 = await mk({ kind: "edukasi", title: "Webinar Obligasi", date: plus(7), channel: "Webinar", status: "rencana", owner: "Pia", owner_email: "pia@acme.test" }, { email: "pia@acme.test", name: "Pia", job: "partnership" });
+  const items = async (q) => (await hubGet("/__hub/event-items?" + new URLSearchParams(q))).map((x) => x.id);
+  assert.equal((await call("/__hub/event-items?branch=Cabang%20Surabaya&kind=cabang")).status, 403, "tanpa kunci hub ditolak");
+  let ids = await items({ email: "sari@acme.test", branch: "Cabang Surabaya", kind: "cabang" });
+  assert.ok(ids.includes(C1) && !ids.includes(C2) && !ids.includes(C3), "kegiatan cabang sendiri yang belum selesai");
+  assert.deepEqual(await items({ email: "pia@acme.test", branch: "", kind: "edukasi" }), [K1]);
+  // sinkron dari event: event_id tercatat, judul ikut, angka terisi
+  assert.equal((await call("/__hub/event-sync", { body: { item_id: C1, event_id: "ev1" } })).status, 403);
+  r = await hub("/__hub/event-sync", { item_id: C1, event_id: "ev1", set: { title: "Seminar RD Surabaya (baru)", time: "09:00", place: "Hotel Majapahit" }, counts: { reg: 12, hadir: 9 } });
+  assert.deepEqual(r.j, { ok: true });
+  let it = (await call("/api/items?id=" + C1, { ck: SARI })).j;
+  assert.deepEqual([it.event_id, it.title, it.time, it.place, it.result_num, it.leads], ["ev1", "Seminar RD Surabaya (baru)", "09:00", "Hotel Majapahit", 9, 12]);
+  assert.ok(!(await items({ email: "sari@acme.test", branch: "Cabang Surabaya", kind: "cabang" })).includes(C1), "sudah tersambung: tidak bisa dipilih lagi");
+  // simpan biasa dari Planner tidak bisa menimpa angka dari event
+  r = await call("/api/items", { ck: SARI, body: { ...it, result_num: 999, leads: 999, status: "selesai" } });
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  it = (await call("/api/items?id=" + C1, { ck: SARI })).j;
+  assert.deepEqual([it.result_num, it.leads, it.status, it.event_id], [9, 12, "selesai", "ev1"]);
+  // event dibatalkan -> kegiatan ikut batal
+  await hub("/__hub/event-sync", { item_id: C1, event_id: "ev1", set: { status: "batal" } });
+  assert.equal((await call("/api/items?id=" + C1, { ck: SARI })).j.status, "batal");
+  // edukasi: hanya Peserta
+  await hub("/__hub/event-sync", { item_id: K1, event_id: "ev2", counts: { reg: 30, hadir: 20 } });
+  it = (await call("/api/items?id=" + K1, { ck: PART })).j;
+  assert.deepEqual([it.result_num, it.leads], [20, null]);
+  // kegiatan sudah dihapus di Planner
+  r = await hub("/__hub/event-sync", { item_id: "tidak-ada", event_id: "ev3", counts: { reg: 1, hadir: 0 } });
+  assert.deepEqual(r.j, { gone: true });
+  // kegiatan baru tanpa event: angka diisi manual seperti biasa
+  r = await call("/api/items", { ck: SARI, body: { kind: "cabang", title: "Manual", date: plus(3), channel: "Lainnya", status: "rencana", branch: "Cabang Surabaya", result_num: "7", leads: "3", event_id: "palsu" } });
+  it = (await call("/api/items?id=" + r.j.id, { ck: SARI })).j;
+  assert.deepEqual([it.result_num, it.leads, it.event_id], [7, 3, null], "event_id tidak bisa diisi dari form");
+}
+
 console.log("semua cek lolos");

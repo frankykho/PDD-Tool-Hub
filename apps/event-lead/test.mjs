@@ -37,8 +37,11 @@ async function cookie(p) {
   const key = await crypto.subtle.importKey("raw", te.encode(SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return `hub_event=${body}.${b64(await crypto.subtle.sign("HMAC", key, te.encode(body)))}`;
 }
-const raw = (path, { ck, body, headers = {}, method, e = env } = {}) => worker.fetch(new Request(BASE + path, { method: method || (body !== undefined ? "POST" : "GET"), redirect: "manual",
-  headers: { ...(ck ? { cookie: ck } : {}), ...(body !== undefined ? { "content-type": "application/json" } : {}), ...headers }, body: body !== undefined ? JSON.stringify(body) : undefined }), e, { waitUntil() { } });
+// kerja di belakang layar (ctx.waitUntil) ditunggu sampai selesai sebelum cek berikutnya
+const ctx = () => { const P = []; return { waitUntil: (p) => P.push(p), done: () => Promise.all(P) }; };
+const run = async (req, e = env) => { const c = ctx(), r = await worker.fetch(req, e, c); await c.done(); return r; };
+const raw = (path, { ck, body, headers = {}, method, e = env } = {}) => run(new Request(BASE + path, { method: method || (body !== undefined ? "POST" : "GET"), redirect: "manual",
+  headers: { ...(ck ? { cookie: ck } : {}), ...(body !== undefined ? { "content-type": "application/json" } : {}), ...headers }, body: body !== undefined ? JSON.stringify(body) : undefined }), e);
 const call = async (path, o = {}) => { const r = await raw(path, o); return { status: r.status, j: await r.json().catch(() => null) }; };
 
 /* ---------- aturan akses ---------- */
@@ -104,7 +107,7 @@ let ipN = 0;
 // kirim form publik seperti browser (x-www-form-urlencoded); stamp dibuat 5 detik sebelum dikirim
 async function submit(path, fields, { ip = "10.0.0." + ++ipN, age = 5000, at = T0 } = {}) {
   env.NOW_MS = at - age; const ts = await formStamp(env); env.NOW_MS = at;
-  const r = await worker.fetch(new Request(BASE + path, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": ip }, body: new URLSearchParams({ ts, website: "", ...fields }) }), env, { waitUntil() { } });
+  const r = await run(new Request(BASE + path, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": ip }, body: new URLSearchParams({ ts, website: "", ...fields }) }));
   return { status: r.status, html: await r.text() };
 }
 const page = async (path) => { const r = await raw(path); return { status: r.status, html: await r.text() }; };
@@ -290,5 +293,64 @@ assert.equal(p.status, 400); assert.match(p.html, /Persetujuan data pribadi waji
 assert.match((await pageAt("/h/" + E4.acode, DAY)).html, /Acara ini dibatalkan\./);
 // banyak peserta dari Wi-Fi lokasi yang sama tetap bisa absen
 for (let i = 0; i < 15; i++) assert.notEqual((await submit("/h/" + E1.acode, { phone: "0812 3456 789" }, { at: DAY, ip: "7.7.7.7" })).status, 429);
+
+/* ---------- sambungan Content Planner (Planner asli, database sendiri) ---------- */
+const { default: planner } = await import("../content-planner/worker.js");
+const plEnv = { SSO_SECRET: SECRET, DB: d1(), HUB_URL: HUB, PROFILE: JSON.stringify({ urls: { hub: HUB } }) };
+const plCalls = [];
+env.PLANNER = { fetch: (u, init) => { plCalls.push(new URL(String(u)).pathname); return planner.fetch(new Request(u, init), plEnv, { waitUntil() { } }); } };
+const plItem = (id) => plEnv.DB.db.prepare("SELECT * FROM items WHERE id = ?").get(id);
+await planner.fetch(new Request("https://planner/__hub/users", { method: "POST", headers: { "x-hub-key": SECRET, "content-type": "application/json" },
+  body: JSON.stringify({ users: [{ email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" }, { email: "pia@acme.test", name: "Pia", job: "partnership" }], branches: BRANCHES, org: ORG }) }), plEnv, {});
+// buat event + kegiatan baru di Planner
+r = await call("/api/events", { ck: SARI, body: { ...NEW, title: "Seminar Obligasi Surabaya", link: { create: true } } });
+assert.equal(r.status, 200, JSON.stringify(r.j));
+let LE = env.DB.db.prepare("SELECT * FROM events WHERE id = ?").get(r.j.id);
+assert.ok(LE.item_id, "tersambung ke kegiatan Planner"); assert.equal(LE.item_kind, "cabang");
+let PI = plItem(LE.item_id);
+assert.deepEqual([PI.kind, PI.title, PI.date, PI.time, PI.place, PI.branch, PI.status, PI.owner_email, PI.event_id], ["cabang", "Seminar Obligasi Surabaya", "2026-11-10", "18:30", "Galaxy Mall", "Cabang Surabaya", "rencana", "sari@acme.test", LE.id]);
+// pilihan kegiatan yang sudah ada: hanya kegiatan cabang sendiri yang belum tersambung
+const free = (await planner.fetch(new Request("https://planner/__hub/item", { method: "POST", headers: { "x-hub-key": SECRET, "content-type": "application/json" },
+  body: JSON.stringify({ by: { email: "sari@acme.test", name: "Sari", job: "sales" }, item: { kind: "cabang", title: "Gathering Desember", date: "2026-12-05", channel: "Gathering nasabah", status: "rencana", branch: "Cabang Surabaya" } }) }), plEnv, {}).then((x) => x.json())).id;
+let opts = (await call("/api/planner-items", { ck: SARI })).j;
+assert.deepEqual(opts.map((x) => x.id), [free]);
+assert.equal((await call("/api/planner-items", { ck: TONO })).j.length, 0);
+r = await call("/api/events", { ck: TONO, body: { ...NEW, title: "Curang", branch: "Cabang Sudirman", link: { item_id: free } } });
+assert.equal(r.status, 400); assert.equal(r.j.error, "Kegiatan Content Planner ini tidak bisa dipilih.");
+r = await call("/api/events", { ck: SARI, body: { ...NEW, title: "Gathering Desember", date: "2026-12-05", link: { item_id: free } } });
+assert.equal(r.status, 200);
+assert.equal(plItem(free).event_id, r.j.id); assert.equal(plItem(free).time, "18:30", "jam dari event ikut ke Planner");
+// pendaftar & hadir -> Leads & Peserta
+await submit("/d/" + LE.code, REG);
+await submit("/d/" + LE.code, { ...REG, phone: "081399990000", name: "Eka" });
+const evAt = Date.parse("2026-11-10T11:30:00Z");   // 18.30 WIB
+await submit("/h/" + LE.acode, { phone: "081399990000" }, { at: evAt });
+PI = plItem(LE.item_id);
+assert.deepEqual([PI.leads, PI.result_num], [2, 1]);
+// event diubah -> kegiatan ikut; event dibatalkan -> kegiatan batal
+r = await call("/api/events", { ck: SARI, body: { ...NEW, id: LE.id, title: "Seminar Obligasi Surabaya Timur", time_start: "19:00" } });
+assert.equal(r.status, 200);
+PI = plItem(LE.item_id); assert.deepEqual([PI.title, PI.time], ["Seminar Obligasi Surabaya Timur", "19:00"]);
+r = await call("/api/events", { ck: SARI, body: { ...NEW, id: LE.id, title: "Seminar Obligasi Surabaya Timur", time_start: "19:00", status: "batal" } });
+assert.equal(plItem(LE.item_id).status, "batal");
+// pembuat di luar tim regional -> kegiatan Edukasi (Webinar untuk online), hanya Peserta
+r = await call("/api/events", { ck: PIA, body: { ...NEW, title: "Webinar SBN", mode: "online", online_url: "https://zoom.test/x", place: "", link: { create: true } } });
+const PE = env.DB.db.prepare("SELECT * FROM events WHERE id = ?").get(r.j.id);
+PI = plItem(PE.item_id);
+assert.deepEqual([PE.item_kind, PI.kind, PI.channel, PI.branch, PI.owner_email, PI.place], ["edukasi", "edukasi", "Webinar", "", "pia@acme.test", "Online"]);
+// kegiatan dihapus di Planner -> event tetap, ditandai tidak tersambung; tidak membuat kegiatan baru
+const LE2 = env.DB.db.prepare("SELECT * FROM events WHERE item_id = ?").get(free);
+plEnv.DB.db.prepare("DELETE FROM items WHERE id = ?").run(free);
+const n0 = plEnv.DB.db.prepare("SELECT COUNT(*) AS n FROM items").get().n;
+p = await submit("/d/" + LE2.code, { ...REG, phone: "081355550000" });
+assert.match(p.html, /Terima kasih/);
+assert.equal(env.DB.db.prepare("SELECT item_gone FROM events WHERE id = ?").get(LE2.id).item_gone, 1);
+assert.equal(plEnv.DB.db.prepare("SELECT COUNT(*) AS n FROM items").get().n, n0, "kegiatan tidak dibuat ulang");
+// Planner mati: pendaftaran tetap jalan
+env.PLANNER = { fetch: async () => { throw new Error("Planner mati"); } };
+p = await submit("/d/" + E1.code, { ...REG, phone: "081366660000" });
+assert.match(p.html, /Terima kasih/);
+r = await call("/api/events", { ck: SARI, body: { ...NEW, title: "Saat Planner mati", link: { create: true } } });
+assert.equal(r.status, 200); assert.match(r.j.warn, /Content Planner/);
 
 console.log("semua cek lolos");

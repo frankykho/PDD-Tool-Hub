@@ -376,7 +376,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <div class="grp" id="gRes">
       <span class="lbl">Hasil (untuk laporan)</span>
       <div class="grid2">
-        <div class="fld"><label for="iRes" id="lRes">Angka hasil</label><input class="f" id="iRes" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="iRes" id="lRes">Angka hasil</label><input class="f" id="iRes" inputmode="numeric" maxlength="15"><small class="muted small evLock" hidden>Diisi otomatis dari Event &amp; Lead</small></div>
         <div class="fld"><label for="iResN">Catatan hasil</label><input class="f" id="iResN" maxlength="300" placeholder="mis. banyak tanya soal obligasi"></div>
       </div>
     </div>
@@ -384,7 +384,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <details id="gBizD"><summary class="lbl">📊 Angka hasil &amp; biaya (opsional, isi kalau sudah ada)</summary>
       <div class="grid3" style="margin-top:8px">
         <div class="fld"><label for="iReach">Jangkauan</label><input class="f" id="iReach" inputmode="numeric" maxlength="18"></div>
-        <div class="fld"><label for="iLeads">Leads</label><input class="f" id="iLeads" inputmode="numeric" maxlength="18"></div>
+        <div class="fld"><label for="iLeads">Leads</label><input class="f" id="iLeads" inputmode="numeric" maxlength="18"><small class="muted small evLock" hidden>Diisi otomatis dari Event &amp; Lead</small></div>
         <div class="fld"><label for="iAcc">Akun baru</label><input class="f" id="iAcc" inputmode="numeric" maxlength="18"></div>
         <div class="fld"><label for="iAum">Nilai transaksi / AUM (Rp)</label><input class="f" id="iAum" inputmode="numeric" maxlength="20"></div>
         <div class="fld"><label for="iBudget">Anggaran (Rp)</label><input class="f" id="iBudget" inputmode="numeric" maxlength="20"></div>
@@ -1013,6 +1013,9 @@ function openForm(it,date,preset){
   $("iPartner").value=v("partner");$("iEnd").value=v("end_date");$("iGoal").value=v("goal");$("iTarget").value=v("target");
   [["iReach","reach"],["iLeads","leads"],["iAcc","accounts"],["iAum","aum"],["iBudget","budget"],["iCost","cost"]].forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
   // angka hasil & biaya terlipat, kecuali sudah ada isinya (kegiatan cabang: selalu terbuka, angka utama laporannya)
+  // tersambung ke Event & Lead: Peserta (dan Leads kegiatan cabang) diisi dari event, tidak bisa diketik
+  const evl=!!(it&&it.event_id);$("iRes").disabled=evl;$("iLeads").disabled=evl&&kindOf(it)==="cabang";
+  document.querySelectorAll(".evLock").forEach((x,i)=>x.hidden=!(i?evl&&kindOf(it)==="cabang":evl));
   $("gBizD").open=fKind==="cabang"||["iReach","iLeads","iAcc","iAum","iBudget","iCost"].some(id=>$(id).value!=="");
   const pid=v("program_id"),act=PROGS.filter(p=>p.status!=="batal"||p.id===pid);
   $("iProg").innerHTML='<option value="">Bukan bagian program</option>'+act.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");$("iProg").value=pid;

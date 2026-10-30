@@ -144,10 +144,12 @@ const COLS = {
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
   m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
+  // event_id: tersambung ke event di Event & Lead (Peserta & Leads diisi otomatis dari sana dan tidak bisa diubah di sini)
+  event_id: "TEXT",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
 };
-// kolom persetujuan & asal angka hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
-const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src"];
+// kolom persetujuan, asal angka & sambungan event hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
+const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src", "event_id"];
 const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
 /** Kegiatan yang punya caption, persetujuan, dan angka performa. */
 export const COPY_KINDS = ["konten", "artikel"];
@@ -315,6 +317,8 @@ async function saveItem(env, me, b, opts = {}) {
     if (hit) it.branch = hit.c;
     else if (it.branch && B.length && !(prev && prev.branch === it.branch)) return { error: "Cabang pendamping “" + it.branch + "” tidak ada di daftar." };
   }
+  // tersambung ke Event & Lead: Peserta (dan Leads untuk kegiatan cabang) tetap angka dari event
+  if (prev && prev.event_id) { it.result_num = prev.result_num; if (prev.kind === "cabang") it.leads = prev.leads; }
   const vals = EDIT.map((k) => it[k] ?? null);
   // updated_at selalu naik (juga bila dua simpanan jatuh di milidetik yang sama), supaya cek base di bawah tidak terlewat
   let now = new Date().toISOString();
@@ -326,7 +330,7 @@ async function saveItem(env, me, b, opts = {}) {
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
   const mChanged = METRICS.some((k) => (it[k] ?? null) !== ((prev && prev[k]) ?? null));
-  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
+  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null, event_id: (prev && prev.event_id) || null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
   let id = prev ? prev.id : "";
   if (prev) {
     const r = await env.DB.prepare(`UPDATE items SET ${[...EDIT, ...SERVER_COLS].map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, ...svals, by, now, id).run();
@@ -613,6 +617,37 @@ async function importGalleries(env, me, b) {
   return out;
 }
 /** GET /__hub/galeri (Tool Hub, halaman admin): rencana galeri yang sudah MoU / diresmikan tapi namanya belum ada di daftar cabang / galeri. */
+/** GET /__hub/event-items (Event & Lead): kegiatan yang bisa disambungkan ke event baru. cabang = kegiatan cabang di cabang itu;
+ *  edukasi = edukasi milik / buatan orang itu. Belum selesai / batal, tidak lebih dari 30 hari lalu, belum tersambung ke event lain. */
+async function eventItems(env, q) {
+  await ensure(env);
+  const kind = q.get("kind") === "edukasi" ? "edukasi" : "cabang", e = lower(q.get("email")), from = new Date(Date.now() + 7 * 3600e3 - 30 * 86400e3).toISOString().slice(0, 10);
+  const who = kind === "cabang" ? "branch = ?" : "(owner_email = ? OR created_email = ?)", args = kind === "cabang" ? [String(q.get("branch") || "")] : [e, e];
+  const L = (await env.DB.prepare(`SELECT id, kind, title, date, time, place, branch, status FROM items WHERE kind = ? AND ${who} AND status NOT IN ('selesai', 'batal') AND date >= ? AND COALESCE(event_id, '') = '' ORDER BY date LIMIT 100`)
+    .bind(kind, ...args, from).all()).results;
+  return L;
+}
+/** POST /__hub/event-sync (Event & Lead): { item_id, event_id, set?: { title, date, time, place, branch, status }, counts?: { reg, hadir } }.
+ *  Kegiatan cabang: Peserta = hadir, Leads = pendaftar; jenis lain: Peserta = hadir. Kegiatan yang sudah dihapus -> { gone: true }. */
+async function eventSync(env, b) {
+  await ensure(env);
+  const it = await env.DB.prepare("SELECT id, kind, status FROM items WHERE id = ?").bind(String(b.item_id || "")).first();
+  if (!it) return { gone: true };
+  const S = { event_id: String(b.event_id || "").slice(0, 60) }, set = b.set && typeof b.set === "object" ? b.set : {}, s = (v, n) => String(v ?? "").trim().slice(0, n);
+  if (set.title && s(set.title, 160)) S.title = s(set.title, 160);
+  if (ISO.test(s(set.date, 10))) S.date = s(set.date, 10);
+  if (set.time !== undefined) S.time = s(set.time, 5);
+  if (set.place !== undefined) S.place = s(set.place, 200);
+  if (set.branch && it.kind === "cabang") { const h = (await branches(env)).find((x) => lower(x.c) === lower(set.branch)); if (h) { S.branch = h.c; S.region = h.r; } }
+  if (set.status && (KINDS[it.kind] || {}).statuses && KINDS[it.kind].statuses.includes(set.status)) S.status = set.status;
+  const c = b.counts && typeof b.counts === "object" ? b.counts : null, n = (v) => Math.max(0, Math.round(Number(v) || 0));
+  if (c) { S.result_num = n(c.hadir); if (it.kind === "cabang") S.leads = n(c.reg); }
+  // hanya angka berubah: updated_at tetap, supaya form yang sedang dibuka orang tidak dianggap bentrok
+  const meta = Object.keys(set).length ? { updated_by: "Event & Lead", updated_at: new Date().toISOString() } : {};
+  const K = Object.keys({ ...S, ...meta }), V = { ...S, ...meta };
+  await env.DB.prepare(`UPDATE items SET ${K.map((k) => k + " = ?").join(", ")} WHERE id = ?`).bind(...K.map((k) => V[k]), it.id).run();
+  return { ok: true };
+}
 async function galleryProposals(env) {
   await ensure(env);
   const B = new Set((await branches(env)).map((x) => lower(x.c)));
@@ -1033,6 +1068,9 @@ export default {
     if (path === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get("email") || "")) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/galeri") return hubFeedAllowed(request, env) ? json(await galleryProposals(env)) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/members") return hubFeedAllowed(request, env) ? json(await users(env)) : new Response("forbidden", { status: 403 });
+    // Event & Lead (service binding): pilih kegiatan untuk event, lalu kirim perubahan event & angka pesertanya
+    if (path === "/__hub/event-items") return hubFeedAllowed(request, env) ? json(await eventItems(env, url.searchParams)) : new Response("forbidden", { status: 403 });
+    if (path === "/__hub/event-sync") return hubPushAllowed(request, env) ? json(await eventSync(env, await request.json().catch(() => ({})))) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/item") {
       // atas nama orang yang menekan tombol di tool asal: dia jadi pembuat kegiatan, dan notifikasi (mis. ke desainer) tetap jalan
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });

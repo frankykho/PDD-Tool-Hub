@@ -158,8 +158,50 @@ async function recount(env, id) {
   await env.DB.prepare("UPDATE events SET n_reg = ?, n_conf = ?, n_hadir = ?, n_walkin = ? WHERE id = ?").bind(c.reg, c.conf, c.hadir, c.walkin, id).run();
   return env.DB.prepare("SELECT * FROM events WHERE id = ?").bind(id).first();
 }
-/** Kirim angka ke kegiatan Content Planner yang tersambung (diisi di tahap sambungan Planner). */
-async function syncCounts(env, ev) { }
+/* ---------- Content Planner (service binding PLANNER) ---------- */
+async function planner(env, path, body) {
+  if (!env.PLANNER) throw new Error("Content Planner belum tersambung");
+  const r = await env.PLANNER.fetch("https://planner" + path, body === undefined ? { headers: { "x-hub-key": env.SSO_SECRET } }
+    : { method: "POST", headers: { "x-hub-key": env.SSO_SECRET, "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Content Planner HTTP " + r.status);
+  return j;
+}
+/** Kirim { item_id, event_id, set?, counts? } ke kegiatan Planner. Kegiatan sudah dihapus di Planner -> event ditandai tidak tersambung. */
+async function plannerSync(env, ev, extra) {
+  if (!ev.item_id || ev.item_gone) return;
+  const r = await planner(env, "/__hub/event-sync", { item_id: ev.item_id, event_id: ev.id, ...extra });
+  if (r.gone) await env.DB.prepare("UPDATE events SET item_gone = 1 WHERE id = ?").bind(ev.id).run();
+}
+/** Angka ke Planner: Pendaftar -> Leads (kegiatan cabang), Hadir -> Peserta. */
+const syncCounts = (env, ev) => plannerSync(env, ev, { counts: { reg: ev.n_reg, hadir: ev.n_hadir } });
+/** Isian kegiatan Planner dari event. */
+const itemSet = (ev) => ({ title: ev.title, date: ev.date, time: ev.time_start, place: ev.mode === "online" ? "Online" : ev.place, branch: ev.branch, ...(ev.status === "batal" ? { status: "batal" } : {}) });
+// event bercabang -> Kegiatan cabang; tanpa cabang (pembuat di luar tim regional) -> Edukasi / narasumber
+const kindFor = (branch) => (branch ? "cabang" : "edukasi");
+async function plannerChoices(env, me, kind, branch) {
+  return planner(env, "/__hub/event-items?" + new URLSearchParams({ email: me.e, branch, kind }));
+}
+/** Kegiatan yang dipilih harus ada di pilihan orang ini (cabangnya / miliknya, belum tersambung). */
+async function checkChoice(env, me, ev, itemId) {
+  let C;
+  try { C = await plannerChoices(env, me, kindFor(ev.branch), ev.branch); } catch (e) { return { error: "Content Planner tidak bisa dihubungi. Coba lagi sebentar lagi." }; }
+  return Array.isArray(C) && C.some((x) => x.id === itemId) ? null : { error: "Kegiatan Content Planner ini tidak bisa dipilih." };
+}
+/** Sambungkan event ke kegiatan Planner: { item_id } = kegiatan yang sudah ada (harus ada di pilihan orang ini), { create: true } = kegiatan baru. */
+async function linkItem(env, me, ev, link) {
+  const kind = kindFor(ev.branch);
+  let id = "";
+  if (link.item_id) id = link.item_id;   // sudah dicek saveEvent (checkChoice)
+  else {
+    const item = { kind, ...itemSet(ev), status: "rencana", owner: String(me.n || me.e).slice(0, 60), owner_email: me.e,
+      channel: kind === "cabang" ? "Edukasi / seminar" : ev.mode === "online" ? "Webinar" : "Seminar", ...(kind === "edukasi" ? { role: "Penyelenggara" } : {}) };
+    id = (await planner(env, "/__hub/item", { by: { email: me.e, name: me.n || me.e, job: me.j || "" }, item })).id;
+  }
+  await env.DB.prepare("UPDATE events SET item_id = ?, item_kind = ?, item_gone = 0 WHERE id = ?").bind(id, kind, ev.id).run();
+  await plannerSync(env, { ...ev, item_id: id, item_gone: 0 }, { set: itemSet(ev), counts: { reg: ev.n_reg || 0, hadir: ev.n_hadir || 0 } });
+  return { item_id: id };
+}
 /** Setelah peserta berubah: hitung ulang, lalu kirim ke Planner di belakang layar (Planner mati tidak menghalangi pendaftaran). */
 async function changed(env, ctx, id) {
   const ev = await recount(env, id);
@@ -393,22 +435,36 @@ async function cleanEvent(env, me, org, b) {
   }
   return ev;
 }
+/** Simpan event. b.link = { item_id } / { create: true }: sambungkan ke kegiatan Content Planner (kalau belum tersambung).
+ *  Event yang sudah tersambung: judul, tanggal, jam, tempat, cabang, dan batal ikut ke kegiatannya. Planner tidak bisa dihubungi -> event tetap tersimpan, dengan warn. */
 async function saveEvent(env, ctx, me, org, b) {
   const ev = await cleanEvent(env, me, org, b);
   if (ev.error) return ev;
-  const at = iso(env);
-  if (b.id) {
-    const prev = await visibleEvent(env, me, org, b.id);
-    if (!prev) return { error: "Event tidak ditemukan.", status: 404 };
+  const at = iso(env), link = b.link && typeof b.link === "object" && (b.link.item_id || b.link.create) ? { item_id: String(b.link.item_id || ""), create: !b.link.item_id } : null;
+  const prev = b.id ? await visibleEvent(env, me, org, b.id) : null;
+  if (b.id && !prev) return { error: "Event tidak ditemukan.", status: 404 };
+  const linked = prev && prev.item_id && !prev.item_gone;
+  if (link && link.item_id && !linked) { const bad = await checkChoice(env, me, ev, link.item_id); if (bad) return bad; }
+  let res, row;
+  if (prev) {
     const K = Object.keys(ev);
     await env.DB.prepare(`UPDATE events SET ${K.map((k) => k + " = ?").join(", ")}, updated_at = ? WHERE id = ?`).bind(...K.map((k) => ev[k]), at, prev.id).run();
-    return { id: prev.id, code: prev.code, acode: prev.acode };
+    res = { id: prev.id, code: prev.code, acode: prev.acode }; row = { ...prev, ...ev };
+  } else {
+    row = { ...ev, id: crypto.randomUUID(), code: newCode(), acode: newCode(), creator_email: me.e, creator_name: String(me.n || me.e).slice(0, 60), creator_job: me.j || "",
+      creator_team: (teamIn(org, me.j) || {}).id || "", created_at: at, updated_at: at };
+    const K = Object.keys(row);
+    await env.DB.prepare(`INSERT INTO events (${K.join(", ")}) VALUES (${K.map(() => "?").join(", ")})`).bind(...K.map((k) => row[k])).run();
+    res = { id: row.id, code: row.code, acode: row.acode };
   }
-  const row = { ...ev, id: crypto.randomUUID(), code: newCode(), acode: newCode(), creator_email: me.e, creator_name: String(me.n || me.e).slice(0, 60), creator_job: me.j || "",
-    creator_team: (teamIn(org, me.j) || {}).id || "", created_at: at, updated_at: at };
-  const K = Object.keys(row);
-  await env.DB.prepare(`INSERT INTO events (${K.join(", ")}) VALUES (${K.map(() => "?").join(", ")})`).bind(...K.map((k) => row[k])).run();
-  return { id: row.id, code: row.code, acode: row.acode };
+  try {
+    if (linked) await plannerSync(env, row, { set: itemSet(row) });
+    else if (link) await linkItem(env, me, row, link);
+  } catch (e) {
+    console.log("sambungan Planner gagal:", e.message);
+    res.warn = "Event tersimpan, tapi belum tersambung ke Content Planner (" + e.message + "). Simpan lagi nanti untuk menyambungkan.";
+  }
+  return res;
 }
 async function listEvents(env, me, org) {
   const L = (await env.DB.prepare("SELECT * FROM events ORDER BY date DESC, time_start DESC LIMIT 2000").all()).results;
@@ -505,6 +561,12 @@ export default {
           return json({ event: ev, people: P, waDefault: WA_DEFAULT, canDelete: canDelete(me, org) });
         }
         if (path === "/api/settings") return me.adm ? json({ consent: await getConsent(env) }) : json({ error: "Khusus admin." }, 403);
+        if (path === "/api/planner-items") {
+          // Sales / GI coordinator: cabangnya sendiri; Head regional & admin: cabang yang dipilih di form; lainnya: kegiatan Edukasi miliknya
+          const reg = isRegional(org, me.j, me.adm), head = !!(roleIn(org, me.j) || {}).head;
+          const branch = reg && !head ? me.c : reg || me.adm ? String(url.searchParams.get("branch") || "") : "";
+          try { return json(await plannerChoices(env, me, kindFor(branch), branch)); } catch (e) { return json({ error: "Content Planner tidak bisa dihubungi." }, 502); }
+        }
       }
       if (request.method === "POST" && path.startsWith("/api/")) {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
