@@ -187,6 +187,21 @@ assert.equal((await api(SARI, "/api/stats?item=kK")).j.days.at(-1).n, 5, "per ke
 assert.equal((await api(REG, "/api/stats?item=kK")).status, 404, "regional tidak melihat grafik kegiatan pusat");
 assert.equal((await api(REG, "/api/stats?code=" + c.code)).status, 404);
 
+/* ---------- banyak link: filter regional di SQL, halaman berikutnya, daftar kegiatan ---------- */
+{
+  const ins = env.DB.db.prepare("INSERT INTO links (code, item_id, item_kind, item_title, target, channel, active, created_email, created_at) VALUES (?, 'kK', 'edukasi', 'Webinar Obligasi Baru', 'https://x.test', 'poster', 1, 'sari@acme.test', ?)");
+  for (let i = 0; i < 305; i++) ins.run('m' + String(i).padStart(5, 'a'), '2026-12-01T00:00:' + String(i % 60).padStart(2, '0') + 'Z');
+  let R = (await api(REG, '/api/links')).j;
+  assert.deepEqual(R.links.map((x) => x.code), [rc.code], 'regional tetap melihat link-nya walau ada 300+ link pusat yang lebih baru');
+  assert.deepEqual(R.items.map((x) => x.id), ['cC'], 'pilihan kegiatan regional');
+  R = (await api(SARI, '/api/links')).j;
+  assert.equal(R.links.length, 300); assert.equal(R.more, true);
+  assert.deepEqual(R.items.map((x) => x.id).sort(), ['cC', 'kK', 'pP'], 'pilihan kegiatan dari semua link, bukan hanya halaman ini');
+  const R2 = (await api(SARI, '/api/links?offset=300')).j;
+  assert.equal(R2.more, false); assert.ok(R2.links.some((x) => x.code === rc.code), 'link lama ada di halaman berikutnya');
+  env.DB.db.prepare("DELETE FROM links WHERE code LIKE 'm%'").run();
+}
+
 /* ---------- halaman ---------- */
 {
   const pg = await raw('/', { ck: SARI });

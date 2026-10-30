@@ -27,6 +27,7 @@ export default {
   "Nonaktif": "Inactive",
   "Grafik kegiatan": "Activity chart",
   "Memuat…": "Loading…",
+  "Muat lagi": "Load more",
   "Tutup": "Close",
   "Poster/cetak": "Poster/print",
   "Iklan": "Ads",

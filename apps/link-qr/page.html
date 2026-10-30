@@ -138,6 +138,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
     </div>
     <div id="listMsg"></div>
     <div class="list" id="list"><div class="empty">Memuat…</div></div>
+    <div style="text-align:center;margin-top:12px"><button type="button" class="btn" id="bMore" hidden>Muat lagi</button></div>
   </section>
 </div>
 
@@ -251,18 +252,19 @@ $("bResPng").onclick=()=>LAST&&downloadQr(LAST,"png","mkMsg");
 $("bResSvg").onclick=()=>LAST&&downloadQr(LAST,"svg","mkMsg");
 
 /* ---------- daftar ---------- */
-let LINKS=[],STATE="",SEEN=new Map(),listSeq=0;
-async function loadList(){
+let LINKS=[],STATE="",SEEN=new Map(),listSeq=0,MORE=false;
+// more = muat 300 link berikutnya (ditambahkan di bawah)
+async function loadList(more){
   const seq=++listSeq,p=new URLSearchParams();
-  if($("fItem").value)p.set("item",$("fItem").value);if($("fMine").checked)p.set("mine","1");if(STATE)p.set("state",STATE);
-  try{const r=await api("/api/links?"+p);if(seq!==listSeq)return;LINKS=r.links;showMsg("listMsg","");renderList()}
+  if($("fItem").value)p.set("item",$("fItem").value);if($("fMine").checked)p.set("mine","1");if(STATE)p.set("state",STATE);if(more)p.set("offset",LINKS.length);
+  try{const r=await api("/api/links?"+p);if(seq!==listSeq)return;LINKS=more?LINKS.concat(r.links):r.links;MORE=!!r.more;
+    SEEN=new Map((r.items||[]).map(x=>[x.id,x.title]));showMsg("listMsg","");renderList()}
   catch(e){if(seq===listSeq)showMsg("listMsg",e.message)}
 }
 function renderList(){
-  LINKS.forEach(l=>SEEN.set(l.item_id,l.item_title));
   const cur=$("fItem").value;
   $("fItem").innerHTML=`<option value="">${esc(T("Semua kegiatan"))}</option>`+[...SEEN].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).map(([id,t])=>`<option value="${esc(id)}"${id===cur?" selected":""}>${esc(t)}</option>`).join("");
-  $("bItemChart").hidden=!cur||!LINKS.length;
+  $("bItemChart").hidden=!cur||!LINKS.length;$("bMore").hidden=!MORE;
   if(!LINKS.length){$("list").innerHTML=`<div class="empty">${esc(T("Belum ada link."))}</div>`;return}
   $("list").innerHTML=LINKS.map((l,k)=>`<div class="row">
     <div><div class="nm">${esc(l.name||(KANAL[l.channel]||[l.channel])[0])}${l.name?` <span class="tag">${esc((KANAL[l.channel]||[l.channel])[0])}</span>`:""}${l.active?"":` <span class="tag off">${esc(T("Nonaktif"))}</span>`}</div>
@@ -283,7 +285,7 @@ $("list").onclick=async e=>{
     b.disabled=true;try{await api("/api/links/active",{code:l.code,active:!l.active});await loadList()}catch(x){showMsg("listMsg",x.message);b.disabled=false}
   }
 };
-$("fItem").onchange=loadList;$("fMine").onchange=loadList;
+$("fItem").onchange=()=>loadList();$("fMine").onchange=()=>loadList();$("bMore").onclick=()=>loadList(true);
 $("fState").onclick=e=>{const b=e.target.closest("[data-s]");if(!b)return;STATE=b.dataset.s;$("fState").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));loadList()};
 $("bItemChart").onclick=()=>{const id=$("fItem").value;if(id)openChart({item:id},SEEN.get(id)||"",T("Semua link kegiatan ini"))};
 

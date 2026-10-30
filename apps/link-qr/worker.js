@@ -227,13 +227,19 @@ async function createLink(env, me, reg, b) {
 }
 /** Boleh menonaktifkan / mengaktifkan: pembuat, Head (tim mana pun), atau admin hub. */
 const canEdit = (me, org, L) => !!me.adm || L.created_email === me.e || !!(roleIn(org, me.j) || {}).head;
-/** GET /api/links?item=&mine=1&state=active|off: judul & jenis kegiatan disegarkan dari Content Planner, dan total klik dikirim ulang. */
+/** GET /api/links?item=&mine=1&state=active|off&offset=: 300 link per halaman (more = masih ada), plus items = semua kegiatan yang punya link
+ *  (untuk filter). Judul & jenis kegiatan disegarkan dari Content Planner, dan total klik dikirim ulang. */
+const PAGE_N = 300;
 async function listLinks(env, ctx, me, org, reg, q) {
-  const W = [], A = [];
+  const W = [], A = [], off = Math.min(1e5, Math.max(0, Math.floor(Number(q.get("offset")) || 0)));
+  // aturan regional di SQL, sebelum LIMIT: link pusat yang lebih baru tidak boleh mendorong link regional keluar dari halaman
+  if (reg) W.push("item_kind IN ('cabang', 'galeri')");
+  const items = (await env.DB.prepare(`SELECT item_id AS id, MAX(item_title) AS title FROM links${reg ? " WHERE " + W[0] : ""} GROUP BY item_id ORDER BY title LIMIT 500`).all()).results;
   if (q.get("item")) { W.push("item_id = ?"); A.push(q.get("item")); }
   if (q.get("mine") === "1") { W.push("created_email = ?"); A.push(me.e); }
   if (q.get("state") === "active") W.push("active = 1"); else if (q.get("state") === "off") W.push("active = 0");
-  const L = (await env.DB.prepare(`SELECT code, item_id, item_kind, item_title, gone, target, channel, name, utm, active, clicks, created_by, created_email, created_at, off_by, off_at FROM links${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY created_at DESC LIMIT 300`).bind(...A).all()).results;
+  const L = (await env.DB.prepare(`SELECT code, item_id, item_kind, item_title, gone, target, channel, name, utm, active, clicks, created_by, created_email, created_at, off_by, off_at FROM links${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY created_at DESC, code LIMIT ${PAGE_N + 1} OFFSET ${off}`).bind(...A).all()).results;
+  const more = L.length > PAGE_N; if (more) L.length = PAGE_N;
   const ids = [...new Set(L.map((x) => x.item_id))].slice(0, 200);
   if (ids.length) {
     try {
@@ -247,8 +253,9 @@ async function listLinks(env, ctx, me, org, reg, q) {
     } catch (e) { console.log("Content Planner:", e.message); }
     ctx.waitUntil(pushClicks(env, ids));
   }
+  // disaring lagi: jenis kegiatan bisa berubah di Planner sejak salinan terakhir
   const links = L.filter((x) => !reg || REG_KINDS.includes(x.item_kind)).map((x) => ({ ...x, url: linkUrl(env, x.code), can: canEdit(me, org, x) }));
-  return { links };
+  return { links, more, items };
 }
 /** POST /api/links/active: { code, active }. Tujuan link tidak pernah berubah. */
 async function setActive(env, me, org, b) {
