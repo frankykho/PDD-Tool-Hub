@@ -1,0 +1,18 @@
+// Event & Lead: pendaftaran, konfirmasi & absen peserta event. Secret: SSO_SECRET (sama dengan Tool Hub)
+// Nama worker pendek ("event") supaya alamat publik link & QR: https://event.<subdomain>.workers.dev
+// Tanpa cron (batas paket gratis 5 cron per akun sudah terpakai): data peserta lama dihapus saat daftar event dibuka.
+// DB = event & peserta (data pribadi nasabah, milik tool ini saja).
+// PLANNER = Content Planner (service binding): pilih/buat kegiatan, kirim angka Peserta & Leads; harus di-deploy lebih dulu.
+{
+  "name": "event",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // aset statis (tanpa login): logo iKISI di halaman daftar & absen (/brand/ikisi-color.png); alamat lain tetap ke worker
+  "assets": { "directory": "./assets" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "event-db", "database_id": "auto" }
+  ],
+  "services": [
+    { "binding": "PLANNER", "service": "content-planner" }
+  ]
+}

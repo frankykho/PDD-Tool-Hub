@@ -35,6 +35,8 @@ export const APPS = [
   { id: "tutorial", dir: "apps/tutorial" },
   // setelah fund & bond: memakai keduanya lewat service binding
   { id: "planner", dir: "apps/content-planner" },
+  // setelah planner: memilih/membuat kegiatan & mengirim angka peserta ke Content Planner lewat service binding
+  { id: "event", dir: "apps/event-lead" },
   // setelah planner: konsep konten dikirim ke Content Planner lewat service binding
   { id: "content", dir: "apps/content-insight" },
   // setelah storydata: memakainya lewat service binding
