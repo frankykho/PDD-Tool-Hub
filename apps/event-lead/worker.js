@@ -86,7 +86,7 @@ let ready = false;
 async function ensure(env) {
   if (ready) return;
   await env.DB.batch([
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, code TEXT UNIQUE, acode TEXT UNIQUE, title TEXT, mode TEXT, date TEXT, time_start TEXT, time_end TEXT, place TEXT, online_url TEXT, "
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, code TEXT UNIQUE, acode TEXT UNIQUE, title TEXT, mode TEXT, date TEXT, time_start TEXT, time_end TEXT, tz TEXT, place TEXT, online_url TEXT, "
       + "branch TEXT, region TEXT, descr TEXT, quota INTEGER, open INTEGER DEFAULT 1, wa_tpl TEXT, item_id TEXT, item_kind TEXT, item_gone INTEGER DEFAULT 0, status TEXT, "
       + "creator_email TEXT, creator_name TEXT, creator_job TEXT, creator_team TEXT, created_at TEXT, updated_at TEXT, "
       + "purged INTEGER DEFAULT 0, n_reg INTEGER DEFAULT 0, n_conf INTEGER DEFAULT 0, n_hadir INTEGER DEFAULT 0, n_walkin INTEGER DEFAULT 0)"),
@@ -101,6 +101,9 @@ async function ensure(env) {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS people_event ON people (event_id)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS history_person ON history (person_id)"),
   ]);
+  // tz (zona waktu acara) ditambahkan setelah versi pertama
+  const have = new Set((await env.DB.prepare("PRAGMA table_info(events)").all()).results.map((c) => c.name));
+  if (!have.has("tz")) await env.DB.prepare("ALTER TABLE events ADD COLUMN tz TEXT").run();
   ready = true;
 }
 const lower = (x) => String(x || "").toLowerCase();
@@ -246,10 +249,13 @@ const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 /** "2026-11-03" -> "Selasa, 3 November 2026". */
 export const tanggal = (s) => { const d = new Date(String(s) + "T00:00:00Z"); return isNaN(d) ? String(s || "") : `${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BULAN[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
-/** "09:00", "11:00" -> "09.00–11.00 WIB". */
-export const jam = (ev) => [ev.time_start, ev.time_end].filter(Boolean).map((t) => t.replace(":", ".")).join("–") + (ev.time_start ? " WIB" : "");
-/** Waktu WIB di tanggal acara -> milidetik. */
-const wibMs = (date, t) => Date.parse(`${date}T${t || "00:00"}:00+07:00`);
+// zona waktu acara (jam di form = jam setempat di lokasi acara); kosong / tidak dikenal = WIB
+export const TZ = { WIB: "+07:00", WITA: "+08:00", WIT: "+09:00" };
+const tzOf = (ev) => (TZ[ev.tz] ? ev.tz : "WIB");
+/** "09:00", "11:00" -> "09.00–11.00 WIB" (atau WITA / WIT). */
+export const jam = (ev) => [ev.time_start, ev.time_end].filter(Boolean).map((t) => t.replace(":", ".")).join("–") + (ev.time_start ? " " + tzOf(ev) : "");
+/** Jam setempat di tanggal acara -> milidetik. */
+const evMs = (ev, t) => Date.parse(`${ev.date}T${t || "00:00"}:00${TZ[tzOf(ev)]}`);
 const CONSENT_DEFAULT = { ver: 1, text: "Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara untuk menghubungi saya terkait acara ini. Data disimpan paling lama 12 bulan setelah acara." };
 export const getConsent = async (env) => { const c = await cfgGet(env, "consent"); return c && c.text ? c : CONSENT_DEFAULT; };
 
@@ -279,7 +285,7 @@ async function hit(env, request, kind = "d", limit = HITS_PER_HOUR) {
 /** Kenapa pendaftaran tidak bisa (null = bisa). phone = nomor yang sudah terdaftar boleh memperbarui data walau kuota penuh. */
 async function regBlocked(env, ev, phone = "") {
   if (ev.status === "batal") return "Acara ini dibatalkan.";
-  if (!ev.open || ev.purged || now(env) > wibMs(ev.date, ev.time_end || "23:59")) return "Pendaftaran sudah ditutup.";
+  if (!ev.open || ev.purged || now(env) > evMs(ev, ev.time_end || "23:59")) return "Pendaftaran sudah ditutup.";
   if (ev.quota > 0) {
     const r = await env.DB.prepare("SELECT COUNT(CASE WHEN status <> 'batal' THEN 1 END) AS n, COUNT(CASE WHEN phone = ? THEN 1 END) AS me FROM people WHERE event_id = ?").bind(phone, ev.id).first();
     if (!r.me && r.n >= ev.quota) return "Kuota pendaftaran sudah penuh.";
@@ -369,13 +375,13 @@ async function register(request, env, ctx, ev) {
 /* =========================================================
    HALAMAN PUBLIK: absen /h/<kode absen>
    ========================================================= */
-// absen dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai (WIB)
+// absen dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai (jam setempat acara)
 const OPEN_BEFORE = 3600e3, CLOSE_AFTER = 2 * 3600e3;
 /** Sedang dalam jendela absen acara ini? */
-export const inWindow = (ev, nowMs) => nowMs >= wibMs(ev.date, ev.time_start) - OPEN_BEFORE && nowMs <= wibMs(ev.date, ev.time_end || ev.time_start) + CLOSE_AFTER;
+export const inWindow = (ev, nowMs) => nowMs >= evMs(ev, ev.time_start) - OPEN_BEFORE && nowMs <= evMs(ev, ev.time_end || ev.time_start) + CLOSE_AFTER;
 function absenBlocked(env, ev) {
   if (ev.status === "batal") return "Acara ini dibatalkan.";
-  if (ev.purged || now(env) > wibMs(ev.date, ev.time_end || ev.time_start) + CLOSE_AFTER) return "Absen sudah ditutup.";
+  if (ev.purged || now(env) > evMs(ev, ev.time_end || ev.time_start) + CLOSE_AFTER) return "Absen sudah ditutup.";
   if (!inWindow(ev, now(env))) return "Absen belum dibuka.";
   return null;
 }
@@ -449,7 +455,7 @@ async function visibleEvent(env, me, org, id) {
 /** Isian event -> baris yang sah atau { error }. Cabang: Sales / GI coordinator hanya cabangnya; Head regional & admin cabang di daftar; lainnya tanpa cabang. */
 async function cleanEvent(env, me, org, b) {
   const s = (v, n) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
-  const ev = { title: s(b.title, 160), mode: b.mode === "online" ? "online" : "tatap", date: s(b.date, 10), time_start: s(b.time_start, 5), time_end: s(b.time_end, 5),
+  const ev = { title: s(b.title, 160), mode: b.mode === "online" ? "online" : "tatap", date: s(b.date, 10), time_start: s(b.time_start, 5), time_end: s(b.time_end, 5), tz: TZ[b.tz] ? b.tz : "WIB",
     place: s(b.place, 200), online_url: cleanUrl(b.online_url), descr: String(b.descr ?? "").trim().slice(0, 2000), wa_tpl: String(b.wa_tpl ?? "").trim().slice(0, 1000),
     quota: Math.max(0, Math.round(Number(String(b.quota ?? "").replace(/\D/g, "")) || 0)) || null, open: b.open === false || b.open === 0 || b.open === "0" ? 0 : 1,
     status: b.status === "batal" ? "batal" : "aktif", branch: s(b.branch, 60), region: "" };

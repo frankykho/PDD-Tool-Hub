@@ -57,6 +57,7 @@ textarea.f{resize:vertical}
 .fld{display:grid;gap:5px}
 .fld>label,.lbl{font-weight:600;font-size:13px}
 .row2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.row4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .chk{display:flex;align-items:center;gap:8px;min-height:38px}
 .chk input{width:18px;height:18px;accent-color:var(--g)}
 .hint{font-size:12.5px;color:var(--t2)}
@@ -88,7 +89,7 @@ dialog::backdrop{background:rgba(6,16,10,.35)}
 dialog h3{margin:0 0 12px}
 @media (max-width:900px){.shares{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:640px){
-  .row2{grid-template-columns:minmax(0,1fr)}
+  .row2,.row4{grid-template-columns:minmax(0,1fr)}
   .btn,.seg button,.f,.chk{min-height:44px}.btn.sm,.chip,td .f{min-height:44px}
   .share{flex-direction:column}
   table,thead,tbody,tr,td{display:block}thead{display:none}
@@ -126,10 +127,11 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
       <p class="hint" id="hLinked" hidden></p>
       <div class="fld"><label for="iTitle">Judul acara</label><input class="f" id="iTitle" maxlength="160" required></div>
       <div class="fld"><span class="lbl" id="lMode">Jenis acara</span><div class="seg" role="group" aria-labelledby="lMode"><button type="button" data-m="tatap" class="on">Tatap muka</button><button type="button" data-m="online">Online</button></div></div>
-      <div class="row2">
+      <div class="row4">
         <div class="fld"><label for="iDate">Tanggal</label><input class="f" type="date" id="iDate" required></div>
         <div class="fld"><label for="iStart">Jam mulai</label><input class="f" type="time" id="iStart" required></div>
         <div class="fld"><label for="iEnd">Jam selesai</label><input class="f" type="time" id="iEnd" required></div>
+        <div class="fld"><label for="iTz">Zona waktu</label><select class="f" id="iTz"><option value="WIB">WIB</option><option value="WITA">WITA</option><option value="WIT">WIT</option></select></div>
       </div>
       <div class="fld" id="gPlace"><label for="iPlace">Lokasi</label><input class="f" id="iPlace" maxlength="200" placeholder="mis. Hotel Majapahit, Ruang Anggrek"></div>
       <div class="fld" id="gUrl" hidden><label for="iUrl">Link acara online</label><input class="f" id="iUrl" maxlength="500" placeholder="https://zoom.us/j/…"><span class="hint">Tidak tampil di halaman publik. Peserta melihatnya setelah mendaftar dan di teks WhatsApp.</span></div>
@@ -189,7 +191,7 @@ async function api(path,body){
 const showMsg=(box,m,cls="err")=>{$(box).innerHTML=m?`<div class="msg ${cls}" role="${cls==="err"?"alert":"status"}">${esc(m)}</div>`:""};
 const HARI=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"],BULAN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const tanggal=s=>{const d=new Date(String(s)+"T00:00:00Z");return isNaN(d)?String(s||""):`${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BULAN[d.getUTCMonth()]} ${d.getUTCFullYear()}`};
-const jam=ev=>[ev.time_start,ev.time_end].filter(Boolean).map(t=>t.replace(":",".")).join("–")+(ev.time_start?" WIB":"");
+const jam=ev=>[ev.time_start,ev.time_end].filter(Boolean).map(t=>t.replace(":",".")).join("–")+(ev.time_start?" "+(["WIB","WITA","WIT"].includes(ev.tz)?ev.tz:"WIB"):"");
 const todayIso=()=>new Date(Date.now()+7*3600e3).toISOString().slice(0,10);
 const hp=p=>p&&p.startsWith("62")?"0"+p.slice(2):p||"";
 const when=s=>{const d=new Date(s);return isNaN(d)?"":d.toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"})};
@@ -241,7 +243,7 @@ async function form(id){
   // selalu data terbaru dari server (daftar event di memori bisa sudah usang setelah event / template WhatsApp diubah)
   if(id){CUR=(await api("/api/people?event="+encodeURIComponent(id)).catch(()=>({}))).event||null;if(!CUR){showMsg("fMsg","Event tidak ditemukan.");return}}
   const e=CUR||{};$("fTitle").textContent=T(id?"Ubah event":"Buat event");
-  $("iTitle").value=e.title||"";setMode(e.mode||"tatap");$("iDate").value=e.date||"";$("iStart").value=e.time_start||"";$("iEnd").value=e.time_end||"";
+  $("iTitle").value=e.title||"";setMode(e.mode||"tatap");$("iDate").value=e.date||"";$("iStart").value=e.time_start||"";$("iEnd").value=e.time_end||"";$("iTz").value=e.tz||"WIB";
   $("iPlace").value=e.place||"";$("iUrl").value=e.online_url||"";$("iDescr").value=e.descr||"";$("iQuota").value=e.quota||"";$("iOpen").checked=e.open!==0;
   $("gStatus").hidden=!id;$("iStatus").value=e.status||"aktif";
   // cabang: Sales / GI coordinator terkunci ke cabangnya; Head regional & admin memilih; lainnya tanpa cabang
@@ -253,7 +255,7 @@ async function form(id){
 $("fEv").onsubmit=async ev=>{
   ev.preventDefault();const b=$("bSave");b.disabled=true;showMsg("fMsg","");
   const lv=$("iLink").value,link=$("gLink").hidden||!lv?null:lv==="__new"?{create:true}:{item_id:lv};
-  const body={...(CUR||{}),title:$("iTitle").value,mode:MODE,date:$("iDate").value,time_start:$("iStart").value,time_end:$("iEnd").value,place:$("iPlace").value,online_url:$("iUrl").value,
+  const body={...(CUR||{}),title:$("iTitle").value,mode:MODE,date:$("iDate").value,time_start:$("iStart").value,time_end:$("iEnd").value,tz:$("iTz").value,place:$("iPlace").value,online_url:$("iUrl").value,
     branch:$("gBranch").hidden?"":$("iBranch").value,descr:$("iDescr").value,quota:$("iQuota").value,open:$("iOpen").checked,status:$("iStatus").value,link};
   if(!CUR)delete body.id;
   try{const r=await api("/api/events",body);if(r.warn)sessionStorage.setItem("ev_warn",r.warn);location.hash="#/e/"+r.id}
@@ -280,7 +282,7 @@ function drawDetail(warn){
     <div class="kpis"><div class="kpi"><b>${e.n_reg}</b><span>Pendaftar</span></div><div class="kpi"><b>${e.n_conf}</b><span>Dikonfirmasi</span></div><div class="kpi"><b>${e.n_hadir}</b><span>Hadir</span></div>
     <div class="kpi"><b>${e.n_walkin}</b><span>Walk-in</span></div>${e.purged?"":`<div class="kpi"><b>${cl}</b><span>Sudah nasabah</span></div><div class="kpi"><b>${P.length-cl}</b><span>Belum nasabah</span></div>`}</div>`
     +(e.purged?`<div class="card"><p style="margin:0">Data peserta sudah dihapus (lebih dari 12 bulan).</p></div>`:
-    `<div class="shares">${shareBox("d","Link & QR pendaftaran","Untuk poster, story, atau dibagikan ke nasabah.")}${shareBox("h","Link & QR absen","Pasang di meja registrasi, atau bagikan saat acara online. Dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai.")}</div>
+    `<div class="shares">${shareBox("d","Link & QR pendaftaran","Untuk poster, story, atau dibagikan ke nasabah.")}${shareBox("h","Link & QR absen","Pasang di meja registrasi, atau bagikan saat acara online. Dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai (jam setempat).")}</div>
     <div class="card" style="margin-bottom:12px"><details><summary>Template teks WhatsApp</summary>
       <p class="hint">Bisa memakai {nama} {acara} {tanggal} {jam} {tempat} {link}. Teks masih bisa diedit di WhatsApp sebelum dikirim.</p>
       <textarea class="f" id="waTpl" rows="4" maxlength="1000" translate="no">${esc(e.wa_tpl||D.waDefault)}</textarea>

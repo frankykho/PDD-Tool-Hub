@@ -208,6 +208,15 @@ r = await call("/api/events", { ck: PIA, body: { ...NEW, title: "Webinar Obligas
 assert.equal(r.status, 200);
 const PW = env.DB.db.prepare("SELECT * FROM events WHERE id = ?").get(r.j.id);
 assert.equal(PW.branch, ""); assert.equal(PW.creator_team, "pd"); assert.equal(PW.online_url, "https://zoom.test/j/9");
+assert.equal(PW.tz, "WIB", "zona bawaan WIB");
+r = await call("/api/events", { ck: HEADRM, body: { ...NEW, title: "Gathering Makassar", branch: "Cabang Sudirman", tz: "WITA" } });
+assert.equal(env.DB.db.prepare("SELECT tz FROM events WHERE id = ?").get(r.j.id).tz, "WITA");
+r = await call("/api/events", { ck: HEADRM, body: { ...NEW, title: "Zona aneh", branch: "Cabang Sudirman", tz: "PST" } });
+assert.equal(env.DB.db.prepare("SELECT tz FROM events WHERE id = ?").get(r.j.id).tz, "WIB", "zona tidak dikenal = WIB");
+// pendaftaran acara WITA tutup menurut jam WITA: acara selesai 11.00 WITA (= 03.00Z) sudah tutup pukul 03.30Z
+{ const EZ = addEvent({ date: "2026-10-30", time_start: "09:00", time_end: "11:00", tz: "WITA" });
+  env.NOW_MS = Date.parse("2026-10-30T03:30:00Z"); assert.match((await page("/d/" + EZ.code)).html, /Pendaftaran sudah ditutup\./);
+  env.NOW_MS = Date.parse("2026-10-30T02:30:00Z"); assert.match((await page("/d/" + EZ.code)).html, /09\.00–11\.00 WITA/); env.NOW_MS = T0; }
 // daftar event: hanya yang boleh dilihat
 const titles = async (ck) => (await call("/api/events", { ck })).j.map((e) => e.title);
 assert.ok((await titles(SARI)).includes("Gathering Nasabah Surabaya")); assert.ok(!(await titles(SARI)).includes("Webinar Obligasi"));
@@ -284,6 +293,15 @@ assert.equal(inWindow(WEV, Date.parse("2026-11-03T01:00:00Z")), true, "08.00 WIB
 assert.equal(inWindow(WEV, Date.parse("2026-11-02T23:59:00Z")), false, "06.59 WIB: belum dibuka");
 assert.equal(inWindow(WEV, Date.parse("2026-11-03T05:59:00Z")), true, "12.59 WIB: masih dalam 2 jam setelah selesai");
 assert.equal(inWindow(WEV, Date.parse("2026-11-03T06:01:00Z")), false, "13.01 WIB: sudah ditutup");
+// zona waktu acara: 09.00–11.00 WITA = 08.00–10.00 WIB; WIT = 07.00–09.00 WIB
+assert.equal(inWindow({ ...WEV, tz: "WITA" }, Date.parse("2026-11-03T00:00:00Z")), true, "08.00 WITA: 1 jam sebelum mulai");
+assert.equal(inWindow({ ...WEV, tz: "WITA" }, Date.parse("2026-11-02T23:59:00Z")), false, "07.59 WITA: belum dibuka");
+assert.equal(inWindow({ ...WEV, tz: "WITA" }, Date.parse("2026-11-03T05:01:00Z")), false, "13.01 WITA: sudah ditutup");
+assert.equal(inWindow({ ...WEV, tz: "WIT" }, Date.parse("2026-11-02T23:00:00Z")), true, "08.00 WIT");
+assert.equal(inWindow({ ...WEV, tz: "WIT" }, Date.parse("2026-11-02T22:59:00Z")), false, "07.59 WIT");
+assert.equal(W.jam({ ...WEV, tz: "WITA" }), "09.00–11.00 WITA");
+assert.equal(W.jam(WEV), "09.00–11.00 WIB", "tanpa zona = WIB");
+assert.match(waText(WA_DEFAULT, { ...WEV, title: "X", place: "Makassar", mode: "tatap", tz: "WIT" }, { name: "A" }), /09\.00–11\.00 WIT /);
 const DAY = Date.parse("2026-11-03T02:00:00Z");   // 09.00 WIB
 const pageAt = async (path, at) => { env.NOW_MS = at; const x = await page(path); env.NOW_MS = T0; return x; };
 const budi = () => env.DB.db.prepare("SELECT * FROM people WHERE event_id = ? AND phone = '628123456789'").get(E1.id);
