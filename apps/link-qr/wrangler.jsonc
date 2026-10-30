@@ -1,0 +1,17 @@
+// Link & QR Studio: link pendek + QR untuk kegiatan / Program di Content Planner; klik dihitung per hari.
+// Nama worker "go" supaya alamatnya pendek (go.<subdomain>.workers.dev/<kode>) dan QR-nya renggang.
+// Secret: SSO_SECRET (sama dengan Tool Hub).
+// DB = link & klik harian. PLANNER = Content Planner (service binding): pilihan kegiatan & kirim total klik; harus di-deploy lebih dulu.
+{
+  "name": "go",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // aset statis: logo (/brand/kisi-color.png untuk halaman link nonaktif, /brand/truefriend-mark.png di tengah QR)
+  "assets": { "directory": "./assets" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "go-db", "database_id": "auto" }
+  ],
+  "services": [
+    { "binding": "PLANNER", "service": "content-planner" }
+  ]
+}
