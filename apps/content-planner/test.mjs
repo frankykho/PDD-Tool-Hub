@@ -577,4 +577,29 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual([it.result_num, it.leads, it.event_id], [7, 3, null], "event_id tidak bisa diisi dari form");
 }
 
+/* ---------- Link & QR Studio: pilihan kegiatan & klik ---------- */
+{
+  const ins = (id, kind, title, date, program_id = "") => env.DB.db.prepare("INSERT INTO items (id, date, title, kind, program_id, status, created_at) VALUES (?, ?, ?, ?, ?, 'rencana', ?)").run(id, date, title, kind, program_id, date + "T00:00:00Z");
+  ins("lqP", "program", "Program LQ", "2026-01-05"); ins("lqK", "edukasi", "Edukasi LQ", "2026-01-10", "lqP"); ins("lqC", "cabang", "Gathering LQ", "2026-01-12");
+  const hubGet = (p) => planner.fetch(new Request(BASE + p, { headers: { "x-hub-key": SECRET } }), env, { waitUntil() {} });
+  assert.equal((await planner.fetch(new Request(BASE + "/__hub/link-items"), env, { waitUntil() {} })).status, 403, "link-items tanpa kunci ditolak");
+  let LI = (await (await hubGet("/__hub/link-items?reg=1&q=LQ")).json()).items;
+  assert.deepEqual(LI.map((i) => i.id), ["lqC"], "regional: hanya cabang & galeri");
+  LI = (await (await hubGet("/__hub/link-items?q=LQ")).json()).items;
+  assert.deepEqual(LI.map((i) => i.id), ["lqC", "lqK", "lqP"], "non-regional: semua jenis, terbaru dulu");
+  assert.deepEqual(Object.keys(LI[0]).sort(), ["branch", "date", "id", "kind", "status", "title"]);
+  assert.deepEqual((await (await hubGet("/__hub/link-items?ids=lqK,hilang")).json()).items.map((i) => i.id), ["lqK"]);
+  assert.deepEqual((await (await hubGet("/__hub/link-items?reg=1&ids=lqK,lqC")).json()).items.map((i) => i.id), ["lqC"], "ids tetap mengikuti aturan regional");
+  assert.equal((await call("/__hub/link-clicks", { body: { items: { lqK: 1 } } })).status, 403, "link-clicks tanpa kunci ditolak");
+  r = await hub("/__hub/link-clicks", { items: { lqK: 5, lqP: 2, hilang: 9 } });
+  assert.deepEqual(r.j, { ok: true, gone: ["hilang"] });
+  await hub("/__hub/link-clicks", { items: { lqK: 3 } });   // kiriman lama datang terlambat
+  const it = async (id) => (await call("/api/items?id=" + id, { ck: PART })).j;
+  assert.equal((await it("lqK")).clicks, 5, "MAX: angka tidak turun");
+  assert.equal((await it("lqP")).clicks, 7, "Program = 2 sendiri + 5 kegiatan terkait");
+  assert.equal((await it("lqC")).clicks, null, "tanpa klik tetap kosong");
+  const PR = (await call("/api/program-report?id=lqP", { ck: PART })).j.programs[0];
+  assert.equal(PR.clicks, 7); assert.equal(PR.items.find((i) => i.id === "lqK").clicks, 5);
+}
+
 console.log("semua cek lolos");

@@ -166,6 +166,8 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL, at TEXT, by_name TEXT, by_email TEXT, kind TEXT, text TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, date TEXT NOT NULL, name TEXT NOT NULL, idea TEXT, created_by TEXT, created_email TEXT, created_at TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, item_id TEXT, target TEXT NOT NULL, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT)"),
+    // total klik link Link & QR Studio per kegiatan (dikirim Studio lewat /__hub/link-clicks)
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS qrclicks (item_id TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, at TEXT)"),
     // pekerjaan harian: job = role pemiliknya saat mencatat (pengelompokan per tim di Monthly Report)
     env.DB.prepare("CREATE TABLE IF NOT EXISTS worklog (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, text TEXT NOT NULL, status TEXT, item_id TEXT, link TEXT, note TEXT, created_at TEXT, updated_at TEXT)"),
     // posting WA Channel: hanya jumlah per hari, per orang, per jenis (isi postingan tidak disimpan)
@@ -258,8 +260,10 @@ export function cleanItem(b) {
   }
   return it;
 }
-// total klik link pelacak per kegiatan
-const CLICKS = "(SELECT SUM(clicks) FROM links WHERE links.item_id = items.id) AS clicks";
+// total klik per kegiatan: link pelacak /go/ lama + link Link & QR Studio; Program ikut menjumlahkan kegiatan terkaitnya (program_id).
+// Tiap link menempel ke satu kegiatan saja, jadi tidak ada yang terhitung dua kali. Semua nol -> NULL (tampil kosong).
+const OWN = (t) => `COALESCE((SELECT SUM(clicks) FROM links WHERE links.item_id = ${t}.id), 0) + COALESCE((SELECT n FROM qrclicks WHERE qrclicks.item_id = ${t}.id), 0)`;
+const CLICKS = `NULLIF(${OWN("items")} + CASE WHEN items.kind = 'program' THEN COALESCE((SELECT SUM(${OWN("c")}) FROM items c WHERE c.program_id = items.id), 0) ELSE 0 END, 0) AS clicks`;
 /** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya, termasuk yang statusnya masih "berjalan"
  *  walau tanggal selesainya sudah lewat (kalender cukup menurut tanggal mulai). */
 async function listItems(env, from, to, overlap, reg) {
@@ -648,6 +652,28 @@ async function eventSync(env, b) {
   await env.DB.prepare(`UPDATE items SET ${K.map((k) => k + " = ?").join(", ")} WHERE id = ?`).bind(...K.map((k) => V[k]), it.id).run();
   return { ok: true };
 }
+/** GET /__hub/link-items (Link & QR Studio): kegiatan yang bisa diberi link. reg=1 -> hanya kegiatan cabang & rencana galeri
+ *  (Studio menentukan regional dari tiket Tool Hub). q = cari judul; ids = kegiatan tertentu (yang hilang = sudah dihapus). Semua status. */
+async function linkItems(env, q) {
+  await ensure(env);
+  const W = [], A = [], ids = String(q.get("ids") || "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200), s = String(q.get("q") || "").trim().slice(0, 60);
+  if (q.get("reg") === "1") W.push(REG_SQL);
+  if (ids.length) { W.push(`id IN (${ids.map(() => "?").join(",")})`); A.push(...ids); }
+  if (s) { W.push("title LIKE ?"); A.push("%" + s.replace(/[%_]/g, "") + "%"); }
+  const L = (await env.DB.prepare(`SELECT id, kind, title, date, COALESCE(branch, '') AS branch, status FROM items${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY date DESC, created_at DESC LIMIT ${ids.length ? 200 : 50}`).bind(...A).all()).results;
+  return { items: L };
+}
+/** POST /__hub/link-clicks (Link & QR Studio): { items: { <item_id>: <total klik> } }. Total, bukan tambahan: disimpan MAX supaya
+ *  kiriman yang datang terlambat tidak menurunkan angka. Kegiatan yang sudah dihapus -> gone. */
+async function linkClicks(env, b) {
+  await ensure(env);
+  const E = Object.entries(b && typeof b.items === "object" && b.items ? b.items : {}).slice(0, 200).map(([k, v]) => [String(k).slice(0, 60), Math.max(0, Math.round(Number(v) || 0))]);
+  if (!E.length) return { ok: true, gone: [] };
+  const have = new Set((await env.DB.prepare(`SELECT id FROM items WHERE id IN (${E.map(() => "?").join(",")})`).bind(...E.map((e) => e[0])).all()).results.map((x) => x.id));
+  const at = new Date().toISOString(), up = E.filter(([k]) => have.has(k));
+  if (up.length) await env.DB.batch(up.map(([k, n]) => env.DB.prepare("INSERT INTO qrclicks (item_id, n, at) VALUES (?, ?, ?) ON CONFLICT(item_id) DO UPDATE SET n = MAX(n, excluded.n), at = excluded.at").bind(k, n, at)));
+  return { ok: true, gone: E.filter(([k]) => !have.has(k)).map((e) => e[0]) };
+}
 async function galleryProposals(env) {
   await ensure(env);
   const B = new Set((await branches(env)).map((x) => lower(x.c)));
@@ -838,12 +864,12 @@ async function programs(env) {
 /** Data laporan program: program yang berjalan di periode itu (atau satu program), beserta kegiatan terkait & tugasnya. */
 async function programReport(env, from, to, id) {
   await ensure(env);
-  const P = id ? (await env.DB.prepare("SELECT * FROM items WHERE kind = 'program' AND id = ?").bind(id).all()).results
-    : ISO.test(from) && ISO.test(to) ? (await env.DB.prepare("SELECT * FROM items WHERE kind = 'program' AND date <= ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date LIMIT 90").bind(to, from).all()).results : [];
+  const P = id ? (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND id = ?`).bind(id).all()).results
+    : ISO.test(from) && ISO.test(to) ? (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date <= ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date LIMIT 90`).bind(to, from).all()).results : [];
   if (!P.length) return { programs: [] };
   const ids = P.map((p) => p.id), ph = ids.map(() => "?").join(",");
   const [items, tasks] = await env.DB.batch([
-    env.DB.prepare(`SELECT * FROM items WHERE program_id IN (${ph}) ORDER BY date, time`).bind(...ids),
+    env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE program_id IN (${ph}) ORDER BY date, time`).bind(...ids),
     env.DB.prepare(`SELECT * FROM tasks WHERE item_id IN (${ph}) ORDER BY due, created_at`).bind(...ids),
   ]);
   // benchmark: promo reksa dana kompetitor yang berjalan di periode program (Competitor Intelligence, service binding COMPETITOR)
@@ -1071,6 +1097,9 @@ export default {
     // Event & Lead (service binding): pilih kegiatan untuk event, lalu kirim perubahan event & angka pesertanya
     if (path === "/__hub/event-items") return hubFeedAllowed(request, env) ? json(await eventItems(env, url.searchParams)) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/event-sync") return hubPushAllowed(request, env) ? json(await eventSync(env, await request.json().catch(() => ({})))) : new Response("forbidden", { status: 403 });
+    // Link & QR Studio (service binding): pilih kegiatan untuk link baru, lalu kirim total klik per kegiatan
+    if (path === "/__hub/link-items") return hubFeedAllowed(request, env) ? json(await linkItems(env, url.searchParams)) : new Response("forbidden", { status: 403 });
+    if (path === "/__hub/link-clicks") return hubPushAllowed(request, env) ? json(await linkClicks(env, await request.json().catch(() => ({})))) : new Response("forbidden", { status: 403 });
     if (path === "/__hub/item") {
       // atas nama orang yang menekan tombol di tool asal: dia jadi pembuat kegiatan, dan notifikasi (mis. ke desainer) tetap jalan
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
