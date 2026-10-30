@@ -5,7 +5,7 @@
 // - "/__hub/users" (POST) -> anggota, daftar cabang, dan tim & role dari Tool Hub
 // Hak akses: admin hub semua event; Head tim regional semua event regional; Sales / GI coordinator event cabangnya;
 // pemegang akses di luar tim regional hanya event buatannya (+ Head timnya).
-import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
+import { hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
 import { cleanOrg, roleIn, teamIn, isRegional } from "../../shared/jobs.js";
 
 /* =========================================================
@@ -99,11 +99,37 @@ async function ensure(env) {
   ]);
   ready = true;
 }
+const lower = (x) => String(x || "").toLowerCase();
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+async function cfgGet(env, k) {
+  await ensure(env);
+  const r = await env.DB.prepare("SELECT v FROM cfg WHERE k = ?").bind(k).first();
+  try { return r ? JSON.parse(r.v) : null; } catch { return null; }
+}
+const cfgPut = (env, k, v) => env.DB.prepare("INSERT INTO cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v));
+/** Tim & role dari Tool Hub (bawaan kalau belum pernah dikirim). */
+export const getOrg = async (env) => cleanOrg(await cfgGet(env, "org"));
+/** Daftar regional & cabang/galeri dari Tool Hub: [{ r, c, t }]. */
+export const getBranches = async (env) => { const B = await cfgGet(env, "branches"); return Array.isArray(B) ? B : []; };
+/** POST /__hub/users dari Tool Hub: { users, branches, org } (sama seperti yang dikirim ke Content Planner). */
+async function syncFromHub(env, b) {
+  await ensure(env);
+  const L = (Array.isArray(b.users) ? b.users : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: String((u && u.job) || "").slice(0, 24), branch: String((u && u.branch) || "").slice(0, 60) }))
+    .filter((u) => EMAIL.test(u.email)).slice(0, 500);
+  const B = Array.isArray(b.branches) ? b.branches.map((x) => ({ r: String((x && x.r) || "").slice(0, 60), c: String((x && x.c) || "").slice(0, 60), t: x && x.t === "galeri" ? "galeri" : "cabang" })).filter((x) => x.r && x.c).slice(0, 300) : null;
+  await env.DB.batch([...(L.length ? [cfgPut(env, "users", L)] : []), ...(B ? [cfgPut(env, "branches", B)] : []),
+    ...(b.org && typeof b.org === "object" ? [cfgPut(env, "org", cleanOrg(b.org))] : [])]);
+  return { ok: true, n: L.length };
+}
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
+    if (path === "/__hub/users") {
+      if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      return json(await syncFromHub(env, await request.json().catch(() => ({}))));
+    }
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
     const tk = await HUBSSO.ticket(request, env); if (tk) return tk;

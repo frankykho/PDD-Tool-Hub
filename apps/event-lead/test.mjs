@@ -62,4 +62,15 @@ assert.equal(r.status, 401); assert.equal(r.j.error, "Sesi habis. Muat ulang hal
 let res = await raw("/");
 assert.equal(res.status, 303); assert.ok(res.headers.get("location").startsWith(HUB + "/sso?app=event"), "tanpa cookie -> login lewat hub");
 
+/* ---------- anggota, cabang, tim & role dari Tool Hub ---------- */
+const BRANCHES = [{ r: "Jawa Timur", c: "Cabang Surabaya", t: "cabang" }, { r: "Jakarta", c: "Cabang Sudirman", t: "cabang" }, { r: "Jawa Timur", c: "Galeri UNAIR", t: "galeri" }];
+const hubPush = (path, body) => call(path, { body, headers: { "x-hub-key": SECRET } });
+assert.equal((await call("/__hub/users", { body: { users: [] } })).status, 403, "tanpa kunci hub ditolak");
+r = await hubPush("/__hub/users", { users: [{ email: "Sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" }, { email: "pia@acme.test", name: "Pia", job: "partnership", branch: "" }], branches: BRANCHES, org: ORG });
+assert.equal(r.status, 200);
+assert.ok(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get(), "org tersimpan");
+assert.deepEqual(await W.getBranches(env), BRANCHES);
+assert.deepEqual((await W.getOrg(env)).roles.length, ORG.roles.length);
+assert.deepEqual(JSON.parse(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v)[0], { email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" });
+
 console.log("semua cek lolos");

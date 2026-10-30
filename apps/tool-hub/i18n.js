@@ -121,6 +121,16 @@ export default {
   "Laporan PDF & PPT: Kegiatan tim, Program partnership, Monthly Report per tim": "PDF & PPT reports: Team activities, Partnership programs, Monthly Report per team",
   "Paket mingguan: ringkasan RD, obligasi, agenda": "Weekly pack: fund summary, bonds, agenda",
 
+  "Pendaftaran, konfirmasi & absen peserta event": "Event registration, confirmation & attendance",
+  "Nasabah mendaftar sendiri ke seminar, gathering, atau webinar lewat link & QR. Sales mengonfirmasi lewat WhatsApp, kehadiran dicatat di hari acara, dan angkanya masuk ke Content Planner.": "Clients register themselves for seminars, gatherings, or webinars via link & QR. Sales confirm via WhatsApp, attendance is recorded on the day, and the numbers flow into Content Planner.",
+  "Link & QR pendaftaran per event, siap untuk poster atau story": "Registration link & QR per event, ready for posters or stories",
+  "Form singkat: nama, HP WhatsApp, email, kode nasabah, persetujuan data": "Short form: name, WhatsApp number, email, client code, data consent",
+  "Konfirmasi lewat WhatsApp dengan teks yang sudah terisi": "Confirm via WhatsApp with prefilled text",
+  "Status peserta: Terdaftar, Dikonfirmasi, Hadir, Batal, Tidak bisa dihubungi": "Participant status: Registered, Confirmed, Attended, Cancelled, Unreachable",
+  "Absen lewat QR di lokasi atau link untuk acara online, termasuk walk-in": "Check-in via on-site QR or a link for online events, including walk-ins",
+  "Angka Pendaftar & Hadir otomatis masuk ke kegiatan di Content Planner": "Registered & Attended counts flow automatically into the Content Planner activity",
+  "Ekspor daftar peserta ke Excel; data pribadi dihapus otomatis 12 bulan setelah acara": "Export participants to Excel; personal data is deleted automatically 12 months after the event",
+
   "Sinyal, screener & analisis saham": "Stock signals, screener & analysis",
   "Sinyal teknikal, screener, dan analisis saham yang dihitung otomatis setiap hari bursa, dari kandidat hari ini sampai pemegang saham dan arus transaksi.": "Technical signals, screener, and stock analysis computed automatically every trading day, from today's candidates to shareholders and trading flows.",
   "Hari Ini: sinyal BUY, kandidat, saham dekat harga tertinggi 52 minggu, TP/SL tersentuh": "Today: BUY signals, candidates, stocks near their 52-week high, TP/SL hit",

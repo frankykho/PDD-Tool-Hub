@@ -16,6 +16,8 @@
     { "binding": "NEWS", "service": "market-news" },
     { "binding": "ETF", "service": "etf-insight" },
     { "binding": "BOND", "service": "bond-insight" },
-    { "binding": "CRON", "service": "tool-cron" }
+    { "binding": "CRON", "service": "tool-cron" },
+    // Event & Lead: menerima anggota, cabang, dan tim & role (sama seperti Planner)
+    { "binding": "EVENT", "service": "event" }
   ]
 }
