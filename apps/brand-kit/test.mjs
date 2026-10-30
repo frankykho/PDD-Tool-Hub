@@ -136,4 +136,72 @@ assert.deepEqual(r.j.push.ok, { copy: true, edukasi: true }, "kirim ulang");
 assert.equal((await call("/api/disclaimers/push", { ck: SARI, body: {} })).status, 403);
 assert.equal((await call("/api/disclaimers", { ck: ADM, body: { key: "lain", text: "x" } })).status, 400, "versi tidak dikenal");
 
+/* ---------- template & ukuran ---------- */
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+assert.equal((await call("/api/templates", { ck: SARI, body: { name: "x" } })).status, 403, "bukan admin");
+assert.equal((await raw("/bg/x", { ck: SARI, method: "PUT", body: PNG })).status, 403, "bukan admin: unggah gambar latar ditolak");
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM templates").get().n, 0);
+r = await call("/api/templates", { ck: ADM, body: { name: "  Seminar  " } });
+assert.equal(r.status, 200); const TID = r.j.id;
+assert.equal((await call("/api/templates", { ck: ADM, body: { name: "" } })).status, 400, "nama kosong");
+const SLOT = { id: "s1", type: "text", field: "cabang", label: "Nama cabang", x: 5000, y: 100, w: 400, h: 60, font: "Montserrat", weight: 700, size: 44, minSize: 24,
+  color: "#ffffff", align: "left", max: 30, required: true, def: "", auto: "branch" };
+const SIZE = { template_id: TID, kind: "story", dark: true, logo: { y: 80, h: 90 }, disc: { key: "reksadana", x: 60, y: 1800, w: 960, size: 18, color: "#ffffff", align: "center" },
+  slots: [SLOT, { id: "sp", type: "speakers", x: 40, y: 900, w: 1000, h: 600, max: 6, font: "Poppins", nameSize: 30, nameColor: "#0b5d3b", titleSize: 22, titleColor: "#445566" },
+    { id: "q", type: "qr", x: 820, y: 1500, size: 200, color: "#000000" }] };
+r = await call("/api/sizes", { ck: ADM, body: SIZE });
+assert.equal(r.status, 200, JSON.stringify(r.j)); const SID = r.j.id;
+const srow = env.DB.db.prepare("SELECT * FROM sizes WHERE id = ?").get(SID), sl = JSON.parse(srow.slots);
+assert.ok(sl[0].x + sl[0].w <= 1080 && sl[0].x >= 0, "kotak dijaga di dalam gambar");
+assert.equal(sl.length, 3); assert.equal(srow.dark, 1);
+assert.equal((await call("/api/sizes", { ck: ADM, body: { ...SIZE, id: SID, slots: [{ ...SLOT, font: "Comic Sans" }] } })).status, 400, "font di luar daftar");
+assert.equal((await call("/api/sizes", { ck: ADM, body: { ...SIZE, id: SID, slots: [{ ...SLOT, color: "red" }] } })).status, 400, "warna bukan #rrggbb");
+assert.equal((await call("/api/sizes", { ck: ADM, body: { ...SIZE, kind: "poster" } })).status, 400, "ukuran tidak dikenal");
+assert.equal((await call("/api/sizes", { ck: ADM, body: SIZE })).status, 400, "ukuran yang sama dua kali di satu template");
+assert.equal((await call("/api/sizes", { ck: ADM, body: { ...SIZE, id: SID, slots: [SIZE.slots[1], { ...SIZE.slots[1], id: "sp2" }] } })).status, 400, "satu area narasumber per ukuran");
+assert.equal((await call("/api/sizes", { ck: ADM, body: { ...SIZE, id: SID, slots: [{ ...SIZE.slots[1], max: 7 }] } })).status, 400, "maks. 6 narasumber");
+// belum boleh tampil: gambar latar belum ada, lalu disclaimer kosong
+r = await call("/api/templates", { ck: ADM, body: { id: TID, name: "Seminar", status: "live" } });
+assert.equal(r.status, 400); assert.equal(r.j.error, "Gambar latar Story belum diunggah.");
+assert.equal((await raw("/bg/" + SID, { ck: ADM, method: "PUT", body: new TextEncoder().encode("bukan gambar") })).status, 400, "bukan PNG / JPEG");
+assert.equal((await raw("/bg/" + SID, { ck: ADM, method: "PUT", body: PNG, headers: { origin: "https://jahat.test" } })).status, 403);
+assert.equal((await raw("/bg/" + SID, { ck: ADM, method: "PUT", body: PNG })).status, 200);
+assert.equal(env.DB.db.prepare("SELECT has_bg FROM sizes WHERE id = ?").get(SID).has_bg, 1);
+r = await call("/api/templates", { ck: ADM, body: { id: TID, name: "Seminar", status: "live" } });
+assert.equal(r.status, 400); assert.equal(r.j.error, "Disclaimer Reksa Dana belum diisi.");
+assert.equal((await call("/api/templates", { ck: SARI })).j.templates.length, 0, "draf tidak terlihat cabang");
+await call("/api/sizes", { ck: ADM, body: { ...SIZE, id: SID, disc: { ...SIZE.disc, key: "umum" } } });
+r = await call("/api/templates", { ck: ADM, body: { id: TID, name: "Seminar", status: "live" } });
+assert.equal(r.status, 200, JSON.stringify(r.j));
+r = await call("/api/templates", { ck: SARI });
+assert.equal(r.j.templates.length, 1); assert.equal(r.j.templates[0].name, "Seminar");
+assert.equal(r.j.templates[0].sizes[0].slots.length, 3); assert.equal(r.j.templates[0].sizes[0].has_bg, 1);
+res = await raw("/bg/" + SID, { ck: SARI });
+assert.equal(res.status, 200); assert.equal(res.headers.get("content-type"), "image/png");
+assert.deepEqual(new Uint8Array(await res.arrayBuffer()), PNG);
+assert.equal((await raw("/bg/" + SID)).status, 401, "gambar latar perlu login");
+// X-banner selalu disclaimer Singkat
+r = await call("/api/sizes", { ck: ADM, body: { ...SIZE, kind: "xbanner", disc: { ...SIZE.disc, key: "umum" } } });
+assert.equal(r.status, 200);
+assert.equal(JSON.parse(env.DB.db.prepare("SELECT disc FROM sizes WHERE id = ?").get(r.j.id).disc).key, "singkat");
+const XID = r.j.id;
+// catatan unduhan
+assert.equal((await call("/api/usage", { ck: SARI, body: { template_id: TID, kind: "story" } })).status, 200);
+assert.equal((await call("/api/usage", { ck: TONO, body: { template_id: TID, kind: "a4", event_id: "ev1" } })).status, 200);
+assert.equal((await call("/api/usage", { ck: TONO, body: { template_id: "tidakada", kind: "a4" } })).status, 404);
+assert.equal((await call("/api/usage", { ck: SARI })).status, 403, "ringkasan pemakaian khusus admin");
+r = await call("/api/usage", { ck: ADM });
+assert.deepEqual(r.j.byTemplate, [{ name: "Seminar", n: 2 }]);
+assert.deepEqual(r.j.byBranch, [{ branch: "Cabang Sudirman", n: 1 }, { branch: "Cabang Surabaya", n: 1 }]);
+// hapus ukuran / template: gambar latarnya ikut terhapus
+await raw("/bg/" + XID, { ck: ADM, method: "PUT", body: PNG });
+assert.equal((await call("/api/sizes", { ck: ADM, body: { id: XID, delete: true } })).status, 200);
+assert.equal(env.BRAND_KV.m.has("bg:" + XID), false);
+const T2 = (await call("/api/templates", { ck: ADM, body: { name: "Hapus aku" } })).j.id;
+const S2 = (await call("/api/sizes", { ck: ADM, body: { ...SIZE, template_id: T2 } })).j.id;
+await raw("/bg/" + S2, { ck: ADM, method: "PUT", body: PNG });
+assert.equal((await call("/api/templates/delete", { ck: SARI, body: { id: T2 } })).status, 403);
+assert.equal((await call("/api/templates/delete", { ck: ADM, body: { id: T2 } })).status, 200);
+assert.equal(env.BRAND_KV.m.has("bg:" + S2), false); assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM sizes WHERE template_id = ?").get(T2).n, 0);
+
 console.log("semua cek lolos");

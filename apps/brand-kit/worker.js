@@ -190,6 +190,156 @@ async function saveDisclaimer(env, me, b) {
   return { list: await getDisclaimers(env), push: await pushDisclaimers(env) };
 }
 
+/* =========================================================
+   TEMPLATE & UKURAN
+   ========================================================= */
+const HEX = /^#[0-9a-f]{6}$/i;
+const AUTOS = ["", "branch", "event.title", "event.date", "event.time", "event.place"];
+const num = (v, lo, hi) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo; };
+const str = (v, n) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const discLabel = (k) => (DISC_KEYS.find((x) => x[0] === k) || [k, k])[1];
+/** Kotak isian satu ukuran -> daftar bersih (koordinat dijaga di dalam gambar) atau { error }. */
+export function cleanSlots(kind, slots) {
+  const S = SIZES[kind];
+  if (!S) return { error: "Ukuran tidak dikenal." };
+  const L = Array.isArray(slots) ? slots : [];
+  if (L.length > 20) return { error: "Maksimal 20 kotak per ukuran." };
+  const out = [];
+  for (const x of L) {
+    if (!x || typeof x !== "object") return { error: "Kotak isian tidak sah." };
+    const id = String(x.id || "").replace(/[^a-z0-9_-]/gi, "").slice(0, 20) || newId();
+    const box = () => { const w = num(x.w, 10, S.w), h = num(x.h, 10, S.h); return { x: num(x.x, 0, S.w - w), y: num(x.y, 0, S.h - h), w, h }; };
+    const font = (f) => FONTS.includes(f);
+    if (x.type === "text") {
+      if (!font(x.font)) return { error: "Font tidak ada di daftar." };
+      if (!HEX.test(x.color || "")) return { error: "Warna harus berupa kode #rrggbb." };
+      const size = num(x.size, 8, 600);
+      out.push({ id, type: "text", field: String(x.field || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 30) || id, label: str(x.label, 60) || "Teks", ...box(),
+        font: x.font, weight: [400, 600, 700, 800].includes(Number(x.weight)) ? Number(x.weight) : 700, size, minSize: num(x.minSize ?? size, 6, size), color: x.color.toLowerCase(),
+        align: ["left", "center", "right"].includes(x.align) ? x.align : "left", max: num(x.max ?? 60, 1, 200), required: !!x.required, def: str(x.def, 200), auto: AUTOS.includes(x.auto) ? x.auto : "" });
+    } else if (x.type === "speakers") {
+      if (out.some((o) => o.type === "speakers")) return { error: "Hanya satu area narasumber per ukuran." };
+      const max = Number(x.max);
+      if (!Number.isInteger(max) || max < 1 || max > 6) return { error: "Narasumber maksimal 1 sampai 6 orang." };
+      if (!font(x.font)) return { error: "Font tidak ada di daftar." };
+      if (!HEX.test(x.nameColor || "") || !HEX.test(x.titleColor || "")) return { error: "Warna harus berupa kode #rrggbb." };
+      out.push({ id, type: "speakers", ...box(), max, font: x.font, nameSize: num(x.nameSize, 8, 300), nameColor: x.nameColor.toLowerCase(), titleSize: num(x.titleSize, 6, 300), titleColor: x.titleColor.toLowerCase() });
+    } else if (x.type === "qr") {
+      if (out.some((o) => o.type === "qr")) return { error: "Hanya satu kotak QR per ukuran." };
+      if (!HEX.test(x.color || "")) return { error: "Warna harus berupa kode #rrggbb." };
+      const size = num(x.size, 40, Math.min(S.w, S.h));
+      out.push({ id, type: "qr", x: num(x.x, 0, S.w - size), y: num(x.y, 0, S.h - size), size, color: x.color.toLowerCase() });
+    } else return { error: "Jenis kotak tidak dikenal." };
+  }
+  return out;
+}
+/** Logo & kotak disclaimer satu ukuran; X-banner selalu memakai disclaimer Singkat. */
+function cleanLocked(kind, logo, disc) {
+  const S = SIZES[kind], l = logo && typeof logo === "object" ? logo : {}, d = disc && typeof disc === "object" ? disc : {};
+  const h = num(l.h ?? Math.round(S.w * 0.08), 20, Math.round(S.h / 3));
+  const key = kind === "xbanner" ? "singkat" : DISC_KEYS.some(([k]) => k === d.key) ? d.key : "umum";
+  if (d.color !== undefined && !HEX.test(d.color)) return { error: "Warna harus berupa kode #rrggbb." };
+  const w = num(d.w ?? S.w - 120, 50, S.w);
+  return { logo: { y: num(l.y ?? Math.round(S.h * 0.04), 0, S.h - h), h },
+    disc: { key, w, x: num(d.x ?? 60, 0, S.w - w), y: num(d.y ?? S.h - 120, 0, S.h - 10), size: num(d.size ?? 18, 6, 200), color: (d.color || "#333333").toLowerCase(), align: ["left", "center", "right"].includes(d.align) ? d.align : "center" } };
+}
+const sizeRow = (x) => ({ id: x.id, kind: x.kind, has_bg: x.has_bg, dark: x.dark, logo: JSON.parse(x.logo || "{}"), disc: JSON.parse(x.disc || "{}"), slots: JSON.parse(x.slots || "[]") });
+const KIND_ORDER = Object.keys(SIZES);
+/** Daftar template. Selain admin: hanya yang aktif, dan hanya ukuran yang lengkap (ada gambar latar, disclaimer-nya berisi). */
+async function listTemplates(env, me) {
+  const T = (await env.DB.prepare("SELECT * FROM templates ORDER BY name").all()).results.filter((t) => me.adm || t.status === "live");
+  const S = (await env.DB.prepare("SELECT * FROM sizes").all()).results.map((x) => ({ ...sizeRow(x), template_id: x.template_id }));
+  const filled = new Set((await getDisclaimers(env)).filter((d) => d.text).map((d) => d.key));
+  return T.map((t) => ({ id: t.id, name: t.name, status: t.status, updated_at: t.updated_at, updated_by: t.updated_by,
+    sizes: S.filter((s) => s.template_id === t.id && (me.adm || (s.has_bg && filled.has(s.disc.key)))).sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))
+      .map(({ template_id, ...s }) => s) })).filter((t) => me.adm || t.sizes.length);
+}
+async function saveTemplate(env, me, b) {
+  const name = str(b.name, 80), by = String(me.n || me.e).slice(0, 60);
+  if (!name) return { error: "Nama template belum diisi." };
+  if (!b.id) {
+    const id = newId();
+    await env.DB.prepare("INSERT INTO templates (id, name, status, created_at, updated_at, updated_by) VALUES (?, ?, 'draft', ?, ?, ?)").bind(id, name, iso(env), iso(env), by).run();
+    return { id };
+  }
+  const t = await env.DB.prepare("SELECT * FROM templates WHERE id = ?").bind(String(b.id)).first();
+  if (!t) return { error: "Template tidak ditemukan.", status: 404 };
+  const status = b.status === "live" ? "live" : b.status === "draft" ? "draft" : t.status;
+  if (status === "live") {
+    // tampil ke cabang hanya kalau setiap ukuran punya gambar latar dan disclaimer-nya berisi
+    const S = (await env.DB.prepare("SELECT * FROM sizes WHERE template_id = ?").bind(t.id).all()).results.map(sizeRow);
+    if (!S.length) return { error: "Tambahkan minimal satu ukuran." };
+    const noBg = S.find((s) => !s.has_bg);
+    if (noBg) return { error: `Gambar latar ${SIZES[noBg.kind].label} belum diunggah.` };
+    const D = new Map((await getDisclaimers(env)).map((d) => [d.key, d.text])), empty = S.find((s) => !D.get(s.disc.key));
+    if (empty) return { error: `Disclaimer ${discLabel(empty.disc.key)} belum diisi.` };
+  }
+  await env.DB.prepare("UPDATE templates SET name = ?, status = ?, updated_at = ?, updated_by = ? WHERE id = ?").bind(name, status, iso(env), by, t.id).run();
+  return { id: t.id, state: status };
+}
+async function saveSize(env, me, b) {
+  if (b.delete) {
+    const s = await env.DB.prepare("SELECT id FROM sizes WHERE id = ?").bind(String(b.id || "")).first();
+    if (!s) return { error: "Ukuran tidak ditemukan.", status: 404 };
+    await env.DB.prepare("DELETE FROM sizes WHERE id = ?").bind(s.id).run();
+    await env.BRAND_KV.delete("bg:" + s.id);
+    return { ok: true };
+  }
+  const prev = b.id ? await env.DB.prepare("SELECT * FROM sizes WHERE id = ?").bind(String(b.id)).first() : null;
+  if (b.id && !prev) return { error: "Ukuran tidak ditemukan.", status: 404 };
+  const tid = prev ? prev.template_id : String(b.template_id || "");
+  if (!await env.DB.prepare("SELECT id FROM templates WHERE id = ?").bind(tid).first()) return { error: "Template tidak ditemukan.", status: 404 };
+  // jenis ukuran tidak berubah setelah dibuat (gambar latarnya dibuat untuk ukuran itu)
+  const kind = prev ? prev.kind : String(b.kind || "");
+  if (!SIZES[kind]) return { error: "Ukuran tidak dikenal." };
+  if (await env.DB.prepare("SELECT id FROM sizes WHERE template_id = ? AND kind = ? AND id <> ?").bind(tid, kind, prev ? prev.id : "").first()) return { error: `Ukuran ${SIZES[kind].label} sudah ada di template ini.` };
+  const slots = cleanSlots(kind, b.slots);
+  if (slots.error) return slots;
+  const lk = cleanLocked(kind, b.logo, b.disc);
+  if (lk.error) return lk;
+  const id = prev ? prev.id : newId(), dark = b.dark ? 1 : 0;
+  if (prev) await env.DB.prepare("UPDATE sizes SET dark = ?, logo = ?, disc = ?, slots = ? WHERE id = ?").bind(dark, JSON.stringify(lk.logo), JSON.stringify(lk.disc), JSON.stringify(slots), id).run();
+  else await env.DB.prepare("INSERT INTO sizes (id, template_id, kind, sort, has_bg, dark, logo, disc, slots) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)")
+    .bind(id, tid, kind, KIND_ORDER.indexOf(kind), dark, JSON.stringify(lk.logo), JSON.stringify(lk.disc), JSON.stringify(slots)).run();
+  await env.DB.prepare("UPDATE templates SET updated_at = ?, updated_by = ? WHERE id = ?").bind(iso(env), String(me.n || me.e).slice(0, 60), tid).run();
+  return { id };
+}
+async function deleteTemplate(env, id) {
+  const t = await env.DB.prepare("SELECT id FROM templates WHERE id = ?").bind(String(id || "")).first();
+  if (!t) return { error: "Template tidak ditemukan.", status: 404 };
+  const S = (await env.DB.prepare("SELECT id FROM sizes WHERE template_id = ?").bind(t.id).all()).results;
+  await env.DB.batch([env.DB.prepare("DELETE FROM sizes WHERE template_id = ?").bind(t.id), env.DB.prepare("DELETE FROM templates WHERE id = ?").bind(t.id)]);
+  await Promise.all(S.map((s) => env.BRAND_KV.delete("bg:" + s.id)));
+  return { ok: true };
+}
+const BG_MAX = 15 * 1024 * 1024;
+/** PUT /bg/<id>: gambar latar dari Canva (PNG / JPG, maks. 15 MB) disimpan di KV. */
+async function putBg(env, id, request) {
+  const s = await env.DB.prepare("SELECT id FROM sizes WHERE id = ?").bind(id).first();
+  if (!s) return { error: "Ukuran tidak ditemukan.", status: 404 };
+  const buf = new Uint8Array(await request.arrayBuffer());
+  if (buf.length > BG_MAX) return { error: "Gambar terlalu besar (maks. 15 MB)." };
+  const png = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47, jpg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  if (!png && !jpg) return { error: "File harus PNG atau JPG." };
+  await env.BRAND_KV.put("bg:" + s.id, buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), { metadata: { type: png ? "image/png" : "image/jpeg" } });
+  await env.DB.prepare("UPDATE sizes SET has_bg = 1 WHERE id = ?").bind(s.id).run();
+  return { ok: true };
+}
+async function logUsage(env, me, b) {
+  const t = await env.DB.prepare("SELECT id FROM templates WHERE id = ?").bind(String(b.template_id || "")).first();
+  if (!t) return { error: "Template tidak ditemukan.", status: 404 };
+  if (!SIZES[b.kind]) return { error: "Ukuran tidak dikenal." };
+  await env.DB.prepare("INSERT INTO downloads (at, email, branch, template_id, kind, event_id) VALUES (?, ?, ?, ?, ?, ?)").bind(iso(env), me.e, me.c || "", t.id, b.kind, str(b.event_id, 40)).run();
+  return { ok: true };
+}
+/** Ringkasan unduhan 90 hari terakhir: per template & per cabang. */
+async function usage(env) {
+  const since = new Date(now(env) - 90 * 864e5).toISOString();
+  const byTemplate = (await env.DB.prepare("SELECT COALESCE(t.name, '(template terhapus)') AS name, COUNT(*) AS n FROM downloads d LEFT JOIN templates t ON t.id = d.template_id WHERE d.at >= ? GROUP BY d.template_id ORDER BY n DESC, name").bind(since).all()).results;
+  const byBranch = (await env.DB.prepare("SELECT COALESCE(NULLIF(branch, ''), 'Tanpa cabang') AS branch, COUNT(*) AS n FROM downloads WHERE at >= ? GROUP BY 1 ORDER BY n DESC, branch").bind(since).all()).results;
+  return { byTemplate: byTemplate.map(({ name, n }) => ({ name, n })), byBranch: byBranch.map(({ branch, n }) => ({ branch, n })) };
+}
+
 /** Halaman: data awal (window.BK) + tema & bahasa dari Tool Hub. */
 async function page(env, me, org) {
   const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, head: !!(roleIn(org, me.j) || {}).head, branch: me.c || "" },
@@ -226,11 +376,24 @@ export default {
           const history = me.adm ? (await env.DB.prepare("SELECT key, text, at, by_name FROM disc_history ORDER BY id DESC LIMIT 200").all()).results : [];
           return json({ list, history, push: (await cfgGet(env, "push")) || null });
         }
+        if (path === "/api/templates") return json({ templates: await listTemplates(env, me) });
+        if (path === "/api/usage") return admin() || json(await usage(env));
+        const bg = /^\/bg\/([a-z0-9]{6,20})$/.exec(path);
+        if (bg) {
+          const { value, metadata } = await env.BRAND_KV.getWithMetadata("bg:" + bg[1], "arrayBuffer");
+          if (!value) return new Response("Tidak ditemukan", { status: 404 });
+          return new Response(value, { headers: { "content-type": (metadata && metadata.type) || "image/png", "cache-control": "private, max-age=300" } });
+        }
       }
+      if (request.method === "PUT" && path.startsWith("/bg/")) return admin() || out(await putBg(env, path.slice(4), request));
       if (request.method === "POST") {
         const b = await request.json().catch(() => ({}));
         if (path === "/api/disclaimers") return admin() || out(await saveDisclaimer(env, me, b));
         if (path === "/api/disclaimers/push") return admin() || json({ push: await pushDisclaimers(env) });
+        if (path === "/api/templates") return admin() || out(await saveTemplate(env, me, b));
+        if (path === "/api/templates/delete") return admin() || out(await deleteTemplate(env, b.id));
+        if (path === "/api/sizes") return admin() || out(await saveSize(env, me, b));
+        if (path === "/api/usage") return out(await logUsage(env, me, b));
       }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);
