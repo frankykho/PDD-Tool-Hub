@@ -122,6 +122,171 @@ async function syncFromHub(env, b) {
   return { ok: true, n: L.length };
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// jam sekarang: env.NOW_MS hanya dipakai tes
+const now = (env) => Number(env.NOW_MS) || Date.now();
+const iso = (env) => new Date(now(env)).toISOString();
+
+/* =========================================================
+   PESERTA: ISIAN, HITUNGAN
+   ========================================================= */
+export const STATUSES = { terdaftar: "Terdaftar", dikonfirmasi: "Dikonfirmasi", hadir: "Hadir", batal: "Batal", tidak_bisa: "Tidak bisa dihubungi" };
+/** Nomor HP Indonesia -> "628…" (0812…, +62 812…, 812…); "" kalau bukan nomor HP. */
+export function normPhone(s) {
+  let d = String(s ?? "").replace(/\D/g, "");
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  else if (d.startsWith("8")) d = "62" + d;
+  return /^628\d{7,11}$/.test(d) ? d : "";
+}
+/** Isian daftar -> { name, phone, email, is_client, client_code } atau { error }. consent: false = tambah manual oleh Sales (tanpa centang, email boleh kosong). */
+export function cleanReg(b, { consent = true } = {}) {
+  const s = (v, n) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const name = s(b.name, 80), phone = normPhone(b.phone), email = lower(s(b.email, 120)), ic = String(b.is_client ?? "");
+  if (!name) return { error: "Nama belum diisi." };
+  if (!phone) return { error: "Nomor HP (WhatsApp) belum benar." };
+  if (consent ? !EMAIL.test(email) : email && !EMAIL.test(email)) return { error: "Email belum benar." };
+  if (ic !== "1" && ic !== "0") { if (consent) return { error: "Pilih apakah sudah menjadi nasabah KISI." }; }
+  const is_client = ic === "1" ? 1 : 0, client_code = is_client ? s(b.client_code, 30) : "";
+  if (is_client && !client_code) return { error: "Kode nasabah belum diisi." };
+  if (consent && !b.consent) return { error: "Persetujuan data pribadi wajib dicentang." };
+  return { name, phone, email, is_client, client_code };
+}
+/** Hitung ulang angka event dari tabel peserta (disimpan di event: tetap ada setelah data pribadi dihapus). */
+async function recount(env, id) {
+  const c = await env.DB.prepare("SELECT COUNT(CASE WHEN status <> 'batal' THEN 1 END) AS reg, COUNT(CASE WHEN status IN ('dikonfirmasi', 'hadir') AND walkin = 0 THEN 1 END) AS conf, "
+    + "COUNT(CASE WHEN status = 'hadir' THEN 1 END) AS hadir, COUNT(CASE WHEN walkin = 1 AND status <> 'batal' THEN 1 END) AS walkin FROM people WHERE event_id = ?").bind(id).first();
+  await env.DB.prepare("UPDATE events SET n_reg = ?, n_conf = ?, n_hadir = ?, n_walkin = ? WHERE id = ?").bind(c.reg, c.conf, c.hadir, c.walkin, id).run();
+  return env.DB.prepare("SELECT * FROM events WHERE id = ?").bind(id).first();
+}
+/** Kirim angka ke kegiatan Content Planner yang tersambung (diisi di tahap sambungan Planner). */
+async function syncCounts(env, ev) { }
+/** Setelah peserta berubah: hitung ulang, lalu kirim ke Planner di belakang layar (Planner mati tidak menghalangi pendaftaran). */
+async function changed(env, ctx, id) {
+  const ev = await recount(env, id);
+  if (ev) ctx.waitUntil(syncCounts(env, ev).catch((e) => console.log("sinkron angka ke Planner gagal:", e.message)));
+  return ev;
+}
+
+/* =========================================================
+   HALAMAN PUBLIK (tanpa login): daftar /d/<kode>
+   ========================================================= */
+const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+/** "2026-11-03" -> "Selasa, 3 November 2026". */
+export const tanggal = (s) => { const d = new Date(String(s) + "T00:00:00Z"); return isNaN(d) ? String(s || "") : `${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BULAN[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+/** "09:00", "11:00" -> "09.00–11.00 WIB". */
+export const jam = (ev) => [ev.time_start, ev.time_end].filter(Boolean).map((t) => t.replace(":", ".")).join("–") + (ev.time_start ? " WIB" : "");
+/** Waktu WIB di tanggal acara -> milidetik. */
+const wibMs = (date, t) => Date.parse(`${date}T${t || "00:00"}:00+07:00`);
+const CONSENT_DEFAULT = { ver: 1, text: "Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara untuk menghubungi saya terkait acara ini. Data disimpan paling lama 12 bulan setelah acara." };
+export const getConsent = async (env) => { const c = await cfgGet(env, "consent"); return c && c.text ? c : CONSENT_DEFAULT; };
+
+const te = new TextEncoder();
+const hmac = async (env, s) => btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", await crypto.subtle.importKey("raw", te.encode(env.SSO_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), te.encode("form:" + s)))))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/** Cap waktu form dibuka (ditandatangani): kiriman yang terlalu cepat (bot) ditolak. */
+export const formStamp = async (env) => { const t = String(now(env)); return t + "." + await hmac(env, t); };
+const MIN_FILL = 3000, MAX_FILL = 24 * 3600e3;
+async function stampOk(env, s) {
+  const [t, sig] = String(s || "").split(".");
+  if (!t || !sig || sig !== await hmac(env, t)) return false;
+  const age = now(env) - Number(t);
+  return age >= MIN_FILL && age <= MAX_FILL;
+}
+// batas kiriman form publik per IP per jam
+const HITS_PER_HOUR = 10;
+async function hit(env, request) {
+  const ip = String(request.headers.get("cf-connecting-ip") || "?").slice(0, 64), hour = iso(env).slice(0, 13);
+  const prev = new Date(now(env) - 3 * 3600e3).toISOString().slice(0, 13);
+  await env.DB.batch([env.DB.prepare("DELETE FROM hits WHERE hour < ?").bind(prev),
+    env.DB.prepare("INSERT INTO hits (ip, hour, n) VALUES (?, ?, 1) ON CONFLICT(ip, hour) DO UPDATE SET n = n + 1").bind(ip, hour)]);
+  const r = await env.DB.prepare("SELECT n FROM hits WHERE ip = ? AND hour = ?").bind(ip, hour).first();
+  return r.n <= HITS_PER_HOUR;
+}
+/** Kenapa pendaftaran tidak bisa (null = bisa). phone = nomor yang sudah terdaftar boleh memperbarui data walau kuota penuh. */
+async function regBlocked(env, ev, phone = "") {
+  if (ev.status === "batal") return "Acara ini dibatalkan.";
+  if (!ev.open || ev.purged || now(env) > wibMs(ev.date, ev.time_end || "23:59")) return "Pendaftaran sudah ditutup.";
+  if (ev.quota > 0) {
+    const r = await env.DB.prepare("SELECT COUNT(CASE WHEN status <> 'batal' THEN 1 END) AS n, COUNT(CASE WHEN phone = ? THEN 1 END) AS me FROM people WHERE event_id = ?").bind(phone, ev.id).first();
+    if (!r.me && r.n >= ev.quota) return "Kuota pendaftaran sudah penuh.";
+  }
+  return null;
+}
+
+const PUB_CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#17231B;background:#F1F7F3}
+main{max-width:560px;margin:0 auto;padding:20px 16px 48px}.logo{display:block;height:40px;width:auto;margin:4px 0 20px}
+.card{background:#fff;border:1px solid #DCE7E0;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(16,32,22,.06)}
+h1{font-size:22px;line-height:1.3;margin:0 0 10px}.meta{margin:0 0 4px;color:#3C4A41}.meta b{color:#17231B}.descr{margin:12px 0 0;color:#3C4A41;white-space:pre-line}
+form{margin-top:20px;display:grid;gap:14px}label{display:grid;gap:6px;font-weight:600;font-size:15px}
+input[type=text],input[type=tel],input[type=email]{font:inherit;width:100%;min-height:48px;padding:10px 12px;border:1px solid #B9C9BE;border-radius:10px;background:#fff;color:inherit}
+input:focus{outline:2px solid #0B7A3B;outline-offset:1px}fieldset{border:0;margin:0;padding:0;display:grid;gap:8px}legend{font-weight:600;font-size:15px;margin-bottom:6px}
+.opt{display:flex;align-items:center;gap:10px;font-weight:500;min-height:44px}.opt input{width:20px;height:20px;accent-color:#0B7A3B}
+.consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:#3C4A41}.consent input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:#0B7A3B}
+button{font:inherit;font-weight:600;min-height:48px;border:0;border-radius:10px;background:#0B7A3B;color:#fff;cursor:pointer}button:hover{background:#09652F}
+.err{background:#FDECEC;color:#8A1C1C;border-radius:10px;padding:10px 12px;margin:16px 0 0}.note{background:#EAF5EE;border-radius:10px;padding:12px;margin:16px 0 0}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}a{color:#0B7A3B;overflow-wrap:anywhere}small{color:#5E6A61;font-weight:400}`;
+function pubHtml(title, body, status = 200) {
+  return new Response(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">`
+    + `<title>${esc(title)}</title><style>${PUB_CSS}</style></head><body><main><img class="logo" src="/brand/ikisi-color.png" alt="iKISI — Elevate Your Investing">${body}</main></body></html>`,
+  { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
+}
+const evHead = (ev) => `<h1>${esc(ev.title)}</h1><p class="meta"><b>${esc(tanggal(ev.date))}</b> · ${esc(jam(ev))}</p>`
+  + `<p class="meta">${ev.mode === "online" ? "Online" : esc(ev.place)}</p>${ev.descr ? `<p class="descr">${esc(ev.descr)}</p>` : ""}`;
+/** Isian daftar (juga dipakai form walk-in di halaman absen). v = isian sebelumnya. */
+async function regFields(env, v = {}) {
+  const c = await getConsent(env), ck = (x) => (String(v.is_client ?? "") === x ? " checked" : "");
+  return `<label>Nama lengkap<input type="text" name="name" required maxlength="80" autocomplete="name" value="${esc(v.name)}"></label>`
+    + `<label>Nomor HP (WhatsApp)<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" placeholder="08xx" value="${esc(v.phone)}"></label>`
+    + `<label>Email<input type="email" name="email" required maxlength="120" autocomplete="email" value="${esc(v.email)}"></label>`
+    + `<fieldset><legend>Sudah menjadi nasabah KISI?</legend><label class="opt"><input type="radio" name="is_client" value="1" required${ck("1")}> Ya, sudah</label>`
+    + `<label class="opt"><input type="radio" name="is_client" value="0"${ck("0")}> Belum</label></fieldset>`
+    + `<label id="cc"${String(v.is_client) === "1" ? "" : " hidden"}>Kode nasabah<input type="text" name="client_code" maxlength="30" value="${esc(v.client_code)}"></label>`
+    + `<label class="consent"><input type="checkbox" name="consent" value="1" required${v.consent ? " checked" : ""}><span>${esc(c.text)}</span></label>`
+    + `<div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>`
+    + `<input type="hidden" name="ts" value="${esc(await formStamp(env))}">`
+    // kode nasabah hanya tampil (dan wajib) kalau "Ya"
+    + `<script>(function(){var f=document.currentScript.parentNode,c=document.getElementById("cc"),i=c.querySelector("input");function u(){var y=f.querySelector("input[name=is_client]:checked");y=y&&y.value==="1";c.hidden=!y;i.required=y}f.addEventListener("change",u);u()})()</script>`;
+}
+async function regPage(env, ev, { v = {}, error = "", status = 200 } = {}) {
+  const block = await regBlocked(env, ev, normPhone(v.phone));
+  if (block) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="note">${esc(block)}</p></div>`, status);
+  return pubHtml(ev.title, `<div class="card">${evHead(ev)}${error ? `<p class="err" role="alert">${esc(error)}</p>` : ""}`
+    + `<form method="post">${await regFields(env, v)}<button type="submit">Daftar</button></form></div>`, status);
+}
+const thanks = (ev) => pubHtml(ev.title, `<div class="card"><h1>Terima kasih, pendaftaran tercatat.</h1><p class="meta"><b>${esc(ev.title)}</b></p>`
+  + `<p class="meta">${esc(tanggal(ev.date))} · ${esc(jam(ev))}</p><p class="meta">${ev.mode === "online" ? "Online" : esc(ev.place)}</p>`
+  + (ev.mode === "online" && ev.online_url ? `<p class="note">Link acara: <a href="${esc(ev.online_url)}" rel="noopener">${esc(ev.online_url)}</a></p>` : "")
+  + `<p class="descr">Tim kami akan menghubungi Anda lewat WhatsApp untuk konfirmasi.</p></div>`);
+const notFound = () => pubHtml("Acara tidak ditemukan", `<div class="card"><h1>Acara tidak ditemukan.</h1><p class="descr">Periksa lagi link atau QR yang Anda pindai.</p></div>`, 404);
+const formOf = async (request) => { const f = await request.formData().catch(() => null); return f ? Object.fromEntries([...f].map(([k, v]) => [k, String(v)])) : {}; };
+
+/** Simpan / perbarui peserta (satu nomor HP satu baris per event). Status yang berubah tercatat di riwayat. */
+async function upsertPerson(env, ev, d, { status, src, by, consentVer = null, walkin = 0 }) {
+  const prev = await env.DB.prepare("SELECT id, status FROM people WHERE event_id = ? AND phone = ?").bind(ev.id, d.phone).first(), at = iso(env);
+  const id = prev ? prev.id : crypto.randomUUID(), to = status || (prev && prev.status !== "batal" ? prev.status : "terdaftar");
+  const Q = [prev
+    ? env.DB.prepare("UPDATE people SET name = ?, email = COALESCE(NULLIF(?, ''), email), is_client = ?, client_code = ?, status = ?, consent_at = COALESCE(?, consent_at), consent_ver = COALESCE(?, consent_ver), updated_at = ?, updated_by = ? WHERE id = ?")
+      .bind(d.name, d.email, d.is_client, d.client_code, to, consentVer == null ? null : at, consentVer, at, by, id)
+    : env.DB.prepare("INSERT INTO people (id, event_id, name, phone, email, is_client, client_code, status, walkin, src, consent_at, consent_ver, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(id, ev.id, d.name, d.phone, d.email, d.is_client, d.client_code, to, walkin, src, consentVer == null ? null : at, consentVer ?? 0, at, at, by)];
+  if (!prev || prev.status !== to) Q.push(env.DB.prepare("INSERT INTO history (person_id, at, by_name, from_status, to_status) VALUES (?, ?, ?, ?, ?)").bind(id, at, by, prev ? prev.status : "", to));
+  await env.DB.batch(Q);
+  return id;
+}
+async function register(request, env, ctx, ev) {
+  if (!(await hit(env, request))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
+  const v = await formOf(request);
+  if (v.website) return thanks(ev);   // kolom jebakan terisi: bot
+  if (!(await stampOk(env, v.ts))) return regPage(env, ev, { v, error: "Coba kirim lagi.", status: 400 });
+  const d = cleanReg(v);
+  if (d.error) return regPage(env, ev, { v, error: d.error, status: 400 });
+  if (await regBlocked(env, ev, d.phone)) return regPage(env, ev, { v });
+  const c = await getConsent(env);
+  await upsertPerson(env, ev, d, { src: "form", by: "Daftar mandiri", consentVer: c.ver });
+  await changed(env, ctx, ev.id);
+  return thanks(ev);
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -129,6 +294,14 @@ export default {
     if (path === "/__hub/users") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       return json(await syncFromHub(env, await request.json().catch(() => ({}))));
+    }
+    // halaman publik: tanpa login, tanpa bingkai Tool Hub
+    const pm = /^\/d\/([a-z0-9]{6,20})$/.exec(path);
+    if (pm) {
+      await ensure(env);
+      const ev = await env.DB.prepare("SELECT * FROM events WHERE code = ?").bind(pm[1]).first();
+      if (!ev) return notFound();
+      return request.method === "POST" ? register(request, env, ctx, ev) : regPage(env, ev);
     }
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();

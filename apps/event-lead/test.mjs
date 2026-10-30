@@ -73,4 +73,95 @@ assert.deepEqual(await W.getBranches(env), BRANCHES);
 assert.deepEqual((await W.getOrg(env)).roles.length, ORG.roles.length);
 assert.deepEqual(JSON.parse(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v)[0], { email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" });
 
+/* ---------- pendaftaran publik ---------- */
+const { normPhone, cleanReg, formStamp } = W;
+assert.equal(normPhone("0812-3456-789"), "628123456789");
+assert.equal(normPhone("+62 812 3456 789"), "628123456789");
+assert.equal(normPhone("8123456789"), "628123456789");
+assert.equal(normPhone("62 812 3456 789"), "628123456789");
+assert.equal(normPhone("12345"), "");
+assert.equal(normPhone("0212345678"), "", "nomor rumah (bukan HP) ditolak");
+const REG = { name: "Budi Santoso", phone: "0812-3456-789", email: "budi@mail.test", is_client: "0", consent: "1" };
+assert.deepEqual(cleanReg(REG), { name: "Budi Santoso", phone: "628123456789", email: "budi@mail.test", is_client: 0, client_code: "" });
+assert.equal(cleanReg({ ...REG, consent: "" }).error, "Persetujuan data pribadi wajib dicentang.");
+assert.equal(cleanReg({ ...REG, is_client: "1" }).error, "Kode nasabah belum diisi.");
+assert.equal(cleanReg({ ...REG, is_client: "1", client_code: " AB123 " }).client_code, "AB123");
+assert.equal(cleanReg({ ...REG, is_client: "0", client_code: "AB123" }).client_code, "", "kode nasabah diabaikan kalau belum nasabah");
+assert.equal(cleanReg({ ...REG, phone: "123" }).error, "Nomor HP (WhatsApp) belum benar.");
+assert.equal(cleanReg({ ...REG, email: "budi" }).error, "Email belum benar.");
+assert.equal(cleanReg({ ...REG, is_client: "" }).error, "Pilih apakah sudah menjadi nasabah KISI.");
+assert.equal(cleanReg({ ...REG, name: " " }).error, "Nama belum diisi.");
+assert.equal(cleanReg({ ...REG, consent: "" }, { consent: false }).error, undefined, "tambah manual oleh Sales tanpa centang persetujuan");
+
+const T0 = Date.parse("2026-10-30T03:00:00Z");
+env.NOW_MS = T0;
+const addEvent = (o) => { const e = { id: "ev" + Math.random().toString(36).slice(2, 8), code: "c" + Math.random().toString(36).slice(2, 11), acode: "a" + Math.random().toString(36).slice(2, 11), title: "Seminar Reksa Dana", mode: "tatap",
+  date: "2026-11-03", time_start: "09:00", time_end: "11:00", place: "Hotel Majapahit", online_url: "", branch: "Cabang Surabaya", region: "Jawa Timur", descr: "Belajar reksa dana untuk pemula.", quota: null, open: 1,
+  wa_tpl: "", status: "aktif", creator_email: "sari@acme.test", creator_name: "Sari", creator_job: "sales", creator_team: "rm", created_at: "", updated_at: "", ...o };
+  env.DB.db.prepare(`INSERT INTO events (${Object.keys(e).join(",")}) VALUES (${Object.keys(e).map(() => "?").join(",")})`).run(...Object.values(e)); return e; };
+const people = (id) => env.DB.db.prepare("SELECT * FROM people WHERE event_id = ? ORDER BY created_at").all(id);
+let ipN = 0;
+// kirim form publik seperti browser (x-www-form-urlencoded); stamp dibuat 5 detik sebelum dikirim
+async function submit(path, fields, { ip = "10.0.0." + ++ipN, age = 5000 } = {}) {
+  env.NOW_MS = T0 - age; const ts = await formStamp(env); env.NOW_MS = T0;
+  const r = await worker.fetch(new Request(BASE + path, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": ip }, body: new URLSearchParams({ ts, website: "", ...fields }) }), env, { waitUntil() { } });
+  return { status: r.status, html: await r.text() };
+}
+const page = async (path) => { const r = await raw(path); return { status: r.status, html: await r.text() }; };
+
+const E1 = addEvent({});
+let p = await page("/d/" + E1.code);
+assert.equal(p.status, 200);
+assert.match(p.html, /Seminar Reksa Dana/); assert.match(p.html, /Selasa, 3 November 2026/); assert.match(p.html, /09\.00–11\.00 WIB/); assert.match(p.html, /Hotel Majapahit/);
+assert.match(p.html, /\/brand\/ikisi-color\.png/, "logo iKISI");
+assert.match(p.html, /name="website"/, "kolom jebakan");
+assert.match(p.html, /Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara/, "teks persetujuan bawaan");
+for (const f of ["name", "phone", "email", "is_client", "client_code", "consent"]) assert.match(p.html, new RegExp(`name="${f}"`), "isian " + f);
+assert.equal((await page("/d/tidakada123")).status, 404);
+assert.match((await page("/d/tidakada123")).html, /Acara tidak ditemukan\./);
+
+p = await submit("/d/" + E1.code, REG);
+assert.equal(p.status, 200); assert.match(p.html, /Terima kasih/);
+assert.equal(people(E1.id).length, 1);
+let row = people(E1.id)[0];
+assert.equal(row.phone, "628123456789"); assert.equal(row.status, "terdaftar"); assert.equal(row.src, "form"); assert.equal(row.consent_ver, 1); assert.ok(row.consent_at);
+assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(E1.id).n_reg, 1, "angka pendaftar ikut dihitung");
+// nomor sama, ditulis lain -> data lama diperbarui, bukan peserta ganda
+p = await submit("/d/" + E1.code, { ...REG, phone: "+62 812 3456 789", name: "Budi S." });
+assert.equal(people(E1.id).length, 1); assert.equal(people(E1.id)[0].name, "Budi S.");
+// kolom jebakan terisi -> tampak berhasil, tapi tidak disimpan
+p = await submit("/d/" + E1.code, { ...REG, phone: "081300000001", website: "spam.test" });
+assert.equal(p.status, 200); assert.match(p.html, /Terima kasih/); assert.equal(people(E1.id).length, 1);
+// terlalu cepat setelah halaman dibuka
+p = await submit("/d/" + E1.code, { ...REG, phone: "081300000002" }, { age: 1000 });
+assert.equal(p.status, 400); assert.match(p.html, /Coba kirim lagi\./); assert.equal(people(E1.id).length, 1);
+// isian salah -> form tampil lagi dengan pesannya, isian tetap
+p = await submit("/d/" + E1.code, { ...REG, phone: "081300000003", consent: "" });
+assert.equal(p.status, 400); assert.match(p.html, /Persetujuan data pribadi wajib dicentang\./); assert.match(p.html, /value="Budi Santoso"/);
+// kuota penuh
+const E2 = addEvent({ quota: 1 });
+await submit("/d/" + E2.code, REG);
+p = await submit("/d/" + E2.code, { ...REG, phone: "081300000004" });
+assert.match(p.html, /Kuota pendaftaran sudah penuh\./); assert.equal(people(E2.id).length, 1);
+assert.match((await page("/d/" + E2.code)).html, /Kuota pendaftaran sudah penuh\./);
+assert.doesNotMatch((await page("/d/" + E2.code)).html, /name="phone"/, "form tidak tampil saat kuota penuh");
+p = await submit("/d/" + E2.code, { ...REG, name: "Budi Baru" });
+assert.equal(people(E2.id)[0].name, "Budi Baru", "peserta yang sudah terdaftar tetap bisa memperbarui datanya");
+// ditutup / dibatalkan / sudah lewat
+const E3 = addEvent({ open: 0 }), E4 = addEvent({ status: "batal" }), E5 = addEvent({ date: "2026-10-29" });
+for (const [E, msg] of [[E3, /Pendaftaran sudah ditutup\./], [E4, /Acara ini dibatalkan\./], [E5, /Pendaftaran sudah ditutup\./]]) {
+  assert.match((await page("/d/" + E.code)).html, msg);
+  p = await submit("/d/" + E.code, REG); assert.match(p.html, msg); assert.equal(people(E.id).length, 0);
+}
+// acara online: link hanya tampil setelah mendaftar
+const E6 = addEvent({ mode: "online", place: "", online_url: "https://zoom.test/j/123" });
+assert.doesNotMatch((await page("/d/" + E6.code)).html, /zoom\.test/);
+assert.match((await page("/d/" + E6.code)).html, /Online/);
+p = await submit("/d/" + E6.code, REG);
+assert.match(p.html, /https:\/\/zoom\.test\/j\/123/);
+// batas kiriman per IP per jam
+for (let i = 0; i < 10; i++) assert.notEqual((await submit("/d/" + E1.code, { ...REG, website: "x" }, { ip: "9.9.9.9" })).status, 429);
+p = await submit("/d/" + E1.code, REG, { ip: "9.9.9.9" });
+assert.equal(p.status, 429); assert.match(p.html, /Terlalu banyak pendaftaran dari jaringan ini\. Coba lagi nanti\./);
+
 console.log("semua cek lolos");
