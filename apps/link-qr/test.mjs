@@ -32,7 +32,8 @@ const PROFILE = JSON.stringify({ urls: { hub: HUB, go: BASE }, contact: { websit
 const plannerEnv = { SSO_SECRET: SECRET, DB: d1(), HUB_URL: HUB, PROFILE };
 const plannerCalls = [];
 const PLANNER = { fetch: async (u, init = {}) => { plannerCalls.push({ url: String(u), key: (init.headers || {})["x-hub-key"] }); return planner.fetch(new Request(u, init), plannerEnv, { waitUntil() {} }); } };
-const env = { SSO_SECRET: SECRET, DB: d1(), HUB_URL: HUB, PROFILE, PLANNER, NOW_MS: String(NOW) };
+// satu database dengan Content Planner, seperti di produksi (planner-db)
+const env = { SSO_SECRET: SECRET, DB: plannerEnv.DB, HUB_URL: HUB, PROFILE, PLANNER, NOW_MS: String(NOW) };
 
 // kegiatan di Content Planner: Program P, kegiatan edukasi K (bagian dari P), kegiatan cabang C
 await planner.fetch(new Request("https://content-planner/__hub/members", { headers: { "x-hub-key": SECRET } }), plannerEnv, { waitUntil() {} });
@@ -57,6 +58,12 @@ for (const p of ["/abcdef", "/23456z"]) assert.ok(CODE_RE.test(p), p);
 for (const p of ["/abc", "/abcde1", "/abcdel", "/logout", "/LOGOUT", "/abcdefg", "/abcdef//"]) assert.ok(!CODE_RE.test(p), p);
 for (const p of ["/ABCDEF", "/Abcdef", "/abcdef/"]) assert.ok(CODE_RE.test(p), p + " (diketik dari poster: huruf besar / garis miring di akhir)");
 
+/* ---------- tabel: numpang di planner-db, jadi semua berawalan lq_ ---------- */
+await worker.fetch(new Request(BASE + "/qqqqqq"), env, { waitUntil() {} });
+const cols = (t) => env.DB.db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+assert.ok(["lq_cfg", "lq_links", "lq_daily"].every((t) => cols(t).length), "tabel Studio dibuat dengan awalan lq_");
+assert.ok(cols("links").includes("clicks") && !cols("links").includes("item_kind"), "tabel links milik Content Planner tidak tersentuh");
+
 /* ---------- sinkron Tool Hub ---------- */
 assert.equal((await call("/__hub/users", { body: { users: [] } })).status, 403, "tanpa kunci hub ditolak");
 let r = await call("/__hub/users", { body: { users: [{ email: "Sari@acme.test", name: "Sari", job: "partnership" }], branches: [], org: DEFAULT_ORG }, headers: { "x-hub-key": SECRET } });
@@ -65,19 +72,19 @@ assert.equal(r.status, 200); assert.equal(r.j.n, 1);
 /* ---------- pengalih publik ---------- */
 // link dibuat langsung di D1 (pembuatan lewat API dicek di bawah)
 await go("/abcdef");   // memicu pembuatan tabel
-const mk = (code, item, target, active = 1) => env.DB.db.prepare("INSERT INTO links (code, item_id, item_kind, item_title, target, channel, active, created_email, created_at) VALUES (?, ?, 'edukasi', 'x', ?, 'poster', ?, 'sari@acme.test', '2026-10-30')").run(code, item, target, active);
+const mk = (code, item, target, active = 1) => env.DB.db.prepare("INSERT INTO lq_links (code, item_id, item_kind, item_title, target, channel, active, created_email, created_at) VALUES (?, ?, 'edukasi', 'x', ?, 'poster', ?, 'sari@acme.test', '2026-10-30')").run(code, item, target, active);
 mk("abcdef", "kK", "https://tujuan.test/a"); mk("zzzzzz", "kK", "https://tujuan.test/b", 0);
 let res = await go("/abcdef?to=https://jahat.test");
 assert.equal(res.status, 302); assert.equal(res.headers.get("location"), "https://tujuan.test/a", "tujuan dari D1, bukan dari query");
 assert.equal(res.headers.get("cache-control"), "no-store"); assert.equal(res.headers.get("x-robots-tag"), "noindex");
 await go("/abcdef", "WhatsApp/2.23"); await go("/abcdef", "facebookexternalhit/1.1");
 assert.equal((await go("/abcdef", "Mozilla/5.0", "HEAD")).status, 302);
-assert.equal(sql("SELECT clicks FROM links WHERE code='abcdef'").clicks, 1, "bot, pratinjau & HEAD tidak dihitung");
-assert.equal(sql("SELECT n FROM daily WHERE code='abcdef' AND day=?", wibDay(NOW)).n, 1, "klik harian (WIB)");
+assert.equal(sql("SELECT clicks FROM lq_links WHERE code='abcdef'").clicks, 1, "bot, pratinjau & HEAD tidak dihitung");
+assert.equal(sql("SELECT n FROM lq_daily WHERE code='abcdef' AND day=?", wibDay(NOW)).n, 1, "klik harian (WIB)");
 assert.deepEqual(plannerCalls.at(-1), { url: "https://content-planner/__hub/link-clicks", key: SECRET });
 assert.equal(qrN("kK"), 1, "total klik masuk ke Content Planner");
 res = await go("/zzzzzz");
-assert.equal(res.status, 410, "nonaktif"); assert.equal(sql("SELECT clicks FROM links WHERE code='zzzzzz'").clicks, 0, "klik link nonaktif tidak dihitung");
+assert.equal(res.status, 410, "nonaktif"); assert.equal(sql("SELECT clicks FROM lq_links WHERE code='zzzzzz'").clicks, 0, "klik link nonaktif tidak dihitung");
 const off = await res.text();
 assert.ok(off.includes("Link ini sudah tidak aktif") && off.includes('href="https://kisi.test"') && off.includes("/brand/kisi-color.png"));
 res = await go("/qqqqqq");
@@ -88,15 +95,15 @@ assert.equal((await go("/Qqqqqq")).status, 404, "kode tidak ada: halaman pemberi
 // Content Planner mati: tetap dialihkan, klik tetap tercatat di Studio
 const envDown = { ...env, PLANNER: { fetch: () => Promise.reject(new Error("mati")) } };
 res = await go("/abcdef", "Mozilla/5.0", "GET", envDown);
-assert.equal(res.status, 302, "Planner mati: tetap dialihkan"); assert.equal(sql("SELECT clicks FROM links WHERE code='abcdef'").clicks, 2);
+assert.equal(res.status, 302, "Planner mati: tetap dialihkan"); assert.equal(sql("SELECT clicks FROM lq_links WHERE code='abcdef'").clicks, 2);
 // kiriman berikutnya membawa total terbaru
 await go("/abcdef"); assert.equal(qrN("kK"), 3);
 // kegiatan dihapus di Content Planner: link tetap jalan, ditandai
 plannerEnv.DB.db.prepare("DELETE FROM items WHERE id = 'kK'").run();
 assert.equal((await go("/abcdef")).status, 302, "kegiatan dihapus: link tetap jalan");
-assert.equal(sql("SELECT gone FROM links WHERE code='abcdef'").gone, 1, "ditandai kegiatan sudah dihapus");
+assert.equal(sql("SELECT gone FROM lq_links WHERE code='abcdef'").gone, 1, "ditandai kegiatan sudah dihapus");
 ins("kK", "edukasi", "Webinar Obligasi", "2026-10-20", "pP");
-env.DB.db.prepare("UPDATE links SET gone = 0").run();
+env.DB.db.prepare("UPDATE lq_links SET gone = 0").run();
 
 /* ---------- login ---------- */
 res = await raw("/");
@@ -139,7 +146,7 @@ assert.equal(plain.target, "https://x.test/q", "UTM bisa dimatikan");
 assert.equal(new URL((await api(SARI, "/api/links", { item_id: "pP", target: "https://x.test", channel: "iklan" })).j.target).searchParams.get("utm_medium"), "ads");
 assert.equal((await api(REG, "/api/links", { item_id: "pP", target: "https://x.test", channel: "poster" })).status, 400, "regional tidak bisa menempel ke Program lewat API");
 const rc = (await api(REG, "/api/links", { item_id: "cC", target: "https://x.test/c", channel: "whatsapp" })).j;
-assert.equal(sql("SELECT item_kind FROM links WHERE code = ?", rc.code).item_kind, "cabang");
+assert.equal(sql("SELECT item_kind FROM lq_links WHERE code = ?", rc.code).item_kind, "cabang");
 assert.equal((await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test", channel: "poster" }, { origin: "https://jahat.test" })).status, 403, "CSRF");
 
 // daftar
@@ -177,7 +184,7 @@ assert.equal((await go("/" + c.code)).headers.get("location"), c.target, "aktif 
 assert.equal((await api(ADMIN, "/api/links/active", { code: plain.code, active: false })).status, 200, "admin boleh");
 assert.equal((await api(SARI, "/api/links/active", { code: "qqqqqq", active: false })).status, 404);
 assert.equal((await api(SARI, "/api/links", { code: c.code, target: "https://jahat.test" })).status, 400, "tidak ada cara mengubah tujuan");
-assert.equal(sql("SELECT target FROM links WHERE code = ?", c.code).target, c.target);
+assert.equal(sql("SELECT target FROM lq_links WHERE code = ?", c.code).target, c.target);
 
 // grafik harian
 let S = (await api(SARI, "/api/stats?code=" + c.code)).j.days;
@@ -189,7 +196,7 @@ assert.equal((await api(REG, "/api/stats?code=" + c.code)).status, 404);
 
 /* ---------- banyak link: filter regional di SQL, halaman berikutnya, daftar kegiatan ---------- */
 {
-  const ins = env.DB.db.prepare("INSERT INTO links (code, item_id, item_kind, item_title, target, channel, active, created_email, created_at) VALUES (?, 'kK', 'edukasi', 'Webinar Obligasi Baru', 'https://x.test', 'poster', 1, 'sari@acme.test', ?)");
+  const ins = env.DB.db.prepare("INSERT INTO lq_links (code, item_id, item_kind, item_title, target, channel, active, created_email, created_at) VALUES (?, 'kK', 'edukasi', 'Webinar Obligasi Baru', 'https://x.test', 'poster', 1, 'sari@acme.test', ?)");
   for (let i = 0; i < 305; i++) ins.run('m' + String(i).padStart(5, 'a'), '2026-12-01T00:00:' + String(i % 60).padStart(2, '0') + 'Z');
   let R = (await api(REG, '/api/links')).j;
   assert.deepEqual(R.links.map((x) => x.code), [rc.code], 'regional tetap melihat link-nya walau ada 300+ link pusat yang lebih baru');
@@ -199,7 +206,7 @@ assert.equal((await api(REG, "/api/stats?code=" + c.code)).status, 404);
   assert.deepEqual(R.items.map((x) => x.id).sort(), ['cC', 'kK', 'pP'], 'pilihan kegiatan dari semua link, bukan hanya halaman ini');
   const R2 = (await api(SARI, '/api/links?offset=300')).j;
   assert.equal(R2.more, false); assert.ok(R2.links.some((x) => x.code === rc.code), 'link lama ada di halaman berikutnya');
-  env.DB.db.prepare("DELETE FROM links WHERE code LIKE 'm%'").run();
+  env.DB.db.prepare("DELETE FROM lq_links WHERE code LIKE 'm%'").run();
 }
 
 /* ---------- halaman ---------- */

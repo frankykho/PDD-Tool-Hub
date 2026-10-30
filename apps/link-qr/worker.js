@@ -79,19 +79,19 @@ export const KANAL = {
 export const wibDay = (ms) => new Date(ms + 7 * 3600e3).toISOString().slice(0, 10);
 
 /* =========================================================
-   DATA (D1: go-db)
+   DATA (D1: planner-db, dipakai bersama Content Planner; semua tabel Studio berawalan lq_)
    ========================================================= */
 let ready = false;
 async function ensure(env) {
   if (ready) return;
   await env.DB.batch([
     // pengaturan: users, branches, org (dari Tool Hub)
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS cfg (k TEXT PRIMARY KEY, v TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS lq_cfg (k TEXT PRIMARY KEY, v TEXT)"),
     // item_kind / item_title = salinan dari Content Planner (diperbarui saat daftar dibuka); gone = kegiatan sudah dihapus di Planner
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, item_id TEXT NOT NULL, item_kind TEXT, item_title TEXT, gone INTEGER DEFAULT 0, target TEXT NOT NULL, channel TEXT, name TEXT, utm INTEGER, active INTEGER DEFAULT 1, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT, off_by TEXT, off_at TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS lq_links (code TEXT PRIMARY KEY, item_id TEXT NOT NULL, item_kind TEXT, item_title TEXT, gone INTEGER DEFAULT 0, target TEXT NOT NULL, channel TEXT, name TEXT, utm INTEGER, active INTEGER DEFAULT 1, clicks INTEGER DEFAULT 0, created_by TEXT, created_email TEXT, created_at TEXT, off_by TEXT, off_at TEXT)"),
     // klik per link per hari (WIB); tanpa data pribadi pengunjung
-    env.DB.prepare("CREATE TABLE IF NOT EXISTS daily (code TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (code, day))"),
-    env.DB.prepare("CREATE INDEX IF NOT EXISTS links_item ON links (item_id)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS lq_daily (code TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (code, day))"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS lq_links_item ON lq_links (item_id)"),
   ]);
   ready = true;
 }
@@ -99,10 +99,10 @@ const lower = (x) => String(x || "").toLowerCase();
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 async function cfgGet(env, k) {
   await ensure(env);
-  const r = await env.DB.prepare("SELECT v FROM cfg WHERE k = ?").bind(k).first();
+  const r = await env.DB.prepare("SELECT v FROM lq_cfg WHERE k = ?").bind(k).first();
   try { return r ? JSON.parse(r.v) : null; } catch { return null; }
 }
-const cfgPut = (env, k, v) => env.DB.prepare("INSERT INTO cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v));
+const cfgPut = (env, k, v) => env.DB.prepare("INSERT INTO lq_cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v));
 /** Tim & role dari Tool Hub (bawaan kalau belum pernah dikirim). */
 const getOrg = async (env) => cleanOrg(await cfgGet(env, "org"));
 /** POST /__hub/users dari Tool Hub: { users, branches, org }. */
@@ -136,11 +136,11 @@ async function pushClicks(env, ids) {
   if (!ids.length) return { gone: [] };
   try {
     const ph = ids.map(() => "?").join(",");
-    const R = (await env.DB.prepare(`SELECT item_id, SUM(clicks) AS n FROM links WHERE item_id IN (${ph}) GROUP BY item_id`).bind(...ids).all()).results;
+    const R = (await env.DB.prepare(`SELECT item_id, SUM(clicks) AS n FROM lq_links WHERE item_id IN (${ph}) GROUP BY item_id`).bind(...ids).all()).results;
     const r = await planner(env, "/__hub/link-clicks", { method: "POST", body: JSON.stringify({ items: Object.fromEntries(R.map((x) => [x.item_id, Number(x.n) || 0])) }) });
     if (!r.ok) throw new Error("HTTP " + r.status);
     const gone = ((await r.json()).gone || []).map(String).filter((x) => ids.includes(x));
-    if (gone.length) await env.DB.prepare(`UPDATE links SET gone = 1 WHERE COALESCE(gone, 0) = 0 AND item_id IN (${gone.map(() => "?").join(",")})`).bind(...gone).run();
+    if (gone.length) await env.DB.prepare(`UPDATE lq_links SET gone = 1 WHERE COALESCE(gone, 0) = 0 AND item_id IN (${gone.map(() => "?").join(",")})`).bind(...gone).run();
     return { gone };
   } catch (e) {
     console.log("Content Planner tidak bisa dihubungi:", e.message);
@@ -149,8 +149,8 @@ async function pushClicks(env, ids) {
 }
 async function count(env, code, item) {
   await env.DB.batch([
-    env.DB.prepare("UPDATE links SET clicks = clicks + 1 WHERE code = ?").bind(code),
-    env.DB.prepare("INSERT INTO daily (code, day, n) VALUES (?, ?, 1) ON CONFLICT(code, day) DO UPDATE SET n = n + 1").bind(code, wibDay(now(env))),
+    env.DB.prepare("UPDATE lq_links SET clicks = clicks + 1 WHERE code = ?").bind(code),
+    env.DB.prepare("INSERT INTO lq_daily (code, day, n) VALUES (?, ?, 1) ON CONFLICT(code, day) DO UPDATE SET n = n + 1").bind(code, wibDay(now(env))),
   ]);
   await pushClicks(env, [item]);
 }
@@ -169,7 +169,7 @@ function notice(env, status, head, text) {
 /** GET /<kode>: tujuan selalu dari D1 (tidak pernah dari query), jadi tidak bisa dipakai sebagai open redirect. */
 async function redirect(request, env, ctx, code) {
   await ensure(env);
-  const L = await env.DB.prepare("SELECT target, active, item_id FROM links WHERE code = ?").bind(code).first();
+  const L = await env.DB.prepare("SELECT target, active, item_id FROM lq_links WHERE code = ?").bind(code).first();
   if (!L) return notice(env, 404, "Link tidak ditemukan", "Periksa kembali alamat atau kode QR yang dipindai.");
   if (!L.active) return notice(env, 410, "Link ini sudah tidak aktif", "Materi ini sudah tidak berlaku. Informasi terbaru ada di website kami.");
   if (request.method === "GET" && !BOT_UA.test(request.headers.get("user-agent") || ""))
@@ -219,7 +219,7 @@ async function createLink(env, me, reg, b) {
   const name = String(b.name ?? "").replace(/\s+/g, " ").trim().slice(0, 60), utm = b.utm !== false;
   for (let i = 0; i < 4; i++) {
     const code = newCode(), final = utm ? utmUrl(target, it.title, b.channel, code) : target;
-    const r = await env.DB.prepare("INSERT OR IGNORE INTO links (code, item_id, item_kind, item_title, target, channel, name, utm, created_by, created_email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO lq_links (code, item_id, item_kind, item_title, target, channel, name, utm, created_by, created_email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(code, it.id, it.kind, it.title, final, b.channel, name, utm ? 1 : 0, me.n || me.e, me.e, new Date(now(env)).toISOString()).run();
     if (r.meta.changes) return { code, url: linkUrl(env, code), target: final };
   }
@@ -234,11 +234,11 @@ async function listLinks(env, ctx, me, org, reg, q) {
   const W = [], A = [], off = Math.min(1e5, Math.max(0, Math.floor(Number(q.get("offset")) || 0)));
   // aturan regional di SQL, sebelum LIMIT: link pusat yang lebih baru tidak boleh mendorong link regional keluar dari halaman
   if (reg) W.push("item_kind IN ('cabang', 'galeri')");
-  const items = (await env.DB.prepare(`SELECT item_id AS id, MAX(item_title) AS title FROM links${reg ? " WHERE " + W[0] : ""} GROUP BY item_id ORDER BY title LIMIT 500`).all()).results;
+  const items = (await env.DB.prepare(`SELECT item_id AS id, MAX(item_title) AS title FROM lq_links${reg ? " WHERE " + W[0] : ""} GROUP BY item_id ORDER BY title LIMIT 500`).all()).results;
   if (q.get("item")) { W.push("item_id = ?"); A.push(q.get("item")); }
   if (q.get("mine") === "1") { W.push("created_email = ?"); A.push(me.e); }
   if (q.get("state") === "active") W.push("active = 1"); else if (q.get("state") === "off") W.push("active = 0");
-  const L = (await env.DB.prepare(`SELECT code, item_id, item_kind, item_title, gone, target, channel, name, utm, active, clicks, created_by, created_email, created_at, off_by, off_at FROM links${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY created_at DESC, code LIMIT ${PAGE_N + 1} OFFSET ${off}`).bind(...A).all()).results;
+  const L = (await env.DB.prepare(`SELECT code, item_id, item_kind, item_title, gone, target, channel, name, utm, active, clicks, created_by, created_email, created_at, off_by, off_at FROM lq_links${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY created_at DESC, code LIMIT ${PAGE_N + 1} OFFSET ${off}`).bind(...A).all()).results;
   const more = L.length > PAGE_N; if (more) L.length = PAGE_N;
   const ids = [...new Set(L.map((x) => x.item_id))].slice(0, 200);
   if (ids.length) {
@@ -248,7 +248,7 @@ async function listLinks(env, ctx, me, org, reg, q) {
       const now_ = (id) => { const p = P.get(id); return p ? { item_title: p.title, item_kind: p.kind, gone: 0 } : { gone: 1 }; };
       const changed = ids.filter((id) => { const n = now_(id); return L.some((x) => x.item_id === id && Object.keys(n).some((k) => x[k] !== n[k])); });
       if (changed.length) await env.DB.batch(changed.map((id) => { const p = P.get(id);
-        return p ? env.DB.prepare("UPDATE links SET item_title = ?, item_kind = ?, gone = 0 WHERE item_id = ?").bind(p.title, p.kind, id) : env.DB.prepare("UPDATE links SET gone = 1 WHERE item_id = ?").bind(id); }));
+        return p ? env.DB.prepare("UPDATE lq_links SET item_title = ?, item_kind = ?, gone = 0 WHERE item_id = ?").bind(p.title, p.kind, id) : env.DB.prepare("UPDATE lq_links SET gone = 1 WHERE item_id = ?").bind(id); }));
       for (const x of L) if (ids.includes(x.item_id)) Object.assign(x, now_(x.item_id));
     } catch (e) { console.log("Content Planner:", e.message); }
     ctx.waitUntil(pushClicks(env, ids));
@@ -259,22 +259,22 @@ async function listLinks(env, ctx, me, org, reg, q) {
 }
 /** POST /api/links/active: { code, active }. Tujuan link tidak pernah berubah. */
 async function setActive(env, me, org, b) {
-  const L = await env.DB.prepare("SELECT code, created_email FROM links WHERE code = ?").bind(String(b.code || "")).first();
+  const L = await env.DB.prepare("SELECT code, created_email FROM lq_links WHERE code = ?").bind(String(b.code || "")).first();
   if (!L) return { error: "Link tidak ditemukan.", status: 404 };
   if (!canEdit(me, org, L)) return { error: "Hanya pembuat link, Head, atau admin yang bisa mengubah status link.", status: 403 };
   const on = b.active === true;
-  await env.DB.prepare("UPDATE links SET active = ?, off_by = ?, off_at = ? WHERE code = ?").bind(on ? 1 : 0, on ? null : me.n || me.e, on ? null : new Date(now(env)).toISOString(), L.code).run();
+  await env.DB.prepare("UPDATE lq_links SET active = ?, off_by = ?, off_at = ? WHERE code = ?").bind(on ? 1 : 0, on ? null : me.n || me.e, on ? null : new Date(now(env)).toISOString(), L.code).run();
   return { ok: true };
 }
 /** GET /api/stats?code= | ?item= &days=30|90: klik per hari (hari tanpa klik = 0), hanya untuk link yang boleh dilihat. */
 async function stats(env, reg, q) {
   const days = q.get("days") === "90" ? 90 : 30, code = q.get("code"), item = q.get("item");
-  const L = code ? (await env.DB.prepare("SELECT code, item_kind FROM links WHERE code = ?").bind(code).all()).results
-    : item ? (await env.DB.prepare("SELECT code, item_kind FROM links WHERE item_id = ?").bind(item).all()).results : [];
+  const L = code ? (await env.DB.prepare("SELECT code, item_kind FROM lq_links WHERE code = ?").bind(code).all()).results
+    : item ? (await env.DB.prepare("SELECT code, item_kind FROM lq_links WHERE item_id = ?").bind(item).all()).results : [];
   const C = L.filter((x) => !reg || REG_KINDS.includes(x.item_kind)).map((x) => x.code);
   if (!C.length) return { error: "Tidak ditemukan.", status: 404 };
   const end = Date.parse(wibDay(now(env)) + "T00:00:00Z"), from = new Date(end - (days - 1) * 864e5).toISOString().slice(0, 10);
-  const R = new Map((await env.DB.prepare(`SELECT day, SUM(n) AS n FROM daily WHERE code IN (${C.map(() => "?").join(",")}) AND day >= ? GROUP BY day`).bind(...C, from).all()).results.map((x) => [x.day, Number(x.n) || 0]));
+  const R = new Map((await env.DB.prepare(`SELECT day, SUM(n) AS n FROM lq_daily WHERE code IN (${C.map(() => "?").join(",")}) AND day >= ? GROUP BY day`).bind(...C, from).all()).results.map((x) => [x.day, Number(x.n) || 0]));
   return { days: Array.from({ length: days }, (_, i) => { const day = new Date(end - (days - 1 - i) * 864e5).toISOString().slice(0, 10); return { day, n: R.get(day) || 0 }; }) };
 }
 

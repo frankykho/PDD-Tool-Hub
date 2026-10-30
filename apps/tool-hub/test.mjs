@@ -407,7 +407,7 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
   assert.deepEqual(JSON.parse(eventEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role tersimpan di Event & Lead");
   assert.deepEqual(brandCalls.slice(b0), [{ url: "https://brand/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Brand Kit (sekali)");
   assert.deepEqual(goCalls.slice(g0), [{ url: "https://go/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Link & QR Studio (sekali)");
-  assert.deepEqual(JSON.parse(goEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role tersimpan di Link & QR Studio");
+  assert.deepEqual(JSON.parse(goEnv.DB.db.prepare("SELECT v FROM lq_cfg WHERE k = 'org'").get().v), org, "tim & role tersimpan di Link & QR Studio");
   // Brand Kit: yang boleh membukanya + admin utama; status admin ikut terkirim
   const BU = JSON.parse(brandEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v);
   assert.deepEqual(BU.map((x) => [x.email, x.adm]), [[ADMIN, true]], "hanya admin utama (belum ada yang diberi akses Brand Kit)");

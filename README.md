@@ -133,6 +133,7 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
 - Content Planner: angka **Klik link** = klik link `/go/` lama + klik Studio; Program menjumlahkan kegiatan terkaitnya (`program_id`). Tampil di Performa, laporan konten, dan laporan Program. Tombol buat link di form kegiatan diganti **Buat di Link & QR Studio** (pesan `toolhub-open`, kegiatan langsung terpilih); link `/go/` lama tetap jalan.
 - QR dibuat di browser (qrcode-generator 1.4.4, koreksi error H): modul `#14532d`, zona tenang 4 modul, simbol 友 (`assets/brand/truefriend-mark.png`) di kotak putih 20% lebar. Unduh PNG 1200 px (digital) atau SVG dengan logo di dalamnya (cetak). Grafik klik harian 30/90 hari per link dan per kegiatan.
 - Urutan deploy: setelah `planner` (service binding `PLANNER`); hub tetap paling akhir. Secret: `SSO_SECRET` saja.
+- Database: `planner-db` milik Content Planner (akun gratis maksimal 10 database D1), dengan tabel `lq_cfg`, `lq_links`, `lq_daily`. Planner tetap hanya membaca klik lewat `/__hub/link-clicks`, bukan dari tabel Studio.
 - Cek: `node apps/link-qr/test.mjs`
 
 ### Fund Insight: halaman untuk nasabah

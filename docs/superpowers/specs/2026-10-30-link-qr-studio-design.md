@@ -99,7 +99,7 @@ Link & QR Studio adalah tool baru di Tool Hub untuk:
 ## Batasan teknis (mengikuti proyek yang ada)
 
 - **Bentuk tool:**
-  - Cloudflare Worker baru `apps/link-qr`, nama worker `go` (alamat publik `go.<subdomain>.workers.dev`), D1 sendiri.
+  - Cloudflare Worker baru `apps/link-qr`, nama worker `go` (alamat publik `go.<subdomain>.workers.dev`). Data di `planner-db` dengan tabel berawalan `lq_`, karena akun gratis sudah memakai 10 dari 10 database D1 (*keputusan pengguna, saat deploy*).
   - Didaftarkan di `scripts/deploy.mjs` setelah `planner`, karena memanggil Planner lewat service binding. Hub tetap paling akhir.
   - Ditambahkan di `APPS` Tool Hub.
 - **Login internal:** pola HUBSSO yang sama, `SSO_SECRET` sama, tampil di dalam bingkai Tool Hub.
