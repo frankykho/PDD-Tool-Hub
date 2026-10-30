@@ -159,6 +159,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
     <div class="fld"><label for="pEmail">Email</label><input class="f" id="pEmail" type="email" maxlength="120"></div>
     <div class="fld"><span class="lbl">Sudah nasabah KISI?</span><label class="chk"><input type="radio" name="pIc" value="1"> Ya</label><label class="chk"><input type="radio" name="pIc" value="0" checked> Belum</label></div>
     <div class="fld" id="gCode" hidden><label for="pCode">Kode nasabah</label><input class="f" id="pCode" maxlength="30"></div>
+    <details id="pHistBox" hidden><summary>Riwayat status</summary><ul class="small" id="pHist" style="margin:8px 0 0;padding-left:18px"></ul></details>
     <div id="pMsg"></div>
     <div class="acts"><button class="btn pri" type="submit">Simpan</button><button class="btn" type="button" id="pCancel">Tutup</button></div>
   </div>
@@ -169,6 +170,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   <p class="hint">Tampil di form daftar dan absen walk-in. Setiap kali diganti, versinya naik dan peserta baru menyetujui versi terbaru. Sebaiknya dicek tim legal / compliance.</p>
   <textarea class="f" id="sText" rows="6" maxlength="2000"></textarea>
   <p class="hint" id="sVer"></p>
+  <details id="sOldBox" hidden><summary>Versi sebelumnya</summary><div id="sOld" class="small"></div></details>
   <div id="sMsg"></div>
   <div class="acts"><button class="btn pri" type="submit">Simpan</button><button class="btn" type="button" id="sCancel">Tutup</button></div>
 </form></dialog>
@@ -225,7 +227,8 @@ document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>setMode(b.dataset
 async function loadChoices(){
   const linked=CUR&&CUR.item_id&&!CUR.item_gone;$("gLink").hidden=!!linked;$("hLinked").hidden=!linked;
   if(linked){$("hLinked").textContent=T("Tersambung ke kegiatan Content Planner. Judul, tanggal, jam, tempat, cabang, dan pembatalan ikut diperbarui di sana.");return}
-  const sel=$("iLink"),keep=sel.value;sel.innerHTML=`<option value="__new">${esc(T("Buat kegiatan baru di Content Planner"))}</option>`;
+  // kegiatan Planner sudah dihapus: bawaan "Tetap tidak tersambung" (tidak membuat kegiatan baru tanpa diminta)
+  const sel=$("iLink"),keep=sel.value;sel.innerHTML=(CUR&&CUR.item_gone?`<option value="">${esc(T("Tetap tidak tersambung"))}</option>`:"")+`<option value="__new">${esc(T("Buat kegiatan baru di Content Planner"))}</option>`;
   try{CHOICES=await api("/api/planner-items?branch="+encodeURIComponent($("iBranch").value||""))}catch(e){CHOICES=[]}
   sel.innerHTML+=CHOICES.map(c=>`<option value="${esc(c.id)}">${esc(c.title)} · ${esc(tanggal(c.date))}</option>`).join("");
   if(CHOICES.some(c=>c.id===keep))sel.value=keep;
@@ -235,7 +238,8 @@ $("iLink").onchange=()=>{const c=CHOICES.find(x=>x.id===$("iLink").value);if(!c)
 $("iBranch").onchange=()=>{if(!CUR||!CUR.item_id||CUR.item_gone)loadChoices()};
 async function form(id){
   show("vForm");showMsg("fMsg","");CUR=null;
-  if(id){CUR=EVENTS.find(e=>e.id===id)||(await api("/api/people?event="+encodeURIComponent(id)).catch(()=>({}))).event||null;if(!CUR){showMsg("fMsg","Event tidak ditemukan.");return}}
+  // selalu data terbaru dari server (daftar event di memori bisa sudah usang setelah event / template WhatsApp diubah)
+  if(id){CUR=(await api("/api/people?event="+encodeURIComponent(id)).catch(()=>({}))).event||null;if(!CUR){showMsg("fMsg","Event tidak ditemukan.");return}}
   const e=CUR||{};$("fTitle").textContent=T(id?"Ubah event":"Buat event");
   $("iTitle").value=e.title||"";setMode(e.mode||"tatap");$("iDate").value=e.date||"";$("iStart").value=e.time_start||"";$("iEnd").value=e.time_end||"";
   $("iPlace").value=e.place||"";$("iUrl").value=e.online_url||"";$("iDescr").value=e.descr||"";$("iQuota").value=e.quota||"";$("iOpen").checked=e.open!==0;
@@ -248,7 +252,7 @@ async function form(id){
 }
 $("fEv").onsubmit=async ev=>{
   ev.preventDefault();const b=$("bSave");b.disabled=true;showMsg("fMsg","");
-  const link=$("gLink").hidden?null:$("iLink").value==="__new"?{create:true}:{item_id:$("iLink").value};
+  const lv=$("iLink").value,link=$("gLink").hidden||!lv?null:lv==="__new"?{create:true}:{item_id:lv};
   const body={...(CUR||{}),title:$("iTitle").value,mode:MODE,date:$("iDate").value,time_start:$("iStart").value,time_end:$("iEnd").value,place:$("iPlace").value,online_url:$("iUrl").value,
     branch:$("gBranch").hidden?"":$("iBranch").value,descr:$("iDescr").value,quota:$("iQuota").value,open:$("iOpen").checked,status:$("iStatus").value,link};
   if(!CUR)delete body.id;
@@ -320,7 +324,11 @@ const icSync=()=>{$("gCode").hidden=document.querySelector("input[name=pIc]:chec
 document.querySelectorAll("input[name=pIc]").forEach(r=>r.onchange=icSync);
 function personForm(p){PED=p;$("pTitle").textContent=T(p?"Ubah peserta":"Tambah peserta");showMsg("pMsg","");
   $("pName").value=p?p.name:"";$("pPhone").value=p?hp(p.phone):"";$("pEmail").value=p?p.email||"":"";$("pCode").value=p?p.client_code||"":"";
-  document.querySelector(`input[name=pIc][value="${p&&p.is_client?1:0}"]`).checked=true;icSync();$("dlgP").showModal()}
+  document.querySelector(`input[name=pIc][value="${p&&p.is_client?1:0}"]`).checked=true;icSync();
+  // riwayat status: siapa mengubah & kapan
+  const H=(p&&D.history&&D.history[p.id])||[];$("pHistBox").hidden=!H.length;$("pHistBox").open=false;
+  $("pHist").innerHTML=H.map(h=>`<li>${esc(when(h.at))} · <span>${esc(h.by_name)}</span>: ${h.from_status?esc(ST[h.from_status]||h.from_status)+" → ":""}${esc(ST[h.to_status]||h.to_status)}</li>`).join("");
+  $("dlgP").showModal()}
 $("pCancel").onclick=()=>$("dlgP").close();
 $("fP").onsubmit=async ev=>{ev.preventDefault();
   const body={event_id:D.event.id,name:$("pName").value,phone:$("pPhone").value,email:$("pEmail").value,is_client:document.querySelector("input[name=pIc]:checked").value,client_code:$("pCode").value};
@@ -362,13 +370,15 @@ async function exportXls(){
 }
 
 /* ---------- persetujuan data (admin) ---------- */
-$("bSet").onclick=async()=>{showMsg("sMsg","");try{const c=(await api("/api/settings")).consent;$("sText").value=c.text;$("sVer").textContent=T("Versi")+" "+c.ver}catch(x){showMsg("sMsg",x.message)}$("dlgS").showModal()};
+function drawVers(V){const old=(V||[]).slice(0,-1).reverse();$("sOldBox").hidden=!old.length;
+  $("sOld").innerHTML=old.map(v=>`<p style="margin:8px 0 0"><b>${esc(T("Versi"))} ${v.ver}</b>${v.at?" · "+esc(when(v.at)):""}<br><span translate="no">${esc(v.text)}</span></p>`).join("")}
+$("bSet").onclick=async()=>{showMsg("sMsg","");try{const r=await api("/api/settings"),c=r.consent;$("sText").value=c.text;$("sVer").textContent=T("Versi")+" "+c.ver;drawVers(r.versions)}catch(x){showMsg("sMsg",x.message)}$("dlgS").showModal()};
 $("sCancel").onclick=()=>$("dlgS").close();
-$("fS").onsubmit=async ev=>{ev.preventDefault();try{const c=(await api("/api/settings",{consent:$("sText").value})).consent;$("sVer").textContent=T("Versi")+" "+c.ver;showMsg("sMsg",T("Tersimpan"),"ok")}catch(x){showMsg("sMsg",x.message)}};
+$("fS").onsubmit=async ev=>{ev.preventDefault();try{const c=(await api("/api/settings",{consent:$("sText").value})).consent;$("sVer").textContent=T("Versi")+" "+c.ver;drawVers((await api("/api/settings")).versions);showMsg("sMsg",T("Tersimpan"),"ok")}catch(x){showMsg("sMsg",x.message)}};
 
 /* =================== ALAMAT (#/ · #/new · #/edit/<id> · #/e/<id>) =================== */
 async function route(){const h=location.hash.replace(/^#/,"")||"/",m=/^\/(e|edit)\/(.+)$/.exec(h);
-  if(h==="/new")return form(null);if(m&&m[1]==="edit"){if(!EVENTS.length)EVENTS=await api("/api/events").catch(()=>[]);return form(m[2])}if(m)return detail(m[2]);return list()}
+  if(h==="/new")return form(null);if(m&&m[1]==="edit")return form(m[2]);if(m)return detail(m[2]);return list()}
 addEventListener("hashchange",route);route();
 </script>
 </body>

@@ -163,10 +163,21 @@ assert.doesNotMatch((await page("/d/" + E6.code)).html, /zoom\.test/);
 assert.match((await page("/d/" + E6.code)).html, /Online/);
 p = await submit("/d/" + E6.code, REG);
 assert.match(p.html, /https:\/\/zoom\.test\/j\/123/);
-// batas kiriman per IP per jam
-for (let i = 0; i < 10; i++) assert.notEqual((await submit("/d/" + E1.code, { ...REG, website: "x" }, { ip: "9.9.9.9" })).status, 429);
+// batas kiriman per IP per jam, per event (peserta seminar sering memakai Wi-Fi yang sama)
+for (let i = 0; i < 60; i++) assert.notEqual((await submit("/d/" + E1.code, { ...REG, website: "x" }, { ip: "9.9.9.9" })).status, 429);
 p = await submit("/d/" + E1.code, REG, { ip: "9.9.9.9" });
 assert.equal(p.status, 429); assert.match(p.html, /Terlalu banyak pendaftaran dari jaringan ini\. Coba lagi nanti\./);
+assert.notEqual((await submit("/d/" + E6.code, { ...REG, website: "x" }, { ip: "9.9.9.9" })).status, 429, "event lain tidak ikut terhitung");
+// klik Daftar dua kali bersamaan: satu baris, tidak ada halaman error
+{
+  const E7 = addEvent({}), DB0 = env.DB, tick = () => new Promise((r) => setTimeout(r, 5));
+  // D1 di jaringan: setiap query butuh waktu, jadi dua kiriman bisa sama-sama belum melihat baris yang lain
+  env.DB = { ...DB0, prepare: (sql) => { const w = (st) => ({ bind: (...a) => w(st.bind(...a)), all: async () => (await tick(), st.all()), first: async () => (await tick(), st.first()), run: async () => (await tick(), st.run()), _st: st }); return w(DB0.prepare(sql)); },
+    batch: async (l) => { await tick(); return DB0.batch(l.map((x) => x._st)); } };
+  const two = await Promise.all([submit("/d/" + E7.code, { ...REG, phone: "081300007777" }), submit("/d/" + E7.code, { ...REG, phone: "081300007777" })].map((x) => x.catch((e) => ({ status: "error " + e.message }))));
+  env.DB = DB0;
+  assert.deepEqual(two.map((x) => x.status), [200, 200]); assert.equal(people(E7.id).length, 1);
+}
 
 /* ---------- API event & peserta ---------- */
 const { waText, WA_DEFAULT } = W;
@@ -230,6 +241,14 @@ assert.equal(env.DB.db.prepare("SELECT n_conf FROM events WHERE id = ?").get(G.i
 r = await call("/api/people", { ck: SARI, body: { event_id: G.id, id: ani, name: "Ani Wijaya", phone: "081311112222", email: "ani@mail.test", is_client: "1", client_code: "K001" } });
 assert.equal(r.status, 200); assert.equal(env.DB.db.prepare("SELECT name, status FROM people WHERE id = ?").get(ani).name, "Ani Wijaya");
 assert.equal(env.DB.db.prepare("SELECT status FROM people WHERE id = ?").get(ani).status, "dikonfirmasi", "ubah data tidak mengubah status");
+// tambah manual dengan nomor yang sudah terdaftar: ditolak, data nasabah tidak tertimpa
+r = await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Ani", phone: "+62 813-1111-2222", is_client: "0" } });
+assert.equal(r.status, 400); assert.equal(r.j.error, "Nomor HP ini sudah terdaftar di acara ini.");
+assert.deepEqual({ ...env.DB.db.prepare("SELECT name, is_client, client_code FROM people WHERE id = ?").get(ani) }, { name: "Ani Wijaya", is_client: 1, client_code: "K001" });
+// riwayat status bisa dilihat
+L = (await call("/api/people?event=" + G.id, { ck: SARI })).j;
+assert.deepEqual(L.history[ani].map((h) => [h.from_status, h.to_status, h.by_name]), [["", "terdaftar", "Sari"], ["terdaftar", "dikonfirmasi", "Sari"]]);
+assert.ok(L.history[ani][1].at);
 // hapus: hanya admin / Head
 await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Bayu", phone: "081322223333", is_client: "0" } });
 assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(G.id).n_reg, 2);
@@ -250,6 +269,12 @@ assert.equal((await call("/api/settings", { ck: ADM })).j.consent.ver, 1);
 r = await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan baru dari legal." } });
 assert.equal(r.status, 200); assert.equal(r.j.consent.ver, 2);
 assert.match((await page("/d/" + E1.code)).html, /Teks persetujuan baru dari legal\./);
+// setiap versi teks tetap tersimpan: versi yang disetujui peserta bisa dibaca lagi
+await call("/api/settings", { ck: ADM, body: { consent: "Versi tiga." } });
+const vers = (await call("/api/settings", { ck: ADM })).j.versions;
+assert.deepEqual(vers.map((v) => [v.ver, v.text.slice(0, 20)]), [[1, "Saya setuju nama, no"], [2, "Teks persetujuan bar"], [3, "Versi tiga."]]);
+assert.ok(vers[1].at, "kapan versi itu mulai berlaku");
+await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan baru dari legal." } });
 assert.equal((await call("/api/settings", { ck: ADM, body: { consent: " " } })).status, 400);
 
 /* ---------- absen (publik) ---------- */

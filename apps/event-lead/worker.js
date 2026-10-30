@@ -265,8 +265,9 @@ async function stampOk(env, s) {
   const age = now(env) - Number(t);
   return age >= MIN_FILL && age <= MAX_FILL;
 }
-// batas kiriman form publik per IP per jam. Absen lebih longgar: peserta di lokasi memakai Wi-Fi yang sama.
-const HITS_PER_HOUR = 10, ABSEN_PER_HOUR = 300;
+// batas kiriman form publik per IP per jam, dihitung per event: peserta seminar sering memakai Wi-Fi / jaringan seluler yang sama.
+// Absen lebih longgar lagi (antrean di meja registrasi).
+const HITS_PER_HOUR = 60, ABSEN_PER_HOUR = 300;
 async function hit(env, request, kind = "d", limit = HITS_PER_HOUR) {
   const ip = kind + ":" + String(request.headers.get("cf-connecting-ip") || "?").slice(0, 64), hour = iso(env).slice(0, 13);
   const prev = new Date(now(env) - 3 * 3600e3).toISOString().slice(0, 13);
@@ -334,7 +335,8 @@ const notFound = () => pubHtml("Acara tidak ditemukan", `<div class="card"><h1>A
 const formOf = async (request) => { const f = await request.formData().catch(() => null); return f ? Object.fromEntries([...f].map(([k, v]) => [k, String(v)])) : {}; };
 
 /** Simpan / perbarui peserta (satu nomor HP satu baris per event). Status yang berubah tercatat di riwayat. */
-async function upsertPerson(env, ev, d, { status, src, by, consentVer = null, walkin = 0 }) {
+async function upsertPerson(env, ev, d, opts, again = true) {
+  const { status, src, by, consentVer = null, walkin = 0 } = opts;
   const prev = await env.DB.prepare("SELECT id, status FROM people WHERE event_id = ? AND phone = ?").bind(ev.id, d.phone).first(), at = iso(env);
   const id = prev ? prev.id : crypto.randomUUID(), to = status || (prev && prev.status !== "batal" ? prev.status : "terdaftar");
   const Q = [prev
@@ -343,11 +345,15 @@ async function upsertPerson(env, ev, d, { status, src, by, consentVer = null, wa
     : env.DB.prepare("INSERT INTO people (id, event_id, name, phone, email, is_client, client_code, status, walkin, src, consent_at, consent_ver, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(id, ev.id, d.name, d.phone, d.email, d.is_client, d.client_code, to, walkin, src, consentVer == null ? null : at, consentVer ?? 0, at, at, by)];
   if (!prev || prev.status !== to) Q.push(env.DB.prepare("INSERT INTO history (person_id, at, by_name, from_status, to_status) VALUES (?, ?, ?, ?, ?)").bind(id, at, by, prev ? prev.status : "", to));
-  await env.DB.batch(Q);
+  try { await env.DB.batch(Q); } catch (e) {
+    // dua kiriman bersamaan dengan nomor yang sama (mis. tombol Daftar diketuk dua kali): ulangi sekali sebagai perbarui data
+    if (!prev && again && /UNIQUE/i.test(String(e.message))) return upsertPerson(env, ev, d, opts, false);
+    throw e;
+  }
   return id;
 }
 async function register(request, env, ctx, ev) {
-  if (!(await hit(env, request))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
+  if (!(await hit(env, request, "d:" + ev.id))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
   const v = await formOf(request);
   if (v.website) return thanks(ev);   // kolom jebakan terisi: bot
   if (!(await stampOk(env, v.ts))) return regPage(env, ev, { v, error: "Coba kirim lagi.", status: 400 });
@@ -389,7 +395,7 @@ const present = (ev) => pubHtml(ev.title, `<div class="card"><h1>Kehadiran terca
   + (ev.mode === "online" && ev.online_url ? `<p class="note">Link acara: <a href="${esc(ev.online_url)}" rel="noopener">${esc(ev.online_url)}</a></p>` : "")
   + `<p class="descr">Terima kasih sudah hadir.</p></div>`);
 async function checkIn(request, env, ctx, ev) {
-  if (!(await hit(env, request, "h", ABSEN_PER_HOUR))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak percobaan dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
+  if (!(await hit(env, request, "h:" + ev.id, ABSEN_PER_HOUR))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak percobaan dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
   const v = await formOf(request);
   if (absenBlocked(env, ev)) return absenPage(env, ev);
   if (v.website) return present(ev);   // kolom jebakan terisi: bot
@@ -529,6 +535,8 @@ async function savePerson(env, ctx, me, org, b) {
     await changed(env, ctx, ev.id);
     return { id: p.id };
   }
+  // nomor yang sudah terdaftar tidak ditimpa diam-diam (mis. kode nasabah dari form daftar): ubah lewat tombol Ubah
+  if (await env.DB.prepare("SELECT id FROM people WHERE event_id = ? AND phone = ?").bind(ev.id, d.phone).first()) return { error: "Nomor HP ini sudah terdaftar di acara ini." };
   const id = await upsertPerson(env, ev, d, { src: "manual", by });
   await changed(env, ctx, ev.id);
   return { id };
@@ -545,8 +553,10 @@ async function deletePerson(env, ctx, me, org, id) {
 async function saveConsent(env, b) {
   const text = String(b.consent ?? "").replace(/\s+/g, " ").trim().slice(0, 2000);
   if (!text) return { error: "Teks persetujuan belum diisi." };
-  const c = { ver: (await getConsent(env)).ver + 1, text };
-  await cfgPut(env, "consent", c).run();
+  const cur = await getConsent(env), c = { ver: cur.ver + 1, text, at: iso(env) };
+  // semua versi disimpan (cfg consents): peserta menyimpan nomor versi yang ia setujui, teksnya harus tetap bisa dibaca
+  const V = (await cfgGet(env, "consents")) || [{ ver: cur.ver, text: cur.text, at: cur.at || "" }];
+  await env.DB.batch([cfgPut(env, "consent", c), cfgPut(env, "consents", [...V, c])]);
   return { consent: c };
 }
 /** Halaman tim: data awal (window.EV) + tema & bahasa dari Tool Hub. */
@@ -602,9 +612,16 @@ export default {
           const ev = await visibleEvent(env, me, org, url.searchParams.get("event"));
           if (!ev) return json({ error: "Event tidak ditemukan." }, 404);
           const P = (await env.DB.prepare("SELECT * FROM people WHERE event_id = ? ORDER BY created_at DESC").bind(ev.id).all()).results;
-          return json({ event: ev, people: P, waDefault: WA_DEFAULT, canDelete: canDelete(me, org) });
+          // riwayat status per peserta: siapa mengubah & kapan
+          const H = (await env.DB.prepare("SELECT person_id, at, by_name, from_status, to_status FROM history WHERE person_id IN (SELECT id FROM people WHERE event_id = ?) ORDER BY id").bind(ev.id).all()).results;
+          const history = {}; for (const { person_id, ...h } of H) (history[person_id] = history[person_id] || []).push(h);
+          return json({ event: ev, people: P, history, waDefault: WA_DEFAULT, canDelete: canDelete(me, org) });
         }
-        if (path === "/api/settings") return me.adm ? json({ consent: await getConsent(env) }) : json({ error: "Khusus admin." }, 403);
+        if (path === "/api/settings") {
+          if (!me.adm) return json({ error: "Khusus admin." }, 403);
+          const c = await getConsent(env);
+          return json({ consent: c, versions: (await cfgGet(env, "consents")) || [{ ver: c.ver, text: c.text, at: c.at || "" }] });
+        }
         if (path === "/api/planner-items") {
           // Sales / GI coordinator: cabangnya sendiri; Head regional & admin: cabang yang dipilih di form; lainnya: kegiatan Edukasi miliknya
           const reg = isRegional(org, me.j, me.adm), head = !!(roleIn(org, me.j) || {}).head;
