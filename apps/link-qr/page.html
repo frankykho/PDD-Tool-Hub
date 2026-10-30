@@ -3,8 +3,324 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
 <title>Link & QR Studio</title>
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--bad:#b42318;
+  --s2:#fff4dc;--s2-t:#8a5a00;--s4:#e1f5e9;--s4-t:#1d6b41;--s5:#fde8e6;--s5-t:#a5352a;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#a3b0a8;--g:#4fc285;--g2:#1d3327;--bad:#ef6b5e;
+  --s2:#3a2f15;--s2-t:#f0c66b;--s4:#173726;--s4-t:#7fdba6;--s5:#3a1d1a;--s5-t:#f2a097;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:var(--g)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:grid;gap:16px}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.2px}
+h2{font-size:16px;margin:0 0 12px;font-weight:800}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+:root[data-theme="dark"] .btn.pri{color:#0f1512}
+.btn.sm{padding:5px 9px;font-size:12.5px;min-height:32px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.seg button:focus-visible,.pick:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);flex-wrap:wrap}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;font-weight:600;color:var(--t2);min-height:38px}
+.seg button.on{background:var(--g2);color:var(--g)}
+.f{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;min-width:0;width:100%;min-height:38px}
+.muted{color:var(--t2)}
+.small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.msg{padding:10px 12px;border-radius:10px;background:var(--s2);color:var(--s2-t);margin:10px 0 0}
+.msg.err{background:var(--s5);color:var(--s5-t)}
+.msg.ok{background:var(--s4);color:var(--s4-t)}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--g2);color:var(--g)}
+.tag.off{background:var(--s5);color:var(--s5-t)}
+.tag.warn{background:var(--s2);color:var(--s2-t)}
+.empty{padding:28px;text-align:center;color:var(--t2)}
+.make{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:18px;align-items:start}
+.make>*,.form>*,.fld{min-width:0}
+.msg{overflow-wrap:anywhere}
+.form{display:grid;gap:12px}
+.fld{display:grid;gap:5px}
+.fld>label,.lbl{font-weight:600;font-size:13px}
+.req{color:var(--bad)}
+.chk{display:flex;align-items:center;gap:8px;min-height:38px}
+.chk input{width:18px;height:18px;accent-color:var(--g)}
+.picks{display:grid;gap:6px;max-height:260px;overflow:auto}
+.pick{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--card);cursor:pointer;text-align:left;min-height:44px;width:100%}
+.pick b{font-weight:600}
+.chosen{display:flex;gap:10px;align-items:center;border:1px solid var(--g);background:var(--g2);border-radius:10px;padding:8px 10px}
+.chosen div{flex:1;min-width:0}
+.res{display:grid;gap:10px;justify-items:center;text-align:center}
+.qr{width:100%;max-width:260px;aspect-ratio:1;background:#fff;border-radius:10px;padding:6px;border:1px solid var(--line)}
+.qr svg{width:100%;height:100%;display:block}
+.url{font-weight:700;overflow-wrap:anywhere}
+.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.filters select{width:auto;max-width:100%}
+.list{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.row .nm{font-weight:700}
+.row .meta{font-size:12.5px;color:var(--t2);overflow-wrap:anywhere}
+.row .n{text-align:right;font-weight:800;font-size:18px;line-height:1.1}
+.row .n small{display:block;font-size:11px;font-weight:600;color:var(--t2)}
+.row .acts{grid-column:1/-1;justify-content:flex-start}
+.chartbox{overflow-x:auto}
+.chart{width:100%;min-width:520px;height:auto;display:block}
+.chart text{font:12px var(--font);fill:var(--t2)}
+dialog{border:0;border-radius:16px;padding:20px;width:min(680px,calc(100vw - 32px));background:var(--card);color:var(--t);box-shadow:0 20px 50px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(6,16,10,.35)}
+dialog h3{margin:0 0 4px}
+@media (max-width:820px){.make{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.btn,.seg button,.f,.chk{min-height:44px}.btn.sm{min-height:44px}}
+/* liquid glass (di dalam Tool Hub: token --hg-* dari shared/theme.js) */
+html[data-theme]{background:var(--hg-base)}
+html[data-theme] body{background:transparent}
+html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+html[data-theme] .wrap .card{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .seg{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .btn:not(.pri),html[data-theme] dialog .btn:not(.pri){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .f,html[data-theme] .wrap .pick,html[data-theme] .wrap .row{background:var(--hg-solid)}
+html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow-lg)}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <div class="bar"><h1>Link &amp; QR Studio</h1><span class="muted small">Link pendek &amp; QR untuk kegiatan di Content Planner. Klik masuk ke laporan kegiatannya.</span></div>
+
+  <section class="card" aria-labelledby="hMake">
+    <h2 id="hMake">Buat link baru</h2>
+    <div class="make">
+      <form class="form" id="fMake" novalidate>
+        <div class="fld">
+          <span class="lbl" id="lItem">Kegiatan atau Program <span class="req">*</span></span>
+          <div class="chosen" id="itemSel" hidden><div><b id="itemTitle"></b><div class="muted small" id="itemMeta"></div></div><button type="button" class="btn sm" id="bItemChange">Ganti</button></div>
+          <div id="itemFind">
+            <input class="f" id="qItem" type="search" autocomplete="off" placeholder="Cari judul kegiatan di Content Planner" aria-labelledby="lItem">
+            <div class="picks" id="itemList" style="margin-top:6px"></div>
+          </div>
+        </div>
+        <div class="fld"><label for="target">Link tujuan <span class="req">*</span></label><input class="f" id="target" type="url" inputmode="url" maxlength="500" placeholder="https://… halaman produk, unduh aplikasi, form" autocomplete="off"></div>
+        <div class="fld"><span class="lbl" id="lKanal">Kanal</span><div class="seg" id="kanal" role="radiogroup" aria-labelledby="lKanal"></div></div>
+        <div class="fld"><label for="name">Nama singkat <span class="muted small">(opsional)</span></label><input class="f" id="name" maxlength="60" placeholder="mis. Poster lobby, Caption IG 1"></div>
+        <label class="chk"><input type="checkbox" id="utm" checked> Tambah UTM otomatis</label>
+        <p class="muted small" style="margin:-8px 0 0">Tujuan link tidak bisa diubah setelah dibuat. Kalau salah, buat link baru lalu nonaktifkan yang lama.</p>
+        <div><button class="btn pri" id="bMake" type="submit">Buat link &amp; QR</button></div>
+        <div id="mkMsg" aria-live="polite"></div>
+      </form>
+      <div class="res" id="res" hidden aria-live="polite">
+        <div class="qr" id="resQr"></div>
+        <div class="url" id="resUrl" translate="no"></div>
+        <div class="acts"><button type="button" class="btn sm" id="bResCopy">Salin link</button><button type="button" class="btn sm" id="bResPng">Unduh PNG</button><button type="button" class="btn sm" id="bResSvg">Unduh SVG</button></div>
+        <p class="muted small" style="margin:0">PNG untuk digital, SVG untuk cetak (tajam di ukuran berapa pun).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="hList">
+    <h2 id="hList">Daftar link</h2>
+    <div class="filters">
+      <select class="f" id="fItem" aria-label="Kegiatan"><option value="">Semua kegiatan</option></select>
+      <label class="chk"><input type="checkbox" id="fMine"> Buatanku</label>
+      <div class="seg" id="fState"><button type="button" data-s="" class="on">Semua</button><button type="button" data-s="active">Aktif</button><button type="button" data-s="off">Nonaktif</button></div>
+      <span class="sp"></span>
+      <button type="button" class="btn sm" id="bItemChart" hidden>Grafik kegiatan</button>
+    </div>
+    <div id="listMsg"></div>
+    <div class="list" id="list"><div class="empty">Memuat…</div></div>
+  </section>
+</div>
+
+<dialog id="dlg" aria-labelledby="dTitle">
+  <div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1;min-width:0"><h3 id="dTitle"></h3><div class="muted small" id="dSub"></div></div><button type="button" class="btn sm" id="dClose" aria-label="Tutup">✕</button></div>
+  <div id="dBody" style="margin-top:12px"></div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LQ=window.LQ,ME=LQ.me,KANAL=LQ.kanal;
+const T=s=>window.hubT?window.hubT(s):s;
+async function api(path,body){
+  const r=await fetch(path,body!==undefined?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{cache:"no-store"});
+  const j=await r.json().catch(()=>({error:"Respons tidak terbaca (HTTP "+r.status+")"}));
+  if(!r.ok||j.error){const e=new Error(T(j.error||("HTTP "+r.status)));e.status=r.status;throw e}
+  return j;
+}
+const showMsg=(box,m,cls="err")=>{$(box).innerHTML=m?`<div class="msg ${cls}" role="${cls==="err"?"alert":"status"}">${esc(m)}</div>`:""};
+const KINDS={konten:"Konten sosmed",artikel:"Artikel",edukasi:"Edukasi / narasumber",program:"Program partnership",cabang:"Kegiatan cabang",galeri:"Kerja sama galeri baru"};
+const BLN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const fmtDate=d=>d&&/^\d{4}-\d{2}-\d{2}/.test(d)?`${+d.slice(8,10)} ${BLN[+d.slice(5,7)-1]} ${d.slice(0,4)}`:"";
+const int=n=>(+n||0).toLocaleString("id-ID");
+const OFFLINE="Content Planner tidak bisa dihubungi. Coba lagi sebentar.";
+
+/* ---------- QR: hijau tua, koreksi error H, simbol 友 di tengah ---------- */
+const QC="#14532d",ZONE=4,LOGO=.2;
+let qrLib,markP;
+const loadQr=()=>qrLib||(qrLib=new Promise((ok,no)=>{if(window.qrcode)return ok();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+  s.onload=()=>window.qrcode?ok():no(new Error("Library QR gagal dimuat."));s.onerror=()=>{qrLib=null;no(new Error("Library QR gagal dimuat. Cek koneksi internet lalu coba lagi."))};document.head.appendChild(s)}));
+// logo sebagai data URI (supaya SVG yang diunduh tetap membawa logonya) + gambar untuk canvas PNG
+const loadMark=()=>markP||(markP=fetch("/brand/truefriend-mark.png").then(r=>{if(!r.ok)throw new Error("Logo gagal dimuat.");return r.blob()})
+  .then(b=>new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>no(new Error("Logo gagal dimuat."));fr.readAsDataURL(b)}))
+  .then(uri=>new Promise((ok,no)=>{const img=new Image();img.onload=()=>ok({uri,img});img.onerror=()=>no(new Error("Logo gagal dimuat."));img.src=uri}))
+  .catch(e=>{markP=null;throw e}));
+const qrModel=t=>{const q=qrcode(0,"H");q.addData(t);q.make();return q};
+// ukuran dalam satuan modul: zona tenang 4 modul, kotak logo putih = 20% lebar simbol
+function qrGeo(q){const n=q.getModuleCount(),S=n+ZONE*2,L=n*LOGO,lo=ZONE+(n-L)/2;return {n,S,L,lo,pad:L*.08}}
+function qrSvg(text,uri){
+  const q=qrModel(text),{n,S,L,lo,pad}=qrGeo(q);let d="";
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+ZONE} ${r+ZONE}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="1200" height="1200" shape-rendering="crispEdges"><rect width="${S}" height="${S}" fill="#fff"/><path fill="${QC}" d="${d}"/>`+
+    `<rect x="${lo}" y="${lo}" width="${L}" height="${L}" rx="${L*.14}" fill="#fff" shape-rendering="geometricPrecision"/><image href="${uri}" x="${lo+pad}" y="${lo+pad}" width="${L-pad*2}" height="${L-pad*2}"/></svg>`;
+}
+function qrPng(text,img){
+  const q=qrModel(text),{n,S,L,lo,pad}=qrGeo(q),P=1200,k=P/S,cv=document.createElement("canvas");cv.width=cv.height=P;
+  const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,P,P);x.fillStyle=QC;
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect(Math.floor((c+ZONE)*k),Math.floor((r+ZONE)*k),Math.ceil(k)+1,Math.ceil(k)+1);
+  x.fillStyle="#fff";x.beginPath();x.roundRect(lo*k,lo*k,L*k,L*k,L*k*.14);x.fill();x.drawImage(img,(lo+pad)*k,(lo+pad)*k,(L-pad*2)*k,(L-pad*2)*k);
+  return new Promise((ok,no)=>cv.toBlob(b=>{cv.width=cv.height=0;b?ok(b):no(new Error("Gagal membuat PNG."))},"image/png"));
+}
+function save(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+async function downloadQr(L,type,msgBox){
+  try{await loadQr();const m=await loadMark();
+    if(type==="svg")save(new Blob([qrSvg(L.url,m.uri)],{type:"image/svg+xml"}),`qr-${L.code}.svg`);
+    else save(await qrPng(L.url,m.img),`qr-${L.code}.png`)}
+  catch(e){showMsg(msgBox,e.message)}
+}
+async function showQr(box,url){
+  try{await loadQr();const m=await loadMark();$(box).innerHTML=qrSvg(url,m.uri);const s=$(box).querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.setAttribute("role","img");s.setAttribute("aria-label",T("Kode QR")+" "+url)}
+  catch(e){$(box).innerHTML=`<p class="muted small">${esc(e.message)}</p>`}
+}
+function copyText(t,box){
+  const ok=()=>showMsg(box,T("Link tersalin."),"ok");
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+  function fb(){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){}a.remove()}
+}
+
+/* ---------- pilih kegiatan ---------- */
+let ITEM=null,findT=0,findSeq=0;
+const itemLine=i=>[T(KINDS[i.kind]||i.kind),fmtDate(i.date),i.branch].filter(Boolean).join(" · ");
+function setItem(i){
+  ITEM=i;$("itemSel").hidden=!i;$("itemFind").hidden=!!i;
+  if(i){$("itemTitle").textContent=i.title;$("itemMeta").textContent=itemLine(i)}else{$("qItem").value="";find()}
+}
+async function find(){
+  const seq=++findSeq,q=$("qItem").value.trim();
+  try{const r=await api("/api/items"+(q?"?q="+encodeURIComponent(q):""));if(seq!==findSeq)return;
+    if(r.off){$("itemList").innerHTML=`<p class="muted small">${esc(T(OFFLINE))}</p>`;return}
+    $("itemList").innerHTML=r.items.length?r.items.map((i,k)=>`<button type="button" class="pick" data-k="${k}"><b translate="no">${esc(i.title)}</b><span class="muted small">${esc(itemLine(i))}</span></button>`).join(""):`<p class="muted small">${esc(T("Tidak ada kegiatan yang cocok."))}</p>`;
+    $("itemList").onclick=e=>{const b=e.target.closest("[data-k]");if(b)setItem(r.items[+b.dataset.k])};
+  }catch(e){if(seq===findSeq)$("itemList").innerHTML=`<p class="muted small">${esc(e.message)}</p>`}
+}
+$("qItem").addEventListener("input",()=>{clearTimeout(findT);findT=setTimeout(find,250)});
+$("bItemChange").onclick=()=>{setItem(null);$("qItem").focus()};
+
+/* ---------- kanal ---------- */
+let KAN="poster";
+$("kanal").innerHTML=Object.entries(KANAL).map(([k,v])=>`<button type="button" role="radio" data-k="${k}">${esc(v[0])}</button>`).join("");
+function setKanal(k){KAN=k;$("kanal").querySelectorAll("button").forEach(b=>{const on=b.dataset.k===k;b.classList.toggle("on",on);b.setAttribute("aria-checked",on)})}
+$("kanal").onclick=e=>{const b=e.target.closest("[data-k]");if(b)setKanal(b.dataset.k)};
+setKanal(KAN);
+
+/* ---------- buat link ---------- */
+let LAST=null;
+$("fMake").onsubmit=async e=>{
+  e.preventDefault();showMsg("mkMsg","");
+  if(!ITEM)return showMsg("mkMsg",T("Pilih kegiatan atau Program dulu."));
+  if(!/^https?:\/\/\S+$/i.test($("target").value.trim()))return showMsg("mkMsg",T("Link tujuan tidak sah. Awali dengan https:// (maksimal 500 karakter)."));
+  $("bMake").disabled=true;
+  try{
+    LAST=await api("/api/links",{item_id:ITEM.id,target:$("target").value.trim(),channel:KAN,name:$("name").value,utm:$("utm").checked});
+    $("res").hidden=false;$("resUrl").textContent=LAST.url;await showQr("resQr",LAST.url);
+    $("target").value="";$("name").value="";showMsg("mkMsg",T("Link dibuat. Tujuan:")+" "+LAST.target,"ok");loadList();
+  }catch(x){showMsg("mkMsg",x.message)}
+  finally{$("bMake").disabled=false}
+};
+$("bResCopy").onclick=()=>LAST&&copyText(LAST.url,"mkMsg");
+$("bResPng").onclick=()=>LAST&&downloadQr(LAST,"png","mkMsg");
+$("bResSvg").onclick=()=>LAST&&downloadQr(LAST,"svg","mkMsg");
+
+/* ---------- daftar ---------- */
+let LINKS=[],STATE="",SEEN=new Map(),listSeq=0;
+async function loadList(){
+  const seq=++listSeq,p=new URLSearchParams();
+  if($("fItem").value)p.set("item",$("fItem").value);if($("fMine").checked)p.set("mine","1");if(STATE)p.set("state",STATE);
+  try{const r=await api("/api/links?"+p);if(seq!==listSeq)return;LINKS=r.links;showMsg("listMsg","");renderList()}
+  catch(e){if(seq===listSeq)showMsg("listMsg",e.message)}
+}
+function renderList(){
+  LINKS.forEach(l=>SEEN.set(l.item_id,l.item_title));
+  const cur=$("fItem").value;
+  $("fItem").innerHTML=`<option value="">${esc(T("Semua kegiatan"))}</option>`+[...SEEN].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).map(([id,t])=>`<option value="${esc(id)}"${id===cur?" selected":""}>${esc(t)}</option>`).join("");
+  $("bItemChart").hidden=!cur||!LINKS.length;
+  if(!LINKS.length){$("list").innerHTML=`<div class="empty">${esc(T("Belum ada link."))}</div>`;return}
+  $("list").innerHTML=LINKS.map((l,k)=>`<div class="row">
+    <div><div class="nm">${esc(l.name||(KANAL[l.channel]||[l.channel])[0])}${l.name?` <span class="tag">${esc((KANAL[l.channel]||[l.channel])[0])}</span>`:""}${l.active?"":` <span class="tag off">${esc(T("Nonaktif"))}</span>`}</div>
+      <div class="meta"><span translate="no">${esc(l.item_title)}</span>${l.gone?` <span class="tag warn">${esc(T("Kegiatan sudah dihapus di Planner"))}</span>`:""}</div>
+      <div class="meta" translate="no">${esc(l.url)} → ${esc(l.target)}</div>
+      <div class="meta">${esc(T("Dibuat"))} ${esc(l.created_by||"")}, ${esc(fmtDate(l.created_at))}${l.active?"":l.off_by?` · ${esc(T("dinonaktifkan"))} ${esc(l.off_by)}`:""}</div></div>
+    <div class="n">${int(l.clicks)}<small>${esc(T("klik"))}</small></div>
+    <div class="acts"><button type="button" class="btn sm" data-a="copy" data-k="${k}">Salin</button><button type="button" class="btn sm" data-a="qr" data-k="${k}">QR</button><button type="button" class="btn sm" data-a="chart" data-k="${k}">Grafik</button>${l.can?`<button type="button" class="btn sm${l.active?" danger":""}" data-a="toggle" data-k="${k}">${l.active?"Nonaktifkan":"Aktifkan lagi"}</button>`:""}</div>
+  </div>`).join("");
+}
+$("list").onclick=async e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;const l=LINKS[+b.dataset.k],a=b.dataset.a;
+  if(a==="copy")copyText(l.url,"listMsg");
+  else if(a==="qr")openQr(l);
+  else if(a==="chart")openChart({code:l.code},l.name||l.item_title,l.url);
+  else if(a==="toggle"){
+    if(l.active&&!confirm(T("Nonaktifkan link ini? QR yang sudah tercetak akan menampilkan halaman \"Link ini sudah tidak aktif\".")))return;
+    b.disabled=true;try{await api("/api/links/active",{code:l.code,active:!l.active});await loadList()}catch(x){showMsg("listMsg",x.message);b.disabled=false}
+  }
+};
+$("fItem").onchange=loadList;$("fMine").onchange=loadList;
+$("fState").onclick=e=>{const b=e.target.closest("[data-s]");if(!b)return;STATE=b.dataset.s;$("fState").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));loadList()};
+$("bItemChart").onclick=()=>{const id=$("fItem").value;if(id)openChart({item:id},SEEN.get(id)||"",T("Semua link kegiatan ini"))};
+
+/* ---------- dialog: QR & grafik ---------- */
+const dlg=$("dlg");$("dClose").onclick=()=>dlg.close();
+function openDlg(t,sub,html){$("dTitle").textContent=t;$("dSub").textContent=sub||"";$("dBody").innerHTML=html;if(!dlg.open)dlg.showModal()}
+function openQr(l){
+  openDlg(l.name||l.item_title,l.url,`<div class="res"><div class="qr" id="dQr"></div><div class="acts"><button type="button" class="btn sm" id="dPng">Unduh PNG</button><button type="button" class="btn sm" id="dSvg">Unduh SVG</button></div><div id="dMsg"></div></div>`);
+  showQr("dQr",l.url);$("dPng").onclick=()=>downloadQr(l,"png","dMsg");$("dSvg").onclick=()=>downloadQr(l,"svg","dMsg");
+}
+function chartSvg(D){
+  const W=640,H=220,pl=36,pr=8,pt=12,pb=26,max=Math.max(1,...D.map(d=>d.n)),top=max<=4?max:Math.ceil(max/4)*4,bw=(W-pl-pr)/D.length,h=H-pt-pb,y=v=>pt+h-v/top*h;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T("Klik per hari"))}">`;
+  for(const v of [0,top/2,top]){s+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl-6}" y="${y(v)+3}" text-anchor="end">${int(Math.round(v))}</text>`}
+  D.forEach((d,i)=>{const x=pl+i*bw;if(d.n)s+=`<rect x="${x+bw*.15}" y="${y(d.n)}" width="${Math.max(1,bw*.7)}" height="${pt+h-y(d.n)}" rx="2" fill="var(--g)"><title>${esc(fmtDate(d.day))}: ${int(d.n)} ${esc(T("klik"))}</title></rect>`;
+    if((D.length-1-i)%7===0)s+=`<text x="${x+bw/2}" y="${H-8}" text-anchor="middle">${+d.day.slice(8)}/${+d.day.slice(5,7)}</text>`});
+  return s+"</svg>";
+}
+async function openChart(q,t,sub){
+  let days=30;
+  const draw=async()=>{
+    try{const r=await api("/api/stats?"+new URLSearchParams({...q,days}));const tot=r.days.reduce((a,d)=>a+d.n,0);
+      openDlg(t,sub,`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>${int(tot)} ${esc(T("klik"))}</b><span class="muted small">${esc(T(days+" hari terakhir"))}</span><span class="sp"></span><div class="seg" id="dDays"><button type="button" data-d="30"${days===30?' class="on"':""}>30 hari</button><button type="button" data-d="90"${days===90?' class="on"':""}>90 hari</button></div></div><div class="chartbox">${chartSvg(r.days)}</div><p class="muted small" style="margin:8px 0 0">${esc(T("Bot dan pratinjau link di aplikasi chat tidak dihitung."))}</p>`);
+      const cb=$("dBody").querySelector(".chartbox");cb.scrollLeft=cb.scrollWidth;   // layar sempit: mulai dari hari terbaru
+      $("dDays").onclick=e=>{const b=e.target.closest("[data-d]");if(b){days=+b.dataset.d;draw()}};
+    }catch(e){openDlg(t,sub,`<div class="msg err">${esc(e.message)}</div>`)}
+  };
+  draw();
+}
+
+/* ---------- mulai ---------- */
+(async()=>{
+  const id=new URLSearchParams(location.search).get("item");
+  if(id){try{setItem((await api("/api/items?id="+encodeURIComponent(id))).item);$("target").focus()}catch(e){showMsg("mkMsg",e.message);setItem(null)}}
+  else setItem(null);
+  loadList();
+})();
+</script>
 </body>
 </html>

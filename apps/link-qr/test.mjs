@@ -181,4 +181,15 @@ assert.equal((await api(SARI, "/api/stats?item=kK")).j.days.at(-1).n, 5, "per ke
 assert.equal((await api(REG, "/api/stats?item=kK")).status, 404, "regional tidak melihat grafik kegiatan pusat");
 assert.equal((await api(REG, "/api/stats?code=" + c.code)).status, 404);
 
+/* ---------- halaman ---------- */
+{
+  const pg = await raw('/', { ck: SARI });
+  assert.equal(pg.status, 200); assert.match(pg.headers.get('content-security-policy'), /frame-ancestors 'self' https:\/\/hub\.acme\.test/);
+  const LQ_RE = /window\.LQ=(.*?);<\/script>/s, h = await pg.text(), cfg = JSON.parse(LQ_RE.exec(h)[1]);
+  assert.deepEqual([cfg.me.email, cfg.me.reg, cfg.base, Object.keys(cfg.kanal).length], ['sari@acme.test', false, BASE, 6]);
+  assert.equal(JSON.parse(LQ_RE.exec(await (await raw('/', { ck: REG })).text())[1]).me.reg, true);
+  assert.ok(h.includes('qrcode-generator/1.4.4') && h.includes('qrcode(0,"H")') && h.includes('/brand/truefriend-mark.png'), 'halaman Studio: QR H berlogo');
+  assert.ok(h.includes('id="fMake"') && h.includes('id="list"') && h.includes('/api/stats?'), 'buat link, daftar, grafik');
+}
+
 console.log("semua cek lolos");
