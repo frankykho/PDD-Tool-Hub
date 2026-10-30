@@ -1,0 +1,20 @@
+// Brand Kit: template terkunci (isi & unduh PNG / PDF), file resmi dari Google Drive, teks disclaimer resmi.
+// Secret: SSO_SECRET (sama dengan Tool Hub), DRIVE_API_KEY (Google Drive API, hanya baca file publik).
+// DB = template, ukuran, narasumber, disclaimer, catatan unduhan. BRAND_KV = gambar latar template & cache daftar file Drive.
+// EVENT / COPY / EDUKASI = service binding (daftar event untuk poster; kirim disclaimer); harus di-deploy lebih dulu.
+{
+  "name": "brand",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  // aset statis: logo perusahaan (/brand/kisi-*.png) dan mesin gambar (/render.js)
+  "assets": { "directory": "./assets" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "brand-db", "database_id": "auto" }
+  ],
+  "kv_namespaces": [{ "binding": "BRAND_KV", "id": "auto" }],
+  "services": [
+    { "binding": "EVENT", "service": "event" },
+    { "binding": "COPY", "service": "copy-studio" },
+    { "binding": "EDUKASI", "service": "edukasi-studio" }
+  ]
+}

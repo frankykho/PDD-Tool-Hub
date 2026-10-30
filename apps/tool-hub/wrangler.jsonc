@@ -18,6 +18,8 @@
     { "binding": "BOND", "service": "bond-insight" },
     { "binding": "CRON", "service": "tool-cron" },
     // Event & Lead: menerima anggota, cabang, dan tim & role (sama seperti Planner)
-    { "binding": "EVENT", "service": "event" }
+    { "binding": "EVENT", "service": "event" },
+    // Brand Kit: menerima anggota (+ status admin), cabang, dan tim & role
+    { "binding": "BRAND", "service": "brand" }
   ]
 }

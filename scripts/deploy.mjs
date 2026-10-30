@@ -37,6 +37,8 @@ export const APPS = [
   { id: "planner", dir: "apps/content-planner" },
   // setelah planner: memilih/membuat kegiatan & mengirim angka peserta ke Content Planner lewat service binding
   { id: "event", dir: "apps/event-lead" },
+  // setelah event, copy, edukasi: daftar event untuk poster & kirim disclaimer lewat service binding (tidak ada tool yang memanggil Brand Kit kecuali hub)
+  { id: "brand", dir: "apps/brand-kit" },
   // setelah planner: konsep konten dikirim ke Content Planner lewat service binding
   { id: "content", dir: "apps/content-insight" },
   // setelah storydata: memakainya lewat service binding

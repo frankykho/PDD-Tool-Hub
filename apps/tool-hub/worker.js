@@ -49,6 +49,8 @@ const APPS = [
     cat: 'campaign', icon: 'calendar', blurb: 'Kalender kegiatan tim: konten sosmed, artikel, edukasi, dan program partnership, lengkap dengan tugas, persetujuan caption, pekerjaan harian, performa, dan laporan.', features: ['Kalender konten, artikel, edukasi, dan program partnership (jenis bisa ditulis sendiri)', 'Tugas tim di dalam program dan papan tugas desain', 'Caption dicek otomatis, lalu disetujui atau diminta revisi', 'Pekerjaan harian per orang', 'Performa konten: impor CSV Meta dan link pelacak UTM', 'Momen konten 60 hari ke depan', 'Laporan PDF & PPT: Kegiatan tim, Program partnership, Monthly Report per tim', 'Paket mingguan: ringkasan RD, obligasi, agenda'], kw: 'kalender jadwal tugas desain campaign harian laporan bulanan monthly report', pages: [{ label: 'Kalender', path: '/' }, { label: 'Paket Mingguan', path: '/paket' }] },
   { id: 'event', name: 'Event & Lead', desc: 'Pendaftaran, konfirmasi & absen peserta event',
     cat: 'campaign', icon: 'ticket', blurb: 'Nasabah mendaftar sendiri ke seminar, gathering, atau webinar lewat link & QR. Sales mengonfirmasi lewat WhatsApp, kehadiran dicatat di hari acara, dan angkanya masuk ke Content Planner.', features: ['Link & QR pendaftaran per event, siap untuk poster atau story', 'Form singkat: nama, HP WhatsApp, email, kode nasabah, persetujuan data', 'Konfirmasi lewat WhatsApp dengan teks yang sudah terisi', 'Status peserta: Terdaftar, Dikonfirmasi, Hadir, Batal, Tidak bisa dihubungi', 'Absen lewat QR di lokasi atau link untuk acara online, termasuk walk-in', 'Angka Pendaftar & Hadir otomatis masuk ke kegiatan di Content Planner', 'Ekspor daftar peserta ke Excel; data pribadi dihapus otomatis 12 bulan setelah acara'], kw: 'event seminar gathering webinar peserta lead pendaftaran absen qr whatsapp nasabah' },
+  { id: 'brand', name: 'Brand Kit', desc: 'Template, logo, foto & disclaimer resmi',
+    cat: 'campaign', icon: 'palette', blurb: 'Satu tempat untuk materi resmi. Cabang mengisi template poster & story (nama cabang, tanggal, tempat, narasumber, QR) lalu mengunduh PNG atau PDF siap cetak, tanpa bisa mengubah desain, logo, atau disclaimer.', features: ['Template terkunci dari Canva: isi nama cabang, tanggal, tempat, dan sampai 6 narasumber', 'Ukuran digital (Story, Feed) dan cetak (A4, A3, X-banner dengan bleed 3 mm)', 'Sekali isi, unduh semua ukuran (PNG, PDF, ZIP)', 'Terisi otomatis dari Event & Lead, termasuk QR pendaftaran', 'Logo, foto, dan panduan resmi dari folder Google Drive', 'Teks disclaimer resmi beberapa versi, salin sekali klik; ikut dipakai Copy Studio & Edukasi Studio'], kw: 'brand kit template poster story logo foto disclaimer canva cetak banner narasumber' },
   { id: 'sats', name: 'SATS Radar', desc: 'Sinyal, screener & analisis saham',
     cat: 'research', icon: 'sats', blurb: 'Sinyal teknikal, screener, dan analisis saham yang dihitung otomatis setiap hari bursa, dari kandidat hari ini sampai pemegang saham dan arus transaksi.', features: ['Hari Ini: sinyal BUY, kandidat, saham dekat harga tertinggi 52 minggu, TP/SL tersentuh', 'Sinyal & level trading per strategi', 'Screener (ada preset syariah) dan pemindai pola grafik', 'Pemegang saham di atas 1% dan perubahannya', 'Frekuensi transaksi & HAKA/HAKI', 'Radar peluang, backtest strategi, kalkulator waran', 'Market breadth & peta sektor', 'Detail saham: grafik, level, kalkulator posisi, fundamental, analisis AI; watchlist'], ai: 'Analisis AI per saham', kw: 'saham screener sinyal teknikal', entry: '/api/auth/hub?to=%2F', levels: { user: 'Pengguna', admin: 'Admin' } },
   // gh = gambar tutorial disimpan ke repo env.GITHUB_REPO (cabang profile.github.branch), hanya di dalam folder ghDir
@@ -384,14 +386,15 @@ const listUsers = async env => (await env.HUB_KV.list({ prefix: 'u:' })).keys.ma
  *  Event & Lead (EVENT) menerima kiriman yang sama: akun yang boleh membukanya (+ cabangnya), daftar cabang, dan tim & role. */
 let plannerSyncAt = 0;
 async function syncPlanner(env, changed = null) {
-  if (!env.PLANNER && !env.EVENT) return;
+  if (!env.PLANNER && !env.EVENT && !env.BRAND) return;
   plannerSyncAt = Date.now();
   try {
     let [users, org, branches] = await Promise.all([listUsers(env), getOrg(env), getBranches(env)]);
     const J = jobsOf(org);
     if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
     const has = (x, id) => String(x.apps || '').split(',').includes(id);
-    const row = x => ({ email: x.email, name: x.name || '', job: x.job || '', branch: x.br || '' });
+    // adm: Brand Kit & Event & Lead memakai status admin untuk anggota yang dicari lewat email (tanpa tiket)
+    const row = x => ({ email: x.email, name: x.name || '', job: x.job || '', branch: x.br || '', adm: x.role === 'admin' || isMain(env, x.email) });
     const post = async (bind, id, name, list) => {
       if (!bind || !list.length) return;
       try {
@@ -406,6 +409,8 @@ async function syncPlanner(env, changed = null) {
     await post(env.PLANNER, 'planner', 'Content Planner', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (J[x.job] && has(x, 'planner'))))).map(row));
     // Event & Lead: semua yang boleh membukanya (cabangnya menentukan event yang terlihat)
     await post(env.EVENT, 'event', 'Event & Lead', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'event')))).map(row));
+    // Brand Kit: semua yang boleh membukanya (cabang mengisi template, Head boleh mengubah narasumber)
+    await post(env.BRAND, 'brand', 'Brand Kit', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'brand')))).map(row));
   } catch (e) { console.log('sinkron anggota gagal:', e.message); }
 }
 
