@@ -86,7 +86,11 @@ assert.deepEqual(await W.getBranches(env), BRANCHES);
 const SARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales" });
 res = await raw("/", { ck: SARI });
 assert.equal(res.status, 200);
-assert.match(await res.text(), /window\.BK=\{[^<]*"branch":"Cabang Surabaya"/);
+const PG = await res.text();
+assert.match(PG, /window\.BK=\{[^<]*"branch":"Cabang Surabaya"/);
+// skrip halaman bisa diurai (tanpa skrip dari luar)
+for (const [, code] of PG.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
+assert.ok(!/<script src=/.test(PG.replace(/https:\/\/cdnjs\.cloudflare\.com[^"]*/g, "")), "skrip luar hanya dari cdnjs");
 const ADM = await cookie({ e: "adm@acme.test", n: "Adm", adm: true });
 const HEAD = await cookie({ e: "head@acme.test", n: "Hana", j: "head_rm" });
 const TONO = await cookie({ e: "tono@acme.test", n: "Tono", j: "sales", c: "Cabang Sudirman" });

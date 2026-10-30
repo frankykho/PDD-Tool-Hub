@@ -5,8 +5,375 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Brand Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--bad:#b42318;
+  --s2:#fff4dc;--s2-t:#8a5a00;--s4:#e1f5e9;--s4-t:#1d6b41;--s5:#fde8e6;--s5-t:#a5352a;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#a3b0a8;--g:#4fc285;--g2:#1d3327;--bad:#ef6b5e;
+  --s2:#3a2f15;--s2-t:#f0c66b;--s4:#173726;--s4-t:#7fdba6;--s5:#3a1d1a;--s5-t:#f2a097;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:var(--g)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.2px}
+.bar h2{font-size:18px;margin:0;font-weight:800}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn.sm{padding:5px 9px;font-size:12.5px;min-height:32px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.seg button:focus-visible,.tcard:focus-visible,.pick:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);flex-wrap:wrap}
+.seg button{border:0;background:none;padding:7px 14px;cursor:pointer;font-weight:600;color:var(--t2);min-height:38px}
+.seg button.on{background:var(--g2);color:var(--g)}
+.f{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;min-width:0;width:100%;min-height:38px}
+textarea.f{resize:vertical}
+.muted{color:var(--t2)}
+.small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.msg{padding:10px 12px;border-radius:10px;background:var(--s2);color:var(--s2-t);margin:10px 0}
+.msg.err{background:var(--s5);color:var(--s5-t)}
+.msg.ok{background:var(--s4);color:var(--s4-t)}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--g2);color:var(--g)}
+.tag.draft{background:var(--s2);color:var(--s2-t)}
+.empty{padding:28px;text-align:center;color:var(--t2)}
+.hint{font-size:12.5px;color:var(--t2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+/* template */
+.tcard{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;color:inherit;font:inherit;width:100%;padding:10px}
+.tcard .th{aspect-ratio:4/5;border-radius:8px;background:var(--g2) center/cover no-repeat;overflow:hidden}
+.tcard .th img{width:100%;height:100%;object-fit:cover;display:block}
+.tcard h3{margin:0;font-size:15px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+/* file */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:18px}
+.file{display:flex;flex-direction:column;gap:6px;padding:10px}
+.file .th{position:relative;aspect-ratio:1;border-radius:8px;background:var(--g2);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--t2);font-weight:700;font-size:12px}
+.file .th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--card)}
+.file .nm{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.cat{margin:6px 0 8px;font-size:15px}
+/* disclaimer */
+.disc{display:grid;gap:10px}
+.disc pre{white-space:pre-wrap;font:inherit;margin:6px 0 10px}
+/* isi template */
+.fill{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start}
+.form{display:grid;gap:12px}
+.fld{display:grid;gap:5px}
+.fld>label,.lbl{font-weight:600;font-size:13px}
+.req{color:var(--bad)}
+.chk{display:flex;align-items:center;gap:8px;min-height:38px}
+.chk input{width:18px;height:18px;accent-color:var(--g)}
+.sel{display:grid;gap:8px}
+.spk{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}
+.spk img,.pick img{width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--g2)}
+.spk .nm{font-weight:600;font-size:13px}.spk .tt{font-size:12px;color:var(--t2)}
+.spk .crop{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.spk .crop label{font-size:11.5px;color:var(--t2);display:grid}
+.spk .crop input{width:100%;accent-color:var(--g)}
+.picks{display:grid;gap:6px;max-height:260px;overflow:auto}
+.pick{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--card);cursor:pointer;text-align:left;min-height:44px;width:100%}
+.prevs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.prev{display:flex;flex-direction:column;gap:8px}
+.prev canvas{width:100%;height:auto;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.prev h3{margin:0;font-size:14px}
+.warn{font-size:12.5px;color:var(--s2-t);background:var(--s2);border-radius:8px;padding:6px 8px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+dialog{border:0;border-radius:16px;padding:20px;width:min(520px,calc(100vw - 32px));background:var(--card);color:var(--t);box-shadow:0 20px 50px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(6,16,10,.35)}
+dialog h3{margin:0 0 12px}
+.cropbox{width:100%;max-width:300px;aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--g2);touch-action:none;cursor:grab;margin:6px auto}
+.cropbox canvas{width:100%;height:100%;display:block}
+@media (max-width:860px){.fill{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  .btn,.seg button,.f,.chk{min-height:44px}.btn.sm{min-height:44px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .prevs{grid-template-columns:minmax(0,1fr)}
+}
+/* liquid glass (di dalam Tool Hub: token --hg-* dari shared/theme.js) */
+html[data-theme]{background:var(--hg-base)}
+html[data-theme] body{background:transparent}
+html[data-theme] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--hg-mesh)}
+html[data-theme] .wrap .card{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);border-radius:var(--hg-r-lg);box-shadow:var(--hg-hl),var(--hg-shadow)}
+html[data-theme] .wrap .seg{background:var(--hg-sheen),var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .btn:not(.pri),html[data-theme] dialog .btn:not(.pri){background-color:var(--hg-glass);border-color:var(--hg-edge);box-shadow:var(--hg-hl)}
+html[data-theme] .wrap .f,html[data-theme] dialog .f{background:var(--hg-solid)}
+html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(--hg-blur);backdrop-filter:var(--hg-blur);box-shadow:0 0 0 1px var(--hg-edge),var(--hg-hl),var(--hg-shadow-lg)}
+</style>
 </head>
 <body>
-<main id="app"></main>
+<div class="wrap">
+  <!-- beranda: template, file, disclaimer -->
+  <div id="vHome">
+    <div class="bar"><h1>Brand Kit</h1>
+      <div class="seg" role="tablist" aria-label="Bagian Brand Kit"><button type="button" role="tab" data-tab="tpl" class="on">Template</button><button type="button" role="tab" data-tab="file">File</button><button type="button" role="tab" data-tab="disc">Disclaimer</button></div>
+      <span class="sp"></span><a class="btn" href="#/admin" id="bAdmin" hidden>Atur Brand Kit</a></div>
+    <div id="evBanner" class="msg ok banner" hidden></div>
+    <div id="hMsg"></div>
+    <section id="tTpl"><div id="tplList" class="grid" aria-live="polite"></div></section>
+    <section id="tFile" hidden>
+      <div class="bar"><input class="f" id="fQ" type="search" placeholder="Cari nama file" aria-label="Cari file" style="max-width:340px"></div>
+      <div id="fMsg"></div><div id="fileList" aria-live="polite"></div>
+    </section>
+    <section id="tDisc" hidden><p class="hint">Teks resmi. Salin untuk caption, WhatsApp, atau materi lain.</p><div id="discList" class="disc"></div></section>
+  </div>
+
+  <!-- isi template & unduh -->
+  <div id="vFill" hidden>
+    <div class="bar"><a class="btn sm" href="#/">← Kembali</a><h2 id="fillTitle" translate="no"></h2></div>
+    <div class="fill">
+      <div class="card form" id="fillForm"></div>
+      <div>
+        <div class="bar"><span class="hint">Pratinjau. Desain, logo, dan disclaimer terkunci.</span><span class="sp"></span><button type="button" class="btn pri" id="bAll">Unduh semua (ZIP)</button></div>
+        <div id="dlMsg"></div>
+        <div id="prevs" class="prevs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- admin (langkah berikutnya) -->
+  <div id="vAdmin" hidden></div>
+  <div id="vEdit" hidden></div>
+</div>
+
+<dialog id="dlgSp"><form id="fSp" method="dialog" novalidate>
+  <h3 id="spTitle">Narasumber baru</h3>
+  <div class="form">
+    <div class="fld"><label for="spName">Nama <span class="req">*</span></label><input class="f" id="spName" maxlength="80" autocomplete="off"></div>
+    <div class="fld"><label for="spJob">Jabatan</label><input class="f" id="spJob" maxlength="120" placeholder="mis. Head of Research, KISI" autocomplete="off"></div>
+    <div class="fld"><label for="spFile">Foto <span class="req" id="spReq">*</span></label><input class="f" id="spFile" type="file" accept="image/*">
+      <div class="cropbox" id="spBox" hidden><canvas id="spCv" width="600" height="600" aria-label="Geser foto untuk mengatur posisi"></canvas></div>
+      <label class="small" id="spZoomL" hidden>Zoom <input type="range" id="spZoom" min="1" max="3" step="0.01" value="1" style="width:100%;accent-color:var(--g)"></label>
+      <span class="hint">Geser foto di dalam lingkaran untuk mengatur posisi wajah.</span></div>
+    <div id="spMsg"></div>
+    <div class="acts"><button type="submit" class="btn pri" id="spSave">Simpan</button><button type="button" class="btn" id="spCancel">Batal</button><span class="sp"></span><button type="button" class="btn danger" id="spDel" hidden>Hapus</button></div>
+  </div>
+</form></dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const BK=window.BK,ME=BK.me,SIZES=BK.sizes;
+const T=s=>window.hubT?window.hubT(s):s;
+async function api(path,body,method){
+  const r=await fetch(path,body!==undefined?{method:method||"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{cache:"no-store"});
+  const j=await r.json().catch(()=>({error:"Respons tidak terbaca (HTTP "+r.status+")"}));
+  if(!r.ok||j.error){const e=new Error(T(j.error||("HTTP "+r.status)));e.status=r.status;throw e}
+  return j;
+}
+const showMsg=(box,m,cls="err")=>{$(box).innerHTML=m?`<div class="msg ${cls}" role="${cls==="err"?"alert":"status"}">${esc(m)}</div>`:""};
+const LS={get:k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const slug=s=>String(s||"brand").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"brand";
+const ext=n=>(String(n).includes(".")?String(n).split(".").pop():"").replace(/[^a-z0-9]/gi,"").toUpperCase().slice(0,5)||"FILE";
+const fmtSize=n=>!n?"":n<1024*1024?Math.max(1,Math.round(n/1024))+" KB":(n/1048576).toFixed(1)+" MB";
+// pustaka dari cdnjs dimuat saat dibutuhkan
+const LIBS={qr:"https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js",pdf:"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",zip:"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"};
+const libP={};
+function lib(k){return libP[k]||(libP[k]=new Promise((ok,no)=>{const s=document.createElement("script");s.src=LIBS[k];s.crossOrigin="anonymous";s.onload=ok;s.onerror=()=>{delete libP[k];no(new Error(T("Pustaka gagal dimuat. Cek koneksi internet lalu coba lagi.")))};document.head.appendChild(s)}))}
+let R=null;const render=()=>R||(R=import("/render.js"));
+const imgP={};
+function img(src){return imgP[src]||(imgP[src]=new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>{delete imgP[src];no(new Error(T("Gambar gagal dimuat.")))};i.src=src}))}
+
+/* =================== DATA BERSAMA =================== */
+let TPLS=null,SPK=null,EVENTS=null,EVSEL=null,DISC=null;
+const loadTpls=async()=>TPLS||(TPLS=(await api("/api/templates")).templates);
+const loadSpk=async(force)=>{if(!SPK||force)SPK=(await api("/api/speakers")).speakers;return SPK};
+const loadDisc=async(force)=>{if(!DISC||force)DISC=await api("/api/disclaimers");return DISC};
+async function loadEvents(){if(EVENTS)return EVENTS;try{const r=await api("/api/events");EVENTS=r.off?[]:r.events}catch(e){EVENTS=[]}return EVENTS}
+
+/* =================== BERANDA =================== */
+let TAB="tpl";
+function show(v){["vHome","vFill","vAdmin","vEdit"].forEach(x=>$(x).hidden=x!==v);window.scrollTo(0,0)}
+function setTab(t){TAB=t;document.querySelectorAll("[data-tab]").forEach(b=>{b.classList.toggle("on",b.dataset.tab===t);b.setAttribute("aria-selected",String(b.dataset.tab===t))});
+  $("tTpl").hidden=t!=="tpl";$("tFile").hidden=t!=="file";$("tDisc").hidden=t!=="disc";
+  if(t==="file")files();if(t==="disc")discs()}
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+async function home(){
+  show("vHome");$("bAdmin").hidden=!ME.adm;showMsg("hMsg","");
+  $("evBanner").hidden=!EVSEL;if(EVSEL)$("evBanner").innerHTML=`<span>${esc(T("Poster untuk event:"))} <b translate="no">${esc(EVSEL.title)}</b> · ${esc(EVSEL.date_label)}</span><span>${esc(T("Pilih template di bawah."))}</span><button type="button" class="btn sm" id="bEvOff">${esc(T("Tanpa event"))}</button>`;
+  if(EVSEL)$("bEvOff").onclick=()=>{EVSEL=null;history.replaceState(null,"",location.pathname+location.hash);home()};
+  let L;try{L=await loadTpls()}catch(e){showMsg("hMsg",e.message);return}
+  const live=L.filter(t=>t.status==="live"&&t.sizes.length);
+  $("tplList").innerHTML=live.length?live.map(t=>{const s=t.sizes.find(x=>x.has_bg)||t.sizes[0];
+    return `<button type="button" class="card tcard" data-t="${esc(t.id)}"><div class="th">${s&&s.has_bg?`<img src="/bg/${esc(s.id)}" alt="" loading="lazy">`:""}</div><h3 translate="no">${esc(t.name)}</h3>
+      <div class="chips">${t.sizes.map(x=>`<span class="tag">${esc(T(SIZES[x.kind].label))}</span>`).join("")}</div></button>`}).join("")
+    :`<div class="card empty">${esc(T(ME.adm?"Belum ada template aktif. Buat lewat Atur Brand Kit.":"Belum ada template."))}</div>`;
+  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>location.hash="#/t/"+b.dataset.t);
+  setTab(TAB);
+}
+let FILES=null;
+async function files(force){
+  if(!FILES||force){$("fileList").innerHTML=`<div class="empty">${esc(T("Memuat…"))}</div>`;try{FILES=await api("/api/files"+(force?"?fresh=1":""))}catch(e){showMsg("fMsg",e.message);$("fileList").innerHTML="";return}}
+  showMsg("fMsg",FILES.error?T(FILES.error):"","msg");
+  const q=$("fQ").value.trim().toLowerCase(),C=FILES.categories.map(c=>({...c,files:c.files.filter(f=>!q||f.name.toLowerCase().includes(q))})).filter(c=>c.files.length);
+  $("fileList").innerHTML=C.length?C.map(c=>`<h3 class="cat" translate="no">${esc(c.name==="Lainnya"?T("Lainnya"):c.name)}</h3><div class="fgrid">${c.files.map(f=>`<div class="card file">
+    <div class="th"><span>${esc(ext(f.name))}</span>${/^image\/|pdf|presentation|document/.test(f.mime)?`<img src="${esc(f.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:""}</div>
+    <div class="nm" translate="no">${esc(f.name)}</div><div class="hint">${esc(fmtSize(f.size))}</div>
+    <div class="acts">${f.download?`<a class="btn sm pri" href="${esc(f.download)}" target="_blank" rel="noopener">${esc(T("Unduh"))}</a>`:""}<a class="btn sm" href="${esc(f.view)}" target="_blank" rel="noopener">${esc(T("Buka"))}</a></div></div>`).join("")}</div>`).join("")
+    :`<div class="card empty">${esc(T(q?"Tidak ada file yang cocok.":"Belum ada file."))}</div>`;
+}
+$("fQ").oninput=()=>files();
+async function discs(){
+  let D;try{D=await loadDisc()}catch(e){$("discList").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  const L=D.list.filter(x=>x.text);
+  $("discList").innerHTML=L.length?L.map(d=>`<div class="card"><b>${esc(T(d.label))}</b><pre translate="no">${esc(d.text)}</pre><button type="button" class="btn sm" data-copy="${esc(d.key)}">${esc(T("Salin"))}</button></div>`).join("")
+    :`<div class="card empty">${esc(T("Belum ada teks disclaimer."))}</div>`;
+  document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const d=L.find(x=>x.key===b.dataset.copy);
+    try{await navigator.clipboard.writeText(d.text);b.textContent=T("Tersalin ✓");setTimeout(()=>b.textContent=T("Salin"),2000)}catch(e){prompt(T("Salin teks ini:"),d.text)}});
+}
+
+/* =================== ISI TEMPLATE & UNDUH =================== */
+let TPL=null,F=null,ST=null,TIMER=0;
+const KEY=id=>"bk_fill_"+id;
+function autoVal(a){if(a==="branch")return ME.branch||"";if(!EVSEL)return "";return {"event.title":EVSEL.title,"event.date":EVSEL.date_label,"event.time":EVSEL.time,"event.place":EVSEL.place}[a]||""}
+async function fill(id){
+  show("vFill");showMsg("dlMsg","");
+  let L;try{L=await loadTpls()}catch(e){$("fillForm").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
+  TPL=L.find(t=>t.id===id&&t.sizes.length);if(!TPL){$("fillForm").innerHTML=`<div class="msg err">${esc(T("Template tidak ditemukan."))}</div>`;$("prevs").innerHTML="";return}
+  const Rm=await render();F=Rm.fieldsOf(TPL.sizes);$("fillTitle").textContent=TPL.name;
+  const saved=LS.get(KEY(id))||{};
+  ST={values:{},qrOn:true,qrLink:"",sel:[]};
+  F.text.forEach(x=>{ST.values[x.field]=(x.auto&&autoVal(x.auto))||(saved.values&&saved.values[x.field])||x.def||""});
+  ST.qrOn=saved.qrOn!==false;ST.qrLink=(EVSEL&&EVSEL.reg)||saved.qrLink||"";
+  const sp=F.speakers?await loadSpk().catch(()=>[]):[];
+  ST.sel=(saved.sel||[]).map(s=>{const x=sp.find(y=>y.id===s.id);return x?{...x,crop:s.crop||{x:0,y:0,zoom:1}}:null}).filter(Boolean).slice(0,F.speakers);
+  const evs=await loadEvents();
+  $("fillForm").innerHTML=`
+    ${evs.length?`<div class="fld"><label for="iEv">${esc(T("Ambil dari event (opsional)"))}</label><select class="f" id="iEv"><option value="">${esc(T("— Tanpa event —"))}</option>${evs.map(e=>`<option value="${esc(e.id)}"${EVSEL&&EVSEL.id===e.id?" selected":""}>${esc(e.title)} · ${esc(e.date_label)}</option>`).join("")}</select></div>`:""}
+    ${F.text.map(x=>`<div class="fld"><label for="v_${esc(x.field)}">${esc(x.label)}${x.required?' <span class="req">*</span>':""}</label>
+      <input class="f" id="v_${esc(x.field)}" data-v="${esc(x.field)}" maxlength="${x.max}" value="${esc(ST.values[x.field])}" autocomplete="off" translate="no"></div>`).join("")}
+    ${F.speakers?`<div class="fld"><span class="lbl">${esc(T("Narasumber"))} <span class="hint">(${esc(T("maks."))} ${F.speakers})</span></span><div class="sel" id="selList"></div>
+      <input class="f" id="spQ" type="search" placeholder="${esc(T("Cari narasumber tersimpan"))}" aria-label="${esc(T("Cari narasumber tersimpan"))}"><div class="picks" id="spPicks"></div>
+      <button type="button" class="btn sm" id="bSpNew">+ ${esc(T("Narasumber baru"))}</button></div>`:""}
+    ${F.qr?`<div class="fld"><label class="chk"><input type="checkbox" id="iQrOn"${ST.qrOn?" checked":""}> ${esc(T("Tampilkan QR"))}</label>
+      <input class="f" id="iQr" type="url" placeholder="https://…" value="${esc(ST.qrLink)}" aria-label="${esc(T("Link untuk QR"))}"><span class="hint">${esc(T("Terisi link pendaftaran kalau event dipilih."))}</span></div>`:""}`;
+  if($("iEv"))$("iEv").onchange=async()=>{const v=$("iEv").value;EVSEL=v?evs.find(e=>e.id===v):null;
+    F.text.forEach(x=>{if(x.auto&&x.auto.startsWith("event.")){ST.values[x.field]=autoVal(x.auto);$("v_"+x.field).value=ST.values[x.field]}});
+    if(F.qr){ST.qrLink=EVSEL?EVSEL.reg:"";$("iQr").value=ST.qrLink}redraw()};
+  document.querySelectorAll("[data-v]").forEach(i=>i.oninput=()=>{ST.values[i.dataset.v]=i.value;redraw()});
+  if(F.qr){$("iQrOn").onchange=()=>{ST.qrOn=$("iQrOn").checked;redraw()};$("iQr").oninput=()=>{ST.qrLink=$("iQr").value.trim();redraw()}}
+  if(F.speakers){$("spQ").oninput=drawPicks;$("bSpNew").onclick=()=>spDialog(null);drawSel();drawPicks()}
+  $("prevs").innerHTML=TPL.sizes.map(s=>{const z=SIZES[s.kind];return `<div class="card prev"><div><h3>${esc(T(z.label))}</h3><span class="hint">${z.w}×${z.h} px${z.print?" · "+esc(T("cetak, bleed 3 mm")):""}</span></div>
+    <canvas id="cv_${esc(s.id)}" aria-label="${esc(T("Pratinjau"))} ${esc(T(z.label))}"></canvas><div id="w_${esc(s.id)}"></div>
+    <div class="acts">${z.print?`<button type="button" class="btn sm pri" data-dl="${esc(s.id)}" data-as="pdf">${esc(T("Unduh PDF"))}</button>`:""}<button type="button" class="btn sm${z.print?"":" pri"}" data-dl="${esc(s.id)}" data-as="png">${esc(T("Unduh PNG"))}</button></div></div>`}).join("");
+  document.querySelectorAll("[data-dl]").forEach(b=>b.onclick=()=>download([TPL.sizes.find(s=>s.id===b.dataset.dl)],b.dataset.as,b));
+  redraw(0);
+}
+function save(){LS.set(KEY(TPL.id),{values:Object.fromEntries(F.text.filter(x=>!x.auto||!x.auto.startsWith("event.")).map(x=>[x.field,ST.values[x.field]])),qrOn:ST.qrOn,qrLink:EVSEL?"":ST.qrLink,sel:ST.sel.map(s=>({id:s.id,crop:s.crop}))})}
+function drawSel(){
+  $("selList").innerHTML=ST.sel.map((s,i)=>`<div class="spk"><img src="/photo/${esc(s.id)}?v=${encodeURIComponent(s.v||"")}" alt=""><div><div class="nm" translate="no">${esc(s.name)}</div><div class="tt" translate="no">${esc(s.title)}</div></div>
+    <div class="acts"><button type="button" class="btn sm" data-up="${i}" aria-label="${esc(T("Naikkan"))}" ${i?"":"disabled"}>↑</button><button type="button" class="btn sm" data-down="${i}" aria-label="${esc(T("Turunkan"))}" ${i<ST.sel.length-1?"":"disabled"}>↓</button>
+    <button type="button" class="btn sm" data-ed="${i}">${esc(T(s.canEdit?"Ubah":"Lihat"))}</button><button type="button" class="btn sm danger" data-rm="${i}" aria-label="${esc(T("Lepas dari poster"))}">✕</button></div>
+    <div class="crop"><label>${esc(T("Zoom"))}<input type="range" min="1" max="3" step="0.05" value="${s.crop.zoom}" data-c="zoom" data-i="${i}"></label><label>${esc(T("Geser kiri-kanan"))}<input type="range" min="-1" max="1" step="0.05" value="${s.crop.x}" data-c="x" data-i="${i}"></label><label>${esc(T("Geser atas-bawah"))}<input type="range" min="-1" max="1" step="0.05" value="${s.crop.y}" data-c="y" data-i="${i}"></label></div></div>`).join("")
+    ||`<div class="hint">${esc(T("Belum ada narasumber dipilih."))}</div>`;
+  const mv=(i,d)=>{const x=ST.sel.splice(i,1)[0];ST.sel.splice(i+d,0,x);drawSel();redraw()};
+  document.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>mv(+b.dataset.up,-1));
+  document.querySelectorAll("[data-down]").forEach(b=>b.onclick=()=>mv(+b.dataset.down,1));
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ST.sel.splice(+b.dataset.rm,1);drawSel();drawPicks();redraw()});
+  document.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>spDialog(ST.sel[+b.dataset.ed]));
+  document.querySelectorAll("[data-c]").forEach(r=>r.oninput=()=>{ST.sel[+r.dataset.i].crop[r.dataset.c]=+r.value;redraw()});
+}
+function drawPicks(){
+  const q=$("spQ").value.trim().toLowerCase(),have=new Set(ST.sel.map(s=>s.id)),full=ST.sel.length>=F.speakers;
+  const L=(SPK||[]).filter(s=>!have.has(s.id)&&(!q||(s.name+" "+s.title).toLowerCase().includes(q))).slice(0,30);
+  $("spPicks").innerHTML=full?`<div class="hint">${esc(T("Jumlah narasumber sudah maksimal."))}</div>`:L.map(s=>`<button type="button" class="pick" data-pk="${esc(s.id)}"><img src="/photo/${esc(s.id)}?v=${encodeURIComponent(s.v||"")}" alt="" loading="lazy"><span><b translate="no">${esc(s.name)}</b><br><span class="hint" translate="no">${esc(s.title)}</span></span></button>`).join("")
+    ||`<div class="hint">${esc(T(q?"Tidak ada yang cocok.":(SPK||[]).length?"Semua narasumber tersimpan sudah dipilih.":"Belum ada narasumber tersimpan."))}</div>`;
+  document.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{const s=SPK.find(x=>x.id===b.dataset.pk);ST.sel.push({...s,crop:{x:0,y:0,zoom:1}});drawSel();drawPicks();redraw()});
+}
+// teks disclaimer per versi (untuk digambar)
+async function discText(key){const D=await loadDisc();const d=D.list.find(x=>x.key===key);return d?d.text:""}
+async function fontsReady(size){const fams=new Set(["Inter"]);(size.slots||[]).forEach(s=>s.font&&fams.add(s.font));
+  await Promise.all([...fams].flatMap(f=>[400,700,800].map(w=>document.fonts.load(`${w} 40px "${f}"`).catch(()=>null))))}
+/** Gambar satu ukuran ke canvas pada skala tertentu. */
+async function paint(cv,size,scale){
+  const Rm=await render(),z=SIZES[size.kind];
+  const [bg,logo,disc]=await Promise.all([size.has_bg?img("/bg/"+size.id):null,img(size.dark?"/brand/kisi-white.png":"/brand/kisi-color.png"),discText(size.disc.key),fontsReady(size)]);
+  const sp=await Promise.all(ST.sel.map(async s=>({name:s.name,title:s.title,crop:s.crop,img:await img("/photo/"+s.id+"?v="+encodeURIComponent(s.v||"")).catch(()=>null)})));
+  let qr=null;if(F.qr&&ST.qrOn&&ST.qrLink){await lib("qr");qr=qrcode(0,"M");qr.addData(ST.qrLink);qr.make()}
+  cv.width=Math.round(z.w*scale);cv.height=Math.round(z.h*scale);
+  return Rm.draw(cv.getContext("2d"),{size,S:z,bg,logo,values:ST.values,speakers:sp,qr,disclaimer:disc,scale});
+}
+function redraw(delay=150){clearTimeout(TIMER);TIMER=setTimeout(async()=>{if(!TPL)return;save();
+  for(const s of TPL.sizes){const cv=$("cv_"+s.id);if(!cv)continue;const z=SIZES[s.kind];
+    try{const r=await paint(cv,s,Math.min(1,460/z.w));const W=[];
+      if(r.overflow.length)W.push(T("Teks terlalu panjang untuk kotaknya")+": "+r.overflow.map(f=>f==="speakers"?T("Narasumber"):(F.text.find(x=>x.field===f)||{}).label||f).join(", ")+".");
+      if(r.cut)W.push(T("Ukuran ini hanya memuat")+" "+(ST.sel.length-r.cut)+" "+T("narasumber pertama")+".");
+      $("w_"+s.id).innerHTML=W.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}
+    catch(e){$("w_"+s.id).innerHTML=`<div class="msg err">${esc(e.message)}</div>`}}},delay)}
+function missing(){const x=F.text.find(x=>x.required&&!String(ST.values[x.field]||"").trim());if(x){showMsg("dlMsg",T("Isian wajib belum diisi")+": "+x.label+".");$("v_"+x.field).focus();return true}showMsg("dlMsg","");return false}
+const toBlob=cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error(T("Gambar gagal dibuat. Coba lagi."))),"image/png"));
+function saveBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+/** Buat file ukuran penuh. as = png | pdf | all (semua ukuran dalam ZIP: PNG + PDF untuk ukuran cetak). */
+async function download(sizes,as,btn){
+  if(missing())return;const old=btn.textContent;btn.disabled=true;btn.textContent=T("Membuat…");
+  try{
+    const Rm=await render(),out=[];
+    for(const s of sizes){const z=SIZES[s.kind],cv=document.createElement("canvas");await paint(cv,s,Rm.canvasScale(z.w,z.h));const base=slug(TPL.name)+"-"+s.kind;
+      if(as!=="pdf")out.push([base+".png",await toBlob(cv)]);
+      if(z.print&&as!=="png"){await lib("pdf");out.push([base+".pdf",Rm.toPdf(window.jspdf.jsPDF,cv,z.mm)])}
+      api("/api/usage",{template_id:TPL.id,kind:s.kind,event_id:EVSEL?EVSEL.id:""}).catch(()=>{})}
+    if(as==="all"){await lib("zip");const zip=new JSZip();out.forEach(([n,b])=>zip.file(n,b));saveBlob(await zip.generateAsync({type:"blob"}),slug(TPL.name)+".zip")}
+    else out.forEach(([n,b])=>saveBlob(b,n));
+  }catch(e){showMsg("dlMsg",e.message)}finally{btn.disabled=false;btn.textContent=old}
+}
+$("bAll").onclick=function(){download(TPL.sizes,"all",this)};
+
+/* =================== NARASUMBER BARU / UBAH =================== */
+let SPED=null,SPIMG=null,SPOFF={x:0,y:0},SPZ=1;
+function spDialog(s){
+  SPED=s;SPIMG=null;SPOFF={x:0,y:0};SPZ=1;$("spZoom").value=1;showMsg("spMsg","");
+  const ro=!!s&&!s.canEdit;$("spTitle").textContent=T(!s?"Narasumber baru":ro?"Narasumber":"Ubah narasumber");
+  $("spName").value=s?s.name:"";$("spJob").value=s?s.title:"";$("spFile").value="";$("spReq").hidden=!!s;
+  ["spName","spJob","spFile"].forEach(k=>$(k).disabled=ro);$("spSave").hidden=ro;$("spDel").hidden=!s||ro;
+  $("spBox").hidden=true;$("spZoomL").hidden=true;
+  if(s)img("/photo/"+s.id+"?v="+encodeURIComponent(s.v||"")).then(i=>{if(SPED===s&&!SPIMG){spPaint(i);$("spBox").hidden=false}}).catch(()=>{});
+  $("dlgSp").showModal();
+}
+function spPaint(i){const cv=$("spCv"),c=cv.getContext("2d"),iw=i.naturalWidth,ih=i.naturalHeight,sc=Math.max(600/iw,600/ih)*SPZ,dw=iw*sc,dh=ih*sc;
+  SPOFF.x=Math.min(0,Math.max(600-dw,SPOFF.x));SPOFF.y=Math.min(0,Math.max(600-dh,SPOFF.y));
+  c.fillStyle="#fff";c.fillRect(0,0,600,600);c.drawImage(i,SPOFF.x,SPOFF.y,dw,dh)}
+$("spFile").onchange=()=>{const f=$("spFile").files[0];if(!f)return;const u=URL.createObjectURL(f),i=new Image();
+  i.onload=()=>{SPIMG=i;SPZ=1;$("spZoom").value=1;const sc=Math.max(600/i.naturalWidth,600/i.naturalHeight);SPOFF={x:(600-i.naturalWidth*sc)/2,y:(600-i.naturalHeight*sc)/2};spPaint(i);$("spBox").hidden=false;$("spZoomL").hidden=false};
+  i.onerror=()=>showMsg("spMsg",T("File ini bukan gambar."));i.src=u};
+$("spZoom").oninput=()=>{if(!SPIMG)return;const old=SPZ;SPZ=+$("spZoom").value;const k=SPZ/old;SPOFF.x=300-(300-SPOFF.x)*k;SPOFF.y=300-(300-SPOFF.y)*k;spPaint(SPIMG)};
+(()=>{let drag=null;const cv=$("spCv");
+  cv.addEventListener("pointerdown",e=>{if(!SPIMG)return;drag={x:e.clientX,y:e.clientY,ox:SPOFF.x,oy:SPOFF.y};cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener("pointermove",e=>{if(!drag)return;const k=600/cv.getBoundingClientRect().width;SPOFF.x=drag.ox+(e.clientX-drag.x)*k;SPOFF.y=drag.oy+(e.clientY-drag.y)*k;spPaint(SPIMG)});
+  const up=()=>drag=null;cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up)})();
+$("spCancel").onclick=()=>$("dlgSp").close();
+$("fSp").onsubmit=async e=>{e.preventDefault();const b=$("spSave");
+  const body={name:$("spName").value.trim(),title:$("spJob").value.trim()};if(SPED)body.id=SPED.id;
+  if(!body.name)return showMsg("spMsg",T("Nama narasumber belum diisi."));
+  if(SPIMG){let q=.85,u;do{u=$("spCv").toDataURL("image/jpeg",q);q-=.1}while(u.length>260000&&q>.3);body.photo=u}
+  else if(!SPED)return showMsg("spMsg",T("Foto narasumber belum dipilih."));
+  b.disabled=true;try{const r=await api("/api/speakers",body);await loadSpk(true);const s=SPK.find(x=>x.id===r.id);
+    const i=ST.sel.findIndex(x=>x.id===r.id);if(i>=0)ST.sel[i]={...s,crop:ST.sel[i].crop};else if(!SPED&&ST.sel.length<F.speakers)ST.sel.push({...s,crop:{x:0,y:0,zoom:1}});
+    Object.keys(imgP).filter(k=>k.startsWith("/photo/"+r.id)).forEach(k=>delete imgP[k]);
+    $("dlgSp").close();drawSel();drawPicks();redraw()}catch(x){showMsg("spMsg",x.message)}finally{b.disabled=false}};
+$("spDel").onclick=async()=>{if(!confirm(T("Hapus narasumber ini dari daftar bersama?")))return;
+  try{await api("/api/speakers/delete",{id:SPED.id});await loadSpk(true);ST.sel=ST.sel.filter(x=>x.id!==SPED.id);$("dlgSp").close();drawSel();drawPicks();redraw()}catch(x){showMsg("spMsg",x.message)}};
+
+/* =================== RUTE =================== */
+function route(){const h=location.hash||"#/",m=/^#\/t\/([a-z0-9]+)$/.exec(h);
+  if(m)return fill(m[1]);
+  if(h==="#/admin"&&ME.adm&&window.admin)return window.admin();
+  const e=/^#\/edit\/([a-z0-9]+)$/.exec(h);if(e&&ME.adm&&window.editTpl)return window.editTpl(e[1]);
+  TPL=null;home()}
+addEventListener("hashchange",route);
+(async()=>{const id=new URLSearchParams(location.search).get("event");
+  if(id){try{EVSEL=(await api("/api/events?id="+encodeURIComponent(id))).event}catch(e){showMsg("hMsg",e.message)}}
+  route()})();
+</script>
 </body>
 </html>
