@@ -288,6 +288,131 @@ async function register(request, env, ctx, ev) {
   return thanks(ev);
 }
 
+/* =========================================================
+   API TIM: EVENT & PESERTA
+   ========================================================= */
+export const WA_DEFAULT = "Halo {nama}, terima kasih sudah mendaftar {acara} pada {tanggal} pukul {jam} di {tempat}. Mohon balas YA untuk konfirmasi kehadiran. Terima kasih.";
+/** Teks konfirmasi WhatsApp: {nama} {acara} {tanggal} {jam} {tempat} {link}. Acara online tanpa {link} di template: link ditambahkan di akhir. */
+export function waText(tpl, ev, person) {
+  const on = ev.mode === "online", link = on ? String(ev.online_url || "") : "";
+  const V = { nama: person.name || "", acara: ev.title || "", tanggal: tanggal(ev.date), jam: jam(ev), tempat: on ? "online" : ev.place || "", link };
+  const t = String(tpl || WA_DEFAULT);
+  return t.replace(/\{(nama|acara|tanggal|jam|tempat|link)\}/g, (_, k) => V[k]) + (link && !t.includes("{link}") ? "\nLink acara: " + link : "");
+}
+// kode link publik: tanpa huruf/angka yang mirip (l, o, 0, 1)
+const ABC = "abcdefghijkmnpqrstuvwxyz23456789";
+const newCode = () => [...crypto.getRandomValues(new Uint8Array(10))].map((x) => ABC[x % ABC.length]).join("");
+const ISO = /^\d{4}-\d{2}-\d{2}$/, HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const cleanUrl = (v) => { const x = String(v ?? "").trim().slice(0, 500); return x && !/^https?:\/\//i.test(x) ? "https://" + x : x; };
+/** Sesi + cabang: tiket lama tanpa cabang memakai cabang di daftar anggota dari Tool Hub. */
+async function whoAmI(env, me) {
+  const e = lower(me.e);
+  if (me.c) return { ...me, e };
+  const U = (await cfgGet(env, "users")) || [], u = U.find((x) => x.email === e);
+  return { ...me, e, c: (u && u.branch) || "" };
+}
+async function visibleEvent(env, me, org, id) {
+  const ev = await env.DB.prepare("SELECT * FROM events WHERE id = ?").bind(String(id || "")).first();
+  return ev && canSee(me, ev, org) ? ev : null;
+}
+/** Isian event -> baris yang sah atau { error }. Cabang: Sales / GI coordinator hanya cabangnya; Head regional & admin cabang di daftar; lainnya tanpa cabang. */
+async function cleanEvent(env, me, org, b) {
+  const s = (v, n) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const ev = { title: s(b.title, 160), mode: b.mode === "online" ? "online" : "tatap", date: s(b.date, 10), time_start: s(b.time_start, 5), time_end: s(b.time_end, 5),
+    place: s(b.place, 200), online_url: cleanUrl(b.online_url), descr: String(b.descr ?? "").trim().slice(0, 2000), wa_tpl: String(b.wa_tpl ?? "").trim().slice(0, 1000),
+    quota: Math.max(0, Math.round(Number(String(b.quota ?? "").replace(/\D/g, "")) || 0)) || null, open: b.open === false || b.open === 0 || b.open === "0" ? 0 : 1,
+    status: b.status === "batal" ? "batal" : "aktif", branch: s(b.branch, 60), region: "" };
+  if (!ev.title) return { error: "Judul acara belum diisi." };
+  if (!ISO.test(ev.date) || isNaN(Date.parse(ev.date))) return { error: "Tanggal acara belum benar." };
+  if (!HM.test(ev.time_start)) return { error: "Jam mulai belum benar." };
+  if (!HM.test(ev.time_end) || ev.time_end <= ev.time_start) return { error: "Jam selesai harus setelah jam mulai." };
+  if (ev.mode === "online" && !ev.online_url) return { error: "Link acara online belum diisi." };
+  if (ev.mode === "tatap" && !ev.place) return { error: "Lokasi acara belum diisi." };
+  if (ev.mode === "tatap") ev.online_url = "";
+  const reg = isRegional(org, me.j, me.adm), head = !!(roleIn(org, me.j) || {}).head;
+  if (!reg && !me.adm) ev.branch = "";
+  if (reg && !head && ev.branch !== me.c) return { error: me.c ? "Cabang ini bukan cabangmu." : "Cabangmu belum diatur admin Tool Hub." };
+  if (reg && !ev.branch) return { error: "Pilih cabang acara." };
+  if (ev.branch) {
+    const B = await getBranches(env), h = B.find((x) => x.c === ev.branch);
+    if (!h && (head || me.adm)) return { error: "Cabang tidak ada di daftar." };
+    ev.region = h ? h.r : "";
+  }
+  return ev;
+}
+async function saveEvent(env, ctx, me, org, b) {
+  const ev = await cleanEvent(env, me, org, b);
+  if (ev.error) return ev;
+  const at = iso(env);
+  if (b.id) {
+    const prev = await visibleEvent(env, me, org, b.id);
+    if (!prev) return { error: "Event tidak ditemukan.", status: 404 };
+    const K = Object.keys(ev);
+    await env.DB.prepare(`UPDATE events SET ${K.map((k) => k + " = ?").join(", ")}, updated_at = ? WHERE id = ?`).bind(...K.map((k) => ev[k]), at, prev.id).run();
+    return { id: prev.id, code: prev.code, acode: prev.acode };
+  }
+  const row = { ...ev, id: crypto.randomUUID(), code: newCode(), acode: newCode(), creator_email: me.e, creator_name: String(me.n || me.e).slice(0, 60), creator_job: me.j || "",
+    creator_team: (teamIn(org, me.j) || {}).id || "", created_at: at, updated_at: at };
+  const K = Object.keys(row);
+  await env.DB.prepare(`INSERT INTO events (${K.join(", ")}) VALUES (${K.map(() => "?").join(", ")})`).bind(...K.map((k) => row[k])).run();
+  return { id: row.id, code: row.code, acode: row.acode };
+}
+async function listEvents(env, me, org) {
+  const L = (await env.DB.prepare("SELECT * FROM events ORDER BY date DESC, time_start DESC LIMIT 2000").all()).results;
+  return L.filter((ev) => canSee(me, ev, org));
+}
+/** POST /api/people: { id, status } = ubah status; selain itu tambah / ubah data peserta (tambah manual oleh Sales). */
+async function savePerson(env, ctx, me, org, b) {
+  const by = String(me.n || me.e).slice(0, 60);
+  if (b.id && b.status !== undefined && b.name === undefined) {
+    const p = await env.DB.prepare("SELECT * FROM people WHERE id = ?").bind(String(b.id)).first();
+    const ev = p && await visibleEvent(env, me, org, p.event_id);
+    if (!ev) return { error: "Peserta tidak ditemukan.", status: 404 };
+    if (!STATUSES[b.status]) return { error: "Status tidak dikenal." };
+    if (p.status !== b.status) await env.DB.batch([
+      env.DB.prepare("UPDATE people SET status = ?, updated_at = ?, updated_by = ? WHERE id = ?").bind(b.status, iso(env), by, p.id),
+      env.DB.prepare("INSERT INTO history (person_id, at, by_name, from_status, to_status) VALUES (?, ?, ?, ?, ?)").bind(p.id, iso(env), by, p.status, b.status)]);
+    await changed(env, ctx, ev.id);
+    return { ok: true };
+  }
+  const ev = await visibleEvent(env, me, org, b.event_id);
+  if (!ev) return { error: "Event tidak ditemukan.", status: 404 };
+  if (ev.purged) return { error: "Data peserta acara ini sudah dihapus." };
+  const d = cleanReg(b, { consent: false });
+  if (d.error) return d;
+  if (b.id) {
+    const p = await env.DB.prepare("SELECT * FROM people WHERE id = ? AND event_id = ?").bind(String(b.id), ev.id).first();
+    if (!p) return { error: "Peserta tidak ditemukan.", status: 404 };
+    const dup = await env.DB.prepare("SELECT id FROM people WHERE event_id = ? AND phone = ? AND id <> ?").bind(ev.id, d.phone, p.id).first();
+    if (dup) return { error: "Nomor HP ini sudah terdaftar di acara ini." };
+    await env.DB.prepare("UPDATE people SET name = ?, phone = ?, email = ?, is_client = ?, client_code = ?, updated_at = ?, updated_by = ? WHERE id = ?")
+      .bind(d.name, d.phone, d.email, d.is_client, d.client_code, iso(env), by, p.id).run();
+    await changed(env, ctx, ev.id);
+    return { id: p.id };
+  }
+  const id = await upsertPerson(env, ev, d, { src: "manual", by });
+  await changed(env, ctx, ev.id);
+  return { id };
+}
+async function deletePerson(env, ctx, me, org, id) {
+  if (!canDelete(me, org)) return { error: "Hanya admin atau Head yang bisa menghapus peserta.", status: 403 };
+  const p = await env.DB.prepare("SELECT id, event_id FROM people WHERE id = ?").bind(String(id || "")).first();
+  const ev = p && await visibleEvent(env, me, org, p.event_id);
+  if (!ev) return { error: "Peserta tidak ditemukan.", status: 404 };
+  await env.DB.batch([env.DB.prepare("DELETE FROM history WHERE person_id = ?").bind(p.id), env.DB.prepare("DELETE FROM people WHERE id = ?").bind(p.id)]);
+  await changed(env, ctx, ev.id);
+  return { ok: true };
+}
+async function saveConsent(env, b) {
+  const text = String(b.consent ?? "").replace(/\s+/g, " ").trim().slice(0, 2000);
+  if (!text) return { error: "Teks persetujuan belum diisi." };
+  const c = { ver: (await getConsent(env)).ver + 1, text };
+  await cfgPut(env, "consent", c).run();
+  return { consent: c };
+}
+/** Hasil fungsi API -> respons JSON (status dari { status } atau 400 kalau ada error). */
+const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
@@ -306,9 +431,32 @@ export default {
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
     const tk = await HUBSSO.ticket(request, env); if (tk) return tk;
-    const me = await HUBSSO.user(request, env);
-    if (!me) return path.startsWith("/api/") ? json({ error: "Sesi habis. Muat ulang halaman." }, 401) : HUBSSO.login(request, env);
+    const sess = await HUBSSO.user(request, env);
+    if (!sess) return path.startsWith("/api/") ? json({ error: "Sesi habis. Muat ulang halaman." }, 401) : HUBSSO.login(request, env);
     await ensure(env);
+    const me = await whoAmI(env, sess), org = await getOrg(env);
+    try {
+      if (request.method === "GET") {
+        if (path === "/api/events") return json(await listEvents(env, me, org));
+        if (path === "/api/people") {
+          const ev = await visibleEvent(env, me, org, url.searchParams.get("event"));
+          if (!ev) return json({ error: "Event tidak ditemukan." }, 404);
+          const P = (await env.DB.prepare("SELECT * FROM people WHERE event_id = ? ORDER BY created_at DESC").bind(ev.id).all()).results;
+          return json({ event: ev, people: P, waDefault: WA_DEFAULT, canDelete: canDelete(me, org) });
+        }
+        if (path === "/api/settings") return me.adm ? json({ consent: await getConsent(env) }) : json({ error: "Khusus admin." }, 403);
+      }
+      if (request.method === "POST" && path.startsWith("/api/")) {
+        if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
+        const b = await request.json().catch(() => ({}));
+        if (path === "/api/events") return out(await saveEvent(env, ctx, me, org, b));
+        if (path === "/api/people") return out(await savePerson(env, ctx, me, org, b));
+        if (path === "/api/people/delete") return out(await deletePerson(env, ctx, me, org, b.id));
+        if (path === "/api/settings") return me.adm ? out(await saveConsent(env, b)) : json({ error: "Khusus admin." }, 403);
+      }
+    } catch (e) {
+      return json({ error: "Gagal: " + (e.message || e) }, 500);
+    }
     return new Response("Tidak ditemukan", { status: 404 });
   },
 };

@@ -164,4 +164,88 @@ for (let i = 0; i < 10; i++) assert.notEqual((await submit("/d/" + E1.code, { ..
 p = await submit("/d/" + E1.code, REG, { ip: "9.9.9.9" });
 assert.equal(p.status, 429); assert.match(p.html, /Terlalu banyak pendaftaran dari jaringan ini\. Coba lagi nanti\./);
 
+/* ---------- API event & peserta ---------- */
+const { waText, WA_DEFAULT } = W;
+const SARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales", c: "Cabang Surabaya" });
+const TONO = await cookie({ e: "tono@acme.test", n: "Tono", j: "sales", c: "Cabang Sudirman" });
+const HEADRM = await cookie({ e: "rina@acme.test", n: "Rina", j: "head_rm" });
+const PIA = await cookie({ e: "pia@acme.test", n: "Pia", j: "partnership" });
+const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
+const OLDSARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales" });   // tiket lama tanpa cabang: cabang dari daftar anggota hub
+const NEW = { title: "Gathering Nasabah Surabaya", mode: "tatap", date: "2026-11-10", time_start: "18:30", time_end: "21:00", place: "Galaxy Mall", branch: "Cabang Surabaya", descr: "", quota: "", open: true };
+r = await call("/api/events", { ck: SARI, body: NEW });
+assert.equal(r.status, 200, JSON.stringify(r.j));
+assert.match(r.j.code, /^[a-z0-9]{10}$/); assert.match(r.j.acode, /^[a-z0-9]{10}$/); assert.notEqual(r.j.code, r.j.acode);
+const G = env.DB.db.prepare("SELECT * FROM events WHERE id = ?").get(r.j.id);
+assert.equal(G.region, "Jawa Timur", "regional diisi dari daftar cabang"); assert.equal(G.creator_email, "sari@acme.test"); assert.equal(G.creator_team, "rm"); assert.equal(G.status, "aktif");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, branch: "Cabang Sudirman" } })).j.error, "Cabang ini bukan cabangmu.");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, branch: "Cabang Sudirman" } })).status, 400);
+assert.equal((await call("/api/events", { ck: OLDSARI, body: NEW })).status, 200, "tiket tanpa cabang: cabang dari daftar anggota");
+assert.equal((await call("/api/events", { ck: HEADRM, body: { ...NEW, title: "Gathering Sudirman", branch: "Cabang Sudirman" } })).status, 200, "Head regional boleh memilih cabang mana pun");
+assert.equal((await call("/api/events", { ck: HEADRM, body: { ...NEW, branch: "Cabang Antah" } })).j.error, "Cabang tidak ada di daftar.");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, time_end: "" } })).j.error, "Jam selesai harus setelah jam mulai.");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, time_end: "18:00" } })).j.error, "Jam selesai harus setelah jam mulai.");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, mode: "online", online_url: "" } })).j.error, "Link acara online belum diisi.");
+assert.equal((await call("/api/events", { ck: SARI, body: { ...NEW, title: "" } })).j.error, "Judul acara belum diisi.");
+assert.equal((await call("/api/events", { ck: SARI, body: NEW, headers: { origin: "https://jahat.test" } })).status, 403, "hanya dari halaman tool sendiri");
+// pembuat di luar tim regional: tanpa cabang
+r = await call("/api/events", { ck: PIA, body: { ...NEW, title: "Webinar Obligasi", mode: "online", online_url: "zoom.test/j/9", place: "" } });
+assert.equal(r.status, 200);
+const PW = env.DB.db.prepare("SELECT * FROM events WHERE id = ?").get(r.j.id);
+assert.equal(PW.branch, ""); assert.equal(PW.creator_team, "pd"); assert.equal(PW.online_url, "https://zoom.test/j/9");
+// daftar event: hanya yang boleh dilihat
+const titles = async (ck) => (await call("/api/events", { ck })).j.map((e) => e.title);
+assert.ok((await titles(SARI)).includes("Gathering Nasabah Surabaya")); assert.ok(!(await titles(SARI)).includes("Webinar Obligasi"));
+assert.ok(!(await titles(TONO)).includes("Gathering Nasabah Surabaya"));
+assert.ok((await titles(TONO)).includes("Gathering Nasabah Surabaya") === false && (await call("/api/events", { ck: TONO })).j.every((e) => e.branch === "Cabang Sudirman"));
+assert.ok((await titles(PIA)).includes("Webinar Obligasi")); assert.ok(!(await titles(PIA)).includes("Gathering Nasabah Surabaya"));
+assert.ok((await titles(ADM)).includes("Webinar Obligasi") && (await titles(ADM)).includes("Gathering Nasabah Surabaya"));
+// mengubah event cabang lain -> tidak ditemukan
+assert.equal((await call("/api/events", { ck: TONO, body: { ...NEW, id: G.id, branch: "Cabang Sudirman" } })).status, 404);
+r = await call("/api/events", { ck: SARI, body: { ...NEW, id: G.id, title: "Gathering Nasabah Surabaya Barat", quota: "50" } });
+assert.equal(r.status, 200); assert.equal(r.j.code, G.code, "kode tetap saat diubah");
+assert.equal(env.DB.db.prepare("SELECT title, quota FROM events WHERE id = ?").get(G.id).quota, 50);
+
+// peserta
+assert.equal((await call("/api/people?event=" + G.id, { ck: TONO })).status, 404, "event cabang lain: tidak ditemukan");
+assert.equal((await call("/api/people?event=" + E1.id, { ck: SARI })).j.people.length, 1);
+r = await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Ani", phone: "0813 1111 2222", email: "", is_client: "1", client_code: "K001" } });
+assert.equal(r.status, 200, JSON.stringify(r.j));
+let L = (await call("/api/people?event=" + G.id, { ck: SARI })).j;
+assert.equal(L.people.length, 1); assert.equal(L.people[0].src, "manual"); assert.equal(L.people[0].consent_ver, 0); assert.equal(L.people[0].status, "terdaftar");
+assert.equal(L.waDefault, WA_DEFAULT); assert.equal(L.event.n_reg, 1);
+const ani = L.people[0].id;
+assert.equal((await call("/api/people", { ck: TONO, body: { id: ani, status: "dikonfirmasi" } })).status, 404, "peserta event cabang lain");
+assert.equal((await call("/api/people", { ck: SARI, body: { id: ani, status: "datang" } })).status, 400);
+r = await call("/api/people", { ck: SARI, body: { id: ani, status: "dikonfirmasi" } });
+assert.equal(r.status, 200);
+const H = env.DB.db.prepare("SELECT * FROM history WHERE person_id = ? ORDER BY id").all(ani);
+assert.deepEqual(H.map((h) => [h.from_status, h.to_status, h.by_name]), [["", "terdaftar", "Sari"], ["terdaftar", "dikonfirmasi", "Sari"]]);
+assert.equal(env.DB.db.prepare("SELECT n_conf FROM events WHERE id = ?").get(G.id).n_conf, 1);
+// ubah data peserta
+r = await call("/api/people", { ck: SARI, body: { event_id: G.id, id: ani, name: "Ani Wijaya", phone: "081311112222", email: "ani@mail.test", is_client: "1", client_code: "K001" } });
+assert.equal(r.status, 200); assert.equal(env.DB.db.prepare("SELECT name, status FROM people WHERE id = ?").get(ani).name, "Ani Wijaya");
+assert.equal(env.DB.db.prepare("SELECT status FROM people WHERE id = ?").get(ani).status, "dikonfirmasi", "ubah data tidak mengubah status");
+// hapus: hanya admin / Head
+await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Bayu", phone: "081322223333", is_client: "0" } });
+assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(G.id).n_reg, 2);
+assert.equal((await call("/api/people/delete", { ck: SARI, body: { id: ani } })).status, 403);
+assert.equal((await call("/api/people/delete", { ck: HEADRM, body: { id: ani } })).status, 200);
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM people WHERE id = ?").get(ani).n, 0);
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM history WHERE person_id = ?").get(ani).n, 0, "riwayatnya ikut terhapus");
+assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(G.id).n_reg, 1, "angka ikut turun");
+// teks WhatsApp
+const wa = waText(WA_DEFAULT, { title: "Seminar RD", date: "2026-11-03", time_start: "09:00", time_end: "11:00", place: "Hotel Majapahit", mode: "tatap" }, { name: "Budi" });
+assert.match(wa, /Halo Budi/); assert.match(wa, /Selasa, 3 November 2026/); assert.match(wa, /09\.00–11\.00 WIB/); assert.match(wa, /Hotel Majapahit/);
+const wo = waText(WA_DEFAULT, { title: "Webinar", date: "2026-11-03", time_start: "19:00", time_end: "20:00", place: "", mode: "online", online_url: "https://zoom.test/j/1" }, { name: "Budi" });
+assert.match(wo, /di online/); assert.match(wo, /https:\/\/zoom\.test\/j\/1/, "link acara online ikut di teks WhatsApp");
+assert.equal(waText("{nama} {link}", { mode: "online", online_url: "https://z.test" }, { name: "A" }), "A https://z.test", "link tidak ditulis dua kali");
+// persetujuan data: hanya admin; versi naik saat diganti
+assert.equal((await call("/api/settings", { ck: SARI })).status, 403);
+assert.equal((await call("/api/settings", { ck: ADM })).j.consent.ver, 1);
+r = await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan baru dari legal." } });
+assert.equal(r.status, 200); assert.equal(r.j.consent.ver, 2);
+assert.match((await page("/d/" + E1.code)).html, /Teks persetujuan baru dari legal\./);
+assert.equal((await call("/api/settings", { ck: ADM, body: { consent: " " } })).status, 400);
+
 console.log("semua cek lolos");
