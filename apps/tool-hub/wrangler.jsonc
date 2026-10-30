@@ -20,6 +20,8 @@
     // Event & Lead: menerima anggota, cabang, dan tim & role (sama seperti Planner)
     { "binding": "EVENT", "service": "event" },
     // Brand Kit: menerima anggota (+ status admin), cabang, dan tim & role
-    { "binding": "BRAND", "service": "brand" }
+    { "binding": "BRAND", "service": "brand" },
+    // Link & QR Studio: menerima anggota (+ status admin) dan tim & role
+    { "binding": "LINK", "service": "go" }
   ]
 }

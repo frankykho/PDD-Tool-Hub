@@ -23,6 +23,7 @@ const { default: edukasi } = await import("../edukasi-studio/worker.js");
 const { default: cron } = await import("../cron/worker.js");
 const { default: eventLead } = await import("../event-lead/worker.js");
 const { default: brandKit } = await import("../brand-kit/worker.js");
+const { default: linkQr } = await import("../link-qr/worker.js");
 
 /* ---------- tiruan ---------- */
 function kv() {
@@ -46,7 +47,7 @@ function d1() {
   return { db, prepare: (sql) => st(sql), batch: async (list) => { const out = []; for (const x of list) out.push(await x.all()); return out; } };
 }
 const SECRET = "s".repeat(40), ADMIN = "admin@acme.test", HUB = "https://hub.acme.test";
-const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "news", "planner", "sats", "tutorial", "copy", "event", "brand"];
+const IDS = ["email", "story", "fund", "competitor", "content", "edukasi", "bond", "etf", "recap", "news", "planner", "sats", "tutorial", "copy", "event", "brand", "go"];
 const PROFILE = JSON.stringify({ urls: Object.fromEntries([["hub", HUB], ...IDS.map((id) => [id, `https://${id}.acme.test`])]), github: { repo: "acme/tools" }, brand: { short: "Acme" } });
 const recapEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const plannerEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
@@ -56,13 +57,15 @@ const eduEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const cronEnv = { SSO_SECRET: SECRET, DB: d1() };
 const eventEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 const brandEnv = { SSO_SECRET: SECRET, DB: d1(), BRAND_KV: kv(), PROFILE, HUB_URL: HUB };
+const goEnv = { SSO_SECRET: SECRET, DB: d1(), PROFILE, HUB_URL: HUB };
 // Event & Lead: kiriman dari hub dicatat (alamat + kunci) lalu diteruskan ke worker aslinya
-const eventCalls = [], brandCalls = [];
+const eventCalls = [], brandCalls = [], goCalls = [];
 const bind = (w, e) => ({ fetch: (u, init) => w.fetch(new Request(u, init), e, { waitUntil() { } }) });
 const env = { ADMIN_EMAILS: ADMIN, SSO_SECRET: SECRET, HUB_KV: kv(), PROFILE, HUB_URL: HUB, GITHUB_REPO: "acme/tools", RECAP: bind(recap, recapEnv), PLANNER: bind(planner, plannerEnv),
   FUND: bind(fund, fundEnv), COMPETITOR: bind(competitor, compEnv), EDUKASI: bind(edukasi, eduEnv), CRON: bind(cron, cronEnv),
   EVENT: { fetch: (u, init) => { eventCalls.push({ url: String(u), key: (init && init.headers || {})["x-hub-key"] }); return bind(eventLead, eventEnv).fetch(u, init); } },
-  BRAND: { fetch: (u, init) => { brandCalls.push({ url: String(u), key: (init && init.headers || {})["x-hub-key"] }); return bind(brandKit, brandEnv).fetch(u, init); } } };
+  BRAND: { fetch: (u, init) => { brandCalls.push({ url: String(u), key: (init && init.headers || {})["x-hub-key"] }); return bind(brandKit, brandEnv).fetch(u, init); } },
+  LINK: { fetch: (u, init) => { goCalls.push({ url: String(u), key: (init && init.headers || {})["x-hub-key"] }); return bind(linkQr, goEnv).fetch(u, init); } } };
 
 let ghCalls = 0, stepCalls = 0;
 const realFetch = globalThis.fetch;
@@ -117,7 +120,7 @@ assert.match(admin, /^hub_sess=/);
 let r = await call("/", { cookie: admin });
 assert.equal(r.status, 200);
 let html = await r.text(), boot = bootOf(html);
-assert.equal(boot.apps.length, 16, "admin melihat semua 16 tool");
+assert.equal(boot.apps.length, 17, "admin melihat semua 17 tool");
 assert.deepEqual(boot.apps.map((a) => a.id).sort(), [...IDS].sort());
 for (const a of boot.apps) {
   assert.ok(boot.cats[a.cat], `${a.id}: kategori sah`);
@@ -390,7 +393,7 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
     const known = new Set([...DEFAULT_ORG.teams.map((x) => x.name), ...DEFAULT_ORG.roles.map((x) => x.name), ADMIN, "Admin", "Beranda", "Keluar", "Ganti password", "Simpan", "Kembali ke Admin", "Content Planner", "Role", "Head"]);
     const left = texts.filter((x) => /[a-z]{3}/i.test(x) && !known.has(x.replace(/ \(\d+\)$/, "")) && t(x) === x);
     assert.deepEqual(left, [], "teks halaman Tim & role yang belum punya terjemahan"); }
-  const n0 = eventCalls.length, b0 = brandCalls.length;
+  const n0 = eventCalls.length, b0 = brandCalls.length, g0 = goCalls.length;
   r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(DEFAULT_ORG, { r_copy_team: "pd", r_copy_assign: "1", t_rm_name: "Regional Mgmt",
     nr_name: "Digital Marketing Specialist", nr_team: "pd", r_lain_del: "1", r_partnership_del: "1", nt_name: "Marketing" }) });
   assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 3 tim, 13 role/);
@@ -403,6 +406,8 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
   assert.deepEqual(eventCalls.slice(n0), [{ url: "https://event/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Event & Lead (sekali)");
   assert.deepEqual(JSON.parse(eventEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role tersimpan di Event & Lead");
   assert.deepEqual(brandCalls.slice(b0), [{ url: "https://brand/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Brand Kit (sekali)");
+  assert.deepEqual(goCalls.slice(g0), [{ url: "https://go/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Link & QR Studio (sekali)");
+  assert.deepEqual(JSON.parse(goEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role tersimpan di Link & QR Studio");
   // Brand Kit: yang boleh membukanya + admin utama; status admin ikut terkirim
   const BU = JSON.parse(brandEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v);
   assert.deepEqual(BU.map((x) => [x.email, x.adm]), [[ADMIN, true]], "hanya admin utama (belum ada yang diberi akses Brand Kit)");

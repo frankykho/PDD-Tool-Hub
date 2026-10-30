@@ -35,6 +35,8 @@ export const APPS = [
   { id: "tutorial", dir: "apps/tutorial" },
   // setelah fund & bond: memakai keduanya lewat service binding
   { id: "planner", dir: "apps/content-planner" },
+  // setelah planner: memilih kegiatan & mengirim total klik ke Content Planner lewat service binding
+  { id: "go", dir: "apps/link-qr" },
   // setelah planner: memilih/membuat kegiatan & mengirim angka peserta ke Content Planner lewat service binding
   { id: "event", dir: "apps/event-lead" },
   // setelah event, copy, edukasi: daftar event untuk poster & kirim disclaimer lewat service binding (tidak ada tool yang memanggil Brand Kit kecuali hub)
