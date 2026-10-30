@@ -663,15 +663,15 @@ async function linkItems(env, q) {
   const L = (await env.DB.prepare(`SELECT id, kind, title, date, COALESCE(branch, '') AS branch, status FROM items${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY date DESC, created_at DESC LIMIT ${ids.length ? 200 : 50}`).bind(...A).all()).results;
   return { items: L };
 }
-/** POST /__hub/link-clicks (Link & QR Studio): { items: { <item_id>: <total klik> } }. Total, bukan tambahan: disimpan MAX supaya
- *  kiriman yang datang terlambat tidak menurunkan angka. Kegiatan yang sudah dihapus -> gone. */
+/** POST /__hub/link-clicks (Link & QR Studio): { items: { <item_id>: <total klik> } }. Total, bukan tambahan: hanya ditulis kalau lebih besar,
+ *  supaya kiriman yang datang terlambat tidak menurunkan angka dan kiriman ulang tidak memakai kuota tulis D1. Kegiatan yang sudah dihapus -> gone. */
 async function linkClicks(env, b) {
   await ensure(env);
   const E = Object.entries(b && typeof b.items === "object" && b.items ? b.items : {}).slice(0, 200).map(([k, v]) => [String(k).slice(0, 60), Math.max(0, Math.round(Number(v) || 0))]);
   if (!E.length) return { ok: true, gone: [] };
   const have = new Set((await env.DB.prepare(`SELECT id FROM items WHERE id IN (${E.map(() => "?").join(",")})`).bind(...E.map((e) => e[0])).all()).results.map((x) => x.id));
   const at = new Date().toISOString(), up = E.filter(([k]) => have.has(k));
-  if (up.length) await env.DB.batch(up.map(([k, n]) => env.DB.prepare("INSERT INTO qrclicks (item_id, n, at) VALUES (?, ?, ?) ON CONFLICT(item_id) DO UPDATE SET n = MAX(n, excluded.n), at = excluded.at").bind(k, n, at)));
+  if (up.length) await env.DB.batch(up.map(([k, n]) => env.DB.prepare("INSERT INTO qrclicks (item_id, n, at) VALUES (?, ?, ?) ON CONFLICT(item_id) DO UPDATE SET n = excluded.n, at = excluded.at WHERE excluded.n > qrclicks.n").bind(k, n, at)));
   return { ok: true, gone: E.filter(([k]) => !have.has(k)).map((e) => e[0]) };
 }
 async function galleryProposals(env) {

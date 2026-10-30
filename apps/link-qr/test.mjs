@@ -162,6 +162,9 @@ assert.equal((await go("/" + rc.code)).status, 302, "link kegiatan terhapus teta
 plannerEnv.DB.db.prepare("DELETE FROM qrclicks").run();
 await api(SARI, "/api/links");
 assert.equal(qrN("kK"), 4, "dikirim ulang saat daftar dibuka");
+{ const tc = () => sql("SELECT total_changes() AS n").n, c0 = tc();
+  await api(SARI, "/api/links");
+  assert.equal(tc() - c0, 0, "tidak ada yang berubah: tidak ada baris yang ditulis ulang"); }
 
 // nonaktif & aktif lagi
 assert.equal((await api(REG, "/api/links/active", { code: c.code, active: false })).status, 403, "bukan pembuat / Head / admin");

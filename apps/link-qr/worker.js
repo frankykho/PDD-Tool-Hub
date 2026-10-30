@@ -140,7 +140,7 @@ async function pushClicks(env, ids) {
     const r = await planner(env, "/__hub/link-clicks", { method: "POST", body: JSON.stringify({ items: Object.fromEntries(R.map((x) => [x.item_id, Number(x.n) || 0])) }) });
     if (!r.ok) throw new Error("HTTP " + r.status);
     const gone = ((await r.json()).gone || []).map(String).filter((x) => ids.includes(x));
-    if (gone.length) await env.DB.prepare(`UPDATE links SET gone = 1 WHERE item_id IN (${gone.map(() => "?").join(",")})`).bind(...gone).run();
+    if (gone.length) await env.DB.prepare(`UPDATE links SET gone = 1 WHERE COALESCE(gone, 0) = 0 AND item_id IN (${gone.map(() => "?").join(",")})`).bind(...gone).run();
     return { gone };
   } catch (e) {
     console.log("Content Planner tidak bisa dihubungi:", e.message);
@@ -238,9 +238,12 @@ async function listLinks(env, ctx, me, org, reg, q) {
   if (ids.length) {
     try {
       const P = new Map((await plannerItems(env, false, { ids: ids.join(",") })).map((x) => [x.id, x]));
-      await env.DB.batch(ids.map((id) => { const p = P.get(id);
+      // hanya kegiatan yang judul / jenis / status hapusnya berubah yang ditulis (kuota tulis D1 gratis dipakai bersama semua tool)
+      const now_ = (id) => { const p = P.get(id); return p ? { item_title: p.title, item_kind: p.kind, gone: 0 } : { gone: 1 }; };
+      const changed = ids.filter((id) => { const n = now_(id); return L.some((x) => x.item_id === id && Object.keys(n).some((k) => x[k] !== n[k])); });
+      if (changed.length) await env.DB.batch(changed.map((id) => { const p = P.get(id);
         return p ? env.DB.prepare("UPDATE links SET item_title = ?, item_kind = ?, gone = 0 WHERE item_id = ?").bind(p.title, p.kind, id) : env.DB.prepare("UPDATE links SET gone = 1 WHERE item_id = ?").bind(id); }));
-      for (const x of L) if (ids.includes(x.item_id)) { const p = P.get(x.item_id); if (p) Object.assign(x, { item_title: p.title, item_kind: p.kind, gone: 0 }); else x.gone = 1; }
+      for (const x of L) if (ids.includes(x.item_id)) Object.assign(x, now_(x.item_id));
     } catch (e) { console.log("Content Planner:", e.message); }
     ctx.waitUntil(pushClicks(env, ids));
   }

@@ -599,6 +599,9 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   await hub("/__hub/link-clicks", { items: { lqK: 3 } });   // kiriman lama datang terlambat
   const it = async (id) => (await call("/api/items?id=" + id, { ck: PART })).j;
   assert.equal((await it("lqK")).clicks, 5, "MAX: angka tidak turun");
+  const atOf = () => env.DB.db.prepare("SELECT at FROM qrclicks WHERE item_id = 'lqK'").get().at, at1 = atOf();
+  await new Promise((ok) => setTimeout(ok, 5)); await hub("/__hub/link-clicks", { items: { lqK: 5 } });
+  assert.equal(atOf(), at1, "angka sama: tidak ditulis ulang");
   assert.equal((await it("lqP")).clicks, 7, "Program = 2 sendiri + 5 kegiatan terkait");
   assert.equal((await it("lqC")).clicks, null, "tanpa klik tetap kosong");
   const PR = (await call("/api/program-report?id=lqP", { ck: PART })).j.programs[0];
