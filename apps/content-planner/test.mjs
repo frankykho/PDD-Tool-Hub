@@ -182,6 +182,9 @@ assert.equal((await call("/api/items", { ck: OLD, body: { ...prog, title: "Progr
 const pg = await planner.fetch(new Request(BASE + "/", { headers: { cookie: PART } }), env, { waitUntil() { } });
 const html = await pg.text(), cfg = JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(html)[1]);
 assert.deepEqual([cfg.me.role, cfg.me.assign], ["partnership", true]);
+assert.ok(!html.includes('id="lkTarget"') && html.includes('id="lkStudio"'), "buat link pindah ke Link & QR Studio");
+assert.ok(html.includes('"toolhub-apps"') && html.includes('app:"go"'), "halaman mendengar daftar tool & membuka Studio");
+assert.ok(html.includes('["Klik link",int(p.clicks)'), "laporan Program menampilkan klik");
 assert.equal(cfg.roles.partnership, "Mutual Fund Partnership Specialist");
 const cfg2 = JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(await (await planner.fetch(new Request(BASE + "/", { headers: { cookie: COPY } }), env, { waitUntil() { } })).text())[1]);
 assert.deepEqual([cfg2.me.role, cfg2.me.assign], ["copy", false]);

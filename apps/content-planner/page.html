@@ -370,7 +370,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <p class="muted small" id="mInfo" style="margin:0 0 8px"></p>
       <span class="lbl">Link pelacak klik</span>
       <div id="lkList"></div>
-      <div class="acts" id="lkAddRow" style="margin:6px 0 10px"><input class="f" id="lkTarget" maxlength="500" placeholder="Link tujuan: halaman produk, unduh aplikasi, …" style="flex:1;min-width:180px"><label class="chk small" style="margin:0"><input type="checkbox" id="lkUtm" checked> + UTM</label><button type="button" class="btn sm" id="lkAdd">+ Buat link</button></div>
+      <div class="acts" id="lkAddRow" style="margin:6px 0 10px"><button type="button" class="btn sm" id="lkStudio" hidden>Buat di Link &amp; QR Studio</button><span class="muted small" id="lkAsk" hidden>Minta akses Link &amp; QR Studio ke admin untuk membuat link baru.</span></div>
       <p class="muted small" id="lkNote" style="margin:0 0 10px">Simpan kegiatan dulu untuk membuat link pelacak.</p>
     </div>
     <div class="grp" id="gRes">
@@ -870,7 +870,7 @@ function dailyChange(e){
 }
 const openItem=async id=>{try{openForm(await api("/api/items?id="+encodeURIComponent(id)))}catch(e){showErr("calErr",e)}};
 // form tambah / ubah
-let editing=null,fKind="konten";
+let editing=null,fKind="konten",HUBAPPS=[];
 function setKind(k){
   fKind=k;const L=LAB[k],cfg=K[k];
   [...$("iKind").children].forEach(b=>b.classList.toggle("on",b.dataset.k===k));
@@ -950,7 +950,7 @@ async function loadComs(){
   $("iComs").innerHTML=L.length?L.map(c=>`<div class="com ${esc(c.kind)}"><b>${esc(c.by_name)}</b> <span class="muted">${c.kind==="disetujui"?"menyetujui · ":c.kind==="revisi"?"meminta revisi · ":""}${when(c.at)}</span>${c.text?`<div translate="no">${esc(c.text)}</div>`:""}</div>`).join(""):'<p class="muted small" style="margin:0">Belum ada komentar.</p>';
 }
 async function loadLinks(){
-  const it=editing;$("lkList").innerHTML="";$("lkAddRow").hidden=!it;$("lkNote").hidden=!!it;if(!it)return;
+  const it=editing,go=HUBAPPS.includes("go");$("lkList").innerHTML="";$("lkAddRow").hidden=!it;$("lkNote").hidden=!!it;$("lkStudio").hidden=!go;$("lkAsk").hidden=go;if(!it)return;
   let L=[];try{L=await api("/api/links?item="+encodeURIComponent(it.id))}catch(e){}
   if(editing!==it)return;
   $("lkList").innerHTML=L.map(l=>{const u=location.origin+"/go/"+l.code;return `<div class="lrow"><code>${esc(u)}</code><span class="sp"></span><b>${int(l.clicks)}</b> klik<button type="button" class="btn sm" data-lcopy="${esc(u)}">Salin</button></div>`}).join("");
@@ -984,12 +984,9 @@ $("iComSend").onclick=async()=>{
   finally{$("iComSend").disabled=false}
 };
 $("iComTx").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("iComSend").click()}});
-$("lkAdd").onclick=async()=>{
-  if(!editing)return;$("lkAdd").disabled=true;
-  try{const r=await api("/api/links",{item_id:editing.id,target:$("lkTarget").value,utm:$("lkUtm").checked});$("lkTarget").value="";await loadLinks();copyText(location.origin+"/go/"+r.code)}
-  catch(e){showErr("dlgErr",e)}
-  finally{$("lkAdd").disabled=false}
-};
+// link baru dibuat di Link & QR Studio (link pendek + QR); link /go/ lama tetap tampil & dihitung di sini
+addEventListener("message",e=>{const d=e.data||{};if(e.source===parent&&d.type==="toolhub-apps"&&Array.isArray(d.apps)){HUBAPPS=d.apps;if(editing)loadLinks()}});
+$("lkStudio").onclick=()=>{if(editing)parent.postMessage({type:"toolhub-open",app:"go",path:"/?item="+encodeURIComponent(editing.id)},"*")};
 $("lkList").addEventListener("click",e=>{const b=e.target.closest("[data-lcopy]");if(b)copyText(b.dataset.lcopy)});
 $("iKind").addEventListener("click",e=>{const b=e.target.closest("[data-k]");if(b)setKind(b.dataset.k)});
 $("iNeed").onchange=()=>{$("gDes").hidden=!$("iNeed").checked;if($("iNeed").checked&&!$("iDue").value)$("iDue").value=addD($("iDate").value||todayIso(),-2)};
@@ -1023,7 +1020,7 @@ function openForm(it,date,preset){
   $("iSave").hidden=!!ro;
   $("iCopy").value=v("copy");$("iAppr").value=it?(v("approver")||nameOf(it.approver_email||"")):"";
   MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
-  $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkTarget").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
+  $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
   if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
   renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadGalLog();
   $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":"");
@@ -1243,7 +1240,7 @@ async function repData(){
 const COLS={
   edukasi:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:"")],["Acara / materi",i=>i.title],["Format",i=>i.channel],["Peran",i=>i.role||"–"],["Narasumber",i=>i.owner||"–"],["Penyelenggara / tempat",i=>[i.audience,i.place].filter(Boolean).join(" · ")||"–"],["Peserta",i=>int(i.result_num)],["Status",i=>STL[i.status]||i.status]],
   artikel:[["Tanggal",i=>fmtShort(i.date)],["Judul",i=>i.title],["Kanal",i=>i.channel],["Penulis",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Pembaca",i=>int(i.result_num)],["Link",i=>i.link||"–"]],
-  konten:[["Tanggal",i=>fmtShort(i.date)],["Konten",i=>i.title],["Kanal",i=>i.channel],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Jangkauan",i=>int(i.result_num)],["Link",i=>i.link||"–"]],
+  konten:[["Tanggal",i=>fmtShort(i.date)],["Konten",i=>i.title],["Kanal",i=>i.channel],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Jangkauan",i=>int(i.result_num)],["Klik",i=>int(i.clicks)],["Link",i=>i.link||"–"]],
   program:[["Periode",i=>fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):"")],["Program",i=>i.title],["Partner",i=>i.partner||"–"],["Jenis",i=>i.channel||"–"],["PIC",i=>i.owner||"–"],["Status",i=>stLate(i)],["Peserta",i=>int(i.result_num)],["Leads",i=>int(i.leads)],["Akun baru",i=>int(i.accounts)]],
   desain:[["Tenggat",i=>fmtShort(i.d_due||i.date)],["Visual untuk",i=>i.title],["Jenis / kanal",i=>`${(K[kindOf(i)]||{}).label} · ${i.channel}`],["Diminta",i=>i.owner||"–"],["Desainer",i=>i.d_name||nameOf(i.d_who)||"–"],["Status",i=>DSL[i.d_status]||"–"],["Link",i=>i.d_link||"–"]],
   cabang:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:"")],["Kegiatan",i=>i.title],["Jenis",i=>i.channel],["Cabang",i=>i.branch||"–"],["PIC",i=>i.owner||"–"],["Peserta",i=>int(i.result_num)],["Leads",i=>int(i.leads)],["Akun baru",i=>int(i.accounts)],["Transaksi / AUM",i=>rp(i.aum)],["Status",i=>STL[i.status]||i.status]],
@@ -1287,7 +1284,8 @@ async function progData(){
 const pk=p=>[["Peserta",int(p.result_num),"jangkauan "+int(p.reach)],["Leads",int(p.leads),"akun baru "+int(p.accounts)],["Nilai transaksi / AUM",rp(p.aum),"dari program ini"],
   ["Biaya realisasi",rp(p.cost),p.budget?`anggaran ${rp(p.budget)}${p.used!=null?` (${num(p.used,0)}% terpakai)`:""}`:"anggaran belum diisi"],
   ["Biaya per akun baru",p.cpa!=null?rp(Math.round(p.cpa)):"–",p.cpl!=null?"per lead "+rp(Math.round(p.cpl)):"isi biaya & hasil untuk menghitung"],
-  ["Tugas selesai",`${p.done} dari ${p.tasks.length}`,p.late?`${p.late} lewat tenggat`:"tidak ada yang terlambat"]];
+  ["Tugas selesai",`${p.done} dari ${p.tasks.length}`,p.late?`${p.late} lewat tenggat`:"tidak ada yang terlambat"],
+  ["Klik link",int(p.clicks),"termasuk kegiatan terkait"]];
 // kolom tabel: [judul, isi, angka?, lebar relatif di PPT]
 const PCOLS={
   items:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:""),0,1.3],["Jenis",i=>(K[kindOf(i)]||{}).label||"",0,1.5],["Kegiatan",i=>i.title,0,2.6],["Kanal",i=>i.channel||"–",0,1.2],["PIC",i=>i.owner||"–",0,1.3],["Status",i=>STL[i.status]||i.status||"–",0,1],["Hasil",i=>int(i.result_num),1,1],["Link",i=>i.link||"–",0,.8]],
@@ -1295,7 +1293,7 @@ const PCOLS={
   // promo reksa dana kompetitor di periode yang sama (Competitor Intelligence)
   bench:[["Kompetitor",x=>x.platform||x.manager||"–",0,1.6],["Promo",x=>x.title,0,2.8],["Reward maks.",x=>x.reward_max||"–",0,1.5],["Min. beli",x=>x.min_rp?rp(x.min_rp):"–",1,1.2],
     ["Reward ÷ min.",x=>x.reward_rp&&x.min_rp?num(x.reward_rp/x.min_rp*100,2)+"%":"–",1,1.1],["Masa tahan",x=>x.lockin||x.holding_period||"–",0,1.5],["Periode",x=>[x.s,x.e].filter(Boolean).map(fmtShort).join(" – ")||"–",0,1.8],["Status",x=>x.status||"–",0,1.1]],
-  rekap:[["Program",p=>p.title,0,2.4],["Partner",p=>p.partner||"–",0,1.6],["Periode",perOf,0,2],["Status",p=>STL[p.status]||p.status,0,1],["Peserta",p=>int(p.result_num),1,1],["Leads",p=>int(p.leads),1,.9],["Akun baru",p=>int(p.accounts),1,1],["Nilai transaksi",p=>rp(p.aum),1,1.7],["Biaya",p=>rp(p.cost),1,1.5],["Biaya/akun",p=>p.cpa!=null?rp(Math.round(p.cpa)):"–",1,1.4]],
+  rekap:[["Program",p=>p.title,0,2.4],["Partner",p=>p.partner||"–",0,1.6],["Periode",perOf,0,2],["Status",p=>STL[p.status]||p.status,0,1],["Peserta",p=>int(p.result_num),1,1],["Leads",p=>int(p.leads),1,.9],["Akun baru",p=>int(p.accounts),1,1],["Nilai transaksi",p=>rp(p.aum),1,1.7],["Biaya",p=>rp(p.cost),1,1.5],["Biaya/akun",p=>p.cpa!=null?rp(Math.round(p.cpa)):"–",1,1.4],["Klik",p=>int(p.clicks),1,.8]],
 };
 const progInfo=p=>[["Partner",p.partner||"–"],["Jenis",p.channel||"–"],["Periode",perOf(p)],["Status",STL[p.status]||p.status],["PIC",p.owner||"–"],["Tujuan",p.goal||"–"],["Target",p.target||"–"],["Catatan hasil",p.result_note||"–"]];
 /* ---------- tahap kegiatan di laporan: tiap jenis punya alur status sendiri, diringkas jadi selesai / berjalan / rencana / batal ---------- */
