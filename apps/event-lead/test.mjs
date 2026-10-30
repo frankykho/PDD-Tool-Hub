@@ -102,8 +102,8 @@ const addEvent = (o) => { const e = { id: "ev" + Math.random().toString(36).slic
 const people = (id) => env.DB.db.prepare("SELECT * FROM people WHERE event_id = ? ORDER BY created_at").all(id);
 let ipN = 0;
 // kirim form publik seperti browser (x-www-form-urlencoded); stamp dibuat 5 detik sebelum dikirim
-async function submit(path, fields, { ip = "10.0.0." + ++ipN, age = 5000 } = {}) {
-  env.NOW_MS = T0 - age; const ts = await formStamp(env); env.NOW_MS = T0;
+async function submit(path, fields, { ip = "10.0.0." + ++ipN, age = 5000, at = T0 } = {}) {
+  env.NOW_MS = at - age; const ts = await formStamp(env); env.NOW_MS = at;
   const r = await worker.fetch(new Request(BASE + path, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": ip }, body: new URLSearchParams({ ts, website: "", ...fields }) }), env, { waitUntil() { } });
   return { status: r.status, html: await r.text() };
 }
@@ -247,5 +247,48 @@ r = await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan ba
 assert.equal(r.status, 200); assert.equal(r.j.consent.ver, 2);
 assert.match((await page("/d/" + E1.code)).html, /Teks persetujuan baru dari legal\./);
 assert.equal((await call("/api/settings", { ck: ADM, body: { consent: " " } })).status, 400);
+
+/* ---------- absen (publik) ---------- */
+const { inWindow } = W;
+const WEV = { date: "2026-11-03", time_start: "09:00", time_end: "11:00" };
+assert.equal(inWindow(WEV, Date.parse("2026-11-03T01:00:00Z")), true, "08.00 WIB: 1 jam sebelum mulai");
+assert.equal(inWindow(WEV, Date.parse("2026-11-02T23:59:00Z")), false, "06.59 WIB: belum dibuka");
+assert.equal(inWindow(WEV, Date.parse("2026-11-03T05:59:00Z")), true, "12.59 WIB: masih dalam 2 jam setelah selesai");
+assert.equal(inWindow(WEV, Date.parse("2026-11-03T06:01:00Z")), false, "13.01 WIB: sudah ditutup");
+const DAY = Date.parse("2026-11-03T02:00:00Z");   // 09.00 WIB
+const pageAt = async (path, at) => { env.NOW_MS = at; const x = await page(path); env.NOW_MS = T0; return x; };
+const budi = () => env.DB.db.prepare("SELECT * FROM people WHERE event_id = ? AND phone = '628123456789'").get(E1.id);
+assert.equal(budi().status, "terdaftar");
+// di luar jendela waktu
+assert.match((await pageAt("/h/" + E1.acode, Date.parse("2026-11-02T10:00:00Z"))).html, /Absen belum dibuka\./);
+assert.match((await pageAt("/h/" + E1.acode, Date.parse("2026-11-04T02:00:00Z"))).html, /Absen sudah ditutup\./);
+p = await submit("/h/" + E1.acode, { phone: "0812-3456-789" }, { at: Date.parse("2026-11-04T02:00:00Z") });
+assert.match(p.html, /Absen sudah ditutup\./); assert.equal(budi().status, "terdaftar", "di luar jendela: tidak berubah");
+assert.equal((await page("/h/tidakada123")).status, 404);
+// dalam jendela: halaman berisi satu isian nomor HP, tanpa data peserta
+p = await pageAt("/h/" + E1.acode, DAY);
+assert.match(p.html, /name="phone"/); assert.doesNotMatch(p.html, /name="name"/); assert.doesNotMatch(p.html, /Budi/);
+// terdaftar dengan +62, absen dengan 08 -> baris yang sama jadi Hadir, tanpa menampilkan nama
+p = await submit("/h/" + E1.acode, { phone: "0812 3456 789" }, { at: DAY });
+assert.equal(p.status, 200); assert.match(p.html, /Kehadiran tercatat/); assert.doesNotMatch(p.html, /Budi/);
+assert.equal(budi().status, "hadir"); assert.equal(budi().walkin, 0);
+assert.deepEqual({ ...env.DB.db.prepare("SELECT from_status, to_status, by_name FROM history WHERE person_id = ? ORDER BY id DESC").get(budi().id) }, { from_status: "terdaftar", to_status: "hadir", by_name: "Absen mandiri" });
+assert.equal(env.DB.db.prepare("SELECT n_hadir FROM events WHERE id = ?").get(E1.id).n_hadir, 1);
+// nomor belum terdaftar -> form walk-in (nomor sudah terisi), lalu tercatat Hadir + walk-in
+p = await submit("/h/" + E1.acode, { phone: "0857 7777 8888" }, { at: DAY });
+assert.match(p.html, /name="name"/); assert.match(p.html, /value="0857 7777 8888"/); assert.match(p.html, /belum terdaftar/);
+assert.equal(people(E1.id).length, 1);
+p = await submit("/h/" + E1.acode, { phone: "0857 7777 8888", name: "Citra", email: "citra@mail.test", is_client: "0", consent: "1" }, { at: DAY });
+assert.match(p.html, /Kehadiran tercatat/); assert.doesNotMatch(p.html, /Citra/);
+const citra = env.DB.db.prepare("SELECT * FROM people WHERE event_id = ? AND phone = '6285777778888'").get(E1.id);
+assert.equal(citra.status, "hadir"); assert.equal(citra.walkin, 1); assert.equal(citra.src, "absen"); assert.ok(citra.consent_at);
+assert.equal(env.DB.db.prepare("SELECT n_walkin FROM events WHERE id = ?").get(E1.id).n_walkin, 1);
+// walk-in tanpa centang persetujuan -> ditolak
+p = await submit("/h/" + E1.acode, { phone: "0857 1111 0000", name: "Dedi", email: "d@mail.test", is_client: "0" }, { at: DAY });
+assert.equal(p.status, 400); assert.match(p.html, /Persetujuan data pribadi wajib dicentang\./);
+// acara dibatalkan
+assert.match((await pageAt("/h/" + E4.acode, DAY)).html, /Acara ini dibatalkan\./);
+// banyak peserta dari Wi-Fi lokasi yang sama tetap bisa absen
+for (let i = 0; i < 15; i++) assert.notEqual((await submit("/h/" + E1.acode, { phone: "0812 3456 789" }, { at: DAY, ip: "7.7.7.7" })).status, 429);
 
 console.log("semua cek lolos");

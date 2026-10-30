@@ -193,15 +193,15 @@ async function stampOk(env, s) {
   const age = now(env) - Number(t);
   return age >= MIN_FILL && age <= MAX_FILL;
 }
-// batas kiriman form publik per IP per jam
-const HITS_PER_HOUR = 10;
-async function hit(env, request) {
-  const ip = String(request.headers.get("cf-connecting-ip") || "?").slice(0, 64), hour = iso(env).slice(0, 13);
+// batas kiriman form publik per IP per jam. Absen lebih longgar: peserta di lokasi memakai Wi-Fi yang sama.
+const HITS_PER_HOUR = 10, ABSEN_PER_HOUR = 300;
+async function hit(env, request, kind = "d", limit = HITS_PER_HOUR) {
+  const ip = kind + ":" + String(request.headers.get("cf-connecting-ip") || "?").slice(0, 64), hour = iso(env).slice(0, 13);
   const prev = new Date(now(env) - 3 * 3600e3).toISOString().slice(0, 13);
   await env.DB.batch([env.DB.prepare("DELETE FROM hits WHERE hour < ?").bind(prev),
     env.DB.prepare("INSERT INTO hits (ip, hour, n) VALUES (?, ?, 1) ON CONFLICT(ip, hour) DO UPDATE SET n = n + 1").bind(ip, hour)]);
   const r = await env.DB.prepare("SELECT n FROM hits WHERE ip = ? AND hour = ?").bind(ip, hour).first();
-  return r.n <= HITS_PER_HOUR;
+  return r.n <= limit;
 }
 /** Kenapa pendaftaran tidak bisa (null = bisa). phone = nomor yang sudah terdaftar boleh memperbarui data walau kuota penuh. */
 async function regBlocked(env, ev, phone = "") {
@@ -286,6 +286,59 @@ async function register(request, env, ctx, ev) {
   await upsertPerson(env, ev, d, { src: "form", by: "Daftar mandiri", consentVer: c.ver });
   await changed(env, ctx, ev.id);
   return thanks(ev);
+}
+
+/* =========================================================
+   HALAMAN PUBLIK: absen /h/<kode absen>
+   ========================================================= */
+// absen dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai (WIB)
+const OPEN_BEFORE = 3600e3, CLOSE_AFTER = 2 * 3600e3;
+/** Sedang dalam jendela absen acara ini? */
+export const inWindow = (ev, nowMs) => nowMs >= wibMs(ev.date, ev.time_start) - OPEN_BEFORE && nowMs <= wibMs(ev.date, ev.time_end || ev.time_start) + CLOSE_AFTER;
+function absenBlocked(env, ev) {
+  if (ev.status === "batal") return "Acara ini dibatalkan.";
+  if (ev.purged || now(env) > wibMs(ev.date, ev.time_end || ev.time_start) + CLOSE_AFTER) return "Absen sudah ditutup.";
+  if (!inWindow(ev, now(env))) return "Absen belum dibuka.";
+  return null;
+}
+// halaman absen tidak pernah menampilkan nama atau data peserta lain
+async function absenPage(env, ev, { v = {}, error = "", walkin = false, status = 200 } = {}) {
+  const block = absenBlocked(env, ev);
+  if (block) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="note">${esc(block)}</p></div>`, status);
+  const err = error ? `<p class="err" role="alert">${esc(error)}</p>` : "";
+  if (walkin) return pubHtml(ev.title, `<div class="card">${evHead(ev)}${err}<p class="note">Nomor ini belum terdaftar. Isi data singkat di bawah untuk mencatat kehadiran.</p>`
+    + `<form method="post">${await regFields(env, v)}<button type="submit">Catat kehadiran</button></form></div>`, status);
+  return pubHtml(ev.title, `<div class="card">${evHead(ev)}<h2 style="font-size:18px;margin:20px 0 0">Absen kehadiran</h2>${err}<form method="post">`
+    + `<label>Nomor HP (WhatsApp) yang dipakai saat mendaftar<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" placeholder="08xx" value="${esc(v.phone)}"></label>`
+    + `<div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>`
+    + `<input type="hidden" name="ts" value="${esc(await formStamp(env))}"><button type="submit">Catat kehadiran</button></form></div>`, status);
+}
+const present = (ev) => pubHtml(ev.title, `<div class="card"><h1>Kehadiran tercatat.</h1><p class="meta"><b>${esc(ev.title)}</b></p><p class="meta">${esc(tanggal(ev.date))} · ${esc(jam(ev))}</p>`
+  + (ev.mode === "online" && ev.online_url ? `<p class="note">Link acara: <a href="${esc(ev.online_url)}" rel="noopener">${esc(ev.online_url)}</a></p>` : "")
+  + `<p class="descr">Terima kasih sudah hadir.</p></div>`);
+async function checkIn(request, env, ctx, ev) {
+  if (!(await hit(env, request, "h", ABSEN_PER_HOUR))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak percobaan dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
+  const v = await formOf(request);
+  if (absenBlocked(env, ev)) return absenPage(env, ev);
+  if (v.website) return present(ev);   // kolom jebakan terisi: bot
+  const walkin = v.name !== undefined;
+  if (!(await stampOk(env, v.ts))) return absenPage(env, ev, { v, walkin, error: "Coba kirim lagi.", status: 400 });
+  const phone = normPhone(v.phone);
+  if (!phone) return absenPage(env, ev, { v, walkin, error: "Nomor HP (WhatsApp) belum benar.", status: 400 });
+  const p = await env.DB.prepare("SELECT id, status FROM people WHERE event_id = ? AND phone = ?").bind(ev.id, phone).first();
+  if (p) {
+    if (p.status !== "hadir") await env.DB.batch([
+      env.DB.prepare("UPDATE people SET status = 'hadir', updated_at = ?, updated_by = 'Absen mandiri' WHERE id = ?").bind(iso(env), p.id),
+      env.DB.prepare("INSERT INTO history (person_id, at, by_name, from_status, to_status) VALUES (?, ?, 'Absen mandiri', ?, 'hadir')").bind(p.id, iso(env), p.status)]);
+    await changed(env, ctx, ev.id);
+    return present(ev);
+  }
+  if (!walkin) return absenPage(env, ev, { v, walkin: true });
+  const d = cleanReg(v);
+  if (d.error) return absenPage(env, ev, { v, walkin: true, error: d.error, status: 400 });
+  await upsertPerson(env, ev, d, { status: "hadir", src: "absen", by: "Absen mandiri (walk-in)", consentVer: (await getConsent(env)).ver, walkin: 1 });
+  await changed(env, ctx, ev.id);
+  return present(ev);
 }
 
 /* =========================================================
@@ -427,6 +480,13 @@ export default {
       const ev = await env.DB.prepare("SELECT * FROM events WHERE code = ?").bind(pm[1]).first();
       if (!ev) return notFound();
       return request.method === "POST" ? register(request, env, ctx, ev) : regPage(env, ev);
+    }
+    const hm = /^\/h\/([a-z0-9]{6,20})$/.exec(path);
+    if (hm) {
+      await ensure(env);
+      const ev = await env.DB.prepare("SELECT * FROM events WHERE acode = ?").bind(hm[1]).first();
+      if (!ev) return notFound();
+      return request.method === "POST" ? checkIn(request, env, ctx, ev) : absenPage(env, ev);
     }
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
