@@ -1078,13 +1078,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     var f = frames[id];
     if (!f) {
       f = document.createElement("iframe"); f.title = a.name; f.style.display = "block"; f.dataset.cur = page || a.src; f.setAttribute("allow", "clipboard-write; web-share"); // web-share: tombol bagikan (gambar + teks) di dalam tool
-      f.onload = function () { f.dataset.loaded = "1"; if (curId === id) loader.classList.remove("on"); try { f.contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); f.contentWindow.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (e) { } };
+      f.onload = function () { f.dataset.loaded = "1"; if (curId === id) loader.classList.remove("on"); try { f.contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); f.contentWindow.postMessage({ type: "toolhub-lang", lang: lang }, "*"); f.contentWindow.postMessage({ type: "toolhub-apps", apps: apps.map(function (x) { return x.id; }) }, "*"); } catch (e) { } };
       framebox.appendChild(f); frames[id] = f; f.src = page || a.src;
     } else if (page && f.dataset.cur !== page) { f.dataset.cur = page; f.dataset.loaded = ""; f.src = page; }
     loader.classList.toggle("on", !f.dataset.loaded); subnav(a); touch(id);
     document.title = a.name + " · " + T0; setKey("tools/" + a.cat);
     setTimeout(function () { try { f.focus(); } catch (e) { } }, 50);
   }
+  // asal (origin) alamat tool: dari src "/sso?app=..&back=<alamat>" atau alamat langsung
+  function appOrigin(a) { try { var s = a.src.indexOf("/sso?") === 0 ? new URLSearchParams(a.src.split("?")[1]).get("back") : a.src; return new URL(s, location.href).origin; } catch (e) { return ""; } }
   function openPage(id, url) { pendingPage[id] = url; if (location.hash === "#" + id) openApp(id); else location.hash = id; }
   function closeApp() { if (!curId) return; curId = null; app.classList.remove("tool"); setRail(railPref); document.title = T0; }
 
@@ -1096,6 +1098,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       if (typeof d.hubShareUrl === "string" && d.hubShareUrl.length <= 500 && d.hubShareUrl.indexOf(e.origin + "/") === 0) SH[k] = d.hubShareUrl;
       if (d.type === "toolhub-theme-request") try { e.source.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (x) { }
       if (d.type === "toolhub-lang-request") try { e.source.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (x) { }
+      // buka halaman tool lain dari dalam tool (mis. Event & Lead -> Brand Kit "Buat poster"); hanya tool yang boleh dibuka pengguna
+      if (d.type === "toolhub-open" && typeof d.app === "string" && byId[d.app] && typeof d.path === "string" && d.path.length <= 300 && /^\/[?#][\w=&%.\-\/#?]*$/.test(d.path)) {
+        var o = appOrigin(byId[d.app]); if (o) openPage(d.app, "/sso?app=" + d.app + "&back=" + encodeURIComponent(o + d.path));
+      }
     }
   });
 

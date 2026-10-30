@@ -12,6 +12,7 @@ const D = {
   "+ Buat event": "+ New event",
   "Buat event": "New event",
   "Ubah event": "Edit event",
+  "Buat poster": "Make a poster",
   "Dibatalkan": "Cancelled",
   "Pendaftaran ditutup": "Registration closed",
   "Pendaftaran dibuka": "Registration open",

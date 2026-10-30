@@ -148,7 +148,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   </div>
 
   <div id="vDetail" hidden>
-    <div class="bar"><a class="btn sm" href="#/">← Kembali</a><span class="sp"></span><a class="btn" id="bEdit">Ubah event</a></div>
+    <div class="bar"><a class="btn sm" href="#/">← Kembali</a><span class="sp"></span><button class="btn" id="bPoster" type="button" hidden>Buat poster</button><a class="btn" id="bEdit">Ubah event</a></div>
     <div id="dBody"></div>
   </div>
 </div>
@@ -264,13 +264,18 @@ $("fEv").onsubmit=async ev=>{
 
 /* =================== DETAIL EVENT =================== */
 let D=null,PF="",PQ="";
+// Buat poster: buka Brand Kit (lewat Tool Hub) dengan event ini; tombol tampil hanya kalau pengguna punya akses Brand Kit
+let HUBAPPS=[];
+addEventListener("message",e=>{const d=e.data||{};if(e.source===parent&&d.type==="toolhub-apps"&&Array.isArray(d.apps)){HUBAPPS=d.apps;posterBtn()}});
+function posterBtn(){$("bPoster").hidden=!(HUBAPPS.includes("brand")&&D&&D.event&&D.event.status!=="batal")}
+$("bPoster").onclick=()=>parent.postMessage({type:"toolhub-open",app:"brand",path:"/?event="+encodeURIComponent(D.event.id)},"*");
 async function detail(id){
   show("vDetail");$("bEdit").href="#/edit/"+id;
   try{D=await api("/api/people?event="+encodeURIComponent(id))}catch(e){$("dBody").innerHTML=`<div class="msg err">${esc(e.message)}</div>`;return}
   const w=sessionStorage.getItem("ev_warn");sessionStorage.removeItem("ev_warn");drawDetail(w);
 }
 function drawDetail(warn){
-  const e=D.event,P=D.people,cl=P.filter(p=>p.is_client).length;$("bEdit").hidden=!!e.purged;
+  const e=D.event,P=D.people,cl=P.filter(p=>p.is_client).length;$("bEdit").hidden=!!e.purged;posterBtn();
   const shareBox=(k,h,sub)=>`<div class="card share"><div class="qr" id="qr_${k}" aria-label="Kode QR ${esc(h)}"></div><div><h3>${esc(h)}</h3><p class="hint">${esc(sub)}</p>
     <p class="link" translate="no"><a href="${esc(pubUrl(e,k))}" target="_blank" rel="noopener">${esc(pubUrl(e,k))}</a></p>
     <div class="acts"><button type="button" class="btn sm" data-copy="${k}">Salin link</button><button type="button" class="btn sm" data-png="${k}">Unduh QR</button></div></div></div>`;

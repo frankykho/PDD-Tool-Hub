@@ -74,7 +74,7 @@ assert.equal(r.status, 200);
 assert.ok(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get(), "org tersimpan");
 assert.deepEqual(await W.getBranches(env), BRANCHES);
 assert.deepEqual((await W.getOrg(env)).roles.length, ORG.roles.length);
-assert.deepEqual(JSON.parse(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v)[0], { email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" });
+assert.deepEqual(JSON.parse(env.DB.db.prepare("SELECT v FROM cfg WHERE k = 'users'").get().v)[0], { email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya", adm: false });
 
 /* ---------- pendaftaran publik ---------- */
 const { normPhone, cleanReg, formStamp } = W;
@@ -440,6 +440,32 @@ assert.ok(!html.includes("X</script>"), "nama tidak bisa menutup tag skrip"); as
   env.NOW_MS = NOW + 7 * 3600e3; await call("/api/events", { ck: SARI });
   assert.equal(people(OLD3.id).length, 0);
   env.NOW_MS = T0;
+}
+
+/* ---------- Brand Kit: daftar event untuk poster (lewat service binding) ---------- */
+{
+  env.NOW_MS = T0;
+  const B1 = addEvent({ title: "Poster Surabaya", date: "2026-11-20" }), B2 = addEvent({ title: "Poster Sudirman", branch: "Cabang Sudirman", creator_email: "x@acme.test", date: "2026-11-21" });
+  addEvent({ title: "Poster Batal", status: "batal", date: "2026-11-22" }); addEvent({ title: "Poster Lama", date: "2026-08-01" });
+  env.DB.db.prepare("INSERT INTO people (id, event_id, name, phone, email, status, created_at) VALUES ('pb1', ?, 'Nasabah Rahasia', '6281299990000', 'rahasia@x.test', 'terdaftar', '')").run(B1.id);
+  const be = (q, key = SECRET) => call("/__hub/brand-events?" + new URLSearchParams(q), { headers: { "x-hub-key": key } });
+  assert.equal((await be({ email: "sari@acme.test" }, "salah".repeat(8))).status, 403);
+  assert.deepEqual((await be({ email: "orang@acme.test" })).j.events, [], "brand-events unknown user");
+  assert.equal((await be({ email: "orang@acme.test", id: B1.id })).status, 404);
+  let x = await be({ email: "sari@acme.test" });
+  const titles = x.j.events.map((e) => e.title);
+  assert.ok(titles.includes("Poster Surabaya"));
+  assert.ok(!titles.includes("Poster Sudirman"), "brand-events other branch");
+  assert.ok(!titles.includes("Poster Batal") && !titles.includes("Poster Lama"), "tanpa event batal & yang sudah lewat > 30 hari");
+  const p = x.j.events.find((e) => e.id === B1.id);
+  assert.deepEqual(Object.keys(p).sort(), ["branch", "date", "date_label", "id", "place", "reg", "time", "title"]);
+  assert.equal(p.reg, BASE + "/d/" + B1.code); assert.equal(p.time, "09.00–11.00 WIB"); assert.equal(p.date_label, "Jumat, 20 November 2026");
+  assert.ok(!/Rahasia|6281299990000|rahasia@x/.test(JSON.stringify(x.j)), "data peserta tidak ikut");
+  assert.equal((await be({ email: "sari@acme.test", id: B2.id })).status, 404, "event cabang lain");
+  assert.equal((await be({ email: "sari@acme.test", id: B1.id })).j.event.title, "Poster Surabaya");
+  // admin hub (adm dari Tool Hub) melihat semua
+  await hubPush("/__hub/users", { users: [{ email: "Sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" }, { email: "boss@acme.test", name: "Boss", job: "", branch: "", adm: true }] });
+  assert.ok((await be({ email: "boss@acme.test" })).j.events.some((e) => e.id === B2.id));
 }
 
 console.log("semua cek lolos");

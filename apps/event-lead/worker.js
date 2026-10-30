@@ -3,9 +3,10 @@
 // - "/"                -> halaman tim (di dalam Tool Hub): daftar event, form, link & QR, peserta, ekspor Excel
 // - "/api/*"           -> data event & peserta (login lewat Tool Hub)
 // - "/__hub/users" (POST) -> anggota, daftar cabang, dan tim & role dari Tool Hub
+// - "/__hub/brand-events" (GET) -> daftar event untuk poster di Brand Kit (tanpa data peserta)
 // Hak akses: admin hub semua event; Head tim regional semua event regional; Sales / GI coordinator event cabangnya;
 // pemegang akses di luar tim regional hanya event buatannya (+ Head timnya).
-import { hubPushAllowed } from "../../shared/hubfeed.js";
+import { hubPushAllowed, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { title, profileScript, appUrl } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import EN from "./i18n.js";
@@ -121,7 +122,7 @@ export const getBranches = async (env) => { const B = await cfgGet(env, "branche
 /** POST /__hub/users dari Tool Hub: { users, branches, org } (sama seperti yang dikirim ke Content Planner). */
 async function syncFromHub(env, b) {
   await ensure(env);
-  const L = (Array.isArray(b.users) ? b.users : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: String((u && u.job) || "").slice(0, 24), branch: String((u && u.branch) || "").slice(0, 60) }))
+  const L = (Array.isArray(b.users) ? b.users : []).map((u) => ({ email: lower(u && u.email), name: String((u && u.name) || "").slice(0, 60), job: String((u && u.job) || "").slice(0, 24), branch: String((u && u.branch) || "").slice(0, 60), adm: !!(u && u.adm) }))
     .filter((u) => EMAIL.test(u.email)).slice(0, 500);
   const B = Array.isArray(b.branches) ? b.branches.map((x) => ({ r: String((x && x.r) || "").slice(0, 60), c: String((x && x.c) || "").slice(0, 60), t: x && x.t === "galeri" ? "galeri" : "cabang" })).filter((x) => x.r && x.c).slice(0, 300) : null;
   await env.DB.batch([...(L.length ? [cfgPut(env, "users", L)] : []), ...(B ? [cfgPut(env, "branches", B)] : []),
@@ -574,6 +575,18 @@ async function page(env, me, org, origin) {
   const head_ = `<title>${esc(title(env, "Event & Lead"))}</title>${profileScript(env)}${themeHead("", EN)}<script>${HUBSSO.onlyInHub(env)}window.EV=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Event & Lead</title>", () => head_);
 }
+/** Brand Kit: event yang boleh dilihat anggota ini (dicari lewat email di daftar dari Tool Hub), untuk mengisi poster. Tanpa data peserta. */
+async function brandEvents(env, email, id) {
+  const U = (await cfgGet(env, "users")) || [], u = U.find((x) => x.email === lower(email));
+  if (!u) return id ? { error: "Event tidak ditemukan.", status: 404 } : { events: [] };
+  const me = { e: u.email, n: u.name, j: u.job, c: u.branch, adm: !!u.adm }, org = await getOrg(env);
+  const pub = appUrl(env, "event"), item = (ev) => ({ id: ev.id, title: ev.title, date: ev.date, date_label: tanggal(ev.date), time: jam(ev),
+    place: ev.mode === "online" ? "Online" : ev.place || "", branch: ev.branch || "", reg: pub + "/d/" + ev.code });
+  if (id) { const ev = await visibleEvent(env, me, org, id); return ev && ev.status !== "batal" ? { event: item(ev) } : { error: "Event tidak ditemukan.", status: 404 }; }
+  const from = new Date(now(env) - 30 * 864e5).toISOString().slice(0, 10);
+  const L = (await env.DB.prepare("SELECT * FROM events WHERE COALESCE(status, '') <> 'batal' AND date >= ? ORDER BY date, time_start LIMIT 2000").bind(from).all()).results;
+  return { events: L.filter((ev) => canSee(me, ev, org)).slice(0, 100).map(item) };
+}
 /** Hasil fungsi API -> respons JSON (status dari { status } atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 
@@ -583,6 +596,11 @@ export default {
     if (path === "/__hub/users") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       return json(await syncFromHub(env, await request.json().catch(() => ({}))));
+    }
+    if (path === "/__hub/brand-events") {
+      if (!hubFeedAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      await ensure(env);
+      return out(await brandEvents(env, url.searchParams.get("email"), url.searchParams.get("id")));
     }
     // halaman publik: tanpa login, tanpa bingkai Tool Hub
     const pm = /^\/d\/([a-z0-9]{6,20})$/.exec(path);

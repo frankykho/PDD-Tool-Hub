@@ -282,4 +282,22 @@ assert.equal(r.j.error, "Google Drive tidak bisa dibaca (HTTP 403).");
 assert.equal(r.j.categories.length, 3);
 driveStatus = 200; delete env.NOW_MS; globalThis.fetch = realFetch;
 
+/* ---------- event dari Event & Lead ---------- */
+const evCalls = [];
+env.EVENT = { fetch: async (u, init) => { const q = new Request(u, init); evCalls.push({ url: new URL(q.url), key: q.headers.get("x-hub-key") });
+  const id = new URL(q.url).searchParams.get("id");
+  return id ? (id === "e1" ? Response.json({ event: { id: "e1", title: "Seminar" } }) : Response.json({ error: "Event tidak ditemukan." }, { status: 404 })) : Response.json({ events: [{ id: "e1", title: "Seminar" }] }); } };
+r = await call("/api/events?email=adm@acme.test", { ck: SARI });
+assert.deepEqual(r.j.events, [{ id: "e1", title: "Seminar" }]);
+assert.equal(evCalls[0].url.pathname, "/__hub/brand-events"); assert.equal(evCalls[0].key, SECRET);
+assert.equal(evCalls[0].url.searchParams.get("email"), "sari@acme.test", "email dari sesi, bukan dari alamat");
+r = await call("/api/events?id=e1", { ck: SARI });
+assert.equal(r.j.event.title, "Seminar"); assert.equal(evCalls[1].url.searchParams.get("id"), "e1");
+assert.equal((await call("/api/events?id=e9", { ck: SARI })).status, 404);
+env.EVENT = { fetch: async () => { throw new Error("mati"); } };
+r = await call("/api/events", { ck: SARI });
+assert.equal(r.status, 200); assert.deepEqual(r.j, { events: [], off: true });
+delete env.EVENT;
+assert.deepEqual((await call("/api/events", { ck: SARI })).j, { events: [], off: true });
+
 console.log("semua cek lolos");

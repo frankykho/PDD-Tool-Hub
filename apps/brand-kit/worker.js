@@ -474,6 +474,20 @@ export default {
         if (path === "/api/usage") return admin() || json(await usage(env));
         if (path === "/api/speakers") return json({ speakers: await listSpeakers(env, me, org) });
         if (path === "/api/files") return json(await listFiles(env, me.adm && url.searchParams.get("fresh") === "1"));
+        if (path === "/api/events") {
+          // Event & Lead menerapkan aturan aksesnya sendiri; email selalu dari sesi
+          const id = url.searchParams.get("id") || "", q = new URLSearchParams({ email: me.e, ...(id ? { id } : {}) });
+          try {
+            if (!env.EVENT) throw new Error("tanpa binding");
+            const r = await timed(env.EVENT.fetch("https://event/__hub/brand-events?" + q, { headers: { "x-hub-key": env.SSO_SECRET } }), 6000);
+            if (id) return r.ok ? json(await r.json()) : json({ error: "Event tidak ditemukan." }, 404);
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return json({ events: (await r.json()).events || [] });
+          } catch (e) {
+            console.log("Event & Lead tidak bisa dihubungi:", e.message);
+            return id ? json({ error: "Event & Lead tidak bisa dihubungi." }, 502) : json({ events: [], off: true });
+          }
+        }
         const ph = /^\/photo\/([a-z0-9]{6,20})$/.exec(path);
         if (ph) {
           const sp = await env.DB.prepare("SELECT photo FROM speakers WHERE id = ?").bind(ph[1]).first();
