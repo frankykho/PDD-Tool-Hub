@@ -120,7 +120,7 @@ assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["compet
 assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, bond: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
-assert.equal(boot.me.job, "Partnership");
+assert.equal(boot.me.job, "Mutual Fund Partnership Specialist");
 // admin hub tidak wajib memilih role pekerjaan
 { const rec = JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v), job = rec.job; delete rec.job; env.HUB_KV.m.get("u:" + ADMIN).v = JSON.stringify(rec);
   assert.equal((await call("/", { cookie: admin })).status, 200, "admin tanpa role tetap langsung ke beranda");
@@ -362,6 +362,50 @@ r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, fo
 assert.equal(r.status, 200);
 assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, undefined);
 assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active = 1 ORDER BY email").all().map((x) => x.email), [ADMIN], "user biasa bukan anggota Planner");
+
+/* ---------- tim & role pekerjaan: tambah role & tim, pindah tim, hapus; ikut ke Planner ---------- */
+{
+  const { DEFAULT_ORG } = await import("../../shared/jobs.js");
+  // isian form seperti yang dikirim browser: semua tim & role yang tampil, lalu perubahan
+  const roleForm = (org, extra = {}) => { const f = {};
+    org.teams.forEach((t) => { f[`t_${t.id}_name`] = t.name; if (t.regional) f[`t_${t.id}_reg`] = "1"; });
+    org.roles.forEach((x) => { f[`r_${x.k}_name`] = x.name; f[`r_${x.k}_team`] = x.team; ["head", "assign", "ops"].forEach((k) => { if (x[k]) f[`r_${x.k}_${k}`] = "1"; }); });
+    return { ...f, ...extra }; };
+  assert.equal((await call("/admin/role", { cookie: user })).status, 403, "khusus admin");
+  const rp = await (await call("/admin/role", { cookie: admin })).text();
+  assert.match(rp, /<h2>Product Development \(4\)<\/h2>[\s\S]*Head of Product Development[\s\S]*<h2>Regional Management \(3\)<\/h2>[\s\S]*GI Coordinator[\s\S]*<h2>Tanpa tim \(6\)<\/h2>[\s\S]*Copywriter/, "role bawaan dikelompokkan per tim");
+  assert.match(rp, /name="r_partnership_team"[^\n]*?<small>dipakai<\/small>/, "role yang masih dipakai tidak bisa dihapus");
+  // versi English: setiap teks & label di halaman ini punya terjemahan (nama tim & role bawaan sudah berbahasa Inggris)
+  { const { makeTranslator } = await import("../../shared/i18n.js"), { default: EN } = await import("./i18n.js"), t = makeTranslator(EN);
+    const plain = rp.replace(/<(script|style)[\s\S]*?<\/\1>/g, ""), dec = (x) => x.replace(/&amp;/g, "&").replace(/&middot;/g, "·").replace(/&rarr;/g, "→").replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”").replace(/\s+/g, " ").trim();
+    const texts = [...plain.matchAll(/>([^<>]+)</g)].map((m) => dec(m[1])).concat([...plain.matchAll(/(?:placeholder|aria-label)="([^"]+)"/g)].map((m) => dec(m[1])));
+    const known = new Set([...DEFAULT_ORG.teams.map((x) => x.name), ...DEFAULT_ORG.roles.map((x) => x.name), ADMIN, "Admin", "Beranda", "Keluar", "Ganti password", "Simpan", "Kembali ke Admin", "Content Planner", "Role", "Head"]);
+    const left = texts.filter((x) => /[a-z]{3}/i.test(x) && !known.has(x.replace(/ \(\d+\)$/, "")) && t(x) === x);
+    assert.deepEqual(left, [], "teks halaman Tim & role yang belum punya terjemahan"); }
+  r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(DEFAULT_ORG, { r_copy_team: "pd", r_copy_assign: "1", t_rm_name: "Regional Mgmt",
+    nr_name: "Digital Marketing Specialist", nr_team: "pd", r_lain_del: "1", r_partnership_del: "1", nt_name: "Marketing" }) });
+  assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 3 tim, 13 role/);
+  const org = JSON.parse(env.HUB_KV.m.get("cfg:org").v);
+  assert.deepEqual(org.roles.find((x) => x.k === "copy"), { k: "copy", name: "Copywriter", team: "pd", head: false, assign: true, ops: false });
+  assert.ok(org.roles.some((x) => x.k === "partnership") && !org.roles.some((x) => x.k === "lain"), "yang masih dipakai tetap ada, yang tidak dipakai terhapus");
+  assert.deepEqual(org.roles.at(-1), { k: "digital_marketing_specia", name: "Digital Marketing Specialist", team: "pd", head: false, assign: false, ops: false });
+  assert.deepEqual(org.teams, [{ id: "pd", name: "Product Development", regional: false }, { id: "rm", name: "Regional Mgmt", regional: true }, { id: "marketing", name: "Marketing", regional: false }]);
+  assert.deepEqual(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role ikut ke Planner");
+  // role baru langsung bisa dipilih di Atur akses (dikelompokkan per tim)
+  assert.match(await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text(), /<optgroup label="Product Development">[^]*?<option value="digital_marketing_specia">Digital Marketing Specialist<\/option>/);
+  r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "digital_marketing_specia", a_fund: "viewer", a_planner: "1" } });
+  assert.equal(r.status, 200);
+  assert.equal(plannerEnv.DB.db.prepare("SELECT role FROM users WHERE email = 'user@acme.test'").get().role, "digital_marketing_specia");
+  // menghapus tim: role-nya jadi tanpa tim; nama role dobel ditolak
+  r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(org, { t_marketing_del: "1", r_sosmed_team: "marketing" }) });
+  assert.equal(r.status, 200); assert.equal(JSON.parse(env.HUB_KV.m.get("cfg:org").v).roles.find((x) => x.k === "sosmed").team, "");
+  r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(org, { nr_name: "copywriter" }) });
+  assert.equal(r.status, 400); assert.match(await r.text(), /ada dua role bernama/);
+  // kembali ke daftar bawaan untuk cek berikutnya
+  env.HUB_KV.m.delete("cfg:org");
+  r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "none", a_fund: "viewer", a_planner: "1" } });
+  assert.equal(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v).roles.length, DEFAULT_ORG.roles.length);
+}
 
 /* ---------- tim regional: daftar regional & cabang, cabang per akun, ikut ke Planner ---------- */
 assert.equal((await call("/admin/cabang", { cookie: user })).status, 403, "khusus admin");

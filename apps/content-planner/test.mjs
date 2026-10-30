@@ -78,7 +78,7 @@ assert.deepEqual((await call("/api/users", { ck: PART })).j.map((u) => [u.email,
 const prog = { kind: "program", title: "Kelas investasi Kampus X", date: plus(1), end_date: plus(20), channel: "Kampus / sekolah", status: "rencana", partner: "BEM Kampus X",
   goal: "Mengenalkan reksa dana ke mahasiswa", target: "300 peserta, 50 akun baru", result_num: "250", reach: "12.000", leads: "80", accounts: "45", aum: "150.000.000", budget: "10.000.000", cost: "8.500.000" };
 r = await call("/api/items", { ck: COPY, body: prog });
-assert.equal(r.status, 400); assert.match(r.j.error, /Partnership atau admin/);
+assert.equal(r.status, 400); assert.match(r.j.error, /hak Program & tugas/);
 r = await call("/api/items", { ck: await cookie({ e: "adm@acme.test", n: "Admin", adm: true }), body: { ...prog, title: "Program admin" } });
 assert.equal(r.status, 200, "admin hub boleh membuat program");
 r = await call("/api/items", { ck: PART, body: prog });
@@ -97,7 +97,7 @@ assert.equal((await call("/api/programs", { ck: COPY })).j.length, 3);
 /* ---------- tugas ---------- */
 const task = { item_id: P, title: "Visual banner acara", job: "design", who: "dodi@acme.test", due: plus(1), brief: "Ukuran 1080x1080" };
 r = await call("/api/tasks", { ck: COPY, body: task });
-assert.equal(r.status, 400); assert.match(r.j.error, /Partnership atau admin/, "hanya Partnership yang memberi tugas");
+assert.equal(r.status, 400); assert.match(r.j.error, /hak Program & tugas/, "hanya role dengan hak Program & tugas yang memberi tugas");
 assert.match((await call("/api/tasks", { ck: PART, body: { ...task, who: "orang@luar.test" } })).j.error, /belum terdaftar/, "penerima harus anggota terdaftar");
 assert.match((await call("/api/tasks", { ck: PART, body: { ...task, due: "" } })).j.error, /Tenggat/);
 r = await call("/api/tasks", { ck: PART, body: task });
@@ -182,7 +182,7 @@ assert.equal((await call("/api/items", { ck: OLD, body: { ...prog, title: "Progr
 const pg = await planner.fetch(new Request(BASE + "/", { headers: { cookie: PART } }), env, { waitUntil() { } });
 const html = await pg.text(), cfg = JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(html)[1]);
 assert.deepEqual([cfg.me.role, cfg.me.assign], ["partnership", true]);
-assert.equal(cfg.roles.partnership, "Partnership");
+assert.equal(cfg.roles.partnership, "Mutual Fund Partnership Specialist");
 const cfg2 = JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(await (await planner.fetch(new Request(BASE + "/", { headers: { cookie: COPY } }), env, { waitUntil() { } })).text())[1]);
 assert.deepEqual([cfg2.me.role, cfg2.me.assign], ["copy", false]);
 for (const [, code] of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
@@ -491,6 +491,38 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.deepEqual(await usul({ "x-hub-key": SECRET }), []);
   assert.ok((await today("?email=cici@acme.test")).today.every((i) => i.kind !== "galeri"), "beranda tim pusat tanpa rencana galeri");
 }
+
+/* ---------- tim & role dari Tool Hub: hak akses mengikuti pengaturan role, bukan kunci role tertentu ---------- */
+{
+  const { DEFAULT_ORG, cleanOrg } = await import("../../shared/jobs.js");
+  const org = structuredClone(DEFAULT_ORG);
+  org.roles.find((x) => x.k === "copy").assign = true;                                         // Copywriter diberi hak Program & tugas
+  org.roles.push({ k: "dm", name: "Digital Marketing", team: "rm" });                            // role baru di tim regional
+  org.roles = org.roles.filter((x) => x.k !== "partnership");                                    // role dihapus dari daftar
+  r = await hub("/__hub/users", { users: [{ email: "cici@acme.test", name: "Cici", job: "copy" }, { email: "dina@acme.test", name: "Dina", job: "dm" }, { email: "pia@acme.test", name: "Pia", job: "partnership" }], org });
+  assert.equal(r.status, 200);
+  assert.deepEqual((await call("/api/users", { ck: COPY })).j.filter((u) => ["dina@acme.test", "pia@acme.test"].includes(u.email)).map((u) => [u.email, u.role]), [["dina@acme.test", "dm"], ["pia@acme.test", "partnership"]], "role yang tidak dikenal tidak menimpa catatan lama");
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...prog, title: "Program dari Copywriter" } })).status, 200, "hak Program & tugas dari pengaturan role");
+  const DM = await cookie({ e: "dina@acme.test", n: "Dina", j: "dm" });
+  assert.equal((await call("/api/items", { ck: DM, body: { kind: "konten", title: "Konten", date: wib } })).status, 400, "role baru di tim regional ikut aturan tim regional");
+  assert.equal((await call("/api/items", { ck: PART, body: { ...prog, title: "Program dari role yang dihapus" } })).status, 400, "role yang dihapus kehilangan haknya");
+  const cfgOf = async (ck) => JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(await (await planner.fetch(new Request(BASE + "/", { headers: { cookie: ck } }), env, { waitUntil() { } })).text())[1]);
+  const c1 = await cfgOf(DM);
+  assert.deepEqual([c1.me.reg, c1.me.team, c1.me.head, c1.roles.dm, c1.org.teams.map((t) => t.id)], [true, "rm", false, "Digital Marketing", ["pd", "rm"]]);
+  const HEAD = await cookie({ e: "hana@acme.test", n: "Hana", j: "head_pd" }), c2 = await cfgOf(HEAD);
+  assert.deepEqual([c2.me.team, c2.me.head, c2.me.assign, c2.me.reg], ["pd", true, true, false], "Head of Product Development: pimpinan tim, boleh membuat program");
+  // kiriman tanpa org (Tool Hub lama) tidak menghapus pengaturan yang sudah ada
+  await hub("/__hub/users", { users: [{ email: "dina@acme.test", name: "Dina", job: "dm" }] });
+  assert.equal((await cfgOf(DM)).roles.dm, "Digital Marketing");
+  // org rusak / kosong = daftar bawaan; head tanpa tim tidak berlaku; tim yang dihapus = role tanpa tim
+  assert.deepEqual(cleanOrg({ roles: [] }), DEFAULT_ORG);
+  assert.deepEqual(cleanOrg({ teams: [{ id: "a", name: "A" }], roles: [{ k: "x", name: "X", team: "b", head: true }, { k: "X!", name: "Y" }] }).roles, [{ k: "x", name: "X", team: "", head: false, assign: false, ops: false }]);
+  await hub("/__hub/users", { users: [{ email: "pia@acme.test", name: "Pia", job: "partnership" }, { email: "cici@acme.test", name: "Cici", job: "copy" }], org: DEFAULT_ORG });
+}
+const { newKey } = await import("../../shared/jobs.js");
+assert.equal(newKey("Digital Marketing Specialist", []), "digital_marketing_specia");
+assert.equal(newKey("Sales", ["sales"]), "sales_2");
+assert.equal(newKey("2nd Line", []), "r2nd_line");
 
 const { momentsOf, hijriToIso, easter } = await import("../../shared/moments.js");
 assert.equal(easter(2026), "2026-04-05"); assert.equal(easter(2027), "2027-03-28");

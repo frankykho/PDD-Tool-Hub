@@ -936,7 +936,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   var FINREAD = (function () { try { return JSON.parse(localStorage.getItem("hub_fin_read") || "[]"); } catch (e) { return []; } })();
   function finSave() { try { localStorage.setItem("hub_fin_read", JSON.stringify(FINREAD.slice(-300))); } catch (e) { } }
   function mergeBell() {
-    // peringatan ops (ETF & reksa dana) hanya untuk role Ops ETF & Fund dan admin; tetap tampil di kartu beranda untuk semua
+    // peringatan ops (ETF & reksa dana) hanya untuk role dengan hak Peringatan ops (Admin → Tim & role) dan admin; tetap tampil di kartu beranda untuk semua
     NN = NF.concat(H.me.ops ? NO.etf.concat(NO.fund) : []);
     var items = NP.items.concat(NN.map(function (x) { x.read_at = FINREAD.indexOf(x.id) >= 0 ? x.at : null; return x; }));
     items.sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });

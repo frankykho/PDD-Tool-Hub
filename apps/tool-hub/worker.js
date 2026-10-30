@@ -10,7 +10,7 @@
 //   FIREBASE_SA   (Secret, opsional) seluruh isi berkas kunci service account Firebase proyek tutorial; hanya untuk tab Tutorial.
 // Disuntikkan scripts/deploy.mjs: PROFILE (nama brand, alamat semua tool), HUB_URL, GITHUB_REPO ("pemilik/repo").
 import { profile, appUrl, title } from "../../shared/profile.js";
-import { JOBS, OPS_ALERTS, REGIONAL, parseBranches, branchType, branchLine } from "../../shared/jobs.js";
+import { cleanOrg, jobsOf, opsAlert, newKey, parseBranches, branchType, branchLine } from "../../shared/jobs.js";
 import SHELL from "./shell.html";
 import { i18nHead } from "../../shared/i18n.js";
 import EN from "./i18n.js";
@@ -149,7 +149,7 @@ async function sessKey(env) {
 }
 
 /** Akun: { hash?, role, status, name, why, at, username?, job, region?, branch?, access:{appId: true | level | [tab]} }. Kunci KV: u:<email>; n:<username> -> email.
- *  role = admin/user (hak di hub); job = role pekerjaan (shared/jobs.js), ditentukan admin; tanpa job = user biasa (hanya memakai tool, bukan anggota Content Planner). */
+ *  role = admin/user (hak di hub); job = kunci role pekerjaan (Admin → Tim & role), ditentukan admin; tanpa job = user biasa (hanya memakai tool, bukan anggota Content Planner). */
 async function getUser(env, email) {
   const u = await env.HUB_KV.get('u:' + email, 'json');
   if (!u) return null;
@@ -169,7 +169,11 @@ async function galleryProposals(env) {
     return Array.isArray(L) ? L : [];
   } catch (e) { console.error('usulan galeri:', e.message); return []; }
 }
-const jobOpts = cur => Object.keys(JOBS).map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${esc(JOBS[k])}</option>`).join('');
+/** Tim & role pekerjaan { teams, roles } (shared/jobs.js), diatur admin di /admin/role. Belum pernah disimpan = daftar bawaan. */
+const getOrg = async env => cleanOrg(await env.HUB_KV.get('cfg:org', 'json'));
+// pilihan role dikelompokkan per tim, role tanpa tim paling bawah
+const orgGroups = org => [...org.teams.map(t => [t.name, org.roles.filter(r => r.team === t.id)]), ['Tanpa tim', org.roles.filter(r => !r.team)]].filter(g => g[1].length);
+const jobOpts = (org, cur) => orgGroups(org).map(([l, R]) => `<optgroup label="${esc(l)}">${R.map(r => `<option value="${r.k}"${cur === r.k ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}</optgroup>`).join('');
 const saveUser = (env, email, u) => env.HUB_KV.put('u:' + email, JSON.stringify(u), { metadata: meta(u) });
 const fp = u => u.hash.slice(-12);   // sidik password: berubah kalau password diganti/di-reset, jadi sesi lama ikut batal
 /** Hak akses pengguna untuk satu tool. Admin hub selalu dapat tingkat tertinggi. null = tidak punya akses. */
@@ -381,15 +385,16 @@ async function syncPlanner(env, changed = null) {
   if (!env.PLANNER) return;
   plannerSyncAt = Date.now();
   try {
-    let users = await listUsers(env);
+    let [users, org] = await Promise.all([listUsers(env), getOrg(env)]);
+    const J = jobsOf(org);
     if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
     // anggota Planner = admin hub, atau akun yang punya role pekerjaan. User biasa (tanpa role) hanya memakai tool:
     // tidak tampil sebagai pilihan penanggung jawab/penerima tugas.
-    const list = users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (JOBS[x.job] && String(x.apps || '').split(',').includes('planner')))))
+    const list = users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (J[x.job] && String(x.apps || '').split(',').includes('planner')))))
       .map(x => ({ email: x.email, name: x.name || '', job: x.job || '', branch: x.br || '' }));
     if (!list.length) return;
-    // daftar cabang ikut terkirim: pilihan cabang di form kegiatan & filter laporan di Planner
-    const body = JSON.stringify({ users: list, branches: await getBranches(env) });
+    // daftar cabang ikut terkirim: pilihan cabang di form kegiatan & filter laporan di Planner; tim & role: hak akses dan laporan per tim
+    const body = JSON.stringify({ users: list, branches: await getBranches(env), org });
     const r = await timeout(env.PLANNER.fetch('https://planner/__hub/users', { method: 'POST', headers: { 'x-hub-key': env.SSO_SECRET, 'content-type': 'application/json' }, body }), 6000, 'Content Planner');
     if (!r.ok) console.log('sinkron anggota Planner: HTTP ' + r.status);
   } catch (e) { console.log('sinkron anggota Planner gagal:', e.message); }
@@ -408,7 +413,8 @@ const accessLabel = (x, apps) => x.role === 'admin' ? 'semua tool (admin)' : (ap
 
 /** changed = { email, u|null }: hasil aksi barusan, ditimpakan ke daftar karena KV list bisa terlambat sampai ~1 menit. */
 async function adminPage(env, sess, note = '', bad = false, changed = null) {
-  let [users, gp] = await Promise.all([listUsers(env), galleryProposals(env)]);
+  let [users, gp, org] = await Promise.all([listUsers(env), galleryProposals(env), getOrg(env)]);
+  const J = jobsOf(org);
   if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
   users.forEach(x => { if (isMain(env, x.email)) { x.role = 'admin'; x.status = 'approved'; x.main = true; } });
   users.sort((a, b) => a.email < b.email ? -1 : 1);
@@ -418,10 +424,10 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
     : x.status === 'pending' ? `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Tinjau &amp; setujui</a>` + btn(x, 'reject', 'del')
     : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'delete', 'del'))
     : btn(x, 'approve', '') + btn(x, 'delete', 'del');
-  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(JOBS[x.job] || x.job) : 'user biasa'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
+  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(J[x.job] || x.job) : 'user biasa'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
   const by = s => users.filter(x => s.includes(x.status));
   return doc('Admin', `<div class="card wide">${topBar(sess, 'Admin &middot; Tool Hub', '/admin')}
-<p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka. <a href="/admin/cabang">Daftar regional &amp; cabang</a> untuk tim regional.${gp.length ? ` <a href="/admin/cabang"><b>${gp.length} usulan galeri baru</b></a> menunggu ditambahkan.` : ''}</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
+<p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka. <a href="/admin/role">Tim &amp; role pekerjaan</a> &middot; <a href="/admin/cabang">Daftar regional &amp; cabang</a> untuk tim regional.${gp.length ? ` <a href="/admin/cabang"><b>${gp.length} usulan galeri baru</b></a> menunggu ditambahkan.` : ''}</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
 ${tbl('Menunggu persetujuan', by(['pending']), 'Tidak ada pengajuan baru.')}${tbl('Disetujui', by(['approved']), 'Belum ada.')}${tbl('Ditolak / dicabut', by(['rejected', 'revoked']), 'Tidak ada.')}
 <h2>Tambahkan langsung</h2><p class="sub">Menyetujui email sebelum orangnya mendaftar. Ia tinggal klik Daftar dengan email itu dan langsung bisa masuk.</p>
 <form method="post" action="/admin/act" class="row"><input type="hidden" name="act" value="add"><label for="addE" class="vh">Email yang disetujui</label><input id="addE" name="email" type="email" required maxlength="120" placeholder="nama@email.com"><button type="submit">Tambahkan</button></form>
@@ -437,7 +443,8 @@ const REGIONAL_ACCESS = { planner: '1', fund: 'viewer', etf: '1', bond: '1' };
 const regionalJs = `<script>document.getElementById('regAcc').onclick=function(){var A=${JSON.stringify(REGIONAL_ACCESS)};Object.keys(A).forEach(function(k){var el=document.querySelector('[name="a_'+k+'"]');if(!el)return;if(el.tagName==='SELECT')el.value=A[k];else el.checked=true});this.textContent='✓ Content Planner, Fund (lihat saja), ETF & Bond Insight dicentang. Klik Simpan.'}</script>`;
 
 /** Halaman hak akses satu pengguna: per tool, sesuai jenisnya (boleh/tidak, tingkatan, atau per tab). B = daftar regional & cabang. */
-function userPage(sess, email, u, note = '', B = []) {
+function userPage(sess, email, u, note = '', B = [], org = cleanOrg(null)) {
+  const J = jobsOf(org), regT = org.teams.filter(t => t.regional).map(t => esc(t.name));
   const acc = u.access || {};
   // akun yang masih menunggu: tool yang diminta saat daftar sudah terpilih (tingkat terendah); admin tinggal mencoret yang tidak disetujui
   const pend = u.status === 'pending', want = u.want || [];
@@ -449,11 +456,32 @@ function userPage(sess, email, u, note = '', B = []) {
   return doc('Atur akses', `<form class="card wide" method="post" action="/admin/access">${topBar(sess, 'Atur akses', '/admin/user')}
 <p class="sub"><b>${esc(email)}</b>${u.name ? ' &middot; ' + esc(u.name) : ''}${u.username ? ' &middot; @' + esc(u.username) : ''} &middot; status: ${esc(u.status)}${u.role === 'admin' ? ' &middot; <b>admin hub (otomatis punya semua akses)</b>' : ''}</p>
 ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}<input type="hidden" name="email" value="${esc(email)}">
-<fieldset><legend>Role pekerjaan</legend><select name="job" aria-label="Role pekerjaan"><option value="none"${JOBS[u.job] ? '' : ' selected'}>Tanpa role (user biasa: hanya memakai tool)</option>${jobOpts(u.job)}</select><small style="display:block;margin-top:6px;color:#6b7280">Akun dengan role masuk daftar anggota Content Planner dan bisa diberi tugas. ${REGIONAL.map(j => JOBS[j]).join(' &amp; ')}: di Content Planner hanya melihat dan mencatat <b>Kegiatan cabang</b>.</small>
+<fieldset><legend>Role pekerjaan</legend><select name="job" aria-label="Role pekerjaan"><option value="none"${J[u.job] ? '' : ' selected'}>Tanpa role (user biasa: hanya memakai tool)</option>${jobOpts(org, u.job)}</select><small style="display:block;margin-top:6px;color:#6b7280">Akun dengan role masuk daftar anggota Content Planner dan bisa diberi tugas. ${regT.length ? `Anggota tim ${regT.join(' &amp; ')}: di Content Planner hanya melihat dan mencatat <b>Kegiatan cabang</b> dan rencana galeri. ` : ''}<a href="/admin/role">Atur tim &amp; role</a></small>
 <button type="button" class="sm ghost" id="regAcc" style="margin:8px 0 0">Pakai akses tim regional</button></fieldset>
 <fieldset><legend>Regional &amp; cabang / galeri</legend>${B.length || u.branch ? `<select name="branch" aria-label="Cabang / galeri"><option value="none"${u.branch ? '' : ' selected'}>Tanpa cabang</option>${brOpts(u.branch, B)}</select>` : ''}<small style="display:block;margin-top:6px;color:#6b7280">${B.length ? 'Untuk tim regional: cabang bawaan saat mencatat kegiatan, dan regional bawaan di laporan.' : 'Daftar cabang belum diisi.'} <a href="/admin/cabang">Atur daftar regional &amp; cabang</a></small></fieldset>${APPS.map(blk).join('')}
 <div style="margin-top:18px" class="row"><button type="submit"${pend ? ' name="approve" value="1"' : ''}>${pend ? 'Setujui dengan akses ini' : 'Simpan akses'}</button><a href="/admin" style="flex:none;align-self:center">Kembali ke daftar</a></div>
 <p class="sub" style="margin:14px 0 0">Perubahan berlaku paling lambat 2 jam kemudian di tool yang sedang dibuka orangnya, atau langsung setelah ia keluar lalu masuk lagi.</p></form>${regionalJs}`);
+}
+/** Tim & role pekerjaan: nama role, timnya, dan hak tambahannya (Head, membuat program & membagi tugas, peringatan ops).
+ *  Tim bisa ditambah, diganti nama, ditandai regional, atau dihapus (role-nya jadi tanpa tim). Role yang masih dipakai tidak bisa dihapus. */
+function rolePage(sess, org, users, note = '', err = '') {
+  const n = k => users.filter(x => x.status === 'approved' && x.job === k).length;
+  const tOpts = cur => `<option value=""${cur ? '' : ' selected'}>Tanpa tim</option>` + org.teams.map(t => `<option value="${t.id}"${cur === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
+  const ck = (name, on, label) => `<label class="ck" style="display:inline-flex;margin:0 12px 0 0"><input type="checkbox" name="${name}" value="1"${on ? ' checked' : ''}>${label}</label>`;
+  const flags = (x, r) => ck(x + '_head', r.head, 'Head') + ck(x + '_assign', r.assign, 'Program &amp; tugas') + ck(x + '_ops', r.ops, 'Peringatan ops');
+  const row = r => `<tr><td><input name="r_${r.k}_name" value="${esc(r.name)}" maxlength="60" required aria-label="Nama role ${esc(r.name)}"></td><td><select name="r_${r.k}_team" aria-label="Tim ${esc(r.name)}">${tOpts(r.team)}</select></td><td>${flags('r_' + r.k, r)}</td><td><small>${n(r.k) || '–'}</small></td><td>${n(r.k) ? '<small>dipakai</small>' : ck(`r_${r.k}_del`, false, 'Hapus')}</td></tr>`;
+  const field = 'width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px';
+  return doc('Tim & role', `<form class="card wide" method="post" action="/admin/role">${topBar(sess, 'Tim &amp; role pekerjaan', '/admin/role')}
+<p class="sub">Role pekerjaan dipilih per orang di <a href="/admin">Admin</a> &rarr; Atur akses. Di Content Planner, laporan dibuat per tim; orang dengan role tanpa tim membuat laporannya masing-masing.</p>
+${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
+<h2>Tim (${org.teams.length})</h2><div class="scroll"><table><tr><th>Nama tim</th><th>Tim regional</th><th>Role</th><th></th></tr>${org.teams.map(t => `<tr><td><input name="t_${t.id}_name" value="${esc(t.name)}" maxlength="60" required aria-label="Nama tim ${esc(t.name)}"></td><td>${ck(`t_${t.id}_reg`, t.regional, 'Ya')}</td><td><small>${org.roles.filter(r => r.team === t.id).length}</small></td><td>${ck(`t_${t.id}_del`, false, 'Hapus')}</td></tr>`).join('')}
+<tr><td><input name="nt_name" maxlength="60" placeholder="Tim baru (opsional)" aria-label="Nama tim baru"></td><td>${ck('nt_reg', false, 'Ya')}</td><td></td><td></td></tr></table></div>
+<p class="sub" style="margin:4px 0 0">Tim regional: anggotanya di Content Planner hanya melihat dan mencatat kegiatan cabang dan rencana galeri. Menghapus tim membuat role-nya menjadi tanpa tim.</p>
+${orgGroups(org).map(([l, R]) => `<h2>${esc(l)} (${R.length})</h2><div class="scroll"><table><tr><th>Role</th><th>Tim</th><th>Hak tambahan</th><th>Orang</th><th></th></tr>${R.map(row).join('')}</table></div>`).join('')}
+<h2>Tambah role</h2><div class="scroll"><table><tr><th>Nama role</th><th>Tim</th><th>Hak tambahan</th></tr><tr><td><input name="nr_name" maxlength="60" placeholder="Mis. Digital Marketing Specialist" aria-label="Nama role baru" style="${field}"></td><td><select name="nr_team" aria-label="Tim role baru">${tOpts('')}</select></td><td>${flags('nr', {})}</td></tr></table></div>
+<p class="sub" style="margin:4px 0 0"><b>Head</b>: pimpinan tim, laporannya bawaan seluruh tim (untuk tim regional, semua regional). <b>Program &amp; tugas</b>: boleh membuat program partnership dan membagi tugas. <b>Peringatan ops</b>: lonceng NAB terlambat, premium/diskon ETF, dan gerak harian tidak biasa.</p>
+<div style="margin-top:14px" class="row"><button type="submit">Simpan</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
+<p class="sub" style="margin:10px 0 0">Mengganti nama atau tim sebuah role tidak mengubah kegiatan yang sudah tercatat; laporan langsung memakai tim yang baru. Berlaku di tool yang sedang dibuka paling lambat 2 jam kemudian.</p></form>`);
 }
 /** Daftar regional & cabang / galeri investasi: diketik atau ditempel dari Excel (2–3 kolom), satu per baris.
  *  P = usulan galeri baru dari Content Planner (tombol "Tambahkan ke daftar" di form yang sama: name=add). */
@@ -461,7 +489,7 @@ function branchPage(sess, B, users, note = '', err = '', raw = null, P = []) {
   const n = c => users.filter(x => x.status === 'approved' && x.br === c).length, R = [...new Set(B.map(x => x.r))], G = B.filter(x => x.t === 'galeri').length;
   const ST = { mou: 'MoU ditandatangani', resmi: 'Diresmikan' };
   return doc('Regional & cabang', `<form class="card wide" method="post" action="/admin/cabang">${topBar(sess, 'Regional &amp; cabang', '/admin/cabang')}
-<p class="sub">Dipakai tim regional (Sales &amp; Pengelola Galeri Investasi) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional, per cabang, atau per galeri. Cabang / galeri tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
+<p class="sub">Dipakai tim regional (Sales &amp; GI Coordinator) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional, per cabang, atau per galeri. Cabang / galeri tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
 ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
 ${P.length ? `<h2>Usulan galeri baru (${P.length})</h2><p class="sub" style="margin:0 0 6px">Dari rencana kerja sama galeri di Content Planner yang sudah MoU atau diresmikan, tapi belum ada di daftar.</p>
 <div class="scroll"><table><tr><th>Regional</th><th>Galeri</th><th>Mitra &middot; kota</th><th>Tahap</th><th></th></tr>${P.map(p => `<tr><td>${esc(p.r)}</td><td><b>${esc(p.c)}</b><small>PIC: ${esc(p.by || '–')}</small></td><td>${esc([p.partner, p.city].filter(Boolean).join(' · ') || '–')}</td><td>${esc(ST[p.status] || p.status)}</td><td><button type="submit" class="ghost" name="add" value="${esc(p.id)}" formnovalidate>Tambahkan ke daftar</button></td></tr>`).join('')}</table></div>` : ''}
@@ -498,11 +526,28 @@ async function importUsers(env, text) {
 async function admin(request, env, url, sess) {
   if (sess.role !== 'admin') return page(403, doc('Tidak diizinkan', `<div class="card"><h1>Khusus admin</h1><p class="sub">Akun Anda tidak punya akses ke halaman ini.</p><a href="/">Kembali ke beranda</a></div>`));
   const post = request.method === 'POST', path = url.pathname;
-  if (!post && path === '/admin/user') { const e = (url.searchParams.get('e') || '').toLowerCase(), u = await getUser(env, e); return u ? page(200, userPage(sess, e, u, '', await getBranches(env))) : page(404, await adminPage(env, sess, 'Akun tidak ditemukan.', true)); }
+  if (!post && path === '/admin/user') { const e = (url.searchParams.get('e') || '').toLowerCase(), u = await getUser(env, e); return u ? page(200, userPage(sess, e, u, '', await getBranches(env), await getOrg(env))) : page(404, await adminPage(env, sess, 'Akun tidak ditemukan.', true)); }
+  if (!post && path === '/admin/role') return page(200, rolePage(sess, await getOrg(env), await listUsers(env)));
   if (!post && path === '/admin/cabang') return page(200, branchPage(sess, await getBranches(env), await listUsers(env), '', '', null, await galleryProposals(env)));
   if (!post) return page(200, await adminPage(env, sess));
   if (request.headers.get('origin') !== url.origin) return page(403, 'Permintaan ditolak.');          // cegah form dari situs lain (CSRF)
   const f = await form(request), email = fv(f, 'email').toLowerCase(), act = fv(f, 'act');
+  if (path === '/admin/role') {
+    const [old, users] = await Promise.all([getOrg(env), listUsers(env)]), used = k => users.some(x => x.status === 'approved' && x.job === k);
+    const teams = old.teams.filter(t => !fv(f, `t_${t.id}_del`)).map(t => ({ id: t.id, name: fv(f, `t_${t.id}_name`) || t.name, regional: !!fv(f, `t_${t.id}_reg`) }));
+    const nt = fv(f, 'nt_name').slice(0, 60);
+    if (nt) { if (teams.some(t => t.name.toLowerCase() === nt.toLowerCase())) return page(400, rolePage(sess, old, users, '', `Belum tersimpan: tim &ldquo;${esc(nt)}&rdquo; sudah ada.`)); teams.push({ id: newKey(nt, old.teams.map(t => t.id)), name: nt, regional: !!fv(f, 'nt_reg') }); }
+    const flag = (x, r) => ({ ...r, head: !!fv(f, x + '_head'), assign: !!fv(f, x + '_assign'), ops: !!fv(f, x + '_ops') });
+    const roles = old.roles.filter(r => !(fv(f, `r_${r.k}_del`) && !used(r.k))).map(r => flag('r_' + r.k, { k: r.k, name: fv(f, `r_${r.k}_name`) || r.name, team: fv(f, `r_${r.k}_team`) }));
+    const nr = fv(f, 'nr_name').slice(0, 60);
+    if (nr) roles.push(flag('nr', { k: newKey(nr, old.roles.map(r => r.k)), name: nr, team: fv(f, 'nr_team') }));
+    const dup = roles.find((r, i) => roles.findIndex(x => x.name.toLowerCase() === r.name.toLowerCase()) !== i);
+    if (dup) return page(400, rolePage(sess, old, users, '', `Belum tersimpan: ada dua role bernama &ldquo;${esc(dup.name)}&rdquo;.`));
+    if (!roles.length) return page(400, rolePage(sess, old, users, '', 'Belum tersimpan: minimal satu role.'));
+    const org = cleanOrg({ teams, roles });
+    await env.HUB_KV.put('cfg:org', JSON.stringify(org)); await syncPlanner(env);
+    return page(200, rolePage(sess, org, users, `Tersimpan: ${org.teams.length} tim, ${org.roles.length} role.${nr ? ` Role &ldquo;${esc(nr)}&rdquo; sudah bisa dipilih di Atur akses.` : ''} Content Planner ikut diperbarui.`));
+  }
   if (path === '/admin/cabang') {
     const old = await getBranches(env), users = await listUsers(env), P = await galleryProposals(env), add = fv(f, 'add');
     // "Tambahkan ke daftar" pada usulan galeri: diambil ulang dari Planner (bukan dari isian form), isi kotak yang belum disimpan diabaikan
@@ -533,12 +578,12 @@ async function admin(request, env, url, sess) {
     if (!u) return bad('Akun tidak ditemukan.');
     u.access = readAccess(f); const ok = fv(f, 'approve') && u.status === 'pending'; if (ok) u.status = 'approved';
     // role pekerjaan ditentukan admin: "none" = user biasa (tanpa role)
-    const job = fv(f, 'job'); if (JOBS[job]) u.job = job; else if (job === 'none') delete u.job;
+    const org = await getOrg(env), job = fv(f, 'job'); if (jobsOf(org)[job]) u.job = job; else if (job === 'none') delete u.job;
     // cabang harus dari daftar; cabang lama yang sudah dihapus dari daftar dibiarkan sampai diganti
     const B = await getBranches(env), br = fv(f, 'branch'), hit = B.find(x => x.c === br);
     if (br === 'none') { delete u.branch; delete u.region; } else if (hit) { u.branch = hit.c; u.region = hit.r; }
     await saveUser(env, email, u); await syncPlanner(env, { email, u });
-    return page(200, userPage(sess, email, u, ok ? 'Disetujui. Akses disimpan.' : 'Akses disimpan.', B));
+    return page(200, userPage(sess, email, u, ok ? 'Disetujui. Akses disimpan.' : 'Akses disimpan.', B, org));
   }
   if (path !== '/admin/act') return page(404, 'Tidak ditemukan');
   if (act === 'add') {
@@ -578,12 +623,12 @@ function levelLabel(a, acc) {
 
 /** Dashboard: sidebar, beranda (Tool kamu, Ritme & kartu hari ini), Semua tools, detail tool, dan tool di dalam bingkai.
  *  Tampilan ada di shell.html; di sini hanya data pengguna yang disuntikkan. Tool tetap dibuka di bingkai lewat /sso seperti sebelumnya. */
-function shellPage(env, sess, mine, pending, fav) {
+function shellPage(env, sess, mine, pending, fav, org = cleanOrg(null)) {
   const p = profile(env), repo = env.GITHUB_REPO || p.github.repo || '';
   const src = a => a.firebase || a.frame === false ? appUrl(env, a.id) + ((a.paths && a.paths[accessOf(sess.u, a)]) || a.path || '/') : '/sso?app=' + a.id + '&back=' + encodeURIComponent(appUrl(env, a.id) + (a.entry || a.path || '/'));
   const pages = a => (a.pages || []).filter(x => !x.only || x.only === accessOf(sess.u, a)).map(x => [x.label, appUrl(env, a.id) + x.path, x.share ? 1 : 0]);
   const boot = {
-    me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin', job: JOBS[sess.u.job] || '', ops: sess.role === 'admin' || OPS_ALERTS.includes(sess.u.job) },
+    me: { name: sess.u.name || '', email: sess.email, admin: sess.role === 'admin', job: jobsOf(org)[sess.u.job] || '', ops: sess.role === 'admin' || opsAlert(org, sess.u.job) },
     pending,
     brand: { name: title(env, 'Tool Hub'), short: p.brand.short || '', logo: p.brand.logo || '', logoDark: p.brand.logoDark || '' },
     cats: CATEGORIES,
@@ -798,7 +843,7 @@ export default {
     if (path === '/api/notif/read' && post) return readNotif(request, env, url, sess, mine);
     if (path !== '/') return redirect('/');
     if (Date.now() - plannerSyncAt > 30 * 60e3) await syncPlanner(env);   // sesekali, supaya daftar anggota Planner tetap sama dengan hub
-    return page(200, shellPage(env, sess, mine, sess.role === 'admin' ? (await listUsers(env)).filter(x => x.status === 'pending').length : 0, await getFav(env, sess.email, mine)),
+    return page(200, shellPage(env, sess, mine, sess.role === 'admin' ? (await listUsers(env)).filter(x => x.status === 'pending').length : 0, await getFav(env, sess.email, mine), await getOrg(env)),
       { 'set-cookie': cookieStr(await makeSession(env, sess.email, sess.u), SESSION_DAYS * 86400) });   // perbarui cookie (juga memperpanjang sesi 30 hari)
   },
 };
