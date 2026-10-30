@@ -213,6 +213,32 @@ async function changed(env, ctx, id) {
   return ev;
 }
 
+/* ---------- data pribadi disimpan 12 bulan setelah acara ---------- */
+const PURGE_EVERY = 6 * 3600e3;
+/** Hapus data pribadi peserta (dan riwayat statusnya) dari event yang tanggalnya lebih dari 12 bulan lalu. Angka event tetap.
+ *  Tanpa cron: dijalankan saat daftar event dibuka (lihat maybePurge). Hasil { events, people } = jumlah yang dihapus. */
+export async function purgeOld(env, nowMs) {
+  await ensure(env);
+  const d = new Date(nowMs + 7 * 3600e3); d.setUTCFullYear(d.getUTCFullYear() - 1);
+  const E = (await env.DB.prepare("SELECT id FROM events WHERE date < ? AND COALESCE(purged, 0) = 0 LIMIT 200").bind(d.toISOString().slice(0, 10)).all()).results;
+  let people = 0;
+  for (const { id } of E) {
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM people WHERE event_id = ?").bind(id).first()).n;
+    await env.DB.batch([env.DB.prepare("DELETE FROM history WHERE person_id IN (SELECT id FROM people WHERE event_id = ?)").bind(id),
+      env.DB.prepare("DELETE FROM people WHERE event_id = ?").bind(id), env.DB.prepare("UPDATE events SET purged = 1 WHERE id = ?").bind(id)]);
+    people += n;
+  }
+  return { events: E.length, people };
+}
+/** Paling sering sekali per 6 jam (cfg purged_at). */
+async function maybePurge(env) {
+  const last = Number(await cfgGet(env, "purged_at")) || 0, t = now(env);
+  if (t - last < PURGE_EVERY) return;
+  await cfgPut(env, "purged_at", t).run();
+  const r = await purgeOld(env, t);
+  if (r.events) console.log(`data peserta dihapus: ${r.people} orang dari ${r.events} event`);
+}
+
 /* =========================================================
    HALAMAN PUBLIK (tanpa login): daftar /d/<kode>
    ========================================================= */
@@ -568,7 +594,10 @@ export default {
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" } });
     try {
       if (request.method === "GET") {
-        if (path === "/api/events") return json(await listEvents(env, me, org));
+        if (path === "/api/events") {
+          ctx.waitUntil(maybePurge(env).catch((e) => console.log("hapus data lama gagal:", e.message)));
+          return json(await listEvents(env, me, org));
+        }
         if (path === "/api/people") {
           const ev = await visibleEvent(env, me, org, url.searchParams.get("event"));
           if (!ev) return json({ error: "Event tidak ditemukan." }, 404);

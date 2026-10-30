@@ -369,4 +369,34 @@ assert.deepEqual(cfgOf(await (await raw("/", { ck: PIA })).text()).branches, [],
 html = await (await raw("/", { ck: await cookie({ e: "x@acme.test", n: "X</script><b>", j: "copy" }) })).text();
 assert.ok(!html.includes("X</script>"), "nama tidak bisa menutup tag skrip"); assert.equal(cfgOf(html).me.name, "X</script><b>");
 
+/* ---------- data pribadi dihapus 12 bulan setelah acara ---------- */
+{
+  const { purgeOld } = W;
+  const OLD = addEvent({ date: "2025-10-01", n_reg: 2, n_hadir: 1 }), KEEP = addEvent({ date: "2026-01-01" });
+  const person = (e, ph) => env.DB.db.prepare("INSERT INTO people (id, event_id, name, phone, status, created_at) VALUES (?, ?, 'X', ?, 'terdaftar', '')").run(e.id + ph, e.id, ph);
+  person(OLD, "6281100000001"); person(OLD, "6281100000002"); person(KEEP, "6281100000003");
+  env.DB.db.prepare("INSERT INTO history (person_id, at, by_name, from_status, to_status) VALUES (?, '', 'x', '', 'terdaftar')").run(OLD.id + "6281100000001");
+  const NOW = Date.parse("2026-10-30T03:00:00Z");
+  assert.deepEqual(await purgeOld(env, NOW), { events: 1, people: 2 });
+  const o = env.DB.db.prepare("SELECT purged, n_reg, n_hadir FROM events WHERE id = ?").get(OLD.id);
+  assert.deepEqual([o.purged, o.n_reg, o.n_hadir], [1, 2, 1], "angka tetap");
+  assert.equal(people(OLD.id).length, 0); assert.equal(people(KEEP.id).length, 1);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM history WHERE person_id = ?").get(OLD.id + "6281100000001").n, 0);
+  assert.deepEqual(await purgeOld(env, NOW), { events: 0, people: 0 }, "tidak dihapus dua kali");
+  // event lama tidak bisa ditambah peserta lagi, halaman publiknya tertutup
+  env.DB.db.prepare("UPDATE events SET branch = 'Cabang Surabaya' WHERE id = ?").run(OLD.id);
+  assert.equal((await call("/api/people", { ck: SARI, body: { event_id: OLD.id, name: "Baru", phone: "081311110000" } })).j.error, "Data peserta acara ini sudah dihapus.");
+  // dijalankan saat daftar event dibuka, paling sering sekali per 6 jam
+  const OLD2 = addEvent({ date: "2025-09-01" }); person(OLD2, "6281100000009");
+  env.DB.db.prepare("DELETE FROM cfg WHERE k = 'purged_at'").run();   // cek sebelumnya di file ini ikut menjalankannya
+  env.NOW_MS = NOW; await call("/api/events", { ck: SARI });
+  assert.equal(people(OLD2.id).length, 0, "terhapus saat daftar event dibuka");
+  const OLD3 = addEvent({ date: "2025-08-01" }); person(OLD3, "6281100000010");
+  env.NOW_MS = NOW + 3600e3; await call("/api/events", { ck: SARI });
+  assert.equal(people(OLD3.id).length, 1, "belum 6 jam: tidak dijalankan lagi");
+  env.NOW_MS = NOW + 7 * 3600e3; await call("/api/events", { ck: SARI });
+  assert.equal(people(OLD3.id).length, 0);
+  env.NOW_MS = T0;
+}
+
 console.log("semua cek lolos");
