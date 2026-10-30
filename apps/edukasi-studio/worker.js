@@ -21,7 +21,7 @@
 import { profile, appUrl } from '../../shared/profile.js';
 import { ai, AiError } from '../../shared/ai.js';
 import { withCron } from '../../shared/cron.js';
-import { HUB_FEED, hubFeedAllowed } from '../../shared/hubfeed.js';
+import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from '../../shared/hubfeed.js';
 import { GLASS_CSS } from '../../shared/theme.js';
 import { i18nHead } from '../../shared/i18n.js';
 import EN from './i18n.js';
@@ -146,6 +146,8 @@ async function init(env) {
     'CREATE TABLE IF NOT EXISTS drafts(id INTEGER PRIMARY KEY AUTOINCREMENT, format TEXT, title TEXT, body TEXT, refs TEXT, score REAL, model TEXT, author TEXT, created_at INTEGER)',
     'CREATE INDEX IF NOT EXISTS drafts_created ON drafts(created_at)',
     'CREATE TABLE IF NOT EXISTS robots(host TEXT PRIMARY KEY, body TEXT, fetched_at INTEGER)',
+    // salinan disclaimer dari Brand Kit (k = 'disclaimers')
+    'CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)',
   ].map(s => env.DB.prepare(s)));
   ready = true;
 }
@@ -469,10 +471,34 @@ Visual: (saran visual singkat)
 
 (lanjutkan; satu ide per frame; frame terakhir berisi ajakan interaksi seperti polling, kuis, atau kotak pertanyaan yang relevan)`,
 };
-// Baris izin di akhir disclaimer: brand.company + brand.license dari profil (dilewati bila keduanya kosong)
-const disclaimer = env => { const b = profile(env).brand, lic = [b.company, b.license].filter(Boolean).join(' ');
-  return `\n\n---\nSemua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.\nInformasi ini bersifat edukasi, bukan ajakan atau dorongan untuk membeli atau menjual efek tertentu.${lic ? '\n' + lic.replace(/\.?$/, '.') : ''}`; };
-const withDisclaimer = (env, s) => String(s).split(/\n-{3,}\n[\s\S]*(?:Otoritas Jasa Keuangan|Semua investasi memiliki risiko)[\s\S]*$/)[0].trim() + disclaimer(env);
+// Teks bawaan (sebelum Brand Kit mengirim versi Edukasi): baris izin = brand.company + brand.license dari profil (dilewati bila keduanya kosong)
+const defaultDisc = env => { const b = profile(env).brand, lic = [b.company, b.license].filter(Boolean).join(' ');
+  return `Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.\nInformasi ini bersifat edukasi, bukan ajakan atau dorongan untuk membeli atau menjual efek tertentu.${lic ? '\n' + lic.replace(/\.?$/, '.') : ''}`; };
+/** Salinan disclaimer dari Brand Kit: { versions: [{ key, label, text }], old: { edukasi: [...] } } atau null. */
+async function brandDisc(env) {
+  await init(env);
+  const r = await env.DB.prepare("SELECT v FROM meta WHERE k = 'disclaimers'").first();
+  try { return r ? JSON.parse(r.v) : null; } catch (e) { return null; }
+}
+async function saveBrandDisc(env, b) {
+  await init(env);
+  const t = (x, n) => String(x == null ? '' : x).trim().slice(0, n);
+  const versions = (Array.isArray(b.versions) ? b.versions : []).slice(0, 20).map(x => ({ key: t(x && x.key, 20), label: t(x && x.label, 40), text: t(x && x.text, 3000) }));
+  const old = (b.old && Array.isArray(b.old.edukasi) ? b.old.edukasi : []).slice(0, 20).map(x => t(x, 3000)).filter(Boolean);
+  await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('disclaimers', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify({ versions, old: { edukasi: old } })).run();
+  return { ok: true };
+}
+/** Teks penutup artikel: versi Edukasi dari Brand Kit, atau teks bawaan bila belum ada / kosong. */
+const discText = (env, d) => { const v = d && (d.versions || []).find(x => x && x.key === 'edukasi'); return v && v.text ? v.text : defaultDisc(env); };
+const sameText = (a, b) => String(a).replace(/\s+/g, ' ').trim() === String(b).replace(/\s+/g, ' ').trim();
+/** Buang disclaimer lama di akhir naskah (bawaan, versi Edukasi sekarang, atau versi lama dari Brand Kit), lalu tempel yang sekarang: selalu satu disclaimer. */
+export async function withDisclaimer(env, s) {
+  const d = await brandDisc(env), cur = discText(env, d), known = [cur, defaultDisc(env), ...((d && d.old && d.old.edukasi) || [])];
+  let body = String(s).split(/\n-{3,}\n[\s\S]*(?:Otoritas Jasa Keuangan|Semua investasi memiliki risiko)[\s\S]*$/)[0];
+  const seps = [...body.matchAll(/\n-{3,}\n/g)], last = seps[seps.length - 1];
+  if (last && known.some(k => sameText(k, body.slice(last.index + last[0].length)))) body = body.slice(0, last.index);
+  return body.trim() + '\n\n---\n' + cur;
+}
 
 async function makeNotes(env, id) {
   const a = await env.DB.prepare('SELECT id, title, topic, text, notes FROM articles WHERE id=?').bind(id).first();
@@ -566,13 +592,13 @@ async function api(request, env, url, me) {
     const notes = rows.map((r, i) => `[Catatan ${i + 1}]\n${r.notes}`).join('\n\n');
     const user = `${FORMATS[fmt](Math.min(1500, Math.max(400, +body.length || 800)))}\n\nTopik: ${topic}\nJudul atau ide (opsional): ${String(body.title || '-').slice(0, 200)}\nSudut pandang atau pesan ${profile(env).brand.short || 'brand'} (opsional): ${String(body.angle || '-').slice(0, 400)}\nTarget pembaca: ${body.audience === 'menengah' ? 'investor yang sudah paham dasar' : 'investor pemula'}\n\nCATATAN FAKTA:\n${notes}`;
     const { text, model } = await ai(env, rules(env), user, fmt === 'web' ? 3000 : 1600);
-    return json({ body: withDisclaimer(env, text), model, refs: rows.map(r => ({ id: r.id, title: r.title, url: r.url, source: r.source })) });
+    return json({ body: await withDisclaimer(env, text), model, refs: rows.map(r => ({ id: r.id, title: r.title, url: r.url, source: r.source })) });
   }
   if (path === '/api/derive' && m === 'POST') {
     const fmt = FORMATS[body.format] && body.format !== 'web' ? body.format : 'feed';
     const src = String(body.body || '').split(/\n-{3,}\n/)[0].slice(0, 12000);
     const { text, model } = await ai(env, rules(env), `${FORMATS[fmt]()}\n\nGunakan HANYA isi artikel berikut sebagai bahan (artikel ini sudah orisinal milik ${profile(env).brand.short || 'kita sendiri'}):\n\n${src}`, 1600);
-    return json({ body: withDisclaimer(env, text), model });
+    return json({ body: await withDisclaimer(env, text), model });
   }
   if (path === '/api/rewrite' && m === 'POST') {
     const flagged = (body.flagged || []).slice(0, 25).map(String);
@@ -580,7 +606,7 @@ async function api(request, env, url, me) {
     const main = String(body.body || '').split(/\n-{3,}\n/)[0];
     const sys = 'Kamu editor bahasa Indonesia. Tulis ulang HANYA kalimat yang ditandai supaya susunan dan pilihan katanya benar-benar baru, makna dan faktanya tetap sama. Bagian lain jangan diubah. Kembalikan naskah lengkap dengan format yang sama, tanpa komentar tambahan.';
     const { text, model } = await ai(env, sys, `KALIMAT YANG DITANDAI:\n${flagged.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nNASKAH:\n${main}`, 3200);
-    return json({ body: withDisclaimer(env, text), model });
+    return json({ body: await withDisclaimer(env, text), model });
   }
 
   if (path === '/api/drafts') {
@@ -899,6 +925,8 @@ export default withCron({
     if (!configured(env)) return new Response(setupPage(env), { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
     await init(env);
     if (url.pathname === HUB_FEED) return hubFeedAllowed(request, env) ? json(await hubToday(env, url.searchParams.get('email') || '')) : new Response('forbidden', { status: 403 });
+    // teks disclaimer resmi dari Brand Kit (service binding)
+    if (url.pathname === '/__hub/disclaimers') return hubPushAllowed(request, env) ? json(await saveBrandDisc(env, await request.json().catch(() => ({})))) : new Response('forbidden', { status: 403 });
     const sec = { 'content-security-policy': `frame-ancestors 'self' ${hubOrigin(env)}`, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' };
     if (url.pathname.startsWith('/api/')) {
       const me = await readToken(env, request);

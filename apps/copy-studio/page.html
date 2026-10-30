@@ -44,6 +44,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,.btn:focus-visib
 .btn.pri{background:var(--g);border-color:var(--g);color:#fff}
 .btn.sm{padding:4px 9px;font-size:12.5px;border-radius:8px}
 .btn:disabled{opacity:.55;cursor:not-allowed}
+.discmenu{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;width:100%}
+.discmenu[hidden]{display:none}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:6px}
 .meter i{display:block;height:100%;background:var(--g)}
 .meter.over i{background:var(--err)}
@@ -137,6 +139,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
         <span style="flex:1"></span>
         <button class="btn sm" id="ckAddDisc" type="button">+ Izin & disclaimer</button>
         <button class="btn sm" id="ckAddTags" type="button">+ Hashtag brand</button>
+        <div class="discmenu" id="ckDiscMenu" role="group" aria-label="Pilih versi disclaimer" hidden></div>
       </div>
       <div>
         <textarea id="ckText" class="big" placeholder="Tempel caption, teks push notif, atau subject email di sini…"></textarea>
@@ -443,9 +446,21 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   $("ckCopy").onclick = function () { copy($("ckText").value); };
   $("ckClear").onclick = function () { $("ckText").value = ""; $("ckFixBox").hidden = true; runCheck(); };
   var B = CS.brand || {};
-  $("ckAddDisc").hidden = !(B.license || B.disclaimer);
+  // versi disclaimer dari Brand Kit (kalau sudah pernah dikirim); kalau belum, teks izin & disclaimer dari profil
+  var DV = Array.isArray(B.versions) ? B.versions : null;
+  $("ckAddDisc").hidden = DV ? !DV.length : !(B.license || B.disclaimer);
   $("ckAddTags").hidden = !B.hashtags;
-  $("ckAddDisc").onclick = function () { var ta = $("ckText"); ta.value = ta.value.replace(/\s+$/, "") + "\n\n" + [B.license, B.disclaimer].filter(Boolean).join("\n"); runCheck(); };
+  var addText = function (t) { var ta = $("ckText"); ta.value = ta.value.replace(/\s+$/, "") + "\n\n" + t; runCheck(); };
+  if (DV) $("ckAddDisc").setAttribute("aria-expanded", "false");
+  (DV || []).forEach(function (v) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = v.label;
+    b.onclick = function () { addText(v.text); $("ckDiscMenu").hidden = true; $("ckAddDisc").setAttribute("aria-expanded", "false"); };
+    $("ckDiscMenu").appendChild(b);
+  });
+  $("ckAddDisc").onclick = function () {
+    if (!DV) return addText([B.license, B.disclaimer].filter(Boolean).join("\n"));
+    var m = $("ckDiscMenu"); m.hidden = !m.hidden; this.setAttribute("aria-expanded", String(!m.hidden));
+  };
   $("ckAddTags").onclick = function () { var ta = $("ckText"); ta.value = ta.value.replace(/\s+$/, "") + "\n\n" + B.hashtags; runCheck(); };
   var fixed = "";
   $("ckFix").onclick = function () {

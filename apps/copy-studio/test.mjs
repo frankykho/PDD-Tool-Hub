@@ -177,6 +177,14 @@ assert.deepEqual(cfg.allow, ["XKMS"]);
 assert.deepEqual(cfg.style.glossary, DEFAULT_STYLE.glossary);
 for (const [, js] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(js);
 
+// disclaimer dari Brand Kit: sebelum ada kiriman, tombol "+ Izin & disclaimer" tetap memakai profil
+assert.equal(cfg.brand.versions, undefined);
+const PUSH = { versions: [{ key: "umum", label: "Umum", text: "Teks umum" }, { key: "reksadana", label: "Reksa Dana", text: "Teks RD" }, { key: "obligasi", label: "Obligasi", text: "" }], old: { edukasi: [] } };
+assert.equal((await call("/__hub/disclaimers", { json: PUSH })).status, 403, "tanpa kunci hub ditolak");
+assert.equal((await call("/__hub/disclaimers", { json: PUSH, headers: { "x-hub-key": SECRET } })).status, 200);
+const cfg2 = JSON.parse((await (await call("/", { cookie: user })).text()).match(/window\.CS=(\{.*?\});<\/script>/)[1]);
+assert.deepEqual(cfg2.brand.versions, [{ label: "Umum", text: "Teks umum" }, { label: "Reksa Dana", text: "Teks RD" }], "versi kosong tidak ikut");
+
 // panduan gaya: hanya editor/admin
 assert.equal((await call("/api/style", { cookie: user, json: { guide: "x" } })).status, 403);
 assert.equal((await call("/api/style", { cookie: editor, json: { guide: "x" }, origin: "https://evil.test" })).status, 403, "beda origin ditolak");

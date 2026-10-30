@@ -6,11 +6,12 @@
 // - POST /api/ai           tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
+// - POST /__hub/disclaimers teks disclaimer resmi dari Brand Kit (disimpan sebagai salinan; tombol "+ Izin & disclaimer")
 // Cek kepatuhan & panjang teks: shared/compliance.js, dijalankan di browser. Ubah ukuran gambar & potong audio juga di browser.
 import { title, profileScript, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import { ai, AiError } from "../../shared/ai.js";
-import { hubFeedAllowed } from "../../shared/hubfeed.js";
+import { hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
 import { complianceScript, PLATFORMS, RULES_PROMPT } from "../../shared/compliance.js";
 import PAGE from "./page.html";
 import EN from "./i18n.js";
@@ -89,6 +90,19 @@ async function ensure(env) {
   if (ready) return;
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)").run();
   ready = true;
+}
+/** Versi disclaimer dari Brand Kit yang berisi teks: [{ label, text }]; null kalau belum pernah dikirim. */
+async function getDisclaimers(env) {
+  await ensure(env);
+  const r = await env.DB.prepare("SELECT v FROM meta WHERE k='disclaimers'").first();
+  let d = null; try { d = r && JSON.parse(r.v); } catch {}
+  return d && Array.isArray(d.versions) ? d.versions.filter((x) => x && x.text).map((x) => ({ label: str(x.label, 40), text: str(x.text, 3000) })) : null;
+}
+async function saveDisclaimers(env, b) {
+  await ensure(env);
+  const versions = (Array.isArray(b.versions) ? b.versions : []).slice(0, 20).map((x) => ({ key: str(x && x.key, 20), label: str(x && x.label, 40), text: str(x && x.text, 3000) }));
+  await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('disclaimers', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify({ versions })).run();
+  return { ok: true };
 }
 async function getStyle(env) {
   await ensure(env);
@@ -422,6 +436,7 @@ export default {
     const url = new URL(request.url), path = url.pathname;
     try {
       if (path === "/__hub/style") return hubFeedAllowed(request, env) ? json(await getStyle(env)) : new Response("forbidden", { status: 403 });
+      if (path === "/__hub/disclaimers") return hubPushAllowed(request, env) ? json(await saveDisclaimers(env, await request.json().catch(() => ({})))) : new Response("forbidden", { status: 403 });
       if (path === "/logout") return HUBSSO.logout(env);
       if (!HUBSSO.ready(env)) return HUBSSO.notReady();
       const tk = await HUBSSO.ticket(request, env); if (tk) return tk;
@@ -432,7 +447,7 @@ export default {
       if (isPage) {
         const p = profile(env);
         return html(page(env, { canEdit, style: await getStyle(env), allow: allowCodes(env), abTypes: AB_TYPES, tones: Object.fromEntries(Object.entries(TONES).map(([k, t]) => [k, t.label])),
-          brand: { hashtags: p.brand.hashtags, license: p.brand.license, disclaimer: p.brand.disclaimer, app: p.app.name } }), { "content-security-policy": HUBSSO.frame(env) });
+          brand: { hashtags: p.brand.hashtags, license: p.brand.license, disclaimer: p.brand.disclaimer, app: p.app.name, versions: (await getDisclaimers(env)) || undefined } }), { "content-security-policy": HUBSSO.frame(env) });
       }
       if (request.method === "GET" && path === "/api/style") return json(await getStyle(env));
       if (request.method === "GET" && path === "/api/products") return json(await productsCached(env, ctx));

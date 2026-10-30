@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
-const { default: edu, phrases } = await import("./worker.js");
+const { default: edu, phrases, withDisclaimer } = await import("./worker.js");
 const { ai, GEMINI_MODELS, GROQ_MODELS } = await import("../../shared/ai.js");
 
 function d1() {
@@ -104,5 +104,22 @@ gqMode = "ok"; gq.length = 0;
 await ai({ GROQ_API_KEY: "q-key", GROQ_MODEL: "qwen-x", AI: wai }, "SYS", "USER", 500);
 assert.equal(gq[0], "qwen-x", "GROQ_MODEL dicoba lebih dulu");
 globalThis.fetch = realFetch;
+
+/* ---------- disclaimer dari Brand Kit ---------- */
+assert.equal(await withDisclaimer(env, "Isi"), "Isi\n\n---\nSemua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.\nInformasi ini bersifat edukasi, bukan ajakan atau dorongan untuk membeli atau menjual efek tertentu.", "sebelum ada kiriman: teks bawaan");
+const hubPush = (body, key = SECRET) => edu.fetch(new Request(BASE + "/__hub/disclaimers", { method: "POST", headers: { "x-hub-key": key, "content-type": "application/json" }, body: JSON.stringify(body) }), env);
+const V = (t) => ({ versions: [{ key: "umum", label: "Umum", text: "U" }, { key: "edukasi", label: "Edukasi", text: t }], old: { edukasi: [] } });
+assert.equal((await hubPush(V("Teks A"), "salah".repeat(8))).status, 403);
+assert.equal((await hubPush(V("Teks A"))).status, 200);
+assert.equal(await withDisclaimer(env, "Isi"), "Isi\n\n---\nTeks A");
+assert.equal(await withDisclaimer(env, "Isi\n\n---\nSemua investasi memiliki risiko. Lama."), "Isi\n\n---\nTeks A", "disclaimer bawaan lama dibuang");
+// kata-kata diganti admin: disclaimer lama (Teks A) dikenali dan dibuang, tidak jadi dua
+await hubPush({ ...V("Teks B"), old: { edukasi: ["Teks A"] } });
+const re = await withDisclaimer(env, "Isi\n\n---\nTeks A");
+assert.equal(re, "Isi\n\n---\nTeks B"); assert.equal(re.split("Teks A").length, 1);
+assert.equal(await withDisclaimer(env, "Isi\n\n---\nTeks B"), "Isi\n\n---\nTeks B", "dijalankan dua kali tetap satu disclaimer");
+// versi Edukasi dikosongkan: kembali ke teks bawaan
+await hubPush(V(""));
+assert.match(await withDisclaimer(env, "Isi"), /---\nSemua investasi memiliki risiko/);
 
 console.log("semua cek lolos");

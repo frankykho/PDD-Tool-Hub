@@ -29,7 +29,7 @@ export default {
   "ajakan bertindak / CTA (maks. 60 karakter)": "call to action / CTA (max. 60 characters)",
 
   // ---- cek caption ----
-  "+ Izin & disclaimer": "+ License & disclaimer", "+ Hashtag brand": "+ Brand hashtags",
+  "+ Izin & disclaimer": "+ License & disclaimer", "+ Hashtag brand": "+ Brand hashtags", "Pilih versi disclaimer": "Choose a disclaimer version",
   "Tempel caption, teks push notif, atau subject email di sini…": "Paste a caption, push notification text, or email subject here…",
   "Perbaiki dengan AI": "Fix with AI", "Usulan perbaikan AI": "AI fix suggestion", "Pakai teks ini": "Use this text", "Hasil cek": "Check results",
   "Saran otomatis menurut aturan iklan produk investasi dan panduan gaya tim. Review compliance tetap berlaku.": "Automatic suggestions based on investment product advertising rules and the team style guide. Compliance review still applies.",
