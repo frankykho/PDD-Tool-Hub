@@ -383,6 +383,57 @@ async function deleteSpeaker(env, me, org, id) {
   return { ok: true };
 }
 
+/* =========================================================
+   FILE RESMI DARI GOOGLE DRIVE (subfolder = kategori)
+   ========================================================= */
+/** ID folder dari ID mentah atau link folder Drive; "" kalau tidak dikenali. */
+export function folderId(input) {
+  const s = String(input || "").trim(), m = /\/folders\/([A-Za-z0-9_-]+)/.exec(s) || /[?&]id=([A-Za-z0-9_-]+)/.exec(s);
+  const id = m ? m[1] : s;
+  return /^[A-Za-z0-9_-]{10,100}$/.test(id) ? id : "";
+}
+const FILES_TTL = 600e3, GFOLDER = "application/vnd.google-apps.folder";
+async function driveList(env, id) {
+  const q = new URLSearchParams({ q: `'${id}' in parents and trashed=false`, fields: "files(id,name,mimeType,size,modifiedTime)", pageSize: "1000", orderBy: "folder,name", key: env.DRIVE_API_KEY });
+  const r = await timed(fetch("https://www.googleapis.com/drive/v3/files?" + q), 10000);
+  if (!r.ok) throw new Error(`Google Drive tidak bisa dibaca (HTTP ${r.status}).`);
+  return ((await r.json()).files || []);
+}
+const fileOut = (f) => ({ id: f.id, name: f.name, mime: f.mimeType, size: Number(f.size) || 0, modified: f.modifiedTime || "",
+  thumb: `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`, view: `https://drive.google.com/file/d/${f.id}/view`,
+  // file Google (Docs / Slides / Sheets) tidak bisa diunduh langsung, hanya dibuka
+  download: f.mimeType.startsWith("application/vnd.google-apps.") ? "" : `https://drive.google.com/uc?export=download&id=${f.id}` });
+async function readDrive(env, folder) {
+  const root = await driveList(env, folder), subs = root.filter((f) => f.mimeType === GFOLDER).slice(0, 30);
+  const cats = await Promise.all(subs.map(async (s) => ({ name: s.name, files: (await driveList(env, s.id)).filter((f) => f.mimeType !== GFOLDER).map(fileOut) })));
+  cats.sort((a, b) => a.name.localeCompare(b.name, "id"));
+  const rest = root.filter((f) => f.mimeType !== GFOLDER).map(fileOut);
+  return [...cats, ...(rest.length ? [{ name: "Lainnya", files: rest }] : [])];
+}
+/** Daftar file (cache 10 menit di KV). Kalau Drive gagal, data terakhir tetap ditampilkan dengan pesan. */
+async function listFiles(env, fresh) {
+  const folder = (await cfgGet(env, "drive_folder")) || "";
+  if (!env.DRIVE_API_KEY) return { folder, categories: [], error: "DRIVE_API_KEY belum dipasang." };
+  if (!folder) return { folder, categories: [], error: "Folder Drive belum diatur admin." };
+  const c = await env.BRAND_KV.get("files", "json"), cached = c && c.folder === folder ? c : null;
+  if (cached && !fresh && now(env) - cached.at < FILES_TTL) return { folder, categories: cached.data };
+  try {
+    const data = await readDrive(env, folder);
+    await env.BRAND_KV.put("files", JSON.stringify({ at: now(env), folder, data }));
+    return { folder, categories: data };
+  } catch (e) {
+    console.log("baca Drive gagal:", e.message);
+    return { folder, categories: cached ? cached.data : [], error: /^Google Drive/.test(e.message) ? e.message : "Google Drive tidak bisa dihubungi." };
+  }
+}
+async function setFolder(env, b) {
+  const id = folderId(b.folder);
+  if (!id) return { error: "Link atau ID folder Drive tidak dikenali." };
+  await cfgPut(env, "drive_folder", id).run();
+  await env.BRAND_KV.delete("files");
+  return { folder: id };
+}
+
 /** Halaman: data awal (window.BK) + tema & bahasa dari Tool Hub. */
 async function page(env, me, org) {
   const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, head: !!(roleIn(org, me.j) || {}).head, branch: me.c || "" },
@@ -422,6 +473,7 @@ export default {
         if (path === "/api/templates") return json({ templates: await listTemplates(env, me) });
         if (path === "/api/usage") return admin() || json(await usage(env));
         if (path === "/api/speakers") return json({ speakers: await listSpeakers(env, me, org) });
+        if (path === "/api/files") return json(await listFiles(env, me.adm && url.searchParams.get("fresh") === "1"));
         const ph = /^\/photo\/([a-z0-9]{6,20})$/.exec(path);
         if (ph) {
           const sp = await env.DB.prepare("SELECT photo FROM speakers WHERE id = ?").bind(ph[1]).first();
@@ -446,6 +498,7 @@ export default {
         if (path === "/api/usage") return out(await logUsage(env, me, b));
         if (path === "/api/speakers") return out(await saveSpeaker(env, me, org, b));
         if (path === "/api/speakers/delete") return out(await deleteSpeaker(env, me, org, b.id));
+        if (path === "/api/drive") return admin() || out(await setFolder(env, b));
       }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);

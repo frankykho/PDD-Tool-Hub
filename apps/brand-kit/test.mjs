@@ -226,4 +226,60 @@ assert.equal((await raw("/photo/" + SPK)).status, 401);
 assert.equal((await call("/api/speakers/delete", { ck: SARI, body: { id: SPK } })).status, 200);
 assert.equal((await call("/api/speakers", { ck: SARI })).j.speakers.length, 0);
 
+/* ---------- file dari Google Drive ---------- */
+const FOLDER = "1ngVd4W8ojcZqsuqEZoVvRxrQHk3EuJ8-";
+assert.equal(W.folderId("https://drive.google.com/drive/folders/1ngVd4W8ojcZqsuqEZoVvRxrQHk3EuJ8-?usp=drive_link"), FOLDER);
+assert.equal(W.folderId(FOLDER), FOLDER);
+assert.equal(W.folderId("bukan folder"), "");
+r = await call("/api/files", { ck: SARI });
+assert.deepEqual(r.j.categories, []); assert.equal(r.j.error, "DRIVE_API_KEY belum dipasang.");
+env.DRIVE_API_KEY = "kunci-uji";
+r = await call("/api/files", { ck: SARI });
+assert.equal(r.j.error, "Folder Drive belum diatur admin.");
+assert.equal((await call("/api/drive", { ck: SARI, body: { folder: FOLDER } })).status, 403);
+assert.equal((await call("/api/drive", { ck: ADM, body: { folder: "x" } })).status, 400);
+assert.equal((await call("/api/drive", { ck: ADM, body: { folder: "https://drive.google.com/drive/folders/" + FOLDER } })).status, 200);
+// Google Drive ditiru: folder utama berisi 2 subfolder, 1 PDF, 1 Google Slides
+const DRIVE = {
+  [FOLDER]: [{ id: "fFoto", name: "Foto", mimeType: "application/vnd.google-apps.folder" }, { id: "fLogo", name: "Logo", mimeType: "application/vnd.google-apps.folder" },
+    { id: "pdf1", name: "Panduan brand.pdf", mimeType: "application/pdf", size: "1200", modifiedTime: "2026-10-01T00:00:00Z" },
+    { id: "sl1", name: "Deck resmi", mimeType: "application/vnd.google-apps.presentation", modifiedTime: "2026-10-02T00:00:00Z" }],
+  fLogo: [{ id: "lg1", name: "logo.png", mimeType: "image/png", size: "5000", modifiedTime: "2026-10-03T00:00:00Z" }],
+  fFoto: [{ id: "ft1", name: "kantor.jpg", mimeType: "image/jpeg", size: "90000", modifiedTime: "2026-10-04T00:00:00Z" }],
+};
+const realFetch = globalThis.fetch;
+let driveCalls = [], driveStatus = 200;
+globalThis.fetch = async (u) => {
+  const url = new URL(String(u)); driveCalls.push(url);
+  if (driveStatus !== 200) return new Response("no", { status: driveStatus });
+  const id = /'([^']+)' in parents/.exec(url.searchParams.get("q"))[1];
+  return Response.json({ files: DRIVE[id] || [] });
+};
+r = await call("/api/files", { ck: SARI });
+assert.equal(r.j.error, undefined);
+assert.deepEqual(r.j.categories.map((c) => c.name), ["Foto", "Logo", "Lainnya"]);
+assert.equal(driveCalls[0].searchParams.get("key"), "kunci-uji");
+assert.match(driveCalls[0].searchParams.get("q"), /trashed=false/);
+const lain = r.j.categories[2].files;
+assert.deepEqual(lain.map((f) => f.name), ["Panduan brand.pdf", "Deck resmi"]);
+assert.equal(lain[0].download, "https://drive.google.com/uc?export=download&id=pdf1");
+assert.equal(lain[0].thumb, "https://drive.google.com/thumbnail?id=pdf1&sz=w400");
+assert.equal(lain[1].download, "", "file Google hanya bisa dibuka, tidak diunduh");
+assert.equal(lain[1].view, "https://drive.google.com/file/d/sl1/view");
+// cache 10 menit; fresh=1 hanya untuk admin
+driveCalls = [];
+await call("/api/files", { ck: SARI }); await call("/api/files?fresh=1", { ck: SARI });
+assert.equal(driveCalls.length, 0, "dari cache");
+await call("/api/files?fresh=1", { ck: ADM });
+assert.equal(driveCalls.length, 3, "admin memuat ulang");
+env.NOW_MS = String(Date.now() + 11 * 60e3); driveCalls = [];
+await call("/api/files", { ck: SARI });
+assert.equal(driveCalls.length, 3, "cache kedaluwarsa setelah 10 menit");
+// Drive menolak: data terakhir tetap tampil dengan pesan
+driveStatus = 403; env.NOW_MS = String(Date.now() + 30 * 60e3);
+r = await call("/api/files", { ck: SARI });
+assert.equal(r.j.error, "Google Drive tidak bisa dibaca (HTTP 403).");
+assert.equal(r.j.categories.length, 3);
+driveStatus = 200; delete env.NOW_MS; globalThis.fetch = realFetch;
+
 console.log("semua cek lolos");
