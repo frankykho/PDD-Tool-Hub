@@ -2,6 +2,8 @@
 const D = {
   "Brand Kit": "Brand Kit",
   // ---------- pesan dari server ----------
+  "Khusus admin": "Admins only",
+  "Versi disclaimer tidak dikenal": "Unknown disclaimer version",
   "Sesi habis. Muat ulang halaman": "Session expired. Reload the page",
   "Permintaan ditolak": "Request rejected",
   "Gagal: {x}": "Failed: {x}",

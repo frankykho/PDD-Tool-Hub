@@ -87,5 +87,53 @@ const SARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "sales" });
 res = await raw("/", { ck: SARI });
 assert.equal(res.status, 200);
 assert.match(await res.text(), /window\.BK=\{[^<]*"branch":"Cabang Surabaya"/);
+const ADM = await cookie({ e: "adm@acme.test", n: "Adm", adm: true });
+const HEAD = await cookie({ e: "head@acme.test", n: "Hana", j: "head_rm" });
+const TONO = await cookie({ e: "tono@acme.test", n: "Tono", j: "sales", c: "Cabang Sudirman" });
+
+/* ---------- disclaimer ---------- */
+// kiriman ke Copy Studio & Edukasi Studio dicatat (alamat, kunci, isi)
+const pushes = [];
+const rec = (name, fail = () => false) => ({ fetch: async (u, init) => { const req = new Request(u, init); if (fail()) throw new Error("mati");
+  pushes.push({ name, url: req.url, key: req.headers.get("x-hub-key"), body: await req.json() }); return Response.json({ ok: true }); } });
+let copyDown = false;
+env.COPY = rec("copy", () => copyDown); env.EDUKASI = rec("edukasi");
+r = await call("/api/disclaimers", { ck: SARI });
+assert.equal(r.status, 200);
+assert.deepEqual(r.j.list.map((x) => x.key), ["umum", "reksadana", "obligasi", "syariah", "edukasi", "singkat"]);
+assert.equal(r.j.list.find((x) => x.key === "singkat").text, "PT Korea Investment And Sekuritas Indonesia berizin dan diawasi oleh OJK.");
+assert.ok(r.j.list.find((x) => x.key === "edukasi").text.startsWith(W.EDU_DEFAULT), "isi awal Edukasi = teks Edukasi Studio sekarang");
+assert.equal(r.j.list.find((x) => x.key === "umum").text, "");
+// bukan admin: ditolak, tidak berubah
+r = await call("/api/disclaimers", { ck: SARI, body: { key: "umum", text: "x" }, headers: { origin: BASE } });
+assert.equal(r.status, 403);
+assert.equal(env.DB.db.prepare("SELECT text FROM disclaimers WHERE key = 'umum'").get().text, "");
+r = await call("/api/disclaimers", { ck: ADM, body: { key: "umum", text: "x" }, headers: { origin: "https://jahat.test" } });
+assert.equal(r.status, 403, "permintaan dari situs lain ditolak");
+// admin menyimpan -> riwayat + terkirim ke dua tool
+r = await call("/api/disclaimers", { ck: ADM, body: { key: "umum", text: "  Teks umum  " } });
+assert.equal(r.status, 200);
+assert.equal(env.DB.db.prepare("SELECT text FROM disclaimers WHERE key = 'umum'").get().text, "Teks umum");
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM disc_history WHERE key = 'umum'").get().n, 1);
+assert.deepEqual(pushes.map((p) => [p.name, p.url, p.key]), [["copy", "https://copy/__hub/disclaimers", SECRET], ["edukasi", "https://edukasi/__hub/disclaimers", SECRET]]);
+assert.equal(pushes[0].body.versions.length, 6);
+assert.deepEqual(pushes[0].body.versions[0], { key: "umum", label: "Umum", text: "Teks umum" });
+assert.deepEqual(r.j.push.ok, { copy: true, edukasi: true });
+// teks Edukasi diubah dua kali: teks lama ikut terkirim (supaya artikel lama tidak berakhir dengan dua disclaimer)
+const edu0 = env.DB.db.prepare("SELECT text FROM disclaimers WHERE key = 'edukasi'").get().text;
+await call("/api/disclaimers", { ck: ADM, body: { key: "edukasi", text: "Teks A" } });
+pushes.length = 0;
+await call("/api/disclaimers", { ck: ADM, body: { key: "edukasi", text: "Teks B" } });
+assert.deepEqual(pushes[1].body.old.edukasi, ["Teks A", edu0]);
+// Copy Studio mati: tetap tersimpan, status kiriman tercatat
+copyDown = true;
+r = await call("/api/disclaimers", { ck: ADM, body: { key: "syariah", text: "Teks syariah" } });
+assert.equal(r.status, 200); assert.deepEqual(r.j.push.ok, { copy: false, edukasi: true });
+assert.equal((await call("/api/disclaimers", { ck: ADM })).j.push.ok.copy, false);
+copyDown = false;
+r = await call("/api/disclaimers/push", { ck: ADM, body: {} });
+assert.deepEqual(r.j.push.ok, { copy: true, edukasi: true }, "kirim ulang");
+assert.equal((await call("/api/disclaimers/push", { ck: SARI, body: {} })).status, 403);
+assert.equal((await call("/api/disclaimers", { ck: ADM, body: { key: "lain", text: "x" } })).status, 400, "versi tidak dikenal");
 
 console.log("semua cek lolos");

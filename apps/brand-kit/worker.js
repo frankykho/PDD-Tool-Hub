@@ -131,6 +131,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const now = (env) => Number(env.NOW_MS) || Date.now();
 const iso = (env) => new Date(now(env)).toISOString();
 const ABC = "abcdefghijkmnpqrstuvwxyz23456789";
+/** Batas waktu untuk panggilan ke tool lain / Google. */
+const timed = (p, ms) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error("timeout")), ms); })]).finally(() => clearTimeout(t)); };
 const newId = () => [...crypto.getRandomValues(new Uint8Array(12))].map((x) => ABC[x % ABC.length]).join("");
 /** Sesi + cabang: tiket lama tanpa cabang memakai cabang di daftar anggota dari Tool Hub. */
 async function whoAmI(env, me) {
@@ -139,6 +141,55 @@ async function whoAmI(env, me) {
   const U = (await cfgGet(env, "users")) || [], u = U.find((x) => x.email === e);
   return { ...me, e, c: (u && u.branch) || "" };
 }
+/* =========================================================
+   DISCLAIMER (beberapa versi; dikirim ke Copy Studio & Edukasi Studio)
+   ========================================================= */
+// teks penutup artikel Edukasi Studio sebelum Brand Kit ada (apps/edukasi-studio/worker.js disclaimer())
+export const EDU_DEFAULT = "Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.\nInformasi ini bersifat edukasi, bukan ajakan atau dorongan untuk membeli atau menjual efek tertentu.";
+const SINGKAT = "PT Korea Investment And Sekuritas Indonesia berizin dan diawasi oleh OJK.";
+/** Semua versi berurutan; baris yang belum ada diisi teks awal. */
+export async function getDisclaimers(env) {
+  await ensure(env);
+  const have = new Map((await env.DB.prepare("SELECT * FROM disclaimers").all()).results.map((x) => [x.key, x]));
+  const miss = DISC_KEYS.filter(([k]) => !have.has(k));
+  if (miss.length) {
+    const b = profile(env).brand || {}, lic = [b.company, b.license].filter(Boolean).join(" ");
+    const seed = { edukasi: EDU_DEFAULT + (lic ? "\n" + lic.replace(/\.?$/, ".") : ""), singkat: SINGKAT };
+    await env.DB.batch(miss.map(([k, label]) => env.DB.prepare("INSERT OR IGNORE INTO disclaimers (key, label, text, sort, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(k, label, seed[k] || "", DISC_KEYS.findIndex((x) => x[0] === k), iso(env), "")));
+    return getDisclaimers(env);
+  }
+  return DISC_KEYS.map(([k]) => { const { key, label, text, updated_at, updated_by } = have.get(k); return { key, label, text: text || "", updated_at, updated_by }; });
+}
+/** Kirim semua versi ke Copy Studio & Edukasi Studio (masing-masing menyimpan salinannya). Gagal = dicatat, tidak melempar. */
+async function pushDisclaimers(env) {
+  const list = await getDisclaimers(env);
+  // teks Edukasi lama: Edukasi Studio membuang disclaimer lama di akhir artikel walau kata-katanya sudah diganti
+  const old = (await env.DB.prepare("SELECT text FROM disc_history WHERE key = 'edukasi' ORDER BY id DESC LIMIT 20").all()).results.map((x) => x.text).filter(Boolean);
+  const body = JSON.stringify({ versions: list.map(({ key, label, text }) => ({ key, label, text })), old: { edukasi: old } });
+  const send = async (bind, host) => {
+    if (!bind) return false;
+    try {
+      const r = await timed(bind.fetch(`https://${host}/__hub/disclaimers`, { method: "POST", headers: { "x-hub-key": env.SSO_SECRET, "content-type": "application/json" }, body }), 6000);
+      return r.ok;
+    } catch (e) { console.log(`kirim disclaimer ke ${host} gagal:`, e.message); return false; }
+  };
+  const [copy, edukasi] = await Promise.all([send(env.COPY, "copy"), send(env.EDUKASI, "edukasi")]);
+  const push = { at: iso(env), ok: { copy, edukasi } };
+  await cfgPut(env, "push", push).run();
+  return push;
+}
+async function saveDisclaimer(env, me, b) {
+  const key = String(b.key || "");
+  if (!DISC_KEYS.some(([k]) => k === key)) return { error: "Versi disclaimer tidak dikenal." };
+  const text = String(b.text ?? "").replace(/\r\n/g, "\n").trim().slice(0, 3000);
+  const cur = (await getDisclaimers(env)).find((x) => x.key === key);
+  if (cur.text !== text) await env.DB.batch([
+    env.DB.prepare("INSERT INTO disc_history (key, text, at, by_name) VALUES (?, ?, ?, ?)").bind(key, cur.text, iso(env), String(me.n || me.e).slice(0, 60)),
+    env.DB.prepare("UPDATE disclaimers SET text = ?, updated_at = ?, updated_by = ? WHERE key = ?").bind(text, iso(env), String(me.n || me.e).slice(0, 60), key)]);
+  return { list: await getDisclaimers(env), push: await pushDisclaimers(env) };
+}
+
 /** Halaman: data awal (window.BK) + tema & bahasa dari Tool Hub. */
 async function page(env, me, org) {
   const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, head: !!(roleIn(org, me.j) || {}).head, branch: me.c || "" },
@@ -167,6 +218,20 @@ export default {
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" } });
     try {
       if (request.method !== "GET" && !HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
+      const admin = () => (me.adm ? null : json({ error: "Khusus admin." }, 403));
+      if (request.method === "GET") {
+        if (path === "/api/disclaimers") {
+          const list = await getDisclaimers(env);
+          // riwayat hanya untuk admin
+          const history = me.adm ? (await env.DB.prepare("SELECT key, text, at, by_name FROM disc_history ORDER BY id DESC LIMIT 200").all()).results : [];
+          return json({ list, history, push: (await cfgGet(env, "push")) || null });
+        }
+      }
+      if (request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        if (path === "/api/disclaimers") return admin() || out(await saveDisclaimer(env, me, b));
+        if (path === "/api/disclaimers/push") return admin() || json({ push: await pushDisclaimers(env) });
+      }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);
     }
