@@ -43,4 +43,41 @@ assert.deepEqual(F.text[0], { field: "cabang", label: "Nama cabang", required: t
 assert.equal(F.speakers, 6); assert.equal(F.qr, true);
 assert.deepEqual(fieldsOf([{ kind: "feed11", slots: [] }]), { text: [], speakers: 0, qr: false });
 
+/* ---------- draw(): canvas tiruan yang mencatat teks yang digambar ---------- */
+function fakeCtx() {
+  const texts = [];
+  const ctx = { font: "", texts, fillStyle: "", textAlign: "", textBaseline: "", lineWidth: 0, strokeStyle: "",
+    save() {}, restore() {}, scale() {}, clearRect() {}, fillRect() {}, drawImage() {}, beginPath() {}, arc() {}, closePath() {}, clip() {}, stroke() {},
+    measureText(t) { const s = +(/(\d+(?:\.\d+)?)px/.exec(ctx.font) || [0, 10])[1]; return { width: t.length * s * 0.6 }; },
+    fillText(t, x, y) { texts.push({ t, y, size: +(/(\d+(?:\.\d+)?)px/.exec(ctx.font) || [0, 0])[1] }); } };
+  return ctx;
+}
+const { draw } = await import("./assets/render.js");
+const tslot = { id: "t", type: "text", field: "tempat", label: "Tempat", x: 0, y: 0, w: 500, h: 60, font: "Inter", weight: 600, size: 30, minSize: 20, color: "#000000", align: "left", max: 60, required: false, def: "Galeri Sudirman", auto: "" };
+const base = { S: { w: 1080, h: 1920 }, bg: null, logo: null, speakers: [], qr: null, scale: 1 };
+let c = fakeCtx();
+draw(c, { ...base, size: { slots: [tslot], logo: null, disc: null }, values: { tempat: "" } });
+assert.deepEqual(c.texts, [], "isian tidak wajib dikosongkan cabang: tidak digambar walau ada isi bawaan");
+c = fakeCtx();
+draw(c, { ...base, size: { slots: [tslot], logo: null, disc: null }, values: { tempat: "Online" } });
+assert.deepEqual(c.texts.map((x) => x.t), ["Online"]);
+// disclaimer panjang di dekat tepi bawah: huruf mengecil supaya seluruhnya di dalam gambar
+const longDisc = "Investasi mengandung risiko. ".repeat(20).trim();
+c = fakeCtx();
+let res = draw(c, { ...base, size: { slots: [], logo: null, disc: { key: "umum", x: 60, y: 1800, w: 960, size: 18, color: "#333333", align: "center" } }, values: {}, disclaimer: longDisc });
+assert.ok(c.texts.length > 1 && c.texts.every((x) => x.y <= 1920), "semua baris disclaimer di dalam gambar");
+assert.ok(c.texts[0].size < 18, "huruf disclaimer mengecil");
+assert.ok(!res.overflow.includes("disclaimer"));
+// tidak muat sama sekali -> ditandai (unduhan ditahan halaman)
+c = fakeCtx();
+res = draw(c, { ...base, size: { slots: [], logo: null, disc: { key: "umum", x: 60, y: 1900, w: 300, size: 18, color: "#333333", align: "center" } }, values: {}, disclaimer: longDisc });
+assert.ok(res.overflow.includes("disclaimer"), "disclaimer tidak muat ditandai");
+// ukuran cetak: batas bawah = garis potong (bleed 3 mm), bukan tepi gambar
+const A4 = { w: 2551, h: 3579, mm: [216, 303] }, trim = A4.h - (3 / 25.4) * (A4.w / (216 / 25.4));
+c = fakeCtx();
+draw(c, { ...base, S: A4, size: { slots: [], logo: null, disc: { key: "umum", x: 200, y: 3400, w: 2150, size: 40, color: "#333333", align: "center" } }, values: {}, disclaimer: longDisc });
+assert.ok(c.texts.every((x) => x.y <= trim), "disclaimer cetak di dalam garis potong");
+assert.ok(Math.abs(W_discBottom(A4) - trim) < 1e-6);
+function W_discBottom(S) { return S.mm ? S.h - (3 / 25.4) * (S.w / (S.mm[0] / 25.4)) : S.h; }
+
 console.log("render: semua cek lolos");

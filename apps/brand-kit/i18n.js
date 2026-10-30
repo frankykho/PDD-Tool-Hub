@@ -171,6 +171,8 @@ const D = {
   "Peringatan: gambar lebih kecil dari": "Warning: the image is smaller than",
   "hasil cetak bisa buram.": "the print may look blurry.",
   "Hapus ukuran ini beserta gambar latarnya?": "Delete this size and its background image?",
+  "Disclaimer tidak muat di ukuran ini, jadi belum bisa diunduh. Hubungi admin Brand Kit.": "The disclaimer does not fit this size, so it cannot be downloaded yet. Contact the Brand Kit admin.",
+  "Disclaimer tidak muat sampai bawah gambar. Geser kotaknya ke atas, perlebar, atau perkecil hurufnya. Cabang tidak bisa mengunduh ukuran ini sebelum diperbaiki.": "The disclaimer runs past the bottom of the image. Move its box up, widen it, or reduce the font size. Branches cannot download this size until it is fixed.",
   // ukuran template
   "Story": "Story",
   "Feed 4:5": "Feed 4:5",

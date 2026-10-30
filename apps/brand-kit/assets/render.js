@@ -68,6 +68,22 @@ export function fieldsOf(sizes) {
   return { text, speakers, qr };
 }
 
+/** Batas bawah disclaimer: tepi gambar, atau garis potong (bleed 3 mm) untuk ukuran cetak. */
+export function discBottom(S) {
+  return S.mm ? S.h - (3 / 25.4) * (S.w / (S.mm[0] / 25.4)) : S.h;
+}
+/** Disclaimer selalu utuh: huruf mengecil (sampai 60%, min. 6 px) supaya seluruh teks di atas batas bawah; kalau tetap tidak muat -> overflow. */
+export function fitDisclaimer(measure, text, d, bottom) {
+  const paras = String(text).split(/\n/), min = Math.max(6, Math.round(d.size * 0.6));
+  let size = d.size, lines;
+  for (;;) {
+    lines = paras.flatMap((p) => wrap(measure, p, size, d.w));
+    if (d.y + lines.length * size * 1.2 <= bottom) return { lines, size, overflow: false };
+    if (size <= min) return { lines, size, overflow: true };
+    size--;
+  }
+}
+
 /* ---------- menggambar (browser) ---------- */
 const font = (weight, size, family) => `${weight} ${size}px "${family}", sans-serif`;
 function drawLines(ctx, lines, size, box, align) {
@@ -88,11 +104,11 @@ function drawPhoto(ctx, img, cx, cy, r, crop) {
 /**
  * Gambar satu ukuran. o = { size (baris ukuran: slots, logo, disc), S ({ w, h }), bg, logo (gambar), values ({ field: teks }),
  * speakers ([{ name, title, img, crop }]), qr (objek qrcode-generator atau null), disclaimer (teks), scale }.
- * Hasil: { overflow: [field...], cut } — isian yang tidak muat & jumlah narasumber yang tidak tampil.
+ * Hasil: { overflow: [field... | "speakers" | "disclaimer"], cut, discH } — isian yang tidak muat, jumlah narasumber yang tidak tampil, tinggi blok disclaimer.
  */
 export function draw(ctx, o) {
   const { size, S } = o, scale = o.scale || 1, overflow = [];
-  let cut = 0;
+  let cut = 0, discH = 0;
   const measureWith = (w, f) => (t, s) => { ctx.font = font(w, s, f); return ctx.measureText(t).width; };
   ctx.save(); ctx.scale(scale, scale);
   ctx.clearRect(0, 0, S.w, S.h);
@@ -103,7 +119,8 @@ export function draw(ctx, o) {
   }
   for (const sl of size.slots || []) {
     if (sl.type === "text") {
-      const v = String((o.values || {})[sl.field] ?? "").trim() || sl.def || "";
+      // isi bawaan hanya nilai awal form: kotak yang dikosongkan cabang tidak digambar
+      const v = String((o.values || {})[sl.field] ?? "").trim();
       if (!v) continue;
       const fit = fitText(measureWith(sl.weight, sl.font), v.slice(0, sl.max), sl);
       if (fit.overflow) overflow.push(sl.field);
@@ -133,12 +150,14 @@ export function draw(ctx, o) {
     }
   }
   if (o.disclaimer && size.disc) {
-    const d = size.disc, ms = measureWith(400, "Inter"), lines = String(o.disclaimer).split(/\n/).flatMap((p) => wrap(ms, p, d.size, d.w));
-    ctx.fillStyle = d.color; ctx.font = font(400, d.size, "Inter");
-    drawLines(ctx, lines, d.size, { x: d.x, y: d.y, w: d.w, h: lines.length * d.size * 1.2 }, d.align);
+    const d = size.disc, fit = fitDisclaimer(measureWith(400, "Inter"), o.disclaimer, d, discBottom(S));
+    if (fit.overflow) overflow.push("disclaimer");
+    discH = fit.lines.length * fit.size * 1.2;
+    ctx.fillStyle = d.color; ctx.font = font(400, fit.size, "Inter");
+    drawLines(ctx, fit.lines, fit.size, { x: d.x, y: d.y, w: d.w, h: fit.lines.length * fit.size * 1.2 }, d.align);
   }
   ctx.restore();
-  return { overflow: [...new Set(overflow)], cut };
+  return { overflow: [...new Set(overflow)], cut, discH };
 }
 /** PDF satu halaman seukuran kertas + bleed (mm); gambar memenuhi halaman. */
 export function toPdf(jsPDF, canvas, mm) {
