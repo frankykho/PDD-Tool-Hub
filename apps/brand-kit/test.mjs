@@ -204,4 +204,26 @@ assert.equal((await call("/api/templates/delete", { ck: SARI, body: { id: T2 } }
 assert.equal((await call("/api/templates/delete", { ck: ADM, body: { id: T2 } })).status, 200);
 assert.equal(env.BRAND_KV.m.has("bg:" + S2), false); assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM sizes WHERE template_id = ?").get(T2).n, 0);
 
+/* ---------- narasumber ---------- */
+const jpeg = (n) => { const b = new Uint8Array(n); b.set([0xff, 0xd8, 0xff, 0xe0]); return "data:image/jpeg;base64," + Buffer.from(b).toString("base64"); };
+assert.equal((await call("/api/speakers", { ck: SARI, body: { name: "Budi", title: "Analis" } })).status, 400, "narasumber baru wajib ada foto");
+assert.equal((await call("/api/speakers", { ck: SARI, body: { name: "Budi", title: "Analis", photo: "data:image/png;base64,iVBORw0KGgo=" } })).status, 400, "hanya JPEG");
+assert.equal((await call("/api/speakers", { ck: SARI, body: { name: "Budi", title: "Analis", photo: jpeg(250 * 1024) } })).status, 400, "foto terlalu besar");
+assert.equal((await call("/api/speakers", { ck: SARI, body: { name: "", title: "Analis", photo: jpeg(1000) } })).status, 400, "nama kosong");
+r = await call("/api/speakers", { ck: SARI, body: { name: " Budi Santoso ", title: "Head of Research, KISI", photo: jpeg(60 * 1024) } });
+assert.equal(r.status, 200); const SPK = r.j.id;
+let L = (await call("/api/speakers", { ck: SARI })).j.speakers;
+assert.equal(L.length, 1); assert.equal(L[0].name, "Budi Santoso"); assert.equal(L[0].canEdit, true); assert.equal(L[0].photo, undefined, "foto tidak ikut di daftar");
+assert.ok(L[0].v, "penanda versi foto");
+assert.equal((await call("/api/speakers", { ck: TONO })).j.speakers[0].canEdit, false, "dipakai bersama, tapi hanya pembuat yang boleh ubah");
+assert.equal((await call("/api/speakers", { ck: TONO, body: { id: SPK, name: "X", title: "" } })).status, 403);
+assert.equal((await call("/api/speakers/delete", { ck: TONO, body: { id: SPK } })).status, 403);
+assert.equal((await call("/api/speakers", { ck: HEAD, body: { id: SPK, name: "Budi S.", title: "Head of Research" } })).status, 200, "Head boleh ubah (foto lama tetap)");
+res = await raw("/photo/" + SPK, { ck: TONO });
+assert.equal(res.status, 200); assert.equal(res.headers.get("content-type"), "image/jpeg");
+assert.equal(new Uint8Array(await res.arrayBuffer())[1], 0xd8);
+assert.equal((await raw("/photo/" + SPK)).status, 401);
+assert.equal((await call("/api/speakers/delete", { ck: SARI, body: { id: SPK } })).status, 200);
+assert.equal((await call("/api/speakers", { ck: SARI })).j.speakers.length, 0);
+
 console.log("semua cek lolos");

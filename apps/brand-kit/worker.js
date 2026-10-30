@@ -340,6 +340,49 @@ async function usage(env) {
   return { byTemplate: byTemplate.map(({ name, n }) => ({ name, n })), byBranch: byBranch.map(({ branch, n }) => ({ branch, n })) };
 }
 
+/* =========================================================
+   NARASUMBER (dipakai bersama semua cabang)
+   ========================================================= */
+const PHOTO_MAX = 200 * 1024;
+/** Foto dari browser (sudah dipotong & dikecilkan) -> base64 JPEG, atau { error }. */
+function cleanPhoto(v) {
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(v || ""));
+  if (!m) return { error: "Foto harus JPG." };
+  let bin; try { bin = atob(m[1]); } catch { return { error: "Foto harus JPG." }; }
+  if (bin.length > PHOTO_MAX) return { error: "Foto terlalu besar (maks. 200 KB)." };
+  if (bin.charCodeAt(0) !== 0xff || bin.charCodeAt(1) !== 0xd8) return { error: "Foto harus JPG." };
+  return { b64: m[1] };
+}
+async function listSpeakers(env, me, org) {
+  const L = (await env.DB.prepare("SELECT id, name, title, created_by, created_name, created_at, updated_at FROM speakers ORDER BY name").all()).results;
+  return L.map((s) => ({ ...s, v: s.updated_at, canEdit: canEditSpeaker(me, s, org) }));
+}
+async function saveSpeaker(env, me, org, b) {
+  const name = str(b.name, 80), title_ = str(b.title, 120);
+  if (!name) return { error: "Nama narasumber belum diisi." };
+  const ph = b.photo ? cleanPhoto(b.photo) : null;
+  if (ph && ph.error) return ph;
+  if (b.id) {
+    const sp = await env.DB.prepare("SELECT id, created_by FROM speakers WHERE id = ?").bind(String(b.id)).first();
+    if (!sp) return { error: "Narasumber tidak ditemukan.", status: 404 };
+    if (!canEditSpeaker(me, sp, org)) return { error: "Hanya pembuat, Head, atau admin yang bisa mengubah narasumber ini.", status: 403 };
+    await env.DB.prepare("UPDATE speakers SET name = ?, title = ?, photo = COALESCE(?, photo), updated_at = ? WHERE id = ?").bind(name, title_, ph ? ph.b64 : null, iso(env), sp.id).run();
+    return { id: sp.id };
+  }
+  if (!ph) return { error: "Foto narasumber belum dipilih." };
+  const id = newId();
+  await env.DB.prepare("INSERT INTO speakers (id, name, title, photo, created_by, created_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(id, name, title_, ph.b64, me.e, String(me.n || me.e).slice(0, 60), iso(env), iso(env)).run();
+  return { id };
+}
+async function deleteSpeaker(env, me, org, id) {
+  const sp = await env.DB.prepare("SELECT id, created_by FROM speakers WHERE id = ?").bind(String(id || "")).first();
+  if (!sp) return { error: "Narasumber tidak ditemukan.", status: 404 };
+  if (!canEditSpeaker(me, sp, org)) return { error: "Hanya pembuat, Head, atau admin yang bisa mengubah narasumber ini.", status: 403 };
+  await env.DB.prepare("DELETE FROM speakers WHERE id = ?").bind(sp.id).run();
+  return { ok: true };
+}
+
 /** Halaman: data awal (window.BK) + tema & bahasa dari Tool Hub. */
 async function page(env, me, org) {
   const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, head: !!(roleIn(org, me.j) || {}).head, branch: me.c || "" },
@@ -378,6 +421,13 @@ export default {
         }
         if (path === "/api/templates") return json({ templates: await listTemplates(env, me) });
         if (path === "/api/usage") return admin() || json(await usage(env));
+        if (path === "/api/speakers") return json({ speakers: await listSpeakers(env, me, org) });
+        const ph = /^\/photo\/([a-z0-9]{6,20})$/.exec(path);
+        if (ph) {
+          const sp = await env.DB.prepare("SELECT photo FROM speakers WHERE id = ?").bind(ph[1]).first();
+          if (!sp) return new Response("Tidak ditemukan", { status: 404 });
+          return new Response(Uint8Array.from(atob(sp.photo), (c) => c.charCodeAt(0)), { headers: { "content-type": "image/jpeg", "cache-control": "private, max-age=86400" } });
+        }
         const bg = /^\/bg\/([a-z0-9]{6,20})$/.exec(path);
         if (bg) {
           const { value, metadata } = await env.BRAND_KV.getWithMetadata("bg:" + bg[1], "arrayBuffer");
@@ -394,6 +444,8 @@ export default {
         if (path === "/api/templates/delete") return admin() || out(await deleteTemplate(env, b.id));
         if (path === "/api/sizes") return admin() || out(await saveSize(env, me, b));
         if (path === "/api/usage") return out(await logUsage(env, me, b));
+        if (path === "/api/speakers") return out(await saveSpeaker(env, me, org, b));
+        if (path === "/api/speakers/delete") return out(await deleteSpeaker(env, me, org, b.id));
       }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);
