@@ -100,4 +100,85 @@ res = await raw("/");
 assert.equal(res.status, 303); assert.ok(res.headers.get("location").startsWith(HUB + "/sso?app=go"), "tanpa sesi -> login lewat hub");
 assert.equal((await call("/api/links")).status, 401);
 
+/* ---------- API: buat link, daftar, grafik, nonaktif ---------- */
+const te = new TextEncoder(), b64 = (buf) => Buffer.from(buf).toString("base64url");
+async function cookie(p) {
+  const body = b64(te.encode(JSON.stringify({ app: "go", x: Date.now() + 3600e3, ...p })));
+  const key = await crypto.subtle.importKey("raw", te.encode(SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return `hub_go=${body}.${b64(await crypto.subtle.sign("HMAC", key, te.encode(body)))}`;
+}
+const SARI = await cookie({ e: "sari@acme.test", n: "Sari", j: "partnership" }), REG = await cookie({ e: "rina@acme.test", n: "Rina", j: "sales" });
+const HEAD = await cookie({ e: "hadi@acme.test", n: "Hadi", j: "head_rm" }), ADMIN = await cookie({ e: "adm@acme.test", n: "Adm", adm: true });
+const OTHER = await cookie({ e: "tono@acme.test", n: "Tono", j: "copy" }), OLDREG = await cookie({ e: "lama@acme.test", n: "Lama" });   // tiket lama tanpa role
+await call("/__hub/users", { body: { users: [{ email: "lama@acme.test", name: "Lama", job: "galeri" }], org: DEFAULT_ORG }, headers: { "x-hub-key": SECRET } });
+const api = (ck, path, body, headers) => call(path, { ck, body, headers });
+
+// pilihan kegiatan dari Content Planner (aturan regional)
+assert.deepEqual((await api(SARI, "/api/items?q=a")).j.items.map((i) => i.id).sort(), ["cC", "kK", "pP"]);
+assert.deepEqual((await api(REG, "/api/items?q=a")).j.items.map((i) => i.id), ["cC"], "regional: hanya cabang & galeri");
+assert.deepEqual((await api(OLDREG, "/api/items?q=a")).j.items.map((i) => i.id), ["cC"], "tiket tanpa role: role dari daftar Tool Hub");
+assert.equal((await api(SARI, "/api/items?id=kK")).j.item.title, "Webinar Obligasi");
+assert.equal((await api(REG, "/api/items?id=pP")).status, 404);
+assert.equal((await api(SARI, "/api/items")).j.items.length, 3, "tanpa pencarian: terbaru");
+
+// buat link
+assert.equal((await api(SARI, "/api/links", { item_id: "kK", target: "javascript:alert(1)", channel: "poster" })).status, 400, "hanya http/https");
+assert.equal((await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test/" + "a".repeat(500), channel: "poster" })).status, 400, "maks 500 karakter");
+assert.equal((await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test", channel: "fax" })).status, 400, "kanal tidak dikenal");
+assert.equal((await api(SARI, "/api/links", { item_id: "hilang", target: "https://x.test", channel: "poster" })).status, 400, "kegiatan tidak ada");
+let c = await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test/p?utm_source=lama", channel: "instagram", name: "Caption IG 1" });
+assert.equal(c.status, 200); c = c.j;
+assert.match(c.code, /^[a-km-np-z2-9]{6}$/); assert.equal(c.url, BASE + "/" + c.code);
+const t = new URL(c.target);
+assert.deepEqual([t.searchParams.get("utm_source"), t.searchParams.get("utm_medium"), t.searchParams.get("utm_campaign"), t.searchParams.get("utm_content")], ["lama", "social", "webinar-obligasi", c.code], "UTM lama tidak ditimpa");
+const plain = (await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test/q", channel: "poster", utm: false })).j;
+assert.equal(plain.target, "https://x.test/q", "UTM bisa dimatikan");
+assert.equal(new URL((await api(SARI, "/api/links", { item_id: "pP", target: "https://x.test", channel: "iklan" })).j.target).searchParams.get("utm_medium"), "ads");
+assert.equal((await api(REG, "/api/links", { item_id: "pP", target: "https://x.test", channel: "poster" })).status, 400, "regional tidak bisa menempel ke Program lewat API");
+const rc = (await api(REG, "/api/links", { item_id: "cC", target: "https://x.test/c", channel: "whatsapp" })).j;
+assert.equal(sql("SELECT item_kind FROM links WHERE code = ?", rc.code).item_kind, "cabang");
+assert.equal((await api(SARI, "/api/links", { item_id: "kK", target: "https://x.test", channel: "poster" }, { origin: "https://jahat.test" })).status, 403, "CSRF");
+
+// daftar
+let L = (await api(SARI, "/api/links")).j.links;
+assert.ok(L.some((x) => x.code === c.code) && L.some((x) => x.code === rc.code));
+const row = L.find((x) => x.code === c.code);
+assert.deepEqual([row.name, row.channel, row.item_title, row.url, row.can], ["Caption IG 1", "instagram", "Webinar Obligasi", c.url, true]);
+assert.deepEqual((await api(REG, "/api/links")).j.links.map((x) => x.code), [rc.code], "regional tidak melihat link kegiatan pusat");
+assert.ok((await api(SARI, "/api/links?item=kK")).j.links.every((x) => x.item_id === "kK"));
+assert.ok((await api(OTHER, "/api/links?mine=1")).j.links.length === 0, "buatanku");
+assert.equal((await api(OTHER, "/api/links")).j.links.find((x) => x.code === c.code).can, false);
+// judul kegiatan diperbarui dari Content Planner; kegiatan dihapus ditandai
+plannerEnv.DB.db.prepare("UPDATE items SET title = 'Webinar Obligasi Baru' WHERE id = 'kK'").run();
+plannerEnv.DB.db.prepare("DELETE FROM items WHERE id = 'cC'").run();
+L = (await api(SARI, "/api/links")).j.links;
+assert.equal(L.find((x) => x.code === c.code).item_title, "Webinar Obligasi Baru");
+assert.equal(L.find((x) => x.code === rc.code).gone, 1, "kegiatan sudah dihapus di Content Planner");
+assert.equal((await go("/" + rc.code)).status, 302, "link kegiatan terhapus tetap jalan");
+// daftar membuka -> total klik dikirim ulang (memperbaiki kiriman yang dulu gagal)
+plannerEnv.DB.db.prepare("DELETE FROM qrclicks").run();
+await api(SARI, "/api/links");
+assert.equal(qrN("kK"), 4, "dikirim ulang saat daftar dibuka");
+
+// nonaktif & aktif lagi
+assert.equal((await api(REG, "/api/links/active", { code: c.code, active: false })).status, 403, "bukan pembuat / Head / admin");
+assert.equal((await api(OTHER, "/api/links/active", { code: c.code, active: false })).status, 403);
+assert.equal((await api(HEAD, "/api/links/active", { code: c.code, active: false })).status, 200, "Head boleh");
+assert.equal((await go("/" + c.code)).status, 410);
+assert.equal((await api(SARI, "/api/links?state=off")).j.links.map((x) => x.code).includes(c.code), true);
+assert.equal((await api(SARI, "/api/links/active", { code: c.code, active: true })).status, 200, "pembuat boleh");
+assert.equal((await go("/" + c.code)).headers.get("location"), c.target, "aktif lagi, tujuan tetap");
+assert.equal((await api(ADMIN, "/api/links/active", { code: plain.code, active: false })).status, 200, "admin boleh");
+assert.equal((await api(SARI, "/api/links/active", { code: "qqqqqq", active: false })).status, 404);
+assert.equal((await api(SARI, "/api/links", { code: c.code, target: "https://jahat.test" })).status, 400, "tidak ada cara mengubah tujuan");
+assert.equal(sql("SELECT target FROM links WHERE code = ?", c.code).target, c.target);
+
+// grafik harian
+let S = (await api(SARI, "/api/stats?code=" + c.code)).j.days;
+assert.equal(S.length, 30); assert.equal(S.at(-1).day, wibDay(NOW)); assert.equal(S.at(-1).n, 1); assert.equal(S[0].n, 0);
+assert.equal((await api(SARI, "/api/stats?code=abcdef&days=90")).j.days.length, 90);
+assert.equal((await api(SARI, "/api/stats?item=kK")).j.days.at(-1).n, 5, "per kegiatan = semua link kegiatan itu");
+assert.equal((await api(REG, "/api/stats?item=kK")).status, 404, "regional tidak melihat grafik kegiatan pusat");
+assert.equal((await api(REG, "/api/stats?code=" + c.code)).status, 404);
+
 console.log("semua cek lolos");

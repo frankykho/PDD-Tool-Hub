@@ -177,6 +177,97 @@ async function redirect(request, env, ctx, code) {
 }
 
 /* =========================================================
+   KEGIATAN, LINK, GRAFIK
+   ========================================================= */
+const REG_KINDS = ["cabang", "galeri"];
+const OFFLINE = "Content Planner tidak bisa dihubungi. Coba lagi sebentar.";
+/** Sesi: tiket lama tanpa role memakai role di daftar anggota dari Tool Hub, supaya aturan regional tetap berlaku. */
+async function whoAmI(env, sess) {
+  const e = lower(sess.e);
+  if (sess.j || sess.adm) return { ...sess, e };
+  const u = ((await cfgGet(env, "users")) || []).find((x) => x.email === e);
+  return { ...sess, e, j: (u && u.job) || "", adm: !!(u && u.adm) };
+}
+/** Kegiatan dari Content Planner; reg = hanya kegiatan cabang & rencana galeri. */
+async function plannerItems(env, reg, params) {
+  const r = await planner(env, "/__hub/link-items?" + new URLSearchParams({ ...(reg ? { reg: "1" } : {}), ...params }));
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return (await r.json()).items || [];
+}
+const slug = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+/** Tambah UTM (yang belum ada) ke link tujuan: sumber & medium dari kanal, kampanye dari judul kegiatan, content = kode link. */
+export function utmUrl(target, itemTitle, channel, code) {
+  const u = new URL(target), k = KANAL[channel] || KANAL.lainnya;
+  const set = (key, v) => { if (!u.searchParams.has(key) && v) u.searchParams.set(key, v); };
+  set("utm_source", k[1]); set("utm_medium", k[2]); set("utm_campaign", slug(itemTitle)); set("utm_content", code);
+  return u.toString();
+}
+const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => ABC[x % ABC.length]).join("");
+const linkUrl = (env, code) => appUrl(env, "go") + "/" + code;
+/** POST /api/links: { item_id, target, channel, name?, utm? }. Kegiatan selalu dicek ke Content Planner dengan aturan orang ini. */
+async function createLink(env, me, reg, b) {
+  const target = String(b.target ?? "").trim();
+  let u; try { u = new URL(target); } catch { u = null; }
+  if (!u || !/^https?:$/.test(u.protocol) || target.length > 500) return { error: "Link tujuan tidak sah. Awali dengan https:// (maksimal 500 karakter)." };
+  if (!Object.hasOwn(KANAL, String(b.channel))) return { error: "Pilih kanal." };
+  const id = String(b.item_id || "").slice(0, 60);
+  if (!id) return { error: "Pilih kegiatan atau Program dulu." };
+  let it;
+  try { [it] = await plannerItems(env, reg, { ids: id }); } catch (e) { console.log("Content Planner:", e.message); return { error: OFFLINE, status: 502 }; }
+  if (!it || it.id !== id) return { error: "Kegiatan tidak ditemukan atau tidak bisa kamu pilih." };
+  const name = String(b.name ?? "").replace(/\s+/g, " ").trim().slice(0, 60), utm = b.utm !== false;
+  for (let i = 0; i < 4; i++) {
+    const code = newCode(), final = utm ? utmUrl(target, it.title, b.channel, code) : target;
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO links (code, item_id, item_kind, item_title, target, channel, name, utm, created_by, created_email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(code, it.id, it.kind, it.title, final, b.channel, name, utm ? 1 : 0, me.n || me.e, me.e, new Date(now(env)).toISOString()).run();
+    if (r.meta.changes) return { code, url: linkUrl(env, code), target: final };
+  }
+  return { error: "Gagal membuat kode link. Coba lagi." };
+}
+/** Boleh menonaktifkan / mengaktifkan: pembuat, Head (tim mana pun), atau admin hub. */
+const canEdit = (me, org, L) => !!me.adm || L.created_email === me.e || !!(roleIn(org, me.j) || {}).head;
+/** GET /api/links?item=&mine=1&state=active|off: judul & jenis kegiatan disegarkan dari Content Planner, dan total klik dikirim ulang. */
+async function listLinks(env, ctx, me, org, reg, q) {
+  const W = [], A = [];
+  if (q.get("item")) { W.push("item_id = ?"); A.push(q.get("item")); }
+  if (q.get("mine") === "1") { W.push("created_email = ?"); A.push(me.e); }
+  if (q.get("state") === "active") W.push("active = 1"); else if (q.get("state") === "off") W.push("active = 0");
+  const L = (await env.DB.prepare(`SELECT code, item_id, item_kind, item_title, gone, target, channel, name, utm, active, clicks, created_by, created_email, created_at, off_by, off_at FROM links${W.length ? " WHERE " + W.join(" AND ") : ""} ORDER BY created_at DESC LIMIT 300`).bind(...A).all()).results;
+  const ids = [...new Set(L.map((x) => x.item_id))].slice(0, 200);
+  if (ids.length) {
+    try {
+      const P = new Map((await plannerItems(env, false, { ids: ids.join(",") })).map((x) => [x.id, x]));
+      await env.DB.batch(ids.map((id) => { const p = P.get(id);
+        return p ? env.DB.prepare("UPDATE links SET item_title = ?, item_kind = ?, gone = 0 WHERE item_id = ?").bind(p.title, p.kind, id) : env.DB.prepare("UPDATE links SET gone = 1 WHERE item_id = ?").bind(id); }));
+      for (const x of L) if (ids.includes(x.item_id)) { const p = P.get(x.item_id); if (p) Object.assign(x, { item_title: p.title, item_kind: p.kind, gone: 0 }); else x.gone = 1; }
+    } catch (e) { console.log("Content Planner:", e.message); }
+    ctx.waitUntil(pushClicks(env, ids));
+  }
+  const links = L.filter((x) => !reg || REG_KINDS.includes(x.item_kind)).map((x) => ({ ...x, url: linkUrl(env, x.code), can: canEdit(me, org, x) }));
+  return { links };
+}
+/** POST /api/links/active: { code, active }. Tujuan link tidak pernah berubah. */
+async function setActive(env, me, org, b) {
+  const L = await env.DB.prepare("SELECT code, created_email FROM links WHERE code = ?").bind(String(b.code || "")).first();
+  if (!L) return { error: "Link tidak ditemukan.", status: 404 };
+  if (!canEdit(me, org, L)) return { error: "Hanya pembuat link, Head, atau admin yang bisa mengubah status link.", status: 403 };
+  const on = b.active === true;
+  await env.DB.prepare("UPDATE links SET active = ?, off_by = ?, off_at = ? WHERE code = ?").bind(on ? 1 : 0, on ? null : me.n || me.e, on ? null : new Date(now(env)).toISOString(), L.code).run();
+  return { ok: true };
+}
+/** GET /api/stats?code= | ?item= &days=30|90: klik per hari (hari tanpa klik = 0), hanya untuk link yang boleh dilihat. */
+async function stats(env, reg, q) {
+  const days = q.get("days") === "90" ? 90 : 30, code = q.get("code"), item = q.get("item");
+  const L = code ? (await env.DB.prepare("SELECT code, item_kind FROM links WHERE code = ?").bind(code).all()).results
+    : item ? (await env.DB.prepare("SELECT code, item_kind FROM links WHERE item_id = ?").bind(item).all()).results : [];
+  const C = L.filter((x) => !reg || REG_KINDS.includes(x.item_kind)).map((x) => x.code);
+  if (!C.length) return { error: "Tidak ditemukan.", status: 404 };
+  const end = Date.parse(wibDay(now(env)) + "T00:00:00Z"), from = new Date(end - (days - 1) * 864e5).toISOString().slice(0, 10);
+  const R = new Map((await env.DB.prepare(`SELECT day, SUM(n) AS n FROM daily WHERE code IN (${C.map(() => "?").join(",")}) AND day >= ? GROUP BY day`).bind(...C, from).all()).results.map((x) => [x.day, Number(x.n) || 0]));
+  return { days: Array.from({ length: days }, (_, i) => { const day = new Date(end - (days - 1 - i) * 864e5).toISOString().slice(0, 10); return { day, n: R.get(day) || 0 }; }) };
+}
+
+/* =========================================================
    HALAMAN & API
    ========================================================= */
 async function page(env, me, org) {
@@ -204,11 +295,31 @@ export default {
     const sess = await HUBSSO.user(request, env);
     if (!sess) return path.startsWith("/api/") ? json({ error: "Sesi habis. Muat ulang halaman." }, 401) : HUBSSO.login(request, env);
     await ensure(env);
-    const me = { ...sess, e: lower(sess.e) }, org = await getOrg(env);
+    const me = await whoAmI(env, sess), org = await getOrg(env), reg = isRegional(org, me.j, me.adm);
     if (path === "/" || path === "/index.html") return new Response(await page(env, me, org), {
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" } });
     try {
       if (request.method !== "GET" && !HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
+      if (request.method === "GET") {
+        if (path === "/api/items") {
+          // Content Planner menerapkan aturan regional; regional ditentukan dari tiket Tool Hub
+          const id = String(url.searchParams.get("id") || "").slice(0, 60), s = String(url.searchParams.get("q") || "").trim().slice(0, 60);
+          try {
+            if (id) { const [it] = await plannerItems(env, reg, { ids: id }); return it && it.id === id ? json({ item: it }) : json({ error: "Kegiatan tidak ditemukan." }, 404); }
+            return json({ items: await plannerItems(env, reg, s ? { q: s } : {}) });
+          } catch (e) {
+            console.log("Content Planner:", e.message);
+            return id ? json({ error: OFFLINE }, 502) : json({ items: [], off: true });
+          }
+        }
+        if (path === "/api/links") return out(await listLinks(env, ctx, me, org, reg, url.searchParams));
+        if (path === "/api/stats") return out(await stats(env, reg, url.searchParams));
+      }
+      if (request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        if (path === "/api/links") return out(await createLink(env, me, reg, b));
+        if (path === "/api/links/active") return out(await setActive(env, me, org, b));
+      }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);
     }
