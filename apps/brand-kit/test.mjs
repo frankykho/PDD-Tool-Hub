@@ -300,4 +300,7 @@ assert.equal(r.status, 200); assert.deepEqual(r.j, { events: [], off: true });
 delete env.EVENT;
 assert.deepEqual((await call("/api/events", { ck: SARI })).j, { events: [], off: true });
 
+// mesin gambar (bagian murni)
+await import("./render.test.mjs");
+
 console.log("semua cek lolos");
