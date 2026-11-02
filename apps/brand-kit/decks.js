@@ -211,11 +211,13 @@ export async function feed(env, email, users, org) {
   if (canApprove(me, org)) out.pending = (await env.DB.prepare("SELECT deck_id, title, by_name AS by, at FROM deck_versions WHERE status = 'menunggu' ORDER BY at LIMIT 20").all()).results;
   if (canSubmit(me)) out.mine = (await env.DB.prepare(`SELECT l.deck_id, v.title, CASE l.action WHEN 'setujui' THEN 'resmi' ELSE 'revisi' END AS status, l.note, l.at, l.by_name AS by
     FROM deck_log l JOIN deck_versions v ON v.id = l.version_id WHERE l.action IN ('setujui', 'revisi') AND v.by_email = ? AND l.at >= ? ORDER BY l.at DESC LIMIT 10`).bind(e, d14).all()).results;
-  const D = (await env.DB.prepare(`SELECT x.deck_id, MAX(x.at) AS last, d.title, d.official, d.withdrawn_at, v.decided_at FROM deck_downloads x JOIN decks d ON d.id = x.deck_id
+  // tanpa membandingkan jam: "diganti" = belum pernah mengunduh versi resmi yang sekarang; "ditarik" = deck tanpa versi resmi
+  // (setelah ditarik tidak ada yang bisa diunduh, jadi semua unduhannya pasti versi lama)
+  const D = (await env.DB.prepare(`SELECT x.deck_id, MAX(x.version_id = d.official) AS has_current, d.title, d.official, d.withdrawn_at, v.decided_at FROM deck_downloads x JOIN decks d ON d.id = x.deck_id
     LEFT JOIN deck_versions v ON v.id = d.official WHERE x.email = ? GROUP BY x.deck_id LIMIT 200`).bind(e).all()).results;
   for (const d of D) {
-    if (d.official && d.decided_at > d.last && d.decided_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "diganti", at: d.decided_at });
-    else if (!d.official && d.withdrawn_at && d.withdrawn_at > d.last && d.withdrawn_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "ditarik", at: d.withdrawn_at });
+    if (d.official && !d.has_current && d.decided_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "diganti", at: d.decided_at });
+    else if (!d.official && d.withdrawn_at && d.withdrawn_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "ditarik", at: d.withdrawn_at });
   }
   out.notices.sort((a, b) => (a.at < b.at ? 1 : -1));
   return out;
