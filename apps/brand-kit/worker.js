@@ -11,6 +11,7 @@ import { themeHead } from "../../shared/theme.js";
 import EN from "./i18n.js";
 import PAGE from "./page.html";
 import { cleanOrg, roleIn } from "../../shared/jobs.js";
+import * as GD from "./gdrive.js";
 
 /* =========================================================
    LOGIN LEWAT TOOL HUB
@@ -441,6 +442,10 @@ async function page(env, me, org) {
   const head_ = `<title>${esc(title(env, "Brand Kit"))}</title>${profileScript(env)}${themeHead("", EN)}<script>${HUBSSO.onlyInHub(env)}window.BK=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Brand Kit</title>", () => head_);
 }
+/** Halaman kecil untuk tab izin Google Drive. */
+const driveNote = (status, text) => new Response(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Google Drive</title>
+<style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px/1.5 system-ui,sans-serif;padding:24px}p{max-width:420px;text-align:center}</style></head><body><p>${esc(text)}</p></body></html>`,
+  { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 /** Hasil fungsi API -> respons JSON (status dari { status } atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 
@@ -458,6 +463,14 @@ export default {
     if (!sess) return path.startsWith("/api/") || path.startsWith("/bg/") || path.startsWith("/photo/") ? json({ error: "Sesi habis. Muat ulang halaman." }, 401) : HUBSSO.login(request, env);
     await ensure(env);
     const me = await whoAmI(env, sess), org = await getOrg(env);
+    // izin Google Drive (materi presentasi): dibuka admin di tab baru, karena halaman Google tidak bisa tampil di dalam bingkai hub
+    if (path === "/drive/connect" || path === "/drive/callback") {
+      if (!me.adm) return driveNote(403, "Khusus admin.");
+      if (!GD.ready(env)) return driveNote(500, "Pasang secret GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET dulu (lihat README Brand Kit).");
+      if (path === "/drive/connect") return new Response(null, { status: 302, headers: { location: await GD.authUrl(env, url.origin, me.e), "cache-control": "no-store" } });
+      const r = await GD.finishAuth(env, url.origin, url.searchParams.get("code"), url.searchParams.get("state"), me);
+      return r.error ? driveNote(400, r.error) : driveNote(200, "Google Drive terhubung. Tab ini boleh ditutup, lalu muat ulang Brand Kit.");
+    }
     if (path === "/" || path === "/index.html") return new Response(await page(env, me, org), {
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store", "content-security-policy": HUBSSO.frame(env), "x-robots-tag": "noindex" } });
     try {
@@ -472,6 +485,7 @@ export default {
         }
         if (path === "/api/templates") return json({ templates: await listTemplates(env, me) });
         if (path === "/api/usage") return admin() || json(await usage(env));
+        if (path === "/api/gdrive") return admin() || json(await GD.status(env));
         if (path === "/api/speakers") return json({ speakers: await listSpeakers(env, me, org) });
         if (path === "/api/files") return json(await listFiles(env, me.adm && url.searchParams.get("fresh") === "1"));
         if (path === "/api/events") {
@@ -513,6 +527,7 @@ export default {
         if (path === "/api/speakers") return out(await saveSpeaker(env, me, org, b));
         if (path === "/api/speakers/delete") return out(await deleteSpeaker(env, me, org, b.id));
         if (path === "/api/drive") return admin() || out(await setFolder(env, b));
+        if (path === "/api/gdrive/disconnect") { if (!me.adm) return admin(); await GD.disconnect(env); return json({ ok: true }); }
       }
     } catch (e) {
       return json({ error: "Gagal: " + (e.message || e) }, 500);

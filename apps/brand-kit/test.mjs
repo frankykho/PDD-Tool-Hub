@@ -304,6 +304,9 @@ assert.equal(r.status, 200); assert.deepEqual(r.j, { events: [], off: true });
 delete env.EVENT;
 assert.deepEqual((await call("/api/events", { ck: SARI })).j, { events: [], off: true });
 
+// materi presentasi (Google Drive tiruan)
+await (await import("./deck.test.mjs")).default({ worker, env, call, raw, cookie, ADM, SARI, HEAD, BASE });
+
 // mesin gambar (bagian murni)
 await import("./render.test.mjs");
 
