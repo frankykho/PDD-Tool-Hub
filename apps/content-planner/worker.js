@@ -307,7 +307,7 @@ async function saveItem(env, me, b, opts = {}) {
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
   // dicek terhadap data lama, jadi orang tidak bisa menjadikan dirinya PIC lalu menyimpan
-  if (prev && !canEditItem(me, prev)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
+  if (prev && !opts.trusted && !canEditItem(me, prev)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
   const org = await orgOf(env), job = await jobOf(env, me, org);
   if (isRegional(org, job, me.adm)) {
     if (!REG_KINDS.includes(it.kind) || (prev && !REG_KINDS.includes(prev.kind))) return { error: "Tim regional hanya bisa mencatat kegiatan cabang dan rencana galeri baru." };
@@ -620,7 +620,7 @@ async function importGalleries(env, me, b) {
     const changed = !prev || item.progress || cleanDocs(docs) !== (prev.docs || "") || Object.keys(set).some((k) => String(prev[k] ?? "") !== String(set[k]));
     if (!changed) { out.same++; continue; }
     const at = ISO.test(String(r.log_date || "")) ? r.log_date + "T05:00:00.000Z" : "";
-    const res = await saveItem(env, me, item, { logAt: at });
+    const res = await saveItem(env, me, item, { logAt: at, trusted: true });   // impor sheet galeri bersama: tidak lewat izin edit form
     if (res.error) { out.errors.push({ row, error: res.error }); continue; }
     prev ? out.updated++ : out.added++;
     if (!prev) byName.set(lower(name), { id: res.id, title: name, log: [] });

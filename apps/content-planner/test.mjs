@@ -486,6 +486,11 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   // impor ulang sheet yang sama: tanpa perubahan, riwayat tidak dobel
   r = await call("/api/galeri/import", { ck: GANI, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Surat permohonan dikirim" }] } });
   assert.deepEqual([r.j.added, r.j.updated, r.j.same], [0, 0, 1]);
+  // rekan tim galeri mengimpor sheet bersama: galeri buatan Gani tetap diperbarui (impor tidak lewat izin edit form)
+  const GITA = await cookie({ e: "gita@acme.test", n: "Gita", j: "galeri", c: "Cabang Surabaya" });
+  r = await call("/api/galeri/import", { ck: GITA, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Proposal direvisi" }] } });
+  assert.deepEqual([r.status, r.j.updated, r.j.errors], [200, 1, []], JSON.stringify(r.j));
+  assert.equal((await call("/api/galeri", { ck: GANI })).j.find((i) => i.title === "Galeri Investasi ITS").log.slice(-1)[0].text, "Proposal direvisi");
   assert.equal((await call("/api/galeri/import", { ck: COPY, body: { rows: [] } })).status, 400);
   // usulan ke admin Tool Hub: sudah MoU, belum ada di daftar; setelah masuk daftar, hilang dari usulan
   const usul = (h) => planner.fetch(new Request(BASE + "/__hub/galeri", { headers: h }), env).then((x) => x.status === 200 ? x.json() : x.status);
