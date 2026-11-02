@@ -300,7 +300,12 @@ function workRow(w){const v=w.latest||{},[l,c]=stLabel(w),file=`/deck/${esc(v.id
     ${v.id&&v.status!=="arsip"?`<a class="btn sm" href="${file}">${esc(T("Unduh"))}</a>${v.mime==="application/pdf"?`<a class="btn sm" href="${file}?view=1" target="_blank" rel="noopener">${esc(T("Lihat"))}</a>`:""}`:""}
     ${DECKS.can.approve&&v.status==="menunggu"?`<button type="button" class="btn sm pri" data-dk="ok" data-v="${esc(v.id)}">${esc(T("Setujui"))}</button><button type="button" class="btn sm" data-dk="rev" data-v="${esc(v.id)}">${esc(T("Minta revisi"))}</button>`:""}
     ${DECKS.can.submit&&v.status!=="menunggu"?`<button type="button" class="btn sm" data-dk="ver" data-d="${esc(w.id)}">${esc(T("Unggah versi baru"))}</button>`:""}
+    ${DECKS.can.del?delBtn(w.id,v.title||w.title):""}
   </div></div>`}
+const delBtn=(id,t)=>`<button type="button" class="btn sm danger" data-dk="del" data-d="${esc(id)}" data-t="${esc(t)}">${esc(T("Hapus"))}</button>`;
+async function delDeck(b){if(!confirm(T("Hapus deck ini beserta semua versinya? File masuk Trash Google Drive.")+"\n\n"+b.dataset.t))return;
+  b.disabled=true;try{await api("/api/decks/delete",{deck_id:b.dataset.d});await decks(true);showMsg("dkMsg",T("Deck dihapus."),"ok")}
+  catch(e){showMsg("dkMsg",e.message);b.disabled=false}}
 function deckList(){
   const D=DECKS,q=$("dkQ").value.trim().toLowerCase(),L=D.official.filter(d=>!q||String(d.title).toLowerCase().includes(q)||String(d.note||"").toLowerCase().includes(q));
   $("dkList").innerHTML=L.map(d=>`<div class="card trow"><div style="flex:1;min-width:220px"><h3 translate="no">${esc(d.title)}</h3>
@@ -308,7 +313,7 @@ function deckList(){
       <div class="chips" style="margin-top:4px">${d.updated?`<span class="tag">${esc(T("Diperbarui"))}</span>`:""}<span class="hint">${esc(T("Disetujui"))} ${esc(fDate(d.approved_at))} · ${esc(ext(d.name))} · ${esc(fmtSize(d.size))}</span></div></div>
     <div class="acts"><a class="btn sm pri" href="/deck/${esc(d.version_id)}">${esc(T("Unduh"))}</a>${d.mime==="application/pdf"?`<a class="btn sm" href="/deck/${esc(d.version_id)}?view=1" target="_blank" rel="noopener">${esc(T("Lihat"))}</a>`:""}
       ${D.can.submit&&!(D.work||[]).some(w=>w.id===d.id&&w.latest&&w.latest.status==="menunggu")?`<button type="button" class="btn sm" data-dk="ver" data-d="${esc(d.id)}">${esc(T("Unggah versi baru"))}</button>`:""}
-      ${D.can.approve?`<button type="button" class="btn sm danger" data-dk="wd" data-d="${esc(d.id)}">${esc(T("Tarik"))}</button>`:""}</div></div>`).join("")
+      ${D.can.approve?`<button type="button" class="btn sm danger" data-dk="wd" data-d="${esc(d.id)}">${esc(T("Tarik"))}</button>`:""}${D.can.del?delBtn(d.id,d.title):""}</div></div>`).join("")
     ||`<div class="card empty">${esc(T(q?"Tidak ada deck yang cocok.":"Belum ada deck resmi."))}</div>`;
 }
 $("dkQ").addEventListener("input",()=>DECKS&&deckList());
@@ -316,6 +321,7 @@ $("tDeck").addEventListener("click",e=>{const b=e.target.closest("[data-dk]");if
   if(a==="new")upDlg(null);
   else if(a==="ver"){const d=DECKS.official.find(x=>x.id===b.dataset.d)||(DECKS.work||[]).find(x=>x.id===b.dataset.d);upDlg({id:b.dataset.d,title:d&&(d.title||(d.latest||{}).title),note:d&&(d.note||(d.latest||{}).descr)})}
   else if(a==="ok")decide(b,b.dataset.v);
+  else if(a==="del")delDeck(b);
   else if(a==="rev")noteDlg("Minta revisi","Kirim catatan","Apa yang perlu diubah? Mis. Slide 5 angkanya salah.",n=>api("/api/decks/decide",{version_id:b.dataset.v,action:"revisi",note:n}));
   else if(a==="wd")noteDlg("Tarik deck","Tarik deck","Alasan penarikan. Mis. produk sudah tutup.",n=>api("/api/decks/withdraw",{deck_id:b.dataset.d,note:n}))});
 async function decide(b,v){if(!confirm(T("Setujui versi ini? Versi resmi sebelumnya akan diarsipkan dan sales langsung mendapat versi ini.")))return;

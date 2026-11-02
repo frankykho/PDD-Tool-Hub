@@ -171,6 +171,20 @@ export async function withdraw(env, me, org, b) {
   ]);
   return { ok: true, ...(await tidy(env, me, d.id)) };
 }
+/** POST /api/decks/delete: { deck_id } — admin hub membuang deck tes / salah unggah beserta semua versinya.
+ *  File Drive ke Trash dulu (yang sudah hilang dianggap beres); Drive gagal -> tidak ada yang terhapus. Catatan unduhan tetap. */
+export async function remove(env, me, b) {
+  if (!me.adm) return { error: "Hanya admin hub yang bisa menghapus deck.", status: 403 };
+  const d = await env.DB.prepare("SELECT id FROM decks WHERE id = ?").bind(String(b.deck_id || "")).first();
+  if (!d) return { error: "Deck tidak ditemukan.", status: 404 };
+  const V = (await env.DB.prepare("SELECT file_id FROM deck_versions WHERE deck_id = ? AND COALESCE(file_id, '') <> '' AND status <> 'trash'").bind(d.id).all()).results;
+  try {
+    for (const v of V) await GD.trashFile(env, v.file_id).catch((e) => { if (e.status !== 404) throw e; });
+  } catch (e) { return driveErr(e); }
+  await env.DB.batch(["deck_versions", "deck_log"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE deck_id = ?`).bind(d.id))
+    .concat(env.DB.prepare("DELETE FROM decks WHERE id = ?").bind(d.id)));
+  return { ok: true };
+}
 /** GET /api/decks: deck resmi untuk semua; pengajuan & riwayat untuk pengaju dan penyetuju. */
 export async function list(env, me, org) {
   const sub = canSubmit(me), app = canApprove(me, org), fresh = iso(env, -14 * 864e5);
@@ -178,7 +192,7 @@ export async function list(env, me, org) {
   if (app) await repair(env).catch(() => {});
   const official = (await env.DB.prepare("SELECT d.id, d.title, d.note, d.replaced_at, v.id AS version_id, v.n, v.name, v.mime, v.size, v.decided_at AS approved_at FROM decks d JOIN deck_versions v ON v.id = d.official ORDER BY v.decided_at DESC").all()).results
     .map(({ replaced_at, ...x }) => ({ ...x, updated: !!replaced_at && replaced_at >= fresh }));
-  const out = { official, can: { submit: sub, approve: app }, drive: { connected: !!(await env.DB.prepare("SELECT 1 FROM cfg WHERE k = 'gdrive'").first()) } };
+  const out = { official, can: { submit: sub, approve: app, del: !!me.adm }, drive: { connected: !!(await env.DB.prepare("SELECT 1 FROM cfg WHERE k = 'gdrive'").first()) } };
   if (!sub && !app) return out;
   const D = (await env.DB.prepare(`SELECT * FROM decks WHERE id IN (SELECT deck_id FROM deck_versions WHERE status IN ('menunggu', 'revisi')) OR withdrawn_at >= ? ORDER BY updated_at DESC LIMIT 100`).bind(iso(env, -30 * 864e5)).all()).results;
   out.work = [];

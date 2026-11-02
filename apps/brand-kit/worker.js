@@ -559,6 +559,7 @@ export default {
         if (path === "/api/decks/uploaded") return out(await DK.confirmUpload(env, me, b));
         if (path === "/api/decks/decide") return out(await DK.decide(env, me, org, b));
         if (path === "/api/decks/withdraw") return out(await DK.withdraw(env, me, org, b));
+        if (path === "/api/decks/delete") return out(await DK.remove(env, me, b));
         if (path === "/api/gdrive/disconnect") { if (!me.adm) return admin(); await GD.disconnect(env); return json({ ok: true }); }
       }
     } catch (e) {

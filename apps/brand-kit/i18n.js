@@ -303,5 +303,8 @@ const D = {
   "Status tersimpan, tetapi file di Google Drive belum dipindah. Akan dicoba lagi otomatis.": "Status saved, but the file in Google Drive hasn't been moved yet. It will be retried automatically.",
   "Folder Drive belum dibuat.": "Drive folders haven't been created yet.",
   "Deck baru saja berubah. Muat ulang lalu coba lagi.": "The deck just changed. Reload and try again.",
+  "Hapus deck ini beserta semua versinya? File masuk Trash Google Drive.": "Delete this deck and all its versions? The files go to the Google Drive trash.",
+  "Deck dihapus.": "Deck deleted.",
+  "Hanya admin hub yang bisa menghapus deck.": "Only hub admins can delete decks.",
 };
 export default D;

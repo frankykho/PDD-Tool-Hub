@@ -160,7 +160,7 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     r = await call("/api/decks/decide", { ck: ADM, body: { version_id: v1, action: "setujui" } });
     assert.deepEqual([r.status, r.j.error], [409, "Sudah diputuskan oleh Hana."]);
     let L = (await call("/api/decks", { ck: IGS })).j;
-    assert.deepEqual(L.official, []); assert.deepEqual(L.can, { submit: true, approve: false });
+    assert.deepEqual(L.official, []); assert.deepEqual(L.can, { submit: true, approve: false, del: false });
     assert.deepEqual([L.work[0].latest.status, L.work[0].latest.note], ["revisi", "Slide 5 angkanya salah"]);
     // versi 2 (pengaju lain di tim yang sama): versi revisi pindah ke Arsip; disetujui -> Resmi
     const v2 = await submit(IGS2, { deck_id: deck, name: "rd-v2.pptx", mime: PPTX });
@@ -170,7 +170,7 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     L = (await call("/api/decks", { ck: SARI })).j;
     assert.equal(L.work, undefined, "sales tidak melihat pengajuan");
     assert.deepEqual(L.official.map((d) => [d.title, d.note, d.version_id, d.updated]), [["Reksa Dana untuk Pemula", "Seminar kampus", v2, false]]);
-    assert.deepEqual(L.can, { submit: false, approve: false });
+    assert.deepEqual(L.can, { submit: false, approve: false, del: false });
     // versi baru menimpa: v3 disetujui -> v2 Arsip, daftar sales hanya v3 dengan tanda Diperbarui; judul baru ikut setelah disetujui
     const v3 = await submit(IGS, { deck_id: deck, title: "Reksa Dana untuk Pemula 2026" });
     assert.equal((await call("/api/decks", { ck: SARI })).j.official[0].title, "Reksa Dana untuk Pemula", "judul baru belum berlaku sebelum disetujui");
@@ -286,6 +286,26 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     assert.equal(r.status, 409, JSON.stringify(r.j));
     assert.deepEqual([env.DB.db.prepare("SELECT official FROM decks WHERE id = ?").get(ds).official, ver(vb).status], [vb, "resmi"]);
     assert.equal((await dl(SARI, vb)).status, 200);
+    // hapus deck (khusus admin hub): file ke Trash Drive dulu, baru data Brand Kit
+    const rows = (t) => env.DB.db.prepare(`SELECT COUNT(*) n FROM ${t} WHERE deck_id = ?`).get(ds).n, dlBefore = rows("deck_downloads");
+    assert.equal((await up(IGS)).status, 200, "ada sesi unggah yang belum selesai");
+    assert.deepEqual((await call("/api/decks", { ck: ADM })).j.can, { submit: false, approve: true, del: true });
+    assert.equal((await call("/api/decks", { ck: HEAD })).j.can.del, false);
+    for (const ck of [HEAD, IGS]) assert.equal((await call("/api/decks/delete", { ck, body: { deck_id: ds } })).status, 403);
+    assert.equal((await call("/api/decks/delete", { ck: ADM, body: { deck_id: "zzz" } })).status, 404);
+    G.fail = "PATCH";
+    assert.equal((await call("/api/decks/delete", { ck: ADM, body: { deck_id: ds } })).status, 502);
+    G.fail = null;
+    const deckRows = () => env.DB.db.prepare("SELECT COUNT(*) n FROM decks WHERE id = ?").get(ds).n;
+    assert.deepEqual([deckRows(), rows("deck_versions") > 0], [1, true], "Drive gagal: tidak ada yang terhapus");
+    const fids = env.DB.db.prepare("SELECT file_id FROM deck_versions WHERE deck_id = ? AND COALESCE(file_id, '') <> ''").all(ds).map((x) => x.file_id);
+    G.files.delete(ver(da2).file_id);
+    r = await call("/api/decks/delete", { ck: ADM, body: { deck_id: ds } });
+    assert.equal(r.status, 200, JSON.stringify(r.j));
+    assert.deepEqual([rows("deck_versions"), rows("deck_log"), deckRows()], [0, 0, 0]);
+    assert.ok(fids.filter((f) => G.files.has(f)).every((f) => G.files.get(f).trashed), "file Drive masuk Trash");
+    assert.equal((await dl(SARI, vb)).status, 404);
+    assert.equal(rows("deck_downloads"), dlBefore, "catatan unduhan tetap");
     /* ---------- halaman ---------- */
     // kebijakan privasi untuk layar izin Google: terbuka tanpa login
     res = await raw("/privasi");
@@ -299,6 +319,7 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     assert.deepEqual(bk(await page(HEAD)).deck, { submit: false, approve: true });
     assert.deepEqual(bk(await page(SARI)).deck, { submit: false, approve: false });
     assert.ok((await page(ADM)).includes("/drive/connect"), "admin bisa menghubungkan Google Drive");
+    assert.ok(hIgs.includes("/api/decks/delete") && hIgs.includes("D.can.del"), "tombol Hapus deck (tampil hanya bila can.del)");
     const P = { deck, v3, v8, IGS, PDF, submit, ver };
     return { G, F, P };
   } finally {
