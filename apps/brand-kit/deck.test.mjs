@@ -192,6 +192,52 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     await call("/api/decks/upload", { ck: IGS, body: { title: "Baru", name: "b.pdf", mime: PDF, size: 10 } });
     delete env.NOW_MS;
     assert.equal(ver(r.j.version_id), undefined, "versi unggah lama dihapus");
+    /* ---------- unduhan, catatan unduhan, ringkasan untuk Tool Hub ---------- */
+    // peran untuk ringkasan (tanpa tiket) diambil dari daftar anggota Tool Hub
+    await call("/__hub/users", { body: { users: [{ email: "sari@acme.test", name: "Sari", job: "sales", branch: "Cabang Surabaya" }, { email: "adm@acme.test", name: "Adm", adm: true },
+      { email: "head@acme.test", name: "Hana", job: "head_rm" }, { email: "ika@acme.test", name: "Ika", job: "is" }] }, headers: { "x-hub-key": env.SSO_SECRET } });
+    const feed = async (email) => (await raw("/__hub/today?email=" + encodeURIComponent(email), { headers: { "x-hub-key": env.SSO_SECRET } })).json();
+    const dl = (ck, vid, q = "") => raw("/deck/" + vid + q, { ck });
+    const da = await submit(IGS, { title: "Obligasi Ritel", name: "obr.pdf" }, bytes(3000, 9));
+    await call("/api/decks/decide", { ck: ADM, body: { version_id: da, action: "setujui" } });
+    const db = await submit(IGS, { deck_id: ver(da).deck_id, name: "obr-v2.pdf" });
+    for (const v of [db, v8]) assert.equal((await dl(SARI, v)).status, 404, "sales tidak bisa mengunduh versi menunggu / arsip");
+    assert.equal((await dl(SARI, "zzzzzzzzzzzz")).status, 404);
+    res = await dl(SARI, da);
+    assert.equal(res.status, 200); assert.deepEqual(new Uint8Array(await res.arrayBuffer()), bytes(3000, 9));
+    assert.match(res.headers.get("content-disposition"), /^attachment; filename\*=UTF-8''obr\.pdf$/); assert.equal(res.headers.get("cache-control"), "private, no-store");
+    assert.match((await dl(SARI, da, "?view=1")).headers.get("content-disposition"), /^inline/);
+    assert.equal((await dl(IGS, db)).status, 200, "pengaju boleh membuka versi menunggu");
+    const dls = env.DB.db.prepare("SELECT email, branch, version_id FROM deck_downloads").all();
+    assert.deepEqual(dls.map((x) => [x.email, x.branch, x.version_id]), [["sari@acme.test", "Cabang Surabaya", da], ["sari@acme.test", "Cabang Surabaya", da]], "hanya unduhan versi resmi yang dicatat");
+    // ringkasan untuk beranda Tool Hub
+    assert.equal((await raw("/__hub/today?email=head@acme.test")).status, 403, "tanpa kunci hub");
+    let fd = await feed("head@acme.test");
+    assert.deepEqual(fd.pending.map((x) => [x.title, x.by]), [["Obligasi Ritel", "Ika"]]);
+    assert.deepEqual((await feed("sari@acme.test")).pending, []);
+    assert.deepEqual((await feed("sari@acme.test")).notices, []);
+    await call("/api/decks/decide", { ck: HEAD, body: { version_id: db, action: "setujui" } });
+    assert.deepEqual((await feed("sari@acme.test")).notices.map((x) => [x.title, x.kind]), [["Obligasi Ritel", "diganti"]], "deck yang pernah diunduh sudah diganti");
+    await dl(SARI, db);
+    assert.deepEqual((await feed("sari@acme.test")).notices, [], "hilang setelah mengunduh versi terbaru");
+    await call("/api/decks/withdraw", { ck: ADM, body: { deck_id: ver(db).deck_id, note: "Seri sudah jatuh tempo" } });
+    assert.deepEqual((await feed("sari@acme.test")).notices.map((x) => x.kind), ["ditarik"]);
+    fd = await feed("ika@acme.test");
+    assert.ok(fd.mine.some((x) => x.status === "revisi" && x.note === "Slide 5 angkanya salah"), "pengaju melihat catatan revisi");
+    assert.ok(fd.mine.some((x) => x.status === "resmi" && x.title === "Obligasi Ritel"));
+    assert.deepEqual(fd.pending, [], "pengaju bukan penyetuju");
+    assert.deepEqual((await call("/api/usage", { ck: ADM })).j.decks, [{ title: "Obligasi Ritel", n: 3 }]);
+    // izin Google dicabut: daftar tetap tampil, unduhan memberi pesan jelas
+    const da2 = await submit(IGS, { title: "Saham Syariah", name: "ss.pdf" });
+    await call("/api/decks/decide", { ck: ADM, body: { version_id: da2, action: "setujui" } });
+    const gsave = cfgOf("gdrive");
+    env.DB.db.prepare("UPDATE cfg SET v = ? WHERE k = 'gdrive'").run(JSON.stringify({ ...gsave, t: await seal(env, "rt-bad") }));
+    await env.BRAND_KV.delete("gtoken");
+    res = await dl(SARI, da2);
+    assert.equal(res.status, 502); assert.match(await res.text(), /perlu dihubungkan ulang/);
+    L = (await call("/api/decks", { ck: SARI })).j;
+    assert.deepEqual([L.official.length, L.drive.connected], [1, false]);
+    env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?)").run(JSON.stringify(gsave));
     const P = { deck, v3, v8, IGS, PDF, submit, ver };
     return { G, F, P };
   } finally {

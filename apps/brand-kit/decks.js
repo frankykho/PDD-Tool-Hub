@@ -187,3 +187,38 @@ export async function list(env, me, org) {
   }
   return out;
 }
+
+/** GET /deck/<versi>[?view=1]: versi resmi untuk semua pemegang akses (dicatat), versi lain hanya pengaju & penyetuju.
+ *  Isi file diteruskan dari Drive apa adanya (stream). */
+export async function download(env, me, org, vid, view) {
+  const v = await env.DB.prepare("SELECT * FROM deck_versions WHERE id = ?").bind(vid).first();
+  const staff = canSubmit(me) || canApprove(me, org);
+  if (!v || !v.file_id || ["unggah", "trash"].includes(v.status) || (v.status !== "resmi" && !staff)) return new Response("Tidak ditemukan", { status: 404 });
+  let r;
+  try { r = await GD.streamFile(env, v.file_id); }
+  catch (e) { const x = driveErr(e); return new Response(x.error, { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } }); }
+  if (v.status === "resmi") await env.DB.prepare("INSERT INTO deck_downloads (at, email, branch, deck_id, version_id) VALUES (?, ?, ?, ?, ?)").bind(iso(env), me.e, me.c || "", v.deck_id, v.id).run();
+  const inline = view && v.mime === "application/pdf";
+  return new Response(r.body, { headers: { "content-type": v.mime, "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(v.name)}`,
+    "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
+}
+/** GET /__hub/today?email= (Tool Hub): deck menunggu (penyetuju), keputusan atas deck orang itu (pengaju, 14 hari),
+ *  dan deck yang pernah diunduhnya lalu diganti / ditarik (30 hari; hilang setelah mengunduh versi resmi terbaru). */
+export async function feed(env, email, users, org) {
+  const e = String(email || "").toLowerCase(), u = (users || []).find((x) => x.email === e) || {}, me = { e, j: u.job || "", adm: !!u.adm };
+  const out = { pending: [], mine: [], notices: [] }, d14 = iso(env, -14 * 864e5), d30 = iso(env, -30 * 864e5);
+  if (!e) return out;
+  if (canApprove(me, org)) out.pending = (await env.DB.prepare("SELECT deck_id, title, by_name AS by, at FROM deck_versions WHERE status = 'menunggu' ORDER BY at LIMIT 20").all()).results;
+  if (canSubmit(me)) out.mine = (await env.DB.prepare(`SELECT l.deck_id, v.title, CASE l.action WHEN 'setujui' THEN 'resmi' ELSE 'revisi' END AS status, l.note, l.at, l.by_name AS by
+    FROM deck_log l JOIN deck_versions v ON v.id = l.version_id WHERE l.action IN ('setujui', 'revisi') AND v.by_email = ? AND l.at >= ? ORDER BY l.at DESC LIMIT 10`).bind(e, d14).all()).results;
+  const D = (await env.DB.prepare(`SELECT x.deck_id, MAX(x.at) AS last, d.title, d.official, d.withdrawn_at, v.decided_at FROM deck_downloads x JOIN decks d ON d.id = x.deck_id
+    LEFT JOIN deck_versions v ON v.id = d.official WHERE x.email = ? GROUP BY x.deck_id LIMIT 200`).bind(e).all()).results;
+  for (const d of D) {
+    if (d.official && d.decided_at > d.last && d.decided_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "diganti", at: d.decided_at });
+    else if (!d.official && d.withdrawn_at && d.withdrawn_at > d.last && d.withdrawn_at >= d30) out.notices.push({ deck_id: d.deck_id, title: d.title, kind: "ditarik", at: d.withdrawn_at });
+  }
+  out.notices.sort((a, b) => (a.at < b.at ? 1 : -1));
+  return out;
+}
+/** Unduhan deck per judul sejak tanggal tertentu (Atur Brand Kit -> Pemakaian, Laporan KPI). */
+export const usage = async (env, since) => (await env.DB.prepare("SELECT COALESCE(d.title, '(deck terhapus)') AS title, COUNT(*) AS n FROM deck_downloads x LEFT JOIN decks d ON d.id = x.deck_id WHERE x.at >= ? GROUP BY x.deck_id ORDER BY n DESC, title").bind(since).all()).results;

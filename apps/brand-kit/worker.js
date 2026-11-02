@@ -5,7 +5,7 @@
 // - "/api/*"           -> data (login lewat Tool Hub)
 // - "/__hub/users" (POST) -> anggota, daftar cabang, dan tim & role dari Tool Hub
 // Hak akses: semua pemegang akses memakai template, mengunduh, menambah narasumber; admin hub mengatur template, disclaimer, folder Drive.
-import { hubPushAllowed } from "../../shared/hubfeed.js";
+import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
 import { title, profileScript, appUrl, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import EN from "./i18n.js";
@@ -341,7 +341,8 @@ async function usage(env) {
   const since = new Date(now(env) - 90 * 864e5).toISOString();
   const byTemplate = (await env.DB.prepare("SELECT COALESCE(t.name, '(template terhapus)') AS name, COUNT(*) AS n FROM downloads d LEFT JOIN templates t ON t.id = d.template_id WHERE d.at >= ? GROUP BY d.template_id ORDER BY n DESC, name").bind(since).all()).results;
   const byBranch = (await env.DB.prepare("SELECT COALESCE(NULLIF(branch, ''), 'Tanpa cabang') AS branch, COUNT(*) AS n FROM downloads WHERE at >= ? GROUP BY 1 ORDER BY n DESC, branch").bind(since).all()).results;
-  return { byTemplate: byTemplate.map(({ name, n }) => ({ name, n })), byBranch: byBranch.map(({ branch, n }) => ({ branch, n })) };
+  return { byTemplate: byTemplate.map(({ name, n }) => ({ name, n })), byBranch: byBranch.map(({ branch, n }) => ({ branch, n })),
+    decks: (await DK.usage(env, since)).map(({ title, n }) => ({ title, n })) };
 }
 
 /* =========================================================
@@ -455,6 +456,12 @@ const out = (r) => { const { status, ...rest } = r; return json(rest, status || 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), path = url.pathname;
+    // ringkasan beranda Tool Hub: deck menunggu, keputusan, deck yang diganti / ditarik
+    if (path === HUB_FEED) {
+      if (!hubFeedAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      await ensure(env);
+      return json(await DK.feed(env, url.searchParams.get("email"), await cfgGet(env, "users"), await getOrg(env)));
+    }
     if (path === "/__hub/users") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       return json(await syncFromHub(env, await request.json().catch(() => ({}))));
@@ -506,6 +513,8 @@ export default {
             return id ? json({ error: "Event & Lead tidak bisa dihubungi." }, 502) : json({ events: [], off: true });
           }
         }
+        const dk = /^\/deck\/([a-z0-9]{6,20})$/.exec(path);
+        if (dk) return DK.download(env, me, org, dk[1], url.searchParams.get("view") === "1");
         const ph = /^\/photo\/([a-z0-9]{6,20})$/.exec(path);
         if (ph) {
           const sp = await env.DB.prepare("SELECT photo FROM speakers WHERE id = ?").bind(ph[1]).first();
