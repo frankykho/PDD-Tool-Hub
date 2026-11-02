@@ -128,7 +128,7 @@ for (const a of boot.apps) {
   assert.ok(a.src, `${a.id}: punya alamat buka`);
 }
 assert.deepEqual(boot.apps.filter((a) => a.ai).map((a) => a.id).sort(), ["competitor", "content", "copy", "edukasi", "news", "recap", "sats", "tutorial"], "label Memakai AI hanya di tool yang memang memakai AI");
-assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, bond: true, jobs: true, cron: true, rhythm: true });
+assert.deepEqual(boot.today, { recap: true, planner: true, fund: true, competitor: true, edukasi: true, news: true, etf: true, bond: true, brand: true, jobs: true, cron: true, rhythm: true });
 assert.deepEqual(boot.fav, []);
 assert.equal(boot.me.admin, true);
 assert.equal(boot.me.job, "Mutual Fund Partnership Specialist");
@@ -191,6 +191,9 @@ assert.equal(t.recap.data.date, wib);
 assert.deepEqual(t.recap.data.sessions.map((s) => [s.session, s.status, s.title || "", s.pct ?? null]), [["s1", "published", "IHSG naik tipis", 0.42], ["close", "none", "", null]]);
 assert.equal(t.recap.data.last, null);
 assert.equal(t.planner.ok, true, JSON.stringify(t.planner));
+assert.equal(t.brand.ok, true, JSON.stringify(t.brand));
+assert.deepEqual(Object.keys(t.brand.data).sort(), ["mine", "notices", "pending"], "ringkasan materi presentasi dari Brand Kit");
+assert.ok(brandCalls.some((c) => c.url === "https://brand/__hub/today?email=" + encodeURIComponent(ADMIN) && c.key === SECRET), "Brand Kit dipanggil dengan email & kunci");
 assert.deepEqual(t.planner.data.today.map((x) => x.id), ["a"]);
 assert.deepEqual(t.planner.data.mine.map((x) => x.id), ["b"], "milik pengguna: 7 hari ke depan, belum selesai");
 assert.deepEqual(t.planner.data.design.map((x) => x.id), ["e"], "tugas desain: hanya untuk pengguna ini dan belum selesai");
@@ -351,7 +354,7 @@ boot = bootOf(await (await call("/", { cookie: user })).text());
 assert.deepEqual(boot.apps.map((a) => a.id), ["fund"], "hanya tool yang diberi akses");
 assert.equal(boot.apps[0].lvl, "Lihat saja");
 assert.equal(boot.me.job, "Copywriter");
-assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, news: false, etf: false, bond: false, jobs: true, cron: true, rhythm: true });
+assert.deepEqual(boot.today, { recap: false, planner: false, fund: true, competitor: false, edukasi: false, news: false, etf: false, bond: false, brand: false, jobs: true, cron: true, rhythm: true });
 assert.equal(boot.me.admin, false);
 const ut = await (await call("/api/today", { cookie: user })).json();
 assert.deepEqual(Object.keys(ut).sort(), ["cron", "fund", "jobs", "rhythm"], "ringkasan tool tanpa akses tidak diminta");
@@ -500,6 +503,7 @@ const page = fs.readFileSync(new URL("./shell.html", import.meta.url), "utf8");
 for (const [, code] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
 const fillAll = /function fillAll\(d\) \{([^}]*)\}/.exec(page);
 assert.ok(fillAll, "fillAll ada di shell.html");
+assert.ok(fillAll[1].includes("fillBrand(d.brand)") && page.includes('"brandBody"'), "panel Materi presentasi");
 for (const [, fn] of fillAll[1].matchAll(/(\w+)\(/g)) assert.ok(page.includes("function " + fn + "("), `${fn} (dipanggil fillAll) terdefinisi di shell.html`);
 assert.equal(page.split('"__BOOT__"').length, 2, "penanda data ada tepat sekali di shell.html (bukan juga di komentar)");
 

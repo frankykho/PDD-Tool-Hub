@@ -240,6 +240,9 @@ export default {
 
   /* ---------- ringkasan hari ini ---------- */
   "Reksa dana hari ini": "Mutual funds today", "Promo kompetitor": "Competitor promos", "Tugasmu": "Your tasks", "Draf edukasi": "Education drafts",
+  "Materi presentasi": "Presentation decks", "Disetujui": "Approved", "Menunggu persetujuanmu": "Awaiting your approval", "Keputusan atas deck-mu": "Decisions on your decks",
+  "Deck yang kamu unduh": "Decks you downloaded", "Sudah ditarik, jangan dipakai lagi": "Withdrawn, do not use it anymore", "Sudah diganti, unduh versi terbaru": "Replaced, download the latest version",
+  "Buka Brand Kit": "Open Brand Kit", "Ringkasan Brand Kit": "Brand Kit summary",
   "Laporan keuangan emiten": "Issuer financial reports", "Ops ETF": "ETF ops", "Yield obligasi": "Bond yields",
   "Tugas otomatis bermasalah": "Failing automated jobs", "Ritme hari ini": "Today's rhythm",
   "{w} tidak bisa dimuat: {e}": "{w} could not be loaded: {e}",

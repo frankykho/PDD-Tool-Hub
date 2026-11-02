@@ -753,7 +753,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   // [tool, id isi kartu, ikon, kategori (warna), judul]; kartu hanya dibuat untuk tool yang boleh dibuka pengguna
   // Market Recap & jadwal berjam Content Planner tampil di Ritme hari ini, jadi tidak punya kartu sendiri
   var PANELS = [["fund", "fundBody", "fund", "research", "Reksa dana hari ini"], ["competitor", "compBody", "target", "research", "Promo kompetitor"],
-    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"], ["etf", "etfBody", "etf", "research", "Ops ETF"], ["bond", "bondBody", "bond", "research", "Yield obligasi"]];
+    ["planner", "planBody", "calendar", "campaign", "Tugasmu"], ["edukasi", "eduBody", "book", "creative", "Draf edukasi"], ["news", "newsBody", "news", "research", "Laporan keuangan emiten"], ["etf", "etfBody", "etf", "research", "Ops ETF"], ["bond", "bondBody", "bond", "research", "Yield obligasi"], ["brand", "brandBody", "palette", "campaign", "Materi presentasi"]];
   function renderToday() {
     var box = $("#today"), html = PANELS.filter(function (p) { return H.today[p[0]]; }).map(function (p) {
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
@@ -837,6 +837,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     el.innerHTML = html + foot(d.at ? "Data diperbarui " + ago(Date.parse(d.at)) : hari(d.date), "etf", "Buka ETF Insight");
   }
   /** Yield SBN tenor utama (PHEI IGSYC) + korporasi 2 tahun per rating, dari Bond Insight. */
+  // Materi presentasi (Brand Kit): hanya tampil kalau ada yang perlu dilihat orang ini
+  function fillBrand(r) {
+    var el = $("#brandBody"); if (!el) return;
+    var sec = el.closest("section");
+    if (!r || !r.ok) { sec.hidden = false; el.innerHTML = errBox("Ringkasan Brand Kit tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    var d = r.data, P = d.pending || [], M = d.mine || [], N = d.notices || [], html = "";
+    sec.hidden = !P.length && !M.length && !N.length;
+    if (P.length) html += '<div class="subh">Menunggu persetujuanmu</div><div class="rows">' + P.map(function (x) { return rowHtml("warn", x.title, [x.by, ago(x.at)].filter(Boolean).join(" · ")); }).join("") + "</div>";
+    if (M.length) html += '<div class="subh">Keputusan atas deck-mu</div><div class="rows">' + M.map(function (x) {
+      return rowHtml(x.status === "resmi" ? "ok" : "warn", x.title, [x.status === "resmi" ? "Disetujui" : "Perlu revisi: " + (x.note || ""), x.by, ago(x.at)].filter(Boolean).join(" · "));
+    }).join("") + "</div>";
+    if (N.length) html += '<div class="subh">Deck yang kamu unduh</div><div class="rows">' + N.map(function (x) {
+      return rowHtml(x.kind === "ditarik" ? "err" : "warn", x.title, x.kind === "ditarik" ? "Sudah ditarik, jangan dipakai lagi" : "Sudah diganti, unduh versi terbaru");
+    }).join("") + "</div>";
+    var o = byId.brand && appOrigin(byId.brand);
+    el.innerHTML = html + '<div class="panel-f"><span class="muted">Materi presentasi</span>' + (o ? '<button class="btn btn-sm" type="button" data-page="brand" data-url="' + esc("/sso?app=brand&back=" + encodeURIComponent(o + "/#/deck")) + '">' : '<button class="btn btn-sm" type="button" data-open="brand">') + esc("Buka Brand Kit") + " " + icon("arrowR") + "</button></div>";
+  }
   function fillBond(r) {
     var el = $("#bondBody"); if (!el) return;
     if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Bond Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
@@ -974,7 +991,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function fillBell(r) { if (r && r.ok && r.data && r.data.notif) { NP = r.data.notif; mergeBell(); } }
   function bell(open) { var m = $("#bellMenu"); if (!m) return; m.classList.toggle("open", open); $("#bellBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = m.querySelector("button"); if (f) f.focus(); } }
   function markRead(body) { return fetch("/api/notif/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(function () { }); }
-  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillEtf(d.etf); fillBond(d.bond); fillJobs(d.jobs, d.cron); }
+  function fillAll(d) { fillRhythm(d.rhythm); fillBell(d.planner); fillPlanner(d.planner); fillFund(d.fund); fillComp(d.competitor); fillEdu(d.edukasi); fillNews(d.news); fillEtf(d.etf); fillBond(d.bond); fillBrand(d.brand); fillJobs(d.jobs, d.cron); }
   var loadingFeed = false;
   // quiet = pembaruan otomatis: isi lama tetap tampil sampai data baru datang
   function loadFeed(quiet) {
@@ -985,7 +1002,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       if (r.status === 401) throw new Error("Sesi habis. Muat ulang halaman lalu login lagi.");
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
     }).then(function (d) { feed = d; fillAll(d); })
-      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, news: m, jobs: m, cron: m }); })
+      .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, news: m, brand: m, jobs: m, cron: m }); })
       .then(function () { clearTimeout(t); loadingFeed = false; });
   }
 

@@ -748,6 +748,8 @@ const FEEDS = [
   { id: 'news', binding: 'NEWS', name: 'Market News' },
   { id: 'etf', binding: 'ETF', name: 'ETF Insight' },
   { id: 'bond', binding: 'BOND', name: 'Bond Insight' },
+  // materi presentasi: deck menunggu persetujuan, keputusan atas deck-mu, deck yang kamu unduh sudah diganti / ditarik
+  { id: 'brand', binding: 'BRAND', name: 'Brand Kit', email: true },
 ];
 /** GET /api/today: tiap bagian berdiri sendiri; kalau satu tool lambat atau error, bagian lain tetap tampil. */
 async function todayFeed(env, sess, mine) {
