@@ -134,7 +134,7 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
     4. **Audience** → **Publish app** sampai statusnya **In production**. Wajib: kalau masih *Testing*, izin kedaluwarsa setelah 7 hari. `drive.file` tidak perlu verifikasi Google.
     5. **Clients** → Create client → **Web application** → Authorized redirect URIs: `https://brand.<subdomain>.workers.dev/drive/callback` → Create.
     6. Salin Client ID dan Client secret ke bagian `"brand"` di `.secrets.json` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`), lalu `node scripts/deploy.mjs secrets brand`.
-    7. Brand Kit → **Atur Brand Kit → Folder Drive → Hubungkan Google Drive** (terbuka di tab baru). Masuk dengan akun Google pemilik folder; muncul "Google hasn't verified this app" → **Advanced** → **Go to … (unsafe)** → izinkan. Kembali ke Brand Kit → **Periksa lagi** harus "Terhubung".
+    7. Brand Kit → **Atur Brand Kit → Folder Drive → Hubungkan Google Drive** (terbuka di tab baru). Masuk dengan akun Google pemilik folder; muncul "Google hasn't verified this app" → **Advanced** → **Go to … (unsafe)** → izinkan. Kembali ke Brand Kit → **Periksa lagi** harus "Terhubung" beserta email akun Google-nya. Menghubungkan ulang harus dengan akun yang sama: akun lain tidak bisa melihat folder lama, jadi ditolak dan sambungan lama tetap dipakai.
   - Beri akses Brand Kit (Atur akses) ke Investment Growth Specialist dan Head Regional, dan pastikan role mereka benar di Tim & role.
 - Urutan deploy: setelah `event`, `copy`, `edukasi` (service binding `EVENT`, `COPY`, `EDUKASI`); hub tetap paling akhir.
 - Cek: `node apps/brand-kit/test.mjs`

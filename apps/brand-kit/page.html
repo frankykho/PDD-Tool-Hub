@@ -541,7 +541,7 @@ async function aDrive(){
     box.innerHTML=`<h3 style="margin:0">${esc(T("Materi presentasi (Google Drive)"))}</h3>
       <p class="hint" style="margin:0">${esc(T("Deck disimpan di folder privat \"Brand Kit – Materi presentasi\" (Menunggu, Resmi, Arsip) di akun Google yang menghubungkan. Folder dibuat otomatis dan hanya diisi lewat Brand Kit."))}</p>
       ${!g.ready?`<div class="msg">${esc(T("Pasang secret GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET dulu (lihat README Brand Kit)."))}</div>`
-      :g.connected?`<div class="msg ok">${esc(T("Terhubung"))} · ${esc(g.by||"")}, ${esc(fWhen(g.at))}</div>`
+      :g.connected?`<div class="msg ok">${esc(T("Terhubung"))} · ${g.acct?`${esc(g.acct)} · `:""}${esc(g.by||"")}, ${esc(fWhen(g.at))}</div>`
       :`${g.error?`<div class="msg err">${esc(T(g.error))}</div>`:""}<p class="hint" style="margin:0">${esc(T("Halaman Google terbuka di tab baru. Masuk dengan akun Google pemilik folder, setujui, lalu kembali ke sini dan tekan Periksa lagi."))}</p>`}
       <div class="acts">${g.ready&&!g.connected?`<a class="btn pri" href="/drive/connect" target="_blank" rel="noopener">${esc(T("Hubungkan Google Drive"))}</a>`:""}
         ${g.connected?`<button type="button" class="btn danger" id="gdOff">${esc(T("Putuskan"))}</button>`:""}<button type="button" class="btn" id="gdRe">${esc(T("Periksa lagi"))}</button></div>`;

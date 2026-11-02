@@ -87,6 +87,8 @@ export async function startUpload(env, me, b, origin) {
   if (b.deck_id) {
     deck = await env.DB.prepare("SELECT * FROM decks WHERE id = ?").bind(String(b.deck_id)).first();
     if (!deck) return { error: "Deck tidak ditemukan.", status: 404 };
+    // sesi unggah sendiri yang belum selesai (gagal / dibatalkan) dibuang; sesi orang lain mengunci paling lama 1 jam
+    await env.DB.prepare("DELETE FROM deck_versions WHERE deck_id = ? AND status = 'unggah' AND (by_email = ? OR at < ?)").bind(deck.id, me.e, iso(env, -3600e3)).run();
     if (await env.DB.prepare("SELECT 1 FROM deck_versions WHERE deck_id = ? AND status IN ('unggah', 'menunggu')").bind(deck.id).first()) return { error: "Masih ada versi yang menunggu persetujuan." };
   }
   const title = str(b.title, 120) || (deck && deck.title) || "", descr = b.note !== undefined ? str(b.note, 300) : (deck && deck.note) || "";
@@ -160,9 +162,11 @@ export async function withdraw(env, me, org, b) {
   const d = await env.DB.prepare("SELECT * FROM decks WHERE id = ?").bind(String(b.deck_id || "")).first();
   if (!d || !d.official) return { error: "Deck resmi tidak ditemukan.", status: 404 };
   const at = iso(env);
+  // hanya bila versi resmi belum berubah sejak dibaca (mis. versi baru baru saja disetujui orang lain)
+  const u = await env.DB.prepare("UPDATE decks SET official = NULL, withdrawn_at = ?, withdrawn_by = ?, withdraw_note = ?, updated_at = ? WHERE id = ? AND official = ?").bind(at, who(me), note, at, d.id, d.official).run();
+  if (!u.meta.changes) return { error: "Deck baru saja berubah. Muat ulang lalu coba lagi.", status: 409 };
   await env.DB.batch([
     env.DB.prepare("UPDATE deck_versions SET status = 'arsip' WHERE id = ? AND status = 'resmi'").bind(d.official),
-    env.DB.prepare("UPDATE decks SET official = NULL, withdrawn_at = ?, withdrawn_by = ?, withdraw_note = ?, updated_at = ? WHERE id = ?").bind(at, who(me), note, at, d.id),
     log(env, me, d.id, d.official, "tarik", note),
   ]);
   return { ok: true, ...(await tidy(env, me, d.id)) };
@@ -191,13 +195,14 @@ export async function list(env, me, org) {
 /** GET /deck/<versi>[?view=1]: versi resmi untuk semua pemegang akses (dicatat), versi lain hanya pengaju & penyetuju.
  *  Isi file diteruskan dari Drive apa adanya (stream). */
 export async function download(env, me, org, vid, view) {
-  const v = await env.DB.prepare("SELECT * FROM deck_versions WHERE id = ?").bind(vid).first();
-  const staff = canSubmit(me) || canApprove(me, org);
-  if (!v || !v.file_id || ["unggah", "trash"].includes(v.status) || (v.status !== "resmi" && !staff)) return new Response("Tidak ditemukan", { status: 404 });
+  const v = await env.DB.prepare("SELECT v.*, d.official FROM deck_versions v LEFT JOIN decks d ON d.id = v.deck_id WHERE v.id = ?").bind(vid).first();
+  // resmi = versi yang sekarang ditunjuk deck-nya (bukan sekadar status), supaya sisa keputusan yang gagal di tengah tidak bisa diunduh sales
+  const staff = canSubmit(me) || canApprove(me, org), current = !!v && v.status === "resmi" && v.official === v.id;
+  if (!v || !v.file_id || ["unggah", "trash"].includes(v.status) || (!current && !staff)) return new Response("Tidak ditemukan", { status: 404 });
   let r;
   try { r = await GD.streamFile(env, v.file_id); }
   catch (e) { const x = driveErr(e); return new Response(x.error, { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } }); }
-  if (v.status === "resmi") await env.DB.prepare("INSERT INTO deck_downloads (at, email, branch, deck_id, version_id) VALUES (?, ?, ?, ?, ?)").bind(iso(env), me.e, me.c || "", v.deck_id, v.id).run();
+  if (current) await env.DB.prepare("INSERT INTO deck_downloads (at, email, branch, deck_id, version_id) VALUES (?, ?, ?, ?, ?)").bind(iso(env), me.e, me.c || "", v.deck_id, v.id).run();
   const inline = view && v.mime === "application/pdf";
   return new Response(r.body, { headers: { "content-type": v.mime, "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(v.name)}`,
     "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });

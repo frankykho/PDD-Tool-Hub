@@ -302,5 +302,6 @@ const D = {
   "Google Drive tidak bisa dihubungi.": "Google Drive can't be reached.",
   "Status tersimpan, tetapi file di Google Drive belum dipindah. Akan dicoba lagi otomatis.": "Status saved, but the file in Google Drive hasn't been moved yet. It will be retried automatically.",
   "Folder Drive belum dibuat.": "Drive folders haven't been created yet.",
+  "Deck baru saja berubah. Muat ulang lalu coba lagi.": "The deck just changed. Reload and try again.",
 };
 export default D;

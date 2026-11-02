@@ -57,9 +57,23 @@ export async function finishAuth(env, origin, code, state, me) {
     if (!r.ok) return { error: "Google menolak izin (" + (j.error || "HTTP " + r.status) + "). Ulangi dari Atur Brand Kit." };
   } catch (e) { return { error: "Google tidak bisa dihubungi. Coba lagi." }; }
   if (!j.refresh_token) return { error: "Google tidak memberi izin jangka panjang. Ulangi dari Atur Brand Kit." };
+  // drive.file: akun lain tidak bisa melihat folder yang sudah ada, jadi sambungan lama dipertahankan
+  const F0 = await folders(env);
+  let acct;
+  try {
+    if (F0 && F0.root) {
+      const r = await driveAt(j.access_token, `/drive/v3/files/${encodeURIComponent(F0.root)}?fields=id,trashed`);
+      if (r.status === 404) return { error: `Akun yang dipilih adalah akun Google lain, bukan pemilik folder "${ROOT_NAME}". Masuk dengan akun ${F0.owner || "Google yang dulu menghubungkan"}, lalu ulangi dari Atur Brand Kit.` };
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      if ((await r.json()).trashed) return { error: `Folder "${ROOT_NAME}" ada di Trash Google Drive. Pulihkan dulu, lalu ulangi dari Atur Brand Kit.` };
+    }
+    const a = await driveAt(j.access_token, "/drive/v3/about?fields=user(emailAddress)");
+    acct = a.ok ? ((await a.json()).user || {}).emailAddress || "" : "";
+  } catch (e) { return { error: "Google tidak bisa dihubungi. Coba lagi." }; }
   await cfgPut(env, "gdrive", { t: await seal(env, j.refresh_token), by: me.n || me.e, at: new Date(now(env)).toISOString() });
   await env.BRAND_KV.put("gtoken", JSON.stringify({ t: j.access_token, x: now(env) + (Number(j.expires_in) || 3600) * 1000 }));
-  try { await ensureFolders(env); } catch (e) { return { error: "Izin tersimpan, tetapi folder Drive gagal dibuat: " + e.message }; }
+  try { const F = await ensureFolders(env); if (acct && F.owner !== acct) await cfgPut(env, "gfolders", { ...F, owner: acct }); }
+  catch (e) { return { error: "Izin tersimpan, tetapi folder Drive gagal dibuat: " + e.message }; }
   return { ok: true };
 }
 const reconnect = () => Object.assign(new Error(RECONNECT), { reconnect: true });
@@ -84,20 +98,25 @@ export async function disconnect(env) {
   await cfgDel(env, "gdrive");
   await env.BRAND_KV.delete("gtoken");
 }
-/** Status untuk Atur Brand Kit. Mencoba token sekali supaya izin yang dicabut langsung kelihatan. */
+/** Status untuk Atur Brand Kit. Memanggil Drive sekali supaya izin yang dicabut langsung kelihatan; acct = akun Google yang terhubung. */
 export async function status(env) {
   const g = await cfgGet(env, "gdrive");
   if (!ready(env)) return { ready: false, connected: false };
   if (!g) return { ready: true, connected: false };
-  try { await token(env); return { ready: true, connected: true, by: g.by, at: g.at }; }
+  try {
+    const a = await (await drive(env, "/drive/v3/about?fields=user(emailAddress)")).json();
+    return { ready: true, connected: true, by: g.by, at: g.at, acct: (a.user || {}).emailAddress || "" };
+  }
   catch (e) { return { ready: true, connected: !e.reconnect && !!(await cfgGet(env, "gdrive")), by: g.by, at: g.at, error: e.message }; }
 }
 
 /* ---------- Drive REST ---------- */
+const driveAt = (t, path, init = {}) => timed(fetch("https://www.googleapis.com" + path, { ...init, headers: { authorization: "Bearer " + t, ...(init.body && typeof init.body === "string" ? { "content-type": "application/json" } : {}), ...(init.headers || {}) } }), 15000);
 /** Panggilan Drive (www.googleapis.com) dengan token; HTTP >= 400 -> Error("Google Drive: HTTP n"). */
 export async function drive(env, path, init = {}) {
-  const t = await token(env);
-  const r = await timed(fetch("https://www.googleapis.com" + path, { ...init, headers: { authorization: "Bearer " + t, ...(init.body && typeof init.body === "string" ? { "content-type": "application/json" } : {}), ...(init.headers || {}) } }), 15000);
+  let r = await driveAt(await token(env), path, init);
+  // token di cache ditolak (mis. izin dicabut di akun Google): buang, tukar ulang sekali -> invalid_grant jadi "hubungkan ulang"
+  if (r.status === 401) { await env.BRAND_KV.delete("gtoken"); r = await driveAt(await token(env), path, init); }
   if (!r.ok) throw Object.assign(new Error("Google Drive: HTTP " + r.status), { status: r.status });
   return r;
 }

@@ -15,24 +15,29 @@ export function fakeGoogle() {
     if (url.host === "oauth2.googleapis.com") {
       G.tokenCalls++;
       const b = new URLSearchParams(await req.text());
-      if (b.get("grant_type") === "authorization_code") return b.get("code") === "code-ok" ? Response.json({ refresh_token: "rt1", access_token: "at" + ++tokens, expires_in: 3600 }) : Response.json({ error: "invalid_grant" }, { status: 400 });
-      return b.get("refresh_token") === "rt1" ? Response.json({ access_token: "at" + ++tokens, expires_in: 3600 }) : Response.json({ error: "invalid_grant" }, { status: 400 });
+      // code-ok = akun pemilik (a), code-b = akun Google lain (b); izin dicabut -> refresh token tidak sah
+      const acct = b.get("grant_type") === "authorization_code" ? { "code-ok": "a", "code-b": "b" }[b.get("code")] : !G.revoked && { rt1: "a", rt2: "b" }[b.get("refresh_token")];
+      if (!acct) return Response.json({ error: "invalid_grant" }, { status: 400 });
+      return Response.json({ ...(b.get("code") ? { refresh_token: acct === "a" ? "rt1" : "rt2" } : {}), access_token: acct + "t" + ++tokens, expires_in: 3600 });
     }
     if (url.host !== "www.googleapis.com") throw new Error("tak terduga: " + url);
-    if (!/^Bearer at\d+$/.test(req.headers.get("authorization") || "")) return new Response("unauth", { status: 401 });
+    const who = (/^Bearer ([ab])t\d+$/.exec(req.headers.get("authorization") || "") || [])[1];
+    if (!who || G.revoked) return new Response("unauth", { status: 401 });
     if (G.fail && (G.fail === m || G.fail === "*")) return new Response("galat", { status: 500 });
     if (url.pathname === "/upload/drive/v3/files" && m === "POST") {
       const meta = await req.json(), sid = "S" + ++seq;
-      sessions.set(sid, { meta, type: req.headers.get("x-upload-content-type"), size: +req.headers.get("x-upload-content-length") });
+      sessions.set(sid, { meta, owner: who, type: req.headers.get("x-upload-content-type"), size: +req.headers.get("x-upload-content-length") });
       G.origin = req.headers.get("origin");
       return new Response(null, { status: 200, headers: { location: "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=" + sid } });
     }
     if (url.pathname === "/drive/v3/files" && m === "POST") {
       const b = await req.json(), id = "f" + ++seq;
-      files.set(id, { id, name: b.name, mimeType: b.mimeType, parents: b.parents || ["root"] });
+      files.set(id, { id, name: b.name, mimeType: b.mimeType, parents: b.parents || ["root"], owner: who });
       return Response.json({ id });
     }
-    const fm = /^\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname), f = fm && files.get(fm[1]);
+    if (url.pathname === "/drive/v3/about" && m === "GET") return Response.json({ user: { emailAddress: who === "a" ? "pemilik@gmail.test" : "lain@gmail.test" } });
+    // drive.file: file buatan akun lain tidak terlihat
+    const fm = /^\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname), f0 = fm && files.get(fm[1]), f = f0 && (f0.owner || "a") === who ? f0 : null;
     if (fm && !f) return new Response("not found", { status: 404 });
     if (fm && m === "GET") return url.searchParams.get("alt") === "media" ? new Response(f.data, { headers: { "content-type": f.mimeType } }) : Response.json(file(f));
     if (fm && m === "PATCH") {
@@ -47,10 +52,9 @@ export function fakeGoogle() {
   /** Browser mengunggah ke URL sesi: file jadi di folder tujuan sesi. */
   G.upload = (sessionUrl, bytes) => {
     const s = sessions.get(new URL(sessionUrl).searchParams.get("upload_id")), id = "f" + ++seq;
-    files.set(id, { id, name: s.meta.name, mimeType: s.type, size: bytes.length, parents: s.meta.parents, data: bytes });
+    files.set(id, { id, name: s.meta.name, mimeType: s.type, size: bytes.length, parents: s.meta.parents, data: bytes, owner: s.owner });
     return id;
   };
-  G.revoke = () => { G.revoked = true; };
   return G;
 }
 
@@ -87,12 +91,13 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     const gd = cfgOf("gdrive");
     assert.ok(gd && gd.t && !gd.t.includes("rt1"), "refresh token disimpan terenkripsi"); assert.equal(gd.by, "Adm");
     const F = cfgOf("gfolders");
-    assert.deepEqual(Object.keys(F).sort(), ["arsip", "menunggu", "resmi", "root"]);
+    assert.deepEqual(Object.keys(F).sort(), ["arsip", "menunggu", "owner", "resmi", "root"]);
+    assert.equal(F.owner, "pemilik@gmail.test", "akun Google pemilik folder dicatat");
     assert.equal(G.files.get(F.root).name, "Brand Kit – Materi presentasi");
     assert.deepEqual(["menunggu", "resmi", "arsip"].map((k) => [G.files.get(F[k]).name, G.files.get(F[k]).parents[0]]), [["Menunggu", F.root], ["Resmi", F.root], ["Arsip", F.root]]);
     assert.ok(![...G.files.values()].some((f) => (f.parents || []).includes(cfgOf("drive_folder"))), "tidak di dalam folder Drive publik");
     let st = (await call("/api/gdrive", { ck: ADM })).j;
-    assert.deepEqual([st.ready, st.connected, st.by], [true, true, "Adm"]);
+    assert.deepEqual([st.ready, st.connected, st.by, st.acct], [true, true, "Adm", "pemilik@gmail.test"]);
     assert.equal((await call("/api/gdrive", { ck: SARI })).status, 403);
     const t0 = G.tokenCalls; await call("/api/gdrive", { ck: ADM });
     assert.equal(G.tokenCalls, t0, "access token dari cache KV");
@@ -106,6 +111,19 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(JSON.stringify({ ...gd, t: keep }));
     assert.equal((await call("/api/gdrive", { ck: ADM })).j.connected, true);
     assert.deepEqual(cfgOf("gfolders"), F);
+    // izin dicabut di akun Google sementara access token masih di cache: langsung terlihat perlu dihubungkan ulang
+    G.revoked = true;
+    st = (await call("/api/gdrive", { ck: ADM })).j;
+    assert.deepEqual([st.connected, st.error], [false, "Google Drive perlu dihubungkan ulang."], "token di cache ditolak Drive");
+    G.revoked = false;
+    env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(JSON.stringify({ ...gd, t: keep }));
+    // menghubungkan ulang dengan akun Google lain (tidak bisa melihat folder lama) ditolak, sambungan lama tetap
+    res = await raw("/drive/connect", { ck: ADM });
+    const stateB = new URL(res.headers.get("location")).searchParams.get("state");
+    res = await raw(`/drive/callback?code=code-b&state=${encodeURIComponent(stateB)}`, { ck: ADM });
+    assert.equal(res.status, 400); assert.match(await res.text(), /akun Google lain[\s\S]*pemilik@gmail\.test/);
+    assert.deepEqual([cfgOf("gdrive").t, cfgOf("gfolders")], [keep, F]);
+    assert.equal((await call("/api/gdrive", { ck: ADM })).j.acct, "pemilik@gmail.test");
 
     /* ---------- alur deck: ajukan, revisi, setujui, ganti, tarik, arsip ---------- */
     const IGS = await cookie({ e: "ika@acme.test", n: "Ika", j: "is" }), IGS2 = await cookie({ e: "ivan@acme.test", n: "Ivan", j: "is" });
@@ -238,6 +256,36 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     L = (await call("/api/decks", { ck: SARI })).j;
     assert.deepEqual([L.official.length, L.drive.connected], [1, false]);
     env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?)").run(JSON.stringify(gsave));
+    // unggahan yang gagal / dibatalkan tidak mengunci deck
+    const ds = ver(da2).deck_id, up = (ck) => call("/api/decks/upload", { ck, body: { deck_id: ds, name: "ss2.pdf", mime: PDF, size: 10 } });
+    const u1 = await up(IGS), u2 = await up(IGS);
+    assert.deepEqual([u1.status, u2.status], [200, 200], "pengaju boleh mengulang unggahannya");
+    assert.equal(ver(u1.j.version_id), undefined, "sesi lama miliknya dibuang");
+    assert.equal((await up(IGS2)).status, 400, "unggahan orang lain masih berjalan");
+    env.NOW_MS = String(Date.now() + 61 * 60e3);
+    assert.equal((await up(IGS2)).status, 200, "unggahan orang lain yang macet > 1 jam tidak mengunci");
+    delete env.NOW_MS;
+    assert.equal(ver(u2.j.version_id), undefined, "sesi macet dibuang supaya tidak ada dua pengajuan");
+    // hanya versi resmi deck-nya yang bisa diunduh sales, walau status versi lain tertulis resmi
+    env.DB.db.prepare("UPDATE deck_versions SET status = 'resmi' WHERE id = ?").run(v8);
+    assert.equal((await dl(SARI, v8)).status, 404, "bukan versi resmi deck");
+    env.DB.db.prepare("UPDATE deck_versions SET status = 'arsip' WHERE id = ?").run(v8);
+    // tarik bersamaan dengan persetujuan versi baru: persetujuan yang lebih dulu tidak hilang
+    const vb = await submit(IGS2, { deck_id: ds, name: "ss-v2.pdf" }), prep = env.DB.prepare;
+    env.DB.prepare = (sql) => {
+      const s = prep(sql);
+      if (sql !== "SELECT * FROM decks WHERE id = ?") return s;
+      return { ...s, bind: (...a) => { const b = s.bind(...a); return { ...b, first: async () => {
+        const row = await b.first(); env.DB.prepare = prep;
+        assert.equal((await call("/api/decks/decide", { ck: HEAD, body: { version_id: vb, action: "setujui" } })).status, 200);
+        return row;
+      } }; } };
+    };
+    r = await call("/api/decks/withdraw", { ck: ADM, body: { deck_id: ds, note: "Ditutup" } });
+    env.DB.prepare = prep;
+    assert.equal(r.status, 409, JSON.stringify(r.j));
+    assert.deepEqual([env.DB.db.prepare("SELECT official FROM decks WHERE id = ?").get(ds).official, ver(vb).status], [vb, "resmi"]);
+    assert.equal((await dl(SARI, vb)).status, 200);
     /* ---------- halaman ---------- */
     const page = async (ck) => (await raw("/", { ck })).text(), bk = (h) => JSON.parse(/window\.BK=(.*?);<\/script>/s.exec(h)[1]);
     const hIgs = await page(IGS);
