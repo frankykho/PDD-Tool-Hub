@@ -106,7 +106,94 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(JSON.stringify({ ...gd, t: keep }));
     assert.equal((await call("/api/gdrive", { ck: ADM })).j.connected, true);
     assert.deepEqual(cfgOf("gfolders"), F);
-    return { G, F };
+
+    /* ---------- alur deck: ajukan, revisi, setujui, ganti, tarik, arsip ---------- */
+    const IGS = await cookie({ e: "ika@acme.test", n: "Ika", j: "is" }), IGS2 = await cookie({ e: "ivan@acme.test", n: "Ivan", j: "is" });
+    const PDF = "application/pdf", PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    const bytes = (n, c = 7) => new Uint8Array(n).fill(c);
+    const ver = (id) => env.DB.db.prepare("SELECT * FROM deck_versions WHERE id = ?").get(id);
+    const where = (vid) => { const f = G.files.get(ver(vid).file_id); return f.trashed ? "trash" : Object.keys(F).find((k) => F[k] === f.parents[0]); };
+    /** IGS mengajukan: minta sesi, "browser" mengunggah, lalu konfirmasi. */
+    async function submit(ck, body, data = bytes(body.size || 2048)) {
+      const r = await call("/api/decks/upload", { ck, body: { name: "deck.pdf", mime: PDF, size: data.length, ...body } });
+      assert.equal(r.status, 200, JSON.stringify(r.j));
+      const fid = G.upload(r.j.upload_url, data), c = await call("/api/decks/uploaded", { ck, body: { version_id: r.j.version_id, file_id: fid } });
+      assert.equal(c.status, 200, JSON.stringify(c.j));
+      return r.j.version_id;
+    }
+    for (const ck of [SARI, HEAD, ADM]) assert.equal((await call("/api/decks/upload", { ck, body: { title: "X", name: "a.pdf", mime: PDF, size: 10 } })).status, 403, "hanya Investment Growth Specialist");
+    for (const b of [{ name: "a.docx", mime: PDF }, { name: "a.pdf", mime: "text/plain" }, { name: "a.pdf", mime: PDF, size: 0 }, { name: "a.pdf", mime: PDF, size: 104857601 }, { name: "a.pdf", mime: PDF, title: " " }])
+      assert.equal((await call("/api/decks/upload", { ck: IGS, body: { title: "Deck", size: 10, ...b } })).status, 400, JSON.stringify(b));
+    // file yang tidak ada di folder Menunggu ditolak
+    let r = await call("/api/decks/upload", { ck: IGS, body: { title: "Reksa Dana untuk Pemula", note: "Seminar kampus", name: "rd.pdf", mime: PDF, size: 2048 } });
+    assert.equal(G.origin, BASE, "sesi unggah membawa origin Brand Kit (CORS browser)");
+    const foreign = "fx1"; G.files.set(foreign, { id: foreign, name: "lain.pdf", mimeType: PDF, size: 2048, parents: [F.resmi] });
+    assert.equal((await call("/api/decks/uploaded", { ck: IGS, body: { version_id: r.j.version_id, file_id: foreign } })).status, 400, "file asing ditolak");
+    assert.equal((await call("/api/decks/uploaded", { ck: IGS2, body: { version_id: r.j.version_id, file_id: G.upload(r.j.upload_url, bytes(2048)) } })).status, 403, "hanya pengunggahnya");
+    const fid1 = G.upload(r.j.upload_url, bytes(2048));
+    assert.equal((await call("/api/decks/uploaded", { ck: IGS, body: { version_id: r.j.version_id, file_id: fid1 } })).status, 200);
+    const v1 = r.j.version_id, deck = ver(v1).deck_id;
+    assert.deepEqual([ver(v1).status, ver(v1).n, where(v1)], ["menunggu", 1, "menunggu"]);
+    assert.equal((await call("/api/decks/upload", { ck: IGS2, body: { deck_id: deck, name: "rd2.pdf", mime: PDF, size: 10 } })).status, 400, "masih ada versi yang menunggu");
+    // revisi: catatan wajib; keputusan pertama yang berlaku
+    assert.equal((await call("/api/decks/decide", { ck: IGS, body: { version_id: v1, action: "setujui" } })).status, 403);
+    assert.equal((await call("/api/decks/decide", { ck: HEAD, body: { version_id: v1, action: "revisi", note: " " } })).status, 400);
+    assert.equal((await call("/api/decks/decide", { ck: HEAD, body: { version_id: v1, action: "revisi", note: "Slide 5 angkanya salah" } })).status, 200);
+    r = await call("/api/decks/decide", { ck: ADM, body: { version_id: v1, action: "setujui" } });
+    assert.deepEqual([r.status, r.j.error], [409, "Sudah diputuskan oleh Hana."]);
+    let L = (await call("/api/decks", { ck: IGS })).j;
+    assert.deepEqual(L.official, []); assert.deepEqual(L.can, { submit: true, approve: false });
+    assert.deepEqual([L.work[0].latest.status, L.work[0].latest.note], ["revisi", "Slide 5 angkanya salah"]);
+    // versi 2 (pengaju lain di tim yang sama): versi revisi pindah ke Arsip; disetujui -> Resmi
+    const v2 = await submit(IGS2, { deck_id: deck, name: "rd-v2.pptx", mime: PPTX });
+    assert.deepEqual([ver(v1).status, where(v1), ver(v2).n], ["arsip", "arsip", 2]);
+    assert.equal((await call("/api/decks/decide", { ck: ADM, body: { version_id: v2, action: "setujui" } })).status, 200);
+    assert.deepEqual([ver(v2).status, where(v2), ver(v2).decided_by], ["resmi", "resmi", "Adm"]);
+    L = (await call("/api/decks", { ck: SARI })).j;
+    assert.equal(L.work, undefined, "sales tidak melihat pengajuan");
+    assert.deepEqual(L.official.map((d) => [d.title, d.note, d.version_id, d.updated]), [["Reksa Dana untuk Pemula", "Seminar kampus", v2, false]]);
+    assert.deepEqual(L.can, { submit: false, approve: false });
+    // versi baru menimpa: v3 disetujui -> v2 Arsip, daftar sales hanya v3 dengan tanda Diperbarui; judul baru ikut setelah disetujui
+    const v3 = await submit(IGS, { deck_id: deck, title: "Reksa Dana untuk Pemula 2026" });
+    assert.equal((await call("/api/decks", { ck: SARI })).j.official[0].title, "Reksa Dana untuk Pemula", "judul baru belum berlaku sebelum disetujui");
+    await call("/api/decks/decide", { ck: HEAD, body: { version_id: v3, action: "setujui" } });
+    L = (await call("/api/decks", { ck: SARI })).j;
+    assert.deepEqual(L.official.map((d) => [d.title, d.version_id, d.updated]), [["Reksa Dana untuk Pemula 2026", v3, true]]);
+    assert.deepEqual([ver(v2).status, where(v2), where(v3)], ["arsip", "arsip", "resmi"]);
+    // arsip hanya 3 versi terakhir per deck
+    const vs = [v3];
+    for (let i = 0; i < 3; i++) { const v = await submit(IGS, { deck_id: deck }); await call("/api/decks/decide", { ck: ADM, body: { version_id: v, action: "setujui" } }); vs.push(v); }
+    const arch = env.DB.db.prepare("SELECT id, status FROM deck_versions WHERE deck_id = ? ORDER BY n").all(deck);
+    assert.deepEqual(arch.map((x) => x.status), ["trash", "trash", "arsip", "arsip", "arsip", "resmi"]);
+    assert.ok(arch.filter((x) => x.status === "trash").every((x) => where(x.id) === "trash"), "file arsip lama masuk Trash Drive");
+    // Drive gagal saat persetujuan: status tetap tercatat, letak file dibetulkan pada tindakan berikutnya
+    const v8 = await submit(IGS, { deck_id: deck });
+    G.fail = "PATCH";
+    r = await call("/api/decks/decide", { ck: ADM, body: { version_id: v8, action: "setujui" } });
+    assert.equal(r.status, 200); assert.ok(r.j.warning, "ada peringatan Drive");
+    assert.deepEqual([ver(v8).status, ver(v8).folder, where(v8)], ["resmi", "menunggu", "menunggu"]);
+    G.fail = null;
+    await call("/api/decks", { ck: HEAD });
+    assert.deepEqual([ver(v8).folder, where(v8)], ["resmi", "resmi"], "dibetulkan saat penyetuju membuka daftar");
+    assert.equal(where(vs.at(-1)), "arsip");
+    // tarik
+    assert.equal((await call("/api/decks/withdraw", { ck: IGS, body: { deck_id: deck, note: "x" } })).status, 403);
+    assert.equal((await call("/api/decks/withdraw", { ck: HEAD, body: { deck_id: deck, note: "" } })).status, 400);
+    assert.equal((await call("/api/decks/withdraw", { ck: HEAD, body: { deck_id: deck, note: "Produk sudah tutup" } })).status, 200);
+    L = (await call("/api/decks", { ck: ADM })).j;
+    assert.deepEqual(L.official, []);
+    assert.deepEqual([L.work[0].id, L.work[0].withdrawn_note, L.work[0].withdrawn_by], [deck, "Produk sudah tutup", "Hana"]);
+    assert.deepEqual([ver(v8).status, where(v8)], ["arsip", "arsip"]);
+    assert.ok(L.work[0].log.some((x) => x.action === "tarik"));
+    // CSRF & unggahan yang tidak pernah dikonfirmasi dibersihkan setelah 24 jam
+    assert.equal((await call("/api/decks/upload", { ck: IGS, body: { title: "Y", name: "y.pdf", mime: PDF, size: 10 }, headers: { origin: "https://jahat.test" } })).status, 403);
+    r = await call("/api/decks/upload", { ck: IGS, body: { title: "Tertinggal", name: "t.pdf", mime: PDF, size: 10 } });
+    env.NOW_MS = String(Date.now() + 25 * 3600e3);
+    await call("/api/decks/upload", { ck: IGS, body: { title: "Baru", name: "b.pdf", mime: PDF, size: 10 } });
+    delete env.NOW_MS;
+    assert.equal(ver(r.j.version_id), undefined, "versi unggah lama dihapus");
+    const P = { deck, v3, v8, IGS, PDF, submit, ver };
+    return { G, F, P };
   } finally {
     globalThis.fetch = realFetch;
   }

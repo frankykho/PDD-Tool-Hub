@@ -12,6 +12,7 @@ import EN from "./i18n.js";
 import PAGE from "./page.html";
 import { cleanOrg, roleIn } from "../../shared/jobs.js";
 import * as GD from "./gdrive.js";
+import * as DK from "./decks.js";
 
 /* =========================================================
    LOGIN LEWAT TOOL HUB
@@ -101,6 +102,8 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, email TEXT, branch TEXT, template_id TEXT, kind TEXT, event_id TEXT)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS sizes_tpl ON sizes (template_id)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS downloads_at ON downloads (at)"),
+    // materi presentasi (decks.js)
+    ...DK.TABLES.map((q) => env.DB.prepare(q)),
   ]);
   ready = true;
 }
@@ -486,6 +489,7 @@ export default {
         if (path === "/api/templates") return json({ templates: await listTemplates(env, me) });
         if (path === "/api/usage") return admin() || json(await usage(env));
         if (path === "/api/gdrive") return admin() || json(await GD.status(env));
+        if (path === "/api/decks") return json(await DK.list(env, me, org));
         if (path === "/api/speakers") return json({ speakers: await listSpeakers(env, me, org) });
         if (path === "/api/files") return json(await listFiles(env, me.adm && url.searchParams.get("fresh") === "1"));
         if (path === "/api/events") {
@@ -527,6 +531,10 @@ export default {
         if (path === "/api/speakers") return out(await saveSpeaker(env, me, org, b));
         if (path === "/api/speakers/delete") return out(await deleteSpeaker(env, me, org, b.id));
         if (path === "/api/drive") return admin() || out(await setFolder(env, b));
+        if (path === "/api/decks/upload") return out(await DK.startUpload(env, me, b, url.origin));
+        if (path === "/api/decks/uploaded") return out(await DK.confirmUpload(env, me, b));
+        if (path === "/api/decks/decide") return out(await DK.decide(env, me, org, b));
+        if (path === "/api/decks/withdraw") return out(await DK.withdraw(env, me, org, b));
         if (path === "/api/gdrive/disconnect") { if (!me.adm) return admin(); await GD.disconnect(env); return json({ ok: true }); }
       }
     } catch (e) {
