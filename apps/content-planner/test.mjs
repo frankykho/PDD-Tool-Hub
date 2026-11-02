@@ -87,7 +87,7 @@ const P = r.j.id;
 const saved = (await call("/api/items?id=" + P, { ck: COPY })).j;
 assert.deepEqual([saved.partner, saved.end_date, saved.result_num, saved.reach, saved.leads, saved.accounts, saved.aum, saved.budget, saved.cost, saved.d_need, saved.program_id],
   ["BEM Kampus X", plus(20), 250, 12000, 80, 45, 150000000, 10000000, 8500000, 0, ""]);
-assert.equal((await call("/api/items", { ck: COPY, body: { ...saved, title: "diubah" } })).status, 400, "selain Partnership tidak bisa mengubah program");
+assert.equal((await call("/api/items", { ck: COPY, body: { ...saved, title: "diubah" } })).status, 403, "selain pembuat / PIC tidak bisa mengubah program");
 r = await call("/api/items", { ck: PART, body: { ...prog, title: "Program terbalik", end_date: plus(-5) } });
 assert.equal((await call("/api/items?id=" + r.j.id, { ck: PART })).j.end_date, plus(1), "tanggal selesai sebelum mulai -> sama dengan tanggal mulai");
 await call("/api/items/delete", { ck: PART, body: { id: r.j.id } });
@@ -184,6 +184,7 @@ const html = await pg.text(), cfg = JSON.parse(/window\.PL=(.*?);<\/script>/s.ex
 assert.deepEqual([cfg.me.role, cfg.me.assign], ["partnership", true]);
 assert.ok(!html.includes('id="lkTarget"') && html.includes('id="lkStudio"'), "buat link pindah ke Link & QR Studio");
 assert.ok(html.includes('"toolhub-apps"') && html.includes('app:"go"'), "halaman mendengar daftar tool & membuka Studio");
+assert.ok(html.includes("const canEditItem=") && html.includes("Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.") && html.includes("draggable=\"${canEditItem(i)}\""), "form terkunci & tidak bisa digeser bila tidak berhak");
 assert.ok(html.includes('["Klik link",int(p.clicks)'), "laporan Program menampilkan klik");
 assert.equal(cfg.roles.partnership, "Mutual Fund Partnership Specialist");
 const cfg2 = JSON.parse(/window\.PL=(.*?);<\/script>/s.exec(await (await planner.fetch(new Request(BASE + "/", { headers: { cookie: COPY } }), env, { waitUntil() { } })).text())[1]);
@@ -354,7 +355,7 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
 
 /* ---------- dua orang mengubah kegiatan yang sama: versi lama tidak menimpa diam-diam ---------- */
 {
-  const id = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Konten bersama", date: plus(3), channel: "IG Feed", status: "ide", copy: "caption awal" } })).j.id;
+  const id = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "Konten bersama", date: plus(3), channel: "IG Feed", status: "ide", copy: "caption awal", d_need: true, d_who: "dodi@acme.test", d_name: "Dodi" } })).j.id;
   const v1 = (await call("/api/items?id=" + id, { ck: COPY })).j;           // Cici & Dodi membuka versi yang sama
   assert.equal((await call("/api/items", { ck: COPY, body: { ...v1, copy: "caption baru Cici", base: v1.updated_at } })).status, 200);
   r = await call("/api/items", { ck: DES, body: { ...v1, status: "draf", base: v1.updated_at } });
@@ -413,7 +414,7 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   const mineR = (await call(`/api/items?from=${wib}&to=${wib}&overlap=1`, { ck: SALES })).j;
   assert.ok(mineR.length && mineR.every((i) => i.kind === "cabang"), "kalender regional: kegiatan cabang saja");
   assert.equal((await call("/api/items?id=" + kid, { ck: SALES })).status, 404, "kegiatan pusat tidak bisa dibuka");
-  assert.equal((await call("/api/items", { ck: SALES, body: { ...(await call("/api/items?id=" + kid, { ck: COPY })).j, kind: "cabang", branch: "Galeri Blok M" } })).status, 400, "kegiatan pusat tidak bisa diubah jadi kegiatan cabang");
+  assert.equal((await call("/api/items", { ck: SALES, body: { ...(await call("/api/items?id=" + kid, { ck: COPY })).j, kind: "cabang", branch: "Galeri Blok M" } })).status, 403, "kegiatan pusat tidak bisa diubah jadi kegiatan cabang");
   assert.deepEqual((await call(`/api/logs?from=${wib}&to=${wib}`, { ck: SALES })).j, [], "pekerjaan harian tim pusat tidak terlihat");
   assert.deepEqual((await call("/api/programs", { ck: SALES })).j, []);
   assert.equal((await call("/api/wa", { ck: SALES, body: { date: wib, kind: "insight", delta: 1 } })).status, 403);
@@ -606,6 +607,29 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await it("lqC")).clicks, null, "tanpa klik tetap kosong");
   const PR = (await call("/api/program-report?id=lqP", { ck: PART })).j.programs[0];
   assert.equal(PR.clicks, 7); assert.equal(PR.items.find((i) => i.id === "lqK").clicks, 5);
+}
+
+/* ---------- izin mengubah kegiatan: pembuat, PIC, desainer (bila butuh visual), admin ---------- */
+{
+  const { canEditItem } = await import("./worker.js");
+  const it = { created_email: "pia@acme.test", owner_email: "cici@acme.test", d_need: 1, d_who: "dodi@acme.test" };
+  assert.deepEqual(["PIA@acme.test", "cici@acme.test", "dodi@acme.test", "x@acme.test"].map((e) => canEditItem({ e }, it)), [true, true, true, false]);
+  assert.equal(canEditItem({ e: "x@acme.test", adm: true }, it), true);
+  assert.equal(canEditItem({ e: "dodi@acme.test" }, { ...it, d_need: 0 }), false, "desainer hanya bila butuh visual");
+  const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true }), OTHER = await cookie({ e: "oki@acme.test", n: "Oki", j: "copy" });
+  const body = { kind: "konten", title: "Izin edit", date: plus(4), channel: "IG Feed", status: "draf", owner: "Cici", owner_email: "cici@acme.test", d_need: true, d_who: "dodi@acme.test", d_name: "Dodi", d_status: "belum" };
+  const id = (await call("/api/items", { ck: PART, body })).j.id;
+  const get = async () => (await call("/api/items?id=" + id, { ck: ADM })).j;
+  const save = async (ck, patch) => call("/api/items", { ck, body: { ...(await get()), ...patch, id, base: undefined } });
+  r = await save(OTHER, { title: "Diubah orang lain" });
+  assert.deepEqual([r.status, r.j.error], [403, "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini."]);
+  assert.equal((await save(OTHER, { owner: "Oki", owner_email: "oki@acme.test" })).status, 403, "tidak bisa menjadikan diri PIC");
+  assert.equal((await get()).title, "Izin edit");
+  for (const [ck, t] of [[PART, "oleh pembuat"], [COPY, "oleh PIC"], [DES, "oleh desainer"], [ADM, "oleh admin"]]) {
+    r = await save(ck, { title: t }); assert.equal(r.status, 200, t + " " + JSON.stringify(r.j)); assert.equal((await get()).title, t);
+  }
+  await save(PART, { d_need: false });
+  assert.equal((await save(DES, { title: "x" })).status, 403, "desainer setelah visual tidak dibutuhkan");
 }
 
 console.log("semua cek lolos");

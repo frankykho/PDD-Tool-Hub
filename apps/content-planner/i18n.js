@@ -873,6 +873,7 @@ const ERR = {
   "Gagal membuat kode link. Coba lagi": "Failed to create a link code. Try again",
   "Tidak ada baris dengan link postingan dan angka performa": "No rows with a post link and performance figures",
   "Hanya admin atau pembuat kegiatan ini yang bisa menghapusnya": "Only an admin or the creator of this activity can delete it",
+  "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini": "Only the creator, PIC, designer, or an admin can edit this activity",
   "Tidak ada baris untuk diimpor": "No rows to import",
   "Nama galeri kosong": "The gallery name is empty",
   "Cabang “{b}” tidak ada di daftar, dikosongkan": "Branch “{b}” is not on the list; left empty",

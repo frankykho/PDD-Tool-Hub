@@ -294,6 +294,11 @@ export async function branches(env) {
   try { const L = JSON.parse((r && r.v) || "[]"); return Array.isArray(L) ? L.map((x) => ({ ...x, t: x.t === "galeri" || x.t === "cabang" ? x.t : branchType(x.c) })) : []; } catch { return []; }
 }
 /** opts.logAt (ISO): waktu baris riwayat progres (impor dari sheet: tanggal "Last Update"); kosong = sekarang. */
+/** Boleh mengubah kegiatan: admin hub, pembuat, PIC, atau desainer visual (bila kegiatan butuh visual). */
+export function canEditItem(me, it) {
+  const e = lower(me.e);
+  return !!me.adm || (!!e && [it.created_email, it.owner_email, it.d_need ? it.d_who : ""].some((x) => lower(x) === e));
+}
 async function saveItem(env, me, b, opts = {}) {
   await ensure(env);
   const it = cleanItem(b);
@@ -301,6 +306,8 @@ async function saveItem(env, me, b, opts = {}) {
   const by = who(me), meE = lower(me.e);
   const prev = b.id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first() : null;
   if (b.id && !prev) return { error: "Kegiatan ini sudah dihapus orang lain. Muat ulang kalender." };
+  // dicek terhadap data lama, jadi orang tidak bisa menjadikan dirinya PIC lalu menyimpan
+  if (prev && !canEditItem(me, prev)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
   const org = await orgOf(env), job = await jobOf(env, me, org);
   if (isRegional(org, job, me.adm)) {
     if (!REG_KINDS.includes(it.kind) || (prev && !REG_KINDS.includes(prev.kind))) return { error: "Tim regional hanya bisa mencatat kegiatan cabang dan rencana galeri baru." };
@@ -1160,7 +1167,7 @@ export default {
       if (request.method === "POST") {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
         const b = await request.json().catch(() => ({}));
-        if (path === "/api/items") { const r = await saveItem(env, me, b); return json(r, r.conflict ? 409 : r.error ? 400 : 200); }
+        if (path === "/api/items") { const r = await saveItem(env, me, b); return json(r, r.conflict ? 409 : r.forbidden ? 403 : r.error ? 400 : 200); }
         if (path === "/api/tasks") { const r = await saveTask(env, me, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }

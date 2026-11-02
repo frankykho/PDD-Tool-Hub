@@ -601,7 +601,7 @@ async function loadCal(){
 const kindOf=i=>K[i.kind]?i.kind:"konten";
 function chip(i){
   const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
-  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="true" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b translate="no">${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
+  return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="${canEditItem(i)}" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b translate="no">${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
 function renderCal(){
   $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
@@ -634,7 +634,7 @@ function renderBoard(list,t){
   $("stats").innerHTML=`<span class="stat">${L.filter(i=>i.d_status!=="selesai").length} belum selesai</span><span class="stat c5">${L.filter(i=>i.d_status!=="selesai"&&(i.d_due||i.date)<t).length} lewat tenggat</span>`;
   $("calBox").innerHTML=`<div class="board">${PL.designStatuses.map(s=>{const C=L.filter(i=>(i.d_status||"belum")===s);
     return `<div class="col"><h3><span>${DSL[s]}</span><span class="muted">${C.length}</span></h3>${C.map(i=>{const due=i.d_due||i.date,late=s!=="selesai"&&due<t;
-      return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b translate="no">${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small translate="no">${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain">${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
+      return `<div class="task" role="button" tabindex="0" data-id="${esc(i.id)}"><b translate="no">${ICON[kindOf(i)]} ${esc(i.title)}</b><small class="${late?"late":""}">Tenggat ${fmtDate(due)}${late?" · lewat":""}</small><small>${esc(i.channel)} · tayang ${fmtDate(i.date)}</small><small>Diminta: ${esc(i.owner||i.created_by||"?")} · Desainer: ${esc(i.d_name||nameOf(i.d_who)||"belum ditentukan")}</small>${i.d_brief?`<small translate="no">${esc(i.d_brief.slice(0,90))}${i.d_brief.length>90?"…":""}</small>`:""}<select class="f" data-move="${esc(i.id)}" aria-label="Ubah status desain"${canEditItem(i)?"":" disabled"}>${opts(PL.designStatuses,DSL).replace(`value="${s}"`,`value="${s}" selected`)}</select></div>`}).join("")||'<p class="muted small" style="margin:4px">Kosong</p>'}</div>`}).join("")}</div>`;
 }
 /* ---------- Momen ---------- */
 const MT=PL.momentTypes||{};
@@ -756,6 +756,8 @@ async function loadTasksView(){
   renderCal();
 }
 const canEditTask=t=>PL.me.adm||t.who===PL.me.email||t.by_email===PL.me.email;
+// sama dengan canEditItem di server: admin, pembuat, PIC, atau desainer (bila butuh visual)
+const canEditItem=i=>{const e=String(PL.me.email||"").toLowerCase();return !!PL.me.adm||!!e&&[i.created_email,i.owner_email,i.d_need?i.d_who:""].some(x=>String(x||"").toLowerCase()===e)};
 // inForm: di dalam form program itu sendiri, tautan ke programnya tidak perlu
 function taskRow(t,mineCol,extra="",inForm=false){
   const today=todayIso(),late=t.status!=="selesai"&&t.due<today;
@@ -1016,14 +1018,14 @@ function openForm(it,date,preset){
   $("gBizD").open=fKind==="cabang"||["iReach","iLeads","iAcc","iAum","iBudget","iCost"].some(id=>$(id).value!=="");
   const pid=v("program_id"),act=PROGS.filter(p=>p.status!=="batal"||p.id===pid);
   $("iProg").innerHTML='<option value="">Bukan bagian program</option>'+act.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");$("iProg").value=pid;
-  const ro=kindOf(it||{kind:fKind})==="program"&&it&&!PL.me.assign;
-  $("iSave").hidden=!!ro;
+  const ro=kindOf(it||{kind:fKind})==="program"&&it&&!PL.me.assign,locked=!!it&&!canEditItem(it);
+  $("iSave").hidden=!!(ro||locked);
   $("iCopy").value=v("copy");$("iAppr").value=it?(v("approver")||nameOf(it.approver_email||"")):"";
   MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
   $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
   if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
   renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadGalLog();
-  $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":"");
+  $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":locked?" · Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
 }
@@ -1134,7 +1136,7 @@ $("calBox").addEventListener("dragleave",e=>{const d=e.target.closest(".day");if
 $("calBox").addEventListener("drop",e=>{
   const d=e.target.closest(".day");if(!d||!dragId)return;e.preventDefault();d.classList.remove("drop");
   const it=items.find(i=>i.id===dragId);dragId=null;
-  if(it&&it.date!==d.dataset.date)quick(it,{date:d.dataset.date});
+  if(it&&canEditItem(it)&&it.date!==d.dataset.date)quick(it,{date:d.dataset.date});
 });
 $("calBox").addEventListener("dragend",()=>{dragId=null});
 // tampilan Harian: ‹ › berpindah per hari (bulan kalender ikut tanggalnya)
