@@ -287,6 +287,11 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     assert.deepEqual([env.DB.db.prepare("SELECT official FROM decks WHERE id = ?").get(ds).official, ver(vb).status], [vb, "resmi"]);
     assert.equal((await dl(SARI, vb)).status, 200);
     /* ---------- halaman ---------- */
+    // kebijakan privasi untuk layar izin Google: terbuka tanpa login
+    res = await raw("/privasi");
+    assert.equal(res.status, 200);
+    const priv = await res.text();
+    assert.ok(/Kebijakan privasi/.test(priv) && priv.includes("drive.file") && priv.includes("myaccount.google.com/permissions"), "isi kebijakan privasi");
     const page = async (ck) => (await raw("/", { ck })).text(), bk = (h) => JSON.parse(/window\.BK=(.*?);<\/script>/s.exec(h)[1]);
     const hIgs = await page(IGS);
     assert.ok(hIgs.includes('data-tab="deck"') && hIgs.includes("/api/decks/upload") && hIgs.includes("XMLHttpRequest"), "tab Presentasi + unggah langsung ke Drive");

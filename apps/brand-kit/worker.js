@@ -450,6 +450,20 @@ async function page(env, me, org) {
 const driveNote = (status, text) => new Response(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Google Drive</title>
 <style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px/1.5 system-ui,sans-serif;padding:24px}p{max-width:420px;text-align:center}</style></head><body><p>${esc(text)}</p></body></html>`,
   { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
+/** Kebijakan privasi (publik): wajib untuk layar izin Google sebelum app OAuth bisa "In production". */
+const PRIVACY = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kebijakan privasi – Brand Kit</title>
+<style>:root{color-scheme:light dark}body{margin:0 auto;max-width:680px;font:16px/1.6 system-ui,sans-serif;padding:32px 16px}h1{font-size:1.5rem}h2{font-size:1.1rem;margin-top:1.6em}</style></head><body>
+<h1>Kebijakan privasi Brand Kit</h1>
+<p>Brand Kit adalah alat internal tim untuk menyimpan dan membagikan materi presentasi yang sudah disetujui. Hanya anggota tim yang diberi akses lewat Tool Hub yang bisa membukanya.</p>
+<h2>Data Google yang dipakai</h2>
+<p>Brand Kit meminta izin <code>drive.file</code> dari satu akun Google milik admin. Dengan izin ini Brand Kit hanya bisa melihat dan mengubah file serta folder yang dibuatnya sendiri (folder "Brand Kit – Materi presentasi" beserta isinya), bukan file lain di Google Drive. Email akun tersebut ditampilkan kepada admin sebagai tanda akun yang terhubung.</p>
+<h2>Penyimpanan</h2>
+<p>Token izin disimpan terenkripsi di server Brand Kit (Cloudflare). File presentasi tetap di Google Drive pemilik akun. Brand Kit mencatat siapa mengajukan, menyetujui, dan mengunduh materi untuk keperluan internal.</p>
+<h2>Berbagi</h2>
+<p>Data tidak dijual dan tidak dibagikan kepada pihak ketiga, dan tidak dipakai untuk iklan.</p>
+<h2>Mencabut izin</h2>
+<p>Izin bisa dicabut kapan saja di <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>, atau lewat tombol Putuskan di Atur Brand Kit. Pertanyaan: hubungi admin Tool Hub.</p>
+</body></html>`;
 /** Hasil fungsi API -> respons JSON (status dari { status } atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 
@@ -466,6 +480,7 @@ export default {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
       return json(await syncFromHub(env, await request.json().catch(() => ({}))));
     }
+    if (path === "/privasi") return new Response(PRIVACY, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (path === "/logout") return HUBSSO.logout(env);
     if (!HUBSSO.ready(env)) return HUBSSO.notReady();
     const tk = await HUBSSO.ticket(request, env); if (tk) return tk;

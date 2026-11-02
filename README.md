@@ -129,7 +129,7 @@ Setiap tool adalah satu Worker di `https://<nama-tool>.<subdomain>.workers.dev`.
   - **Pemberitahuan** di beranda Tool Hub (panel "Materi presentasi", lewat `GET /__hub/today`): deck menunggu (penyetuju), keputusan atas deck-mu (pengaju, 14 hari), deck yang pernah kamu unduh lalu diganti atau ditarik (30 hari, hilang setelah mengunduh versi terbaru). Panel tidak tampil kalau tidak ada isi. Tanpa cron, jadi terlihat saat hub dibuka.
   - **Izin Google Drive (sekali, gratis):**
     1. console.cloud.google.com → project yang sama dengan API key Drive.
-    2. **Google Auth Platform** (OAuth consent screen) → Get started: nama app (mis. "Brand Kit"), email dukungan, tipe **External**.
+    2. **Google Auth Platform** (OAuth consent screen) → Get started: nama app (mis. "Brand Kit"), email dukungan, tipe **External**. Lalu **Branding** → App domain: home page `https://brand.<subdomain>.workers.dev`, privacy policy `https://brand.<subdomain>.workers.dev/privasi` (halaman publik dari Brand Kit), Authorized domains `<subdomain>.workers.dev` → Save. Jangan unggah logo (memicu verifikasi Google).
     3. **Data access** → Add scopes → `https://www.googleapis.com/auth/drive.file` → Save.
     4. **Audience** → **Publish app** sampai statusnya **In production**. Wajib: kalau masih *Testing*, izin kedaluwarsa setelah 7 hari. `drive.file` tidak perlu verifikasi Google.
     5. **Clients** → Create client → **Web application** → Authorized redirect URIs: `https://brand.<subdomain>.workers.dev/drive/callback` → Create.
