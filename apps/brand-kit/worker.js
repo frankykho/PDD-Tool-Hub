@@ -442,7 +442,7 @@ async function setFolder(env, b) {
 /** Halaman: data awal (window.BK) + tema & bahasa dari Tool Hub. */
 async function page(env, me, org) {
   const cfg = { me: { name: me.n || me.e, email: me.e, adm: !!me.adm, head: !!(roleIn(org, me.j) || {}).head, branch: me.c || "" },
-    sizes: SIZES, fonts: FONTS, disc: DISC_KEYS, event: appUrl(env, "event") || "" };
+    sizes: SIZES, fonts: FONTS, disc: DISC_KEYS, event: appUrl(env, "event") || "", deck: { submit: DK.canSubmit(me), approve: DK.canApprove(me, org) } };
   const head_ = `<title>${esc(title(env, "Brand Kit"))}</title>${profileScript(env)}${themeHead("", EN)}<script>${HUBSSO.onlyInHub(env)}window.BK=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
   return PAGE.replace("<title>Brand Kit</title>", () => head_);
 }

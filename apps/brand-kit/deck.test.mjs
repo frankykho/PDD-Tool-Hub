@@ -238,6 +238,14 @@ export default async function deckTests({ worker, env, call, raw, cookie, ADM, S
     L = (await call("/api/decks", { ck: SARI })).j;
     assert.deepEqual([L.official.length, L.drive.connected], [1, false]);
     env.DB.db.prepare("INSERT INTO cfg (k, v) VALUES ('gdrive', ?)").run(JSON.stringify(gsave));
+    /* ---------- halaman ---------- */
+    const page = async (ck) => (await raw("/", { ck })).text(), bk = (h) => JSON.parse(/window\.BK=(.*?);<\/script>/s.exec(h)[1]);
+    const hIgs = await page(IGS);
+    assert.ok(hIgs.includes('data-tab="deck"') && hIgs.includes("/api/decks/upload") && hIgs.includes("XMLHttpRequest"), "tab Presentasi + unggah langsung ke Drive");
+    assert.deepEqual(bk(hIgs).deck, { submit: true, approve: false });
+    assert.deepEqual(bk(await page(HEAD)).deck, { submit: false, approve: true });
+    assert.deepEqual(bk(await page(SARI)).deck, { submit: false, approve: false });
+    assert.ok((await page(ADM)).includes("/drive/connect"), "admin bisa menghubungkan Google Drive");
     const P = { deck, v3, v8, IGS, PDF, submit, ver };
     return { G, F, P };
   } finally {

@@ -145,7 +145,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   <!-- beranda: template, file, disclaimer -->
   <div id="vHome">
     <div class="bar"><h1>Brand Kit</h1>
-      <div class="seg" role="tablist" aria-label="Bagian Brand Kit"><button type="button" role="tab" data-tab="tpl" class="on">Template</button><button type="button" role="tab" data-tab="file">File</button><button type="button" role="tab" data-tab="disc">Disclaimer</button></div>
+      <div class="seg" role="tablist" aria-label="Bagian Brand Kit"><button type="button" role="tab" data-tab="tpl" class="on">Template</button><button type="button" role="tab" data-tab="file">File</button><button type="button" role="tab" data-tab="disc">Disclaimer</button><button type="button" role="tab" data-tab="deck">Presentasi</button></div>
       <span class="sp"></span><a class="btn" href="#/admin" id="bAdmin" hidden>Atur Brand Kit</a></div>
     <div id="evBanner" class="msg ok banner" hidden></div>
     <div id="hMsg"></div>
@@ -153,6 +153,11 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
     <section id="tFile" hidden>
       <div class="bar"><input class="f" id="fQ" type="search" placeholder="Cari nama file" aria-label="Cari file" style="max-width:340px"></div>
       <div id="fMsg"></div><div id="fileList" aria-live="polite"></div>
+    </section>
+    <section id="tDeck" hidden>
+      <div id="dkMsg"></div><div id="dkWork"></div>
+      <div class="bar"><input class="f" id="dkQ" type="search" placeholder="Cari judul deck" aria-label="Cari deck" style="max-width:340px"></div>
+      <div id="dkList" class="tlist" aria-live="polite"></div>
     </section>
     <section id="tDisc" hidden><p class="hint">Teks resmi. Salin untuk caption, WhatsApp, atau materi lain.</p><div id="discList" class="disc"></div></section>
   </div>
@@ -175,6 +180,8 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   <div id="vEdit" hidden></div>
 </div>
 
+<dialog id="dkDlg" aria-labelledby="dkH"><form id="dkF" method="dialog" novalidate><h3 id="dkH"></h3><div id="dkB" class="form"></div><div id="dkM" aria-live="polite"></div>
+  <div class="acts" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" id="dkX">Batal</button><button type="submit" class="btn pri" id="dkOk"></button></div></form></dialog>
 <dialog id="dlgSp"><form id="fSp" method="dialog" novalidate>
   <h3 id="spTitle">Narasumber baru</h3>
   <div class="form">
@@ -224,8 +231,8 @@ async function loadEvents(){if(EVENTS)return EVENTS;try{const r=await api("/api/
 let TAB="tpl";
 function show(v){["vHome","vFill","vAdmin","vEdit"].forEach(x=>$(x).hidden=x!==v);window.scrollTo(0,0)}
 function setTab(t){TAB=t;document.querySelectorAll("[data-tab]").forEach(b=>{b.classList.toggle("on",b.dataset.tab===t);b.setAttribute("aria-selected",String(b.dataset.tab===t))});
-  $("tTpl").hidden=t!=="tpl";$("tFile").hidden=t!=="file";$("tDisc").hidden=t!=="disc";
-  if(t==="file")files();if(t==="disc")discs()}
+  $("tTpl").hidden=t!=="tpl";$("tFile").hidden=t!=="file";$("tDisc").hidden=t!=="disc";$("tDeck").hidden=t!=="deck";
+  if(t==="file")files();if(t==="disc")discs();if(t==="deck")decks()}
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 async function home(){
   show("vHome");$("bAdmin").hidden=!ME.adm;showMsg("hMsg","");
@@ -260,6 +267,92 @@ async function discs(){
   document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const d=L.find(x=>x.key===b.dataset.copy);
     try{await navigator.clipboard.writeText(d.text);b.textContent=T("Tersalin ✓");setTimeout(()=>b.textContent=T("Salin"),2000)}catch(e){prompt(T("Salin teks ini:"),d.text)}});
 }
+
+/* =================== MATERI PRESENTASI =================== */
+// Investment Growth Specialist mengajukan; admin / Head Regional memutuskan; semua mengunduh versi resmi. File langsung ke Google Drive.
+let DECKS=null,XHR=null;
+const DKT={pdf:"application/pdf",ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation"};
+const DK_MAX=104857600;
+const fDate=d=>d?new Date(d).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"}):"";
+const fWhen=d=>d?new Date(d).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
+const DK_ACT={ajukan:"mengajukan versi",setujui:"menyetujui",revisi:"meminta revisi",tarik:"menarik deck","hapus-arsip":"membuang arsip lama"};
+async function decks(force){
+  if(!DECKS||force){try{DECKS=await api("/api/decks")}catch(e){showMsg("dkMsg",e.message);return}}
+  const D=DECKS,staff=D.can.submit||D.can.approve;
+  showMsg("dkMsg",D.drive.connected?"":T("Materi presentasi belum aktif. Admin perlu menghubungkan Google Drive."),"");
+  const W=D.work||[],wait=W.filter(w=>w.latest&&w.latest.status==="menunggu").length;
+  $("dkWork").innerHTML=staff?`<div class="card" style="margin-bottom:14px"><div class="bar" style="margin-bottom:8px"><h3 style="margin:0">${esc(T("Pengajuan"))}</h3>${wait?`<span class="tag draft">${wait} ${esc(T("menunggu"))}</span>`:""}<span class="sp"></span>
+      ${D.can.submit?`<button type="button" class="btn pri sm" data-dk="new">+ ${esc(T("Ajukan deck baru"))}</button>`:""}</div>
+    <div class="tlist">${W.map(workRow).join("")||`<p class="hint" style="margin:0">${esc(T("Tidak ada pengajuan yang berjalan."))}</p>`}</div></div>`:"";
+  deckList();
+}
+function stLabel(w){const v=w.latest||{};
+  if(!w.official&&w.withdrawn_at&&v.status!=="menunggu"&&v.status!=="revisi")return ["Ditarik","off"];
+  return v.status==="menunggu"?["Menunggu persetujuan","draft"]:v.status==="revisi"?["Perlu revisi","draft"]:["Resmi",""]}
+function workRow(w){const v=w.latest||{},[l,c]=stLabel(w),file=`/deck/${esc(v.id)}`;
+  return `<div class="card trow" style="align-items:flex-start"><div style="flex:1;min-width:220px">
+    <h3 translate="no">${esc(v.title||w.title)}</h3>
+    <div class="chips" style="margin:4px 0"><span class="tag ${c==="off"?"draft":c}">${esc(T(l))}</span><span class="tag">${esc(T("Versi"))} ${v.n||"-"}</span><span class="hint">${esc(ext(v.name))} · ${esc(fmtSize(v.size))} · ${esc(v.by_name||"")}, ${esc(fWhen(v.at))}</span></div>
+    ${v.status==="revisi"&&v.note?`<div class="warn" translate="no"><b>${esc(T("Catatan revisi"))} (${esc(v.decided_by||"")}):</b> ${esc(v.note)}</div>`:""}
+    ${!w.official&&w.withdrawn_at?`<div class="hint">${esc(T("Ditarik"))} ${esc(w.withdrawn_by||"")}, ${esc(fWhen(w.withdrawn_at))}: <span translate="no">${esc(w.withdrawn_note||"")}</span></div>`:""}
+    ${w.log.length?`<details style="margin-top:6px"><summary class="small">${esc(T("Riwayat"))} (${w.log.length})</summary><div class="hist">${w.log.map(x=>`<div>${esc(fWhen(x.at))} · ${esc(x.by_name)} ${esc(T(DK_ACT[x.action]||x.action))}${x.note?`: <span translate="no">${esc(x.note)}</span>`:""}</div>`).join("")}</div></details>`:""}
+  </div><div class="acts">
+    ${v.id&&v.status!=="arsip"?`<a class="btn sm" href="${file}">${esc(T("Unduh"))}</a>${v.mime==="application/pdf"?`<a class="btn sm" href="${file}?view=1" target="_blank" rel="noopener">${esc(T("Lihat"))}</a>`:""}`:""}
+    ${DECKS.can.approve&&v.status==="menunggu"?`<button type="button" class="btn sm pri" data-dk="ok" data-v="${esc(v.id)}">${esc(T("Setujui"))}</button><button type="button" class="btn sm" data-dk="rev" data-v="${esc(v.id)}">${esc(T("Minta revisi"))}</button>`:""}
+    ${DECKS.can.submit&&v.status!=="menunggu"?`<button type="button" class="btn sm" data-dk="ver" data-d="${esc(w.id)}">${esc(T("Unggah versi baru"))}</button>`:""}
+  </div></div>`}
+function deckList(){
+  const D=DECKS,q=$("dkQ").value.trim().toLowerCase(),L=D.official.filter(d=>!q||String(d.title).toLowerCase().includes(q)||String(d.note||"").toLowerCase().includes(q));
+  $("dkList").innerHTML=L.map(d=>`<div class="card trow"><div style="flex:1;min-width:220px"><h3 translate="no">${esc(d.title)}</h3>
+      ${d.note?`<div class="hint" translate="no">${esc(d.note)}</div>`:""}
+      <div class="chips" style="margin-top:4px">${d.updated?`<span class="tag">${esc(T("Diperbarui"))}</span>`:""}<span class="hint">${esc(T("Disetujui"))} ${esc(fDate(d.approved_at))} · ${esc(ext(d.name))} · ${esc(fmtSize(d.size))}</span></div></div>
+    <div class="acts"><a class="btn sm pri" href="/deck/${esc(d.version_id)}">${esc(T("Unduh"))}</a>${d.mime==="application/pdf"?`<a class="btn sm" href="/deck/${esc(d.version_id)}?view=1" target="_blank" rel="noopener">${esc(T("Lihat"))}</a>`:""}
+      ${D.can.submit&&!(D.work||[]).some(w=>w.id===d.id&&w.latest&&w.latest.status==="menunggu")?`<button type="button" class="btn sm" data-dk="ver" data-d="${esc(d.id)}">${esc(T("Unggah versi baru"))}</button>`:""}
+      ${D.can.approve?`<button type="button" class="btn sm danger" data-dk="wd" data-d="${esc(d.id)}">${esc(T("Tarik"))}</button>`:""}</div></div>`).join("")
+    ||`<div class="card empty">${esc(T(q?"Tidak ada deck yang cocok.":"Belum ada deck resmi."))}</div>`;
+}
+$("dkQ").addEventListener("input",()=>DECKS&&deckList());
+$("tDeck").addEventListener("click",e=>{const b=e.target.closest("[data-dk]");if(!b)return;const a=b.dataset.dk;
+  if(a==="new")upDlg(null);
+  else if(a==="ver"){const d=DECKS.official.find(x=>x.id===b.dataset.d)||(DECKS.work||[]).find(x=>x.id===b.dataset.d);upDlg({id:b.dataset.d,title:d&&(d.title||(d.latest||{}).title),note:d&&(d.note||(d.latest||{}).descr)})}
+  else if(a==="ok")decide(b,b.dataset.v);
+  else if(a==="rev")noteDlg("Minta revisi","Kirim catatan","Apa yang perlu diubah? Mis. Slide 5 angkanya salah.",n=>api("/api/decks/decide",{version_id:b.dataset.v,action:"revisi",note:n}));
+  else if(a==="wd")noteDlg("Tarik deck","Tarik deck","Alasan penarikan. Mis. produk sudah tutup.",n=>api("/api/decks/withdraw",{deck_id:b.dataset.d,note:n}))});
+async function decide(b,v){if(!confirm(T("Setujui versi ini? Versi resmi sebelumnya akan diarsipkan dan sales langsung mendapat versi ini.")))return;
+  b.disabled=true;try{const r=await api("/api/decks/decide",{version_id:v,action:"setujui"});await decks(true);showMsg("dkMsg",r.warning?T(r.warning):T("Disetujui. Sales sekarang mendapat versi ini."),r.warning?"":"ok")}
+  catch(e){showMsg("dkMsg",e.message);b.disabled=false;decks(true)}}
+/** Dialog satu catatan (revisi / tarik). */
+function noteDlg(title,ok,ph,send){
+  $("dkH").textContent=T(title);$("dkOk").textContent=T(ok);showMsg("dkM","");
+  $("dkB").innerHTML=`<div class="fld"><label for="dkN">${esc(T("Catatan"))} <span class="req">*</span></label><textarea class="f" id="dkN" rows="4" maxlength="500" placeholder="${esc(T(ph))}"></textarea></div>`;
+  $("dkF").onsubmit=async e=>{e.preventDefault();const n=$("dkN").value.trim();if(!n)return showMsg("dkM",T("Catatan wajib diisi."));
+    $("dkOk").disabled=true;try{await send(n);$("dkDlg").close();await decks(true)}catch(x){showMsg("dkM",x.message);decks(true)}finally{$("dkOk").disabled=false}};
+  $("dkDlg").showModal();$("dkN").focus()}
+$("dkX").onclick=()=>{if(XHR){XHR.abort();XHR=null}$("dkDlg").close()};
+$("dkDlg").addEventListener("close",()=>{if(XHR){XHR.abort();XHR=null}});
+/** Ajukan deck baru (deck = null) atau versi baru: minta sesi unggah, kirim file langsung ke Google Drive, lalu konfirmasi. */
+function upDlg(deck){
+  $("dkH").textContent=T(deck?"Unggah versi baru":"Ajukan deck baru");$("dkOk").textContent=T("Ajukan");showMsg("dkM","");
+  $("dkB").innerHTML=`<div class="fld"><label for="dkT">${esc(T("Judul"))} <span class="req">*</span></label><input class="f" id="dkT" maxlength="120" value="${esc((deck&&deck.title)||"")}" translate="no"></div>
+    <div class="fld"><label for="dkD">${esc(T("Keterangan singkat"))}</label><input class="f" id="dkD" maxlength="300" value="${esc((deck&&deck.note)||"")}" placeholder="${esc(T("Mis. untuk seminar kampus, 20 menit"))}" translate="no"></div>
+    <div class="fld"><label for="dkFile">${esc(T("File"))} <span class="req">*</span></label><input class="f" id="dkFile" type="file" accept=".ppt,.pptx,.pdf"><span class="hint">${esc(T("PPT, PPTX, atau PDF, maksimal 100 MB."))}</span></div>
+    <div id="dkProg" hidden><progress id="dkP" max="100" value="0" style="width:100%"></progress><span class="hint" id="dkPT"></span></div>`;
+  $("dkF").onsubmit=async e=>{e.preventDefault();showMsg("dkM","");
+    const f=$("dkFile").files[0],x=f&&(/\.([a-z0-9]+)$/i.exec(f.name)||[])[1],mime=x&&DKT[x.toLowerCase()];
+    if(!$("dkT").value.trim())return showMsg("dkM",T("Isi judul deck."));
+    if(!f||!mime)return showMsg("dkM",T("File harus PPT, PPTX, atau PDF."));
+    if(f.size>DK_MAX)return showMsg("dkM",T("Ukuran file maksimal 100 MB."));
+    $("dkOk").disabled=true;$("dkProg").hidden=false;
+    try{
+      const s=await api("/api/decks/upload",{deck_id:deck?deck.id:undefined,title:$("dkT").value,note:$("dkD").value,name:f.name,mime,size:f.size});
+      const id=await new Promise((ok,no)=>{const q=XHR=new XMLHttpRequest();q.open("PUT",s.upload_url);q.setRequestHeader("Content-Type",mime);
+        q.upload.onprogress=ev=>{if(ev.lengthComputable){const p=Math.round(ev.loaded/ev.total*100);$("dkP").value=p;$("dkPT").textContent=p+"% · "+fmtSize(ev.loaded)+" / "+fmtSize(ev.total)}};
+        q.onload=()=>{XHR=null;let j={};try{j=JSON.parse(q.responseText)}catch(err){}q.status>=200&&q.status<300&&j.id?ok(j.id):no(new Error(T("Unggahan gagal. Coba lagi.")))};
+        q.onerror=()=>{XHR=null;no(new Error(T("Unggahan gagal. Coba lagi.")))};q.onabort=()=>{XHR=null;no(new Error(T("Unggahan dibatalkan.")))};q.send(f)});
+      const r=await api("/api/decks/uploaded",{version_id:s.version_id,file_id:id});
+      $("dkDlg").close();await decks(true);showMsg("dkMsg",r.warning?T(r.warning):T("Terkirim. Menunggu persetujuan admin atau Head Regional."),r.warning?"":"ok");
+    }catch(x){showMsg("dkM",x.message)}finally{$("dkOk").disabled=false}};
+  $("dkDlg").showModal();$("dkT").focus()}
 
 /* =================== ISI TEMPLATE & UNDUH =================== */
 let TPL=null,F=null,ST=null,TIMER=0;
@@ -442,10 +535,23 @@ async function aDrive(){
   if(f.error&&f.folder)res(f);
   $("dvSave").onclick=async()=>{try{await api("/api/drive",{folder:$("dvF").value});FILES=null;res(await api("/api/files?fresh=1"))}catch(e){showMsg("dvMsg",e.message)}};
   $("dvRe").onclick=async()=>{try{FILES=null;res(await api("/api/files?fresh=1"))}catch(e){showMsg("dvMsg",e.message)}};
+  // materi presentasi: folder privat di Google Drive, izin diberikan sekali di tab baru (halaman Google tidak bisa tampil di dalam hub)
+  const box=document.createElement("div");box.className="card form";box.style.cssText="max-width:640px;margin-top:14px";$("aBody").appendChild(box);
+  const gd=async()=>{let g={};try{g=await api("/api/gdrive")}catch(e){g={error:e.message}}
+    box.innerHTML=`<h3 style="margin:0">${esc(T("Materi presentasi (Google Drive)"))}</h3>
+      <p class="hint" style="margin:0">${esc(T("Deck disimpan di folder privat \"Brand Kit – Materi presentasi\" (Menunggu, Resmi, Arsip) di akun Google yang menghubungkan. Folder dibuat otomatis dan hanya diisi lewat Brand Kit."))}</p>
+      ${!g.ready?`<div class="msg">${esc(T("Pasang secret GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET dulu (lihat README Brand Kit)."))}</div>`
+      :g.connected?`<div class="msg ok">${esc(T("Terhubung"))} · ${esc(g.by||"")}, ${esc(fWhen(g.at))}</div>`
+      :`${g.error?`<div class="msg err">${esc(T(g.error))}</div>`:""}<p class="hint" style="margin:0">${esc(T("Halaman Google terbuka di tab baru. Masuk dengan akun Google pemilik folder, setujui, lalu kembali ke sini dan tekan Periksa lagi."))}</p>`}
+      <div class="acts">${g.ready&&!g.connected?`<a class="btn pri" href="/drive/connect" target="_blank" rel="noopener">${esc(T("Hubungkan Google Drive"))}</a>`:""}
+        ${g.connected?`<button type="button" class="btn danger" id="gdOff">${esc(T("Putuskan"))}</button>`:""}<button type="button" class="btn" id="gdRe">${esc(T("Periksa lagi"))}</button></div>`;
+    $("gdRe").onclick=gd;
+    if($("gdOff"))$("gdOff").onclick=async()=>{if(!confirm(T("Putuskan Google Drive? Deck tidak bisa diunggah atau diunduh sampai dihubungkan lagi.")))return;try{await api("/api/gdrive/disconnect",{});DECKS=null;gd()}catch(e){showMsg("aMsg",e.message)}}};
+  gd();
 }
 async function aUse(){
   const U=await api("/api/usage"),tb=(h,rows)=>`<div class="card"><table><thead><tr><th>${esc(T(h))}</th><th>${esc(T("Unduhan"))}</th></tr></thead><tbody>${rows.map(([a,n])=>`<tr><td translate="no">${esc(a)}</td><td>${n}</td></tr>`).join("")||`<tr><td colspan="2" class="muted">${esc(T("Belum ada unduhan."))}</td></tr>`}</tbody></table></div>`;
-  $("aBody").innerHTML=`<p class="hint">${esc(T("Jumlah unduhan 90 hari terakhir."))}</p><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">${tb("Template",U.byTemplate.map(x=>[x.name,x.n]))}${tb("Cabang",U.byBranch.map(x=>[x.branch,x.n]))}</div>`;
+  $("aBody").innerHTML=`<p class="hint">${esc(T("Jumlah unduhan 90 hari terakhir."))}</p><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">${tb("Template",U.byTemplate.map(x=>[x.name,x.n]))}${tb("Cabang",U.byBranch.map(x=>[x.branch,x.n]))}${tb("Deck presentasi",(U.decks||[]).map(x=>[x.title,x.n]))}</div>`;
 }
 
 /* ---------- editor template ---------- */
@@ -570,7 +676,7 @@ function route(){const h=location.hash||"#/",m=/^#\/t\/([a-z0-9]+)$/.exec(h);
   if(m)return fill(m[1]);
   if(h==="#/admin"&&ME.adm&&window.admin)return window.admin();
   const e=/^#\/edit\/([a-z0-9]+)$/.exec(h);if(e&&ME.adm&&window.editTpl)return window.editTpl(e[1]);
-  TPL=null;home()}
+  TPL=null;home();if(h==="#/deck")setTab("deck")}
 addEventListener("hashchange",route);
 (async()=>{const id=new URLSearchParams(location.search).get("event");
   if(id){try{EVSEL=(await api("/api/events?id="+encodeURIComponent(id))).event}catch(e){showMsg("hMsg",e.message)}}
