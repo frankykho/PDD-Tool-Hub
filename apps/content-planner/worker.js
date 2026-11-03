@@ -17,7 +17,7 @@
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
-// - "/api/wa"       -> jumlah posting WA Channel per hari/orang/jenis (GET ?from=&to=, POST {date, kind, delta: 1|-1} milik sendiri)
+// - "/api/wa"       -> jumlah posting WA Channel per hari/orang/jenis (GET ?from=&to=, POST {date, n: {jenis: jumlah}} milik sendiri)
 // Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
 // disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
 // Notifikasi (tabel notifs) dibuat saat seseorang ditugaskan, saat status tugasnya berubah, dan saat tenggat dekat
@@ -846,20 +846,18 @@ async function listLogs(env, from, to) {
 
 // ---------- posting WA Channel (insight, berita, stockpick): tombol + / − di tab Harian, jumlahnya masuk ke laporan ----------
 export const WA_KINDS = { insight: "Insight pasar", berita: "Berita", stockpick: "Stockpick", lain: "Lainnya" };
-/** Tambah / kurangi satu posting milik sendiri pada satu tanggal; jumlah tidak pernah di bawah 0. */
-async function bumpWa(env, me, b) {
+/** Simpan jumlah posting milik sendiri pada satu tanggal (tombol Simpan): {date, n: {jenis: jumlah}}; jumlah diganti, bukan ditambah. */
+async function saveWa(env, me, b) {
   await ensure(env);
-  const date = String(b.date ?? "").slice(0, 10), kind = String(b.kind ?? ""), d = +b.delta;
+  const date = String(b.date ?? "").slice(0, 10), n = b.n && typeof b.n === "object" ? b.n : {}, ks = Object.keys(n);
   if (!ISO.test(date)) return { error: "Tanggal belum benar." };
   if (date > wibToday()) return { error: "Hari yang belum datang belum bisa dicatat." };
-  if (!WA_KINDS[kind]) return { error: "Jenis posting tidak dikenal." };
-  if (d !== 1 && d !== -1) return { error: "Perubahan jumlah tidak valid." };
-  const meE = lower(me.e);
-  await env.DB.prepare("INSERT INTO wapost (date, email, name, job, kind, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
-    + "ON CONFLICT(date, email, kind) DO UPDATE SET n = MAX(0, n + ?), name = excluded.name, updated_at = excluded.updated_at")
-    .bind(date, meE, who(me), (await jobOf(env, me)) || null, kind, Math.max(0, d), new Date().toISOString(), d).run();
-  const r = await env.DB.prepare("SELECT n FROM wapost WHERE date=? AND email=? AND kind=?").bind(date, meE, kind).first();
-  return { n: r ? r.n : 0 };
+  if (!ks.length || ks.some((k) => !WA_KINDS[k])) return { error: "Jenis posting tidak dikenal." };
+  if (ks.some((k) => !Number.isInteger(n[k]) || n[k] < 0 || n[k] > 999)) return { error: "Jumlah posting harus 0 sampai 999." };
+  const meE = lower(me.e), name = who(me), job = (await jobOf(env, me)) || null, now = new Date().toISOString();
+  await env.DB.batch(ks.map((k) => env.DB.prepare("INSERT INTO wapost (date, email, name, job, kind, n, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+    + "ON CONFLICT(date, email, kind) DO UPDATE SET n = excluded.n, name = excluded.name, updated_at = excluded.updated_at").bind(date, meE, name, job, k, n[k], now)));
+  return { n };
 }
 /** Jumlah posting semua orang pada periode (maks. ±1 tahun, cukup untuk laporan triwulan / tahunan). */
 async function listWa(env, from, to) {
@@ -1178,7 +1176,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
-          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => bumpWa(env, me, b), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

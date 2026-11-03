@@ -778,7 +778,7 @@ function renderTasksView(){
 }
 /* ---------- Harian: pekerjaan yang dikerjakan tiap orang per hari (semua bisa melihat; mengubah hanya milik sendiri) ---------- */
 const WS=PL.workStatuses||{selesai:"Selesai",berjalan:"Berjalan",kendala:"Kendala"},WCL={selesai:4,berjalan:2,kendala:5};
-const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[]};
+const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[],waDraft:{}};
 const WK=PL.waKinds||{insight:"Insight pasar",berita:"Berita",stockpick:"Stockpick",lain:"Lainnya"};
 // tim = role pekerjaan: role saat mencatat, kalau kosong role orangnya sekarang
 const roleOf=e=>(USERS.find(u=>u.email===e)||{}).role||"";
@@ -818,21 +818,37 @@ function dailyForm(){
 // posting WA Channel: cukup jumlahnya (tanpa isi). Investment Growth Specialist (role is) melihat panelnya terbuka, role lain bisa membukanya.
 const waSum=(L,k)=>L.filter(w=>!k||w.kind===k).reduce((a,w)=>a+(+w.n||0),0);
 const waTxt=L=>Object.keys(WK).filter(k=>waSum(L,k)).map(k=>`${waSum(L,k)} ${WK[k].toLowerCase()}`).join(" · ");
+// angka − / + hanya draf di layar (per tanggal); baru tersimpan lewat tombol Simpan supaya tidak berubah tanpa sengaja
 function waPanel(open){
-  const d=DV.date,me=PL.me.email,mine=DV.wa.filter(w=>w.email===me),day=k=>waSum(mine.filter(w=>w.date===d),k),tot=waSum(mine),team=waSum(DV.wa);
+  const d=DV.date,me=PL.me.email,mine=DV.wa.filter(w=>w.email===me),saved=k=>waSum(mine.filter(w=>w.date===d),k),dr=DV.waDraft[d],day=k=>dr&&k in dr?dr[k]:saved(k),tot=waSum(mine),team=waSum(DV.wa);
   const body=`<div class="wa">${Object.entries(WK).map(([k,l])=>`<div class="wac"><span>${esc(l)}</span><div class="wab"><button type="button" class="btn sm" data-wa="${k}" data-d="-1" aria-label="Kurangi ${esc(l)}"${day(k)?"":" disabled"}>−</button><b>${day(k)}</b><button type="button" class="btn sm" data-wa="${k}" data-d="1" aria-label="Tambah ${esc(l)}">+</button></div></div>`).join("")}</div>
-    <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}. Cukup jumlahnya, langsung tersimpan dan masuk ke ⬇ Laporan. Tidak perlu dicatat lagi di Pekerjaanku.</p>`;
+    <div class="acts" style="margin-top:10px"><button type="button" class="btn pri sm" data-wasave="1"${dr?"":" disabled"}>Simpan posting</button><span class="small ${dr?"late":"muted"}" id="waMsg">${dr?"Belum disimpan":saved()?"Tersimpan ✓":""}</span></div>
+    <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}.</p>
+    <p class="muted small" style="margin:4px 0 0">Atur jumlahnya dengan − / +, lalu klik Simpan posting. Masuk ke ⬇ Laporan; tidak perlu dicatat lagi di Pekerjaanku.</p>`;
   const h=`📣 Posting WA Channel ${d===todayIso()?"hari ini":fmtShort(d)}`;
-  return PL.me.role==="is"||mine.length?`<div class="card wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="card wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
+  return PL.me.role==="is"||mine.length||dr?`<div class="card wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="card wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
 }
-// angka diubah dulu di layar, lalu disimpan; hanya panelnya yang digambar ulang supaya isian pekerjaan yang sedang diketik tidak hilang
-async function bumpWaUi(kind,delta){
-  const me=PL.me.email,d=DV.date,redraw=()=>{const b=$("waBox");if(b)b.outerHTML=waPanel(b.open)};
-  let r=DV.wa.find(w=>w.email===me&&w.date===d&&w.kind===kind);
-  if(!r){if(delta<0)return;r={date:d,email:me,name:PL.me.name,job:PL.me.role,kind,n:0};DV.wa.push(r)}
-  const old=r.n;r.n=Math.max(0,old+delta);redraw();
-  try{r.n=(await api("/api/wa",{date:d,kind,delta})).n;redraw()}catch(e){r.n=old;redraw();showErr("calErr",e)}
+// hanya panelnya yang digambar ulang supaya isian pekerjaan yang sedang diketik tidak hilang
+const waRedraw=()=>{const b=$("waBox");if(b)b.outerHTML=waPanel(b.open)};
+function waStep(kind,delta){
+  const d=DV.date,me=PL.me.email,saved=k=>waSum(DV.wa.filter(w=>w.email===me&&w.date===d),k);
+  const dr=DV.waDraft[d]||Object.fromEntries(Object.keys(WK).map(k=>[k,saved(k)]));
+  dr[kind]=Math.max(0,dr[kind]+delta);
+  // kembali sama dengan yang tersimpan = tidak ada perubahan
+  if(Object.keys(WK).every(k=>dr[k]===saved(k)))delete DV.waDraft[d];else DV.waDraft[d]=dr;
+  waRedraw();
 }
+async function saveWaUi(){
+  const d=DV.date,me=PL.me.email,dr=DV.waDraft[d];if(!dr)return;
+  $("waMsg").textContent="Menyimpan…";
+  try{
+    await api("/api/wa",{date:d,n:dr});
+    DV.wa=DV.wa.filter(w=>!(w.email===me&&w.date===d)).concat(Object.entries(dr).filter(([,n])=>n>0).map(([kind,n])=>({date:d,email:me,name:PL.me.name,job:PL.me.role,kind,n})));
+    delete DV.waDraft[d];waRedraw();
+  }catch(e){$("waMsg").textContent="Belum disimpan";showErr("calErr",e)}
+}
+// posting yang belum disimpan: browser mengingatkan sebelum halaman ditutup
+addEventListener("beforeunload",e=>{if(Object.keys(DV.waDraft).length)e.preventDefault()});
 function renderDaily(){
   const d=DV.date,t=todayIso(),me=PL.me.email,mine=DV.logs.filter(l=>l.email===me),others=DV.logs.filter(l=>l.email!==me);
   const kd=DV.logs.filter(l=>l.status==="kendala").length,who=new Set(DV.logs.map(l=>l.email));
@@ -862,7 +878,8 @@ async function saveDaily(){
   try{await api("/api/logs",b);DV.edit=null;await loadDaily();if($("dvText"))$("dvText").focus()}catch(e){$("dvMsg").textContent="";showErr("calErr",e)}
 }
 function dailyClick(e){
-  const wa=e.target.closest("[data-wa]");if(wa){bumpWaUi(wa.dataset.wa,+wa.dataset.d);return}
+  const wa=e.target.closest("[data-wa]");if(wa){waStep(wa.dataset.wa,+wa.dataset.d);return}
+  if(e.target.closest("[data-wasave]")){saveWaUi();return}
   const ed=e.target.closest("[data-ledit]");if(ed){DV.edit=ed.dataset.ledit;renderCal();$("dvText").focus();return}
   if(e.target.closest("[data-lcancel]")){DV.edit=null;renderCal();return}
   const del=e.target.closest("[data-ldel]");
