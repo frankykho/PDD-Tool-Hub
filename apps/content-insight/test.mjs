@@ -137,6 +137,8 @@ assert.match(page, /window\.ME=\{[^<]*"job":"sosmed"/);
 for (const [, code] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
 // tombol bookmark: di halaman profil Instagram menyimpan semua postingan yang tampil (mode bulk di jendela /save)
 assert.match(page, /function bulkIg\(user\)/);
+// jendela konten ditutup lewat ✕ di kanan atas (bukan tombol "Tutup" di antara tombol aksi)
+assert.match(page, /class="dlgx" type="button" id="cX" aria-label="Tutup">✕</); assert.doesNotMatch(page, /id="cX">Tutup</);
 // ekspor konsep terpilih ke PPT / PDF, dengan logo iKISI dari aset tool ini
 assert.match(page, /data-cpick=/); assert.match(page, /id="xPpt"/); assert.match(page, /id="xPdf"/); assert.match(page, /pptxgenjs@3\.12\.0/);
 assert.ok(fs.existsSync(new URL("./assets/brand/ikisi-color.png", import.meta.url)), "logo iKISI tersedia untuk PPT/PDF");
