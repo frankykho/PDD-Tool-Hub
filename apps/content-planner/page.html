@@ -578,12 +578,12 @@ function shown(){
   return items.filter(i=>(!k||(k==="desain"?i.d_need:(i.kind||"konten")===k))&&(!s||i.status===s)&&(!o||isOf(i,o))&&brOk(i,b));
 }
 // kembali ke tab Planner / jendela aktif lagi: muat ulang supaya perubahan rekan terlihat (paling sering tiap 30 detik;
-// tidak saat dialog terbuka atau isian harian belum disimpan)
+// tidak saat dialog terbuka atau ada isian harian / stock pick yang belum disimpan)
 let lastLoad=0;
 function refreshIfStale(){
   if(document.visibilityState!=="visible"||Date.now()-lastLoad<30e3||$("vCal").hidden)return;
   if([...document.querySelectorAll("dialog")].some(x=>x.open))return;
-  if(view==="daily"&&(DV.edit||($("dvText")&&$("dvText").value.trim())))return;
+  if(view==="daily"&&(DV.edit||DV.pEdit||[...$("calBox").querySelectorAll("input:not([type=date]),textarea")].some(x=>x.value.trim())))return;
   loadCal();
 }
 addEventListener("focus",refreshIfStale);document.addEventListener("visibilitychange",refreshIfStale);
