@@ -63,6 +63,12 @@ assert.deepEqual(sc.a1.sources.map((x) => x.src), ["Kontan", "Bisnis.com"], "med
 assert.ok(sc.a1.score > sc.c1.score, "3 media + buyback + saham naik > 1 media");
 assert.ok(sc.b1.score > sc.b2.score, "rilis keputusan (ditahan 5,75%) > proyeksi lama");
 assert.equal(sc.b1.lead, 1);
+// skor hype tertinggi = 23 (angka di penjelasan halaman tim): 5+ media, baru, aksi korporasi, saham naik ≥3%, menyebut IHSG
+{
+  const T = (id, src) => ({ id, src, title: "BBCA Bagi Dividen, IHSG Menguat", at: new Date(now).toISOString(), cat: "emiten", tickers: ["BBCA"], corp: "Dividen" });
+  const mx = score(["CNBC Indonesia", "Kontan", "Bisnis.com", "EmitenNews", "IDX Channel", "Investor Daily", "Bloomberg Technoz"].map((s, i) => T("m" + i, s)), { BBCA: 5 }, now);
+  assert.equal(Math.max(...Object.values(mx).map((x) => x.score)), 23);
+}
 
 /* ---------- artikel & AI ---------- */
 const art = article(`<head><meta property="og:image" content="https://img.test/og.jpg"><meta name="description" content="Desk"></head><body><nav><p>Menu menu menu menu menu menu menu menu menu menu menu menu menu</p></nav>
@@ -148,6 +154,22 @@ assert.equal(s, 401);
 assert.equal(s, 200);
 assert.equal(j.find((x) => x.id === lead.id).px.MBSS, 6.2, "perubahan harga saham ikut ditampilkan");
 assert.equal(j.filter((x) => x.tickers.includes("MBSS")).length, 1, "satu kartu per kelompok berita");
+// halaman tim hanya berita 24 jam terakhir: menurut waktu terbit (berita lama yang baru terbaca tidak ikut)
+{
+  const h = (n) => new Date(Date.now() - n * 3600e3).toISOString();
+  const add = env.DB.db.prepare("INSERT INTO mn_items (id, url, src, title, at, seen_at, status, lead, score, cat, tickers) VALUES (?, ?, 'Kontan', ?, ?, ?, 'baru', 1, 9, 'pasar', '')");
+  add.run("h30", "https://x.test/h30", "Berita 30 jam lalu", h(30), h(30));
+  add.run("h30b", "https://x.test/h30b", "Terbit 30 jam lalu, baru terbaca", h(30), h(1));
+  add.run("h2", "https://x.test/h2", "Berita 2 jam lalu", h(2), h(2));
+  // sumber halaman (bukan RSS) menulis waktu WIB "+07:00": dibandingkan sebagai waktu, bukan teks
+  const wib = (n) => new Date(Date.now() - n * 3600e3 + 7 * 3600e3).toISOString().slice(0, 19) + "+07:00";
+  add.run("w20", "https://x.test/w20", "WIB 20 jam lalu", wib(20), h(1));
+  add.run("w26", "https://x.test/w26", "WIB 26 jam lalu", wib(26), h(1));
+  for (const v of ["pick", "all"]) {
+    const ids = (await call("/api/items?view=" + v, VIEW))[1].map((x) => x.id);
+    assert.deepEqual(["h2", "h30", "h30b", "w20", "w26"].map((id) => ids.includes(id)), [true, false, false, true, false], v);
+  }
+}
 [s, j] = await call("/api/item", VIEW, "POST", { id: cn.id, action: "publish" });
 assert.equal(s, 403, "viewer tidak bisa menerbitkan");
 const bi = R.find((x) => x.theme === "BI-Rate");
@@ -228,6 +250,8 @@ globalThis.fetch = realFetch;
 // skrip halaman harus bisa di-parse
 const page = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
 for (const [, sc2] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(sc2);
+// halaman tim: tab 24 jam, urutan hype / terbaru, dan penjelasan skor hype (maks. 23 = uji skor di atas)
+assert.match(page, /"Semua 24 jam"/); assert.match(page, /data-sort="/); assert.match(page, /Apa itu skor hype\? \(maks\. 23\)/);
 assert.equal(idOf("https://a.test/x"), idOf("https://a.test/x"));
 // ---- banner KISI: tema, prompt aman, latar AI tersimpan & bisa diambil publik ----
 {

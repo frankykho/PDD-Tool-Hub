@@ -438,12 +438,13 @@ export default withCron({
         if (path === "/api/fin") return json({ rows: await finRows(env, Number(url.searchParams.get("days")) || 30), notify: { telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID), webhook: !!env.NOTIFY_WEBHOOK } });
         if (path === "/api/sources") return json({ src: (await getMeta(env, "src")) || {}, ai: (await getMeta(env, "ai_day")) || {}, aiLimit: aiLimit(env) });
         if (path === "/api/items") {
-          const v = url.searchParams.get("view") || "pick", since = new Date(Date.now() - 48 * 3600e3).toISOString();
+          // selain "pub": hanya berita yang TERBIT 24 jam terakhir (berita lama yang baru terbaca tidak ikut), lewat index seen_at
+          // (bukan index status yang mencakup semua berita lama). Skor tetap dihitung dari 48 jam.
+          const v = url.searchParams.get("view") || "pick", since = new Date(Date.now() - 24 * 3600e3).toISOString(), D = "seen_at>=? AND julianday(COALESCE(NULLIF(at,''),seen_at))>=julianday(?)";
           const q = v === "pub" ? ["status='terbit' ORDER BY published_at DESC LIMIT 100", []]
-            : v === "skip" ? ["status='abaikan' AND seen_at>=? ORDER BY seen_at DESC LIMIT 100", [since]]
-            : v === "all" ? ["seen_at>=? ORDER BY seen_at DESC LIMIT 300", [since]]
-            : ["status='baru' AND lead=1 AND seen_at>=? ORDER BY score DESC, seen_at DESC LIMIT 80", [since]];
-          // selain "pub": hanya 48 jam terakhir, lewat index seen_at (bukan index status yang mencakup semua berita lama)
+            : v === "skip" ? [`status='abaikan' AND ${D} ORDER BY seen_at DESC LIMIT 100`, [since, since]]
+            : v === "all" ? [`${D} ORDER BY seen_at DESC LIMIT 300`, [since, since]]
+            : [`status='baru' AND lead=1 AND ${D} ORDER BY score DESC, seen_at DESC LIMIT 80`, [since, since]];
           const L = (await env.DB.prepare(`SELECT ${ITEM_COLS} FROM mn_items${v === "pub" ? "" : " INDEXED BY mn_items_seen"} WHERE ${q[0]}`).bind(...q[1]).all()).results || [];
           const m = await getMeta(env, "mkt"), px = (m && m.px) || {};
           return json(L.map((x) => ({ ...pub(x), raw_title: x.title, score: x.score, status: x.status, ai_state: x.ai_state, model: x.model, no_img: !!x.no_img, has_img: !!x.has_img, seen_at: x.seen_at, published_by: x.published_by,
