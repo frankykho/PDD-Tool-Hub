@@ -139,6 +139,8 @@ for (const [, code] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Funct
 assert.match(page, /function bulkIg\(user\)/);
 // jendela konten ditutup lewat ✕ di kanan atas (bukan tombol "Tutup" di antara tombol aksi)
 assert.match(page, /class="dlgx" type="button" id="cX" aria-label="Tutup">✕</); assert.doesNotMatch(page, /id="cX">Tutup</);
+// tab Konsep AI: semua konsep dalam satu daftar, centang lalu ekspor (pilihan sama dengan centang di jendela konten)
+assert.match(page, /role="tab" id="vK"/); assert.match(page, /function renderKonsep\(\)/); assert.match(page, /data-kopen=/); assert.match(page, /id="kAll"/);
 // ekspor konsep terpilih ke PPT / PDF, dengan logo iKISI dari aset tool ini
 assert.match(page, /data-cpick=/); assert.match(page, /id="xPpt"/); assert.match(page, /id="xPdf"/); assert.match(page, /pptxgenjs@3\.12\.0/);
 assert.ok(fs.existsSync(new URL("./assets/brand/ikisi-color.png", import.meta.url)), "logo iKISI tersedia untuk PPT/PDF");

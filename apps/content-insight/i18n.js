@@ -182,6 +182,10 @@ export default {
   "Konsep disalin": "Concept copied",
   // ekspor konsep terpilih (isi file PPT/PDF = data konsep, tetap bahasa Indonesia)
   "Pilih untuk ekspor": "Select for export",
+  "Konsep AI": "AI concepts",
+  "Pilih semua ({n})": "Select all ({n})",
+  "Buka": "Open",
+  "Belum ada konsep AI. Buka salah satu konten kompetitor, lalu buat konsep dari insight-nya.": "No AI concepts yet. Open a competitor post, then create a concept from its insight.",
   "{n} konsep dipilih": "{n} concepts selected",
   "Unduh PPT": "Download PPT",
   "Unduh PDF": "Download PDF",
