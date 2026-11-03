@@ -857,6 +857,7 @@ const pctR=r=>r==null?"–":pct(r*100,1);
 // winrate = kena TP ÷ pick yang ditutup (TP + SL); return akumulasi = jumlah return pick yang ditutup
 const pickSum=L=>{const c=k=>L.filter(p=>k.includes(p.status)).length,tp=c(["tp1","tp2"]),sl=c(["sl"]),closed=tp+sl;
   return {n:L.length,tp,sl,closed,open:L.length-closed,wr:closed?tp/closed:null,ret:L.filter(p=>p.status!=="open").reduce((a,p)=>a+(p.ret||0),0)}};
+const entTxt=p=>int(p.entry)+(p.entry_hi?" – "+int(p.entry_hi):"");
 const pickSt=p=>PST[p.status]+(p.status==="tp1"&&p.tp2?" (menunggu TP2)":"");
 async function loadPicks(force){
   const mk=DV.date.slice(0,7);if(!force&&(DV.picksFor===mk||DV.picksReq===mk))return;DV.picksReq=mk;
@@ -871,15 +872,15 @@ function pickRedraw(){
 }
 function pickPanel(open){
   const d=DV.date,mk=d.slice(0,7),me=PL.me.email,L=DV.picksFor===mk?DV.picks:null,ed=DV.pEdit&&L&&L.find(p=>p.id===DV.pEdit)||{},S=L&&pickSum(L);
-  const inp=(id,k,ph,lab)=>`<input class="f" id="${id}" ${k==="code"?'maxlength="4" style="text-transform:uppercase"':'inputmode="numeric"'} placeholder="${ph}" aria-label="${lab}" value="${esc(ed[k]==null?"":ed[k])}"${k==="tp2"?"":" required"}>`;
-  const form=d>todayIso()?"":`<form id="pkForm" class="pkf">${inp("pkCode","code","Kode","Kode saham")}${inp("pkEntry","entry","Entry","Harga entry")}${inp("pkSl","sl","SL","Harga stop loss")}${inp("pkTp1","tp1","TP1","Harga TP1")}${inp("pkTp2","tp2","TP2","Harga TP2 (opsional)")}
+  const inp=(id,k,ph,lab)=>`<input class="f" id="${id}" ${k==="code"?'maxlength="4" style="text-transform:uppercase"':k==="entry"?"":'inputmode="numeric"'} placeholder="${ph}" aria-label="${lab}" value="${esc(k==="entry"&&ed.entry_hi?ed.entry+" - "+ed.entry_hi:ed[k]==null?"":ed[k])}"${k==="tp2"?"":" required"}>`;
+  const form=d>todayIso()?"":`<form id="pkForm" class="pkf">${inp("pkCode","code","Kode","Kode saham")}${inp("pkEntry","entry","Entry","Harga entry atau area, mis. 298 - 312")}${inp("pkSl","sl","SL","Harga stop loss")}${inp("pkTp1","tp1","TP1","Harga TP1")}${inp("pkTp2","tp2","TP2","Harga TP2 (opsional)")}
     <div class="acts"><button class="btn pri sm" type="submit">${DV.pEdit?"Simpan perubahan":"+ Tambah stock pick"}</button>${DV.pEdit?'<button type="button" class="btn sm" data-pcancel="1">Batal</button>':""}<span class="muted small" id="pkMsg">${DV.pEdit?"Mengubah pick "+esc(fmtShort(ed.date||d)):"Tanggal pick: "+esc(fmtShort(d))}</span></div></form>`;
   const row=p=>`<div class="trow"><span class="ap c${PCL[p.status]||1}">${esc(PST[p.status]||p.status)}</span><div class="ti"><b translate="no">${esc(p.code)}</b>`+
-    `<small>${esc(fmtShort(p.date))} · ${esc(p.name||nameOf(p.email)||"")} · Entry ${int(p.entry)} · SL ${int(p.sl)} · TP1 ${int(p.tp1)}${p.tp2?" · TP2 "+int(p.tp2):""}</small>`+
+    `<small>${esc(fmtShort(p.date))} · ${esc(p.name||nameOf(p.email)||"")} · Entry ${entTxt(p)} · SL ${int(p.sl)} · TP1 ${int(p.tp1)}${p.tp2?" · TP2 "+int(p.tp2):""}</small>`+
     `<small>${p.last?`Terakhir ${int(p.last)} (${esc(fmtShort(p.last_date))})`:"Belum ada harga penutupan"}${p.hit_date?" · kena "+(p.status==="sl"?"SL":"TP1")+" "+esc(fmtShort(p.hit_date)):""}${p.tp2_date?" · TP2 "+esc(fmtShort(p.tp2_date)):""}${p.status==="tp1"&&p.tp2?" · menunggu TP2":""} · return ${pctR(p.ret)}${p.status==="open"?" (sementara)":""}</small></div>`+
     (PL.me.adm||p.email===me?`<button type="button" class="btn sm" data-pedit="${esc(p.id)}">Ubah</button><button type="button" class="x" data-pdel="${esc(p.id)}" aria-label="Hapus stock pick ${esc(p.code)}">×</button>`:"")+"</div>";
   const body=form+(L?(L.length?`<p class="muted small" style="margin:0 0 6px">${MON[D(d).getUTCMonth()]}: ${S.n} pick · ${S.tp} kena TP · ${S.sl} kena SL · ${S.open} on going · winrate ${S.wr==null?"–":Math.round(S.wr*100)+"%"} · return ${pctR(S.ret)}</p>`+L.slice().reverse().map(row).join(""):`<p class="muted small" style="margin:0">Belum ada stock pick bulan ini.</p>`):`<p class="muted small" style="margin:0">Memuat harga penutupan…</p>`)+
-    `<p class="muted small" style="margin:8px 0 0">TP2 boleh kosong. Status dari harga penutupan (EOD) sejak tanggal pick; yang tercapai duluan menentukan. Harga hari ini dipakai setelah 16.30 WIB. Masuk ke ⬇ Laporan.</p>`;
+    `<p class="muted small" style="margin:8px 0 0">Entry boleh area, mis. 298 - 312 (return dihitung dari harga tengahnya). TP2 boleh kosong. Status dari harga penutupan (EOD) sejak tanggal pick; yang tercapai duluan menentukan. Harga hari ini dipakai setelah 16.30 WIB. Masuk ke ⬇ Laporan.</p>`;
   const h=`📈 Stock pick ${MON[D(d).getUTCMonth()]}`,att=`id="pkBox" data-ed="${esc(DV.pEdit||"")}"`;
   return PL.me.role==="is"||L&&L.some(p=>p.email===me)||DV.pEdit?`<div class="card wabox" ${att}><h3>${h}</h3>${body}</div>`:`<details class="card wabox" ${att}${open?" open":""}><summary>${h}</summary>${body}</details>`;
 }
@@ -1471,8 +1472,8 @@ function pickKpis(L,ih){
     ["Return akumulasi",S.closed?pctR(S.ret):"–","SL di harga SL, TP di harga TP1"],["Return IHSG",ih?pctR(ih.ret):"–",ih?`${int(ih.base)} → ${int(ih.last)}`:"harga IHSG tidak tersedia"]]};
 }
 function pickTable(L){
-  return {t:"table",h3:`Stock pick (${L.length})`,cols:[["Tanggal",9],["Kode",7],["Pembuat",12],["Entry",8,1],["SL",7,1],["TP1",7,1],["TP2",7,1],["Terakhir",9,1],["Status",16],["Kena",9],["Return",9,1]],
-    rows:L.map(p=>[fmtShort(p.date),p.code,p.name||nameOf(p.email)||"–",int(p.entry),int(p.sl),int(p.tp1),int(p.tp2),int(p.last),pickSt(p),p.hit_date?fmtShort(p.hit_date):"–",pctR(p.ret)+(p.status==="open"?" (sementara)":"")]),
+  return {t:"table",h3:`Stock pick (${L.length})`,cols:[["Tanggal",9],["Kode",7],["Pembuat",12],["Entry",11,1],["SL",7,1],["TP1",7,1],["TP2",7,1],["Terakhir",9,1],["Status",13],["Kena",9],["Return",9,1]],
+    rows:L.map(p=>[fmtShort(p.date),p.code,p.name||nameOf(p.email)||"–",entTxt(p),int(p.sl),int(p.tp1),int(p.tp2),int(p.last),pickSt(p),p.hit_date?fmtShort(p.hit_date):"–",pctR(p.ret)+(p.status==="open"?" (sementara)":"")]),
     empty:"Belum ada stock pick pada periode ini."};
 }
 // jumlah posting WA Channel per orang per jenis (+ baris total kalau lebih dari satu orang)

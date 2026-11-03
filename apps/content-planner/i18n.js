@@ -905,12 +905,12 @@ const ERR = {
   "Hanya pembuat stock pick atau admin yang bisa mengubahnya": "Only the stock pick's creator or an admin can edit it",
   "Hanya pembuat stock pick atau admin yang bisa menghapusnya": "Only the stock pick's creator or an admin can delete it",
   "Stock pick ini sudah dihapus. Muat ulang halaman": "This stock pick has been deleted. Reload the page",
-  "Kode": "Code", "Kode saham": "Stock code", "Harga entry": "Entry price", "Harga stop loss": "Stop-loss price", "Harga TP1": "TP1 price", "Harga TP2 (opsional)": "TP2 price (optional)",
+  "Kode": "Code", "Kode saham": "Stock code", "Harga entry atau area, mis. 298 - 312": "Entry price or range, e.g. 298 - 312", "Harga stop loss": "Stop-loss price", "Harga TP1": "TP1 price", "Harga TP2 (opsional)": "TP2 price (optional)",
   "+ Tambah stock pick": "+ Add stock pick", "Hapus stock pick ini?": "Delete this stock pick?",
   "On going": "Ongoing", "Kena SL": "Hit SL", "Kena TP1": "Hit TP1", "Kena TP2": "Hit TP2", "Kena TP1 (menunggu TP2)": "Hit TP1 (waiting for TP2)",
   "Belum ada stock pick bulan ini.": "No stock picks this month yet.", "Memuat harga penutupan…": "Loading closing prices…", "Belum ada harga penutupan": "No closing price yet",
-  "TP2 boleh kosong. Status dari harga penutupan (EOD) sejak tanggal pick; yang tercapai duluan menentukan. Harga hari ini dipakai setelah 16.30 WIB. Masuk ke ⬇ Laporan.":
-    "TP2 may be empty. Status comes from closing prices (EOD) since the pick date; whichever level is reached first decides. Today's price is used after 16:30 WIB. Goes into ⬇ Report.",
+  "Entry boleh area, mis. 298 - 312 (return dihitung dari harga tengahnya). TP2 boleh kosong. Status dari harga penutupan (EOD) sejak tanggal pick; yang tercapai duluan menentukan. Harga hari ini dipakai setelah 16.30 WIB. Masuk ke ⬇ Laporan.":
+    "Entry may be a range, e.g. 298 - 312 (return uses its midpoint). TP2 may be empty. Status comes from closing prices (EOD) since the pick date; whichever level is reached first decides. Today's price is used after 16:30 WIB. Goes into ⬇ Report.",
   "Hasil stock pick": "Stock pick results", "Winrate": "Win rate", "Return akumulasi": "Accumulated return", "Return IHSG": "JCI return",
   "SL di harga SL, TP di harga TP1": "SL at the SL price, TP at the TP1 price", "harga IHSG tidak tersedia": "JCI price not available", "belum ada pick yang ditutup": "no closed picks yet",
   "Pembuat": "Created by", "Terakhir": "Last", "Kena": "Hit on", "Belum ada stock pick pada periode ini.": "No stock picks in this period.",

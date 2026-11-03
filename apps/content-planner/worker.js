@@ -184,6 +184,8 @@ async function ensure(env) {
   if (!uhave.has("active")) add.push(env.DB.prepare("ALTER TABLE users ADD COLUMN active INTEGER"));
   // branch: cabang / galeri anggota tim regional (diatur admin Tool Hub)
   if (!uhave.has("branch")) add.push(env.DB.prepare("ALTER TABLE users ADD COLUMN branch TEXT"));
+  // entry_hi: batas atas area entry (kosong = entry satu harga)
+  if (!(await env.DB.prepare("PRAGMA table_info(stockpick)").all()).results.some((c) => c.name === "entry_hi")) add.push(env.DB.prepare("ALTER TABLE stockpick ADD COLUMN entry_hi INTEGER"));
   add.push(env.DB.prepare("CREATE INDEX IF NOT EXISTS items_date ON items (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS items_design ON items (d_need, d_status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS items_program ON items (program_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_who ON tasks (who, status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"),
@@ -863,15 +865,16 @@ async function saveWa(env, me, b) {
 }
 // ---------- stock pick: entry, SL, TP1, TP2; status dari harga penutupan harian (EOD) sejak pick dibuat ----------
 const PRICE = (v) => { const n = Number(String(v ?? "").replace(/[.,\s]/g, "")); return Number.isInteger(n) && n > 0 && n < 1e7 ? n : null; };
-/** Isian pick. Harga saham IDX selalu rupiah bulat, jadi "4.250" dibaca 4250. */
+/** Isian pick. Harga saham IDX selalu rupiah bulat, jadi "4.250" dibaca 4250. Entry boleh area, mis. "298 - 312". */
 export function cleanPick(b, today = wibToday()) {
-  const t2 = String(b.tp2 ?? "").trim();
-  const p = { date: String(b.date ?? "").slice(0, 10), code: String(b.code ?? "").trim().toUpperCase(), entry: PRICE(b.entry), sl: PRICE(b.sl), tp1: PRICE(b.tp1), tp2: t2 ? PRICE(t2) : null };
+  const t2 = String(b.tp2 ?? "").trim(), en = String(b.entry ?? "").split(/[-–—]/).map(PRICE).sort((x, y) => x - y);
+  const lo = en.length <= 2 && en.every(Boolean) ? en[0] : null, hi = lo && en[1] > lo ? en[1] : null;
+  const p = { date: String(b.date ?? "").slice(0, 10), code: String(b.code ?? "").trim().toUpperCase(), entry: lo, entry_hi: hi, sl: PRICE(b.sl), tp1: PRICE(b.tp1), tp2: t2 ? PRICE(t2) : null };
   if (!ISO.test(p.date)) return { error: "Tanggal belum benar." };
   if (p.date > today) return { error: "Hari yang belum datang belum bisa dicatat." };
   if (!/^[A-Z]{4}$/.test(p.code)) return { error: "Kode saham harus 4 huruf, mis. BBRI." };
   if (!p.entry || !p.sl || !p.tp1 || (t2 && !p.tp2)) return { error: "Isi entry, SL, dan TP1 dengan angka rupiah (TP2 boleh kosong)." };
-  if (!(p.sl < p.entry && p.entry < p.tp1 && (!p.tp2 || p.tp1 < p.tp2))) return { error: "Urutan harga harus SL < entry < TP1 < TP2." };
+  if (!(p.sl < p.entry && (p.entry_hi || p.entry) < p.tp1 && (!p.tp2 || p.tp1 < p.tp2))) return { error: "Urutan harga harus SL < entry < TP1 < TP2." };
   return p;
 }
 /** Status dari harga penutupan [{d, c}] (urut tanggal) sejak tanggal pick: SL atau TP1 yang tercapai duluan; setelah TP1 tetap dipantau sampai TP2. */
@@ -886,10 +889,10 @@ export function pickStatus(p, bars) {
   }
   return { status, hit_date, tp2_date, last, last_date };
 }
-/** Return pick: kena SL di harga SL, kena TP1/TP2 di harga TP1, on going di harga terakhir (sementara). */
+/** Return pick: kena SL di harga SL, kena TP1/TP2 di harga TP1, on going di harga terakhir (sementara); entry area dihitung dari harga tengahnya. */
 export function pickReturn(p) {
-  const out = p.status === "sl" ? p.sl : p.status === "open" ? p.last : p.tp1;
-  return out ? (out - p.entry) / p.entry : null;
+  const out = p.status === "sl" ? p.sl : p.status === "open" ? p.last : p.tp1, e = (p.entry + (p.entry_hi || p.entry)) / 2;
+  return out ? (out - e) / e : null;
 }
 /** Tanggal EOD terbaru yang sudah final: harga penutupan hari ini baru dipakai setelah 16.30 WIB. */
 export function eodSlot(now = Date.now()) {
@@ -906,7 +909,7 @@ async function eodCloses(sym, from, upto) {
   const x = (await r.json())?.chart?.result?.[0], ts = x?.timestamp || [], c = x?.indicators?.quote?.[0]?.close || [];
   return ts.map((t, i) => ({ d: new Date(t * 1000 + 7 * 3600e3).toISOString().slice(0, 10), c: c[i] == null ? null : Math.round(c[i]) })).filter((b) => b.c && b.d <= upto);
 }
-const PCOLS = ["date", "code", "entry", "sl", "tp1", "tp2"];
+const PCOLS = ["date", "code", "entry", "entry_hi", "sl", "tp1", "tp2"];
 async function savePick(env, me, b) {
   await ensure(env);
   const meE = lower(me.e), now = new Date().toISOString();

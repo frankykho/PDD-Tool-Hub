@@ -674,12 +674,16 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal(pickReturn({ ...P, status: "tp2", last: 1300 }), 0.1);
   assert.equal(pickReturn({ ...P, status: "open", last: 1020 }), 0.02);
   assert.equal(pickReturn({ ...P, status: "open", last: null }), null);
+  assert.equal(pickReturn({ ...P, entry: 900, entry_hi: 1100, status: "tp1" }), 0.1, "entry rentang: return dari harga tengahnya");
   // isian: kode 4 huruf, harga rupiah bulat ("4.250" = 4250), SL < entry < TP1 < TP2
   assert.deepEqual(cleanPick({ date: "2026-10-01", code: " bbri ", entry: "4.250", sl: "4100", tp1: 4500, tp2: "" }, "2026-11-03"),
-    { date: "2026-10-01", code: "BBRI", entry: 4250, sl: 4100, tp1: 4500, tp2: null });
+    { date: "2026-10-01", code: "BBRI", entry: 4250, entry_hi: null, sl: 4100, tp1: 4500, tp2: null });
+  assert.deepEqual(["298 - 312", "298-312", "298 – 312", "312-298"].map((e) => cleanPick({ date: "2026-10-01", code: "RMKE", entry: e, sl: 284, tp1: 330, tp2: 350 }, "2026-11-03")).map((p) => [p.entry, p.entry_hi]),
+    [[298, 312], [298, 312], [298, 312], [298, 312]], "entry boleh rentang, disimpan bawah dan atas");
+  assert.equal(cleanPick({ date: "2026-10-01", code: "RMKE", entry: "300 - 300", sl: 284, tp1: 330 }, "2026-11-03").entry_hi, null, "rentang sama = satu harga");
   const bad = (x, m) => assert.ok(cleanPick({ date: "2026-10-01", code: "BBRI", entry: 4250, sl: 4100, tp1: 4500, ...x }, "2026-11-03").error, m);
   bad({ sl: 4300 }, "SL harus di bawah entry"); bad({ tp1: 4200 }, "TP1 harus di atas entry"); bad({ tp2: 4400 }, "TP2 harus di atas TP1");
-  bad({ code: "BB" }, "kode 4 huruf"); bad({ date: "2026-11-04" }, "tanggal belum datang"); bad({ entry: "" }, "entry wajib"); bad({ sl: "0" }, "harga > 0");
+  bad({ code: "BB" }, "kode 4 huruf"); bad({ date: "2026-11-04" }, "tanggal belum datang"); bad({ entry: "" }, "entry wajib"); bad({ entry: "4200 - 4600" }, "atas rentang harus di bawah TP1"); bad({ entry: "4000 - 4300" }, "bawah rentang harus di atas SL"); bad({ entry: "4200 - " }, "rentang tidak lengkap"); bad({ sl: "0" }, "harga > 0");
   // EOD: sebelum 16.30 WIB harga penutupan hari ini belum dipakai
   assert.equal(eodSlot(Date.parse("2026-11-03T15:00:00+07:00")), "2026-11-02");
   assert.equal(eodSlot(Date.parse("2026-11-03T17:00:00+07:00")), "2026-11-03");
