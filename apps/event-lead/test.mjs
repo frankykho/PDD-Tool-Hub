@@ -359,6 +359,8 @@ const free = (await planner.fetch(new Request("https://planner/__hub/item", { me
 let opts = (await call("/api/planner-items", { ck: SARI })).j;
 assert.deepEqual(opts.map((x) => x.id), [free]);
 assert.equal((await call("/api/planner-items", { ck: TONO })).j.length, 0);
+// admin boleh menyambungkan kegiatan cabang buatan orang lain
+assert.deepEqual((await call("/api/planner-items?branch=" + encodeURIComponent("Cabang Surabaya"), { ck: ADM })).j.map((x) => x.id), [free]);
 r = await call("/api/events", { ck: TONO, body: { ...NEW, title: "Curang", branch: "Cabang Sudirman", link: { item_id: free } } });
 assert.equal(r.status, 400); assert.equal(r.j.error, "Kegiatan Content Planner ini tidak bisa dipilih.");
 r = await call("/api/events", { ck: SARI, body: { ...NEW, title: "Gathering Desember", date: "2026-12-05", link: { item_id: free } } });

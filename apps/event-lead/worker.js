@@ -188,7 +188,7 @@ const itemSet = (ev) => ({ title: ev.title, date: ev.date, time: ev.time_start, 
 // event bercabang -> Kegiatan cabang; tanpa cabang (pembuat di luar tim regional) -> Edukasi / narasumber
 const kindFor = (branch) => (branch ? "cabang" : "edukasi");
 async function plannerChoices(env, me, kind, branch) {
-  return planner(env, "/__hub/event-items?" + new URLSearchParams({ email: me.e, branch, kind }));
+  return planner(env, "/__hub/event-items?" + new URLSearchParams({ email: me.e, branch, kind, ...(me.adm ? { adm: "1" } : {}) }));
 }
 /** Kegiatan yang dipilih harus ada di pilihan orang ini (cabangnya / miliknya, belum tersambung). */
 async function checkChoice(env, me, ev, itemId) {

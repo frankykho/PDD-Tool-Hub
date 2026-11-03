@@ -609,6 +609,8 @@ async function importGalleries(env, me, b) {
     if (!name) { out.errors.push({ row, error: "Nama galeri kosong." }); continue; }
     const prev = byName.get(lower(name)), set = Object.fromEntries(Object.entries(r).filter(([k, v]) => !["docs", "progress", "log_date", "id"].includes(k) && v != null && String(v).trim() !== ""));
     if (prev) delete set.title;   // nama galeri lama tetap (sheet bisa beda huruf besar/kecil)
+    // impor bebas izin edit, jadi PIC galeri orang lain tidak boleh diganti lewat sheet (bisa dipakai mengambil alih)
+    if (prev && !canEditItem(me, prev)) { delete set.owner; delete set.owner_email; }
     if (set.branch && B.length && !B.some((x) => lower(x.c) === lower(set.branch))) { out.warn.push({ row, msg: `Cabang “${set.branch}” tidak ada di daftar, dikosongkan.` }); delete set.branch; }
     // regional: kolom Regional, atau regional dari cabang in charge
     if (!set.region && set.branch) { const h = B.find((x) => lower(x.c) === lower(set.branch)); if (h) set.region = h.r; }
@@ -633,7 +635,9 @@ async function importGalleries(env, me, b) {
 async function eventItems(env, q) {
   await ensure(env);
   const kind = q.get("kind") === "edukasi" ? "edukasi" : "cabang", e = lower(q.get("email")), from = new Date(Date.now() + 7 * 3600e3 - 30 * 86400e3).toISOString().slice(0, 10);
-  const who = kind === "cabang" ? "branch = ?" : "(owner_email = ? OR created_email = ?)", args = kind === "cabang" ? [String(q.get("branch") || "")] : [e, e];
+  // sinkron event mengubah kegiatan, jadi cabang: hanya kegiatan yang dibuat / di-PIC-kan orang ini (admin: semua di cabangnya)
+  const mine = "(owner_email = ? OR created_email = ?)", adm = q.get("adm") === "1";
+  const who = kind === "cabang" ? "branch = ?" + (adm ? "" : " AND " + mine) : mine, args = kind === "cabang" ? [String(q.get("branch") || ""), ...(adm ? [] : [e, e])] : [e, e];
   const L = (await env.DB.prepare(`SELECT id, kind, title, date, time, place, branch, status FROM items WHERE kind = ? AND ${who} AND status NOT IN ('selesai', 'batal') AND date >= ? AND COALESCE(event_id, '') = '' ORDER BY date LIMIT 100`)
     .bind(kind, ...args, from).all()).results;
   return L;

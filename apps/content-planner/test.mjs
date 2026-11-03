@@ -491,6 +491,12 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   r = await call("/api/galeri/import", { ck: GITA, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Proposal direvisi" }] } });
   assert.deepEqual([r.status, r.j.updated, r.j.errors], [200, 1, []], JSON.stringify(r.j));
   assert.equal((await call("/api/galeri", { ck: GANI })).j.find((i) => i.title === "Galeri Investasi ITS").log.slice(-1)[0].text, "Proposal direvisi");
+  // ...tapi impor tidak bisa dipakai menjadikan diri PIC galeri orang lain (lalu mengubahnya lewat form); PIC/admin tetap bisa
+  r = await call("/api/galeri/import", { ck: GITA, body: { rows: [{ title: "Galeri Investasi ITS", owner: "Gita", owner_email: "gita@acme.test", progress: "Ambil alih" }] } });
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  assert.deepEqual((({ owner, owner_email }) => [owner, owner_email])((await call("/api/galeri", { ck: GANI })).j.find((i) => i.title === "Galeri Investasi ITS")), ["Gani", "gani@acme.test"], "PIC tetap");
+  r = await call("/api/galeri/import", { ck: GANI, body: { rows: [{ title: "Galeri Investasi ITS", owner: "Gita", owner_email: "gita@acme.test" }] } });
+  assert.equal((await call("/api/galeri", { ck: GANI })).j.find((i) => i.title === "Galeri Investasi ITS").owner_email, "gita@acme.test", "PIC lama boleh mengganti PIC lewat sheet");
   assert.equal((await call("/api/galeri/import", { ck: COPY, body: { rows: [] } })).status, 400);
   // usulan ke admin Tool Hub: sudah MoU, belum ada di daftar; setelah masuk daftar, hilang dari usulan
   const usul = (h) => planner.fetch(new Request(BASE + "/__hub/galeri", { headers: h }), env).then((x) => x.status === 200 ? x.json() : x.status);
@@ -558,6 +564,10 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   let ids = await items({ email: "sari@acme.test", branch: "Cabang Surabaya", kind: "cabang" });
   assert.ok(ids.includes(C1) && !ids.includes(C2) && !ids.includes(C3), "kegiatan cabang sendiri yang belum selesai");
   assert.deepEqual(await items({ email: "pia@acme.test", branch: "", kind: "edukasi" }), [K1]);
+  // kegiatan cabang buatan rekan (bukan pembuat/PIC) tidak bisa disambungkan, kecuali admin
+  const C4 = await mk({ kind: "cabang", title: "Kunjungan nasabah Rudi", date: plus(6), channel: "Lainnya", status: "rencana", branch: "Cabang Surabaya" }, { email: "rudi@acme.test", name: "Rudi", job: "sales" });
+  assert.ok(!(await items({ email: "sari@acme.test", branch: "Cabang Surabaya", kind: "cabang" })).includes(C4), "kegiatan rekan tidak muncul");
+  assert.ok((await items({ email: "sari@acme.test", branch: "Cabang Surabaya", kind: "cabang", adm: "1" })).includes(C4), "admin melihat semua kegiatan cabang");
   // sinkron dari event: event_id tercatat, judul ikut, angka terisi
   assert.equal((await call("/__hub/event-sync", { body: { item_id: C1, event_id: "ev1" } })).status, 403);
   r = await hub("/__hub/event-sync", { item_id: C1, event_id: "ev1", set: { title: "Seminar RD Surabaya (baru)", time: "09:00", place: "Hotel Majapahit" }, counts: { reg: 12, hadir: 9 } });
