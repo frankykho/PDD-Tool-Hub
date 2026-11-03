@@ -17,6 +17,7 @@
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
+// - "/api/picks"    -> stock pick + statusnya dari harga EOD Yahoo (GET ?from=&to=[&ihsg=1], POST simpan, POST /api/picks/delete); pembuat atau admin yang mengubah;
 // - "/api/wa"       -> jumlah posting WA Channel per hari/orang/jenis (GET ?from=&to=, POST {date, n: {jenis: jumlah}} milik sendiri)
 // Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
 // disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
@@ -171,6 +172,7 @@ async function ensure(env) {
     // pekerjaan harian: job = role pemiliknya saat mencatat (pengelompokan per tim di Monthly Report)
     env.DB.prepare("CREATE TABLE IF NOT EXISTS worklog (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, text TEXT NOT NULL, status TEXT, item_id TEXT, link TEXT, note TEXT, created_at TEXT, updated_at TEXT)"),
     // posting WA Channel: hanya jumlah per hari, per orang, per jenis (isi postingan tidak disimpan)
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS stockpick (id TEXT PRIMARY KEY, date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, code TEXT NOT NULL, entry INTEGER NOT NULL, sl INTEGER NOT NULL, tp1 INTEGER NOT NULL, tp2 INTEGER, status TEXT NOT NULL DEFAULT 'open', hit_date TEXT, tp2_date TEXT, last INTEGER, last_date TEXT, checked TEXT, created_at TEXT, updated_at TEXT)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS wapost (date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, updated_at TEXT, PRIMARY KEY (date, email, kind))"),
     // pengaturan dari Tool Hub, mis. branches = daftar regional & cabang [{ r, c }]
     env.DB.prepare("CREATE TABLE IF NOT EXISTS cfg (k TEXT PRIMARY KEY, v TEXT)"),
@@ -186,7 +188,7 @@ async function ensure(env) {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS items_program ON items (program_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_who ON tasks (who, status)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS tasks_item ON tasks (item_id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS notifs_email ON notifs (email, id)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS comments_item ON comments (item_id, id)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS links_item ON links (item_id)"),
-    env.DB.prepare("CREATE INDEX IF NOT EXISTS moments_date ON moments (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS worklog_date ON worklog (date)"));
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS moments_date ON moments (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS worklog_date ON worklog (date)"), env.DB.prepare("CREATE INDEX IF NOT EXISTS stockpick_date ON stockpick (date)"));
   await env.DB.batch(add);
   ready = true;
 }
@@ -859,6 +861,108 @@ async function saveWa(env, me, b) {
     + "ON CONFLICT(date, email, kind) DO UPDATE SET n = excluded.n, name = excluded.name, updated_at = excluded.updated_at").bind(date, meE, name, job, k, n[k], now)));
   return { n };
 }
+// ---------- stock pick: entry, SL, TP1, TP2; status dari harga penutupan harian (EOD) sejak pick dibuat ----------
+const PRICE = (v) => { const n = Number(String(v ?? "").replace(/[.,\s]/g, "")); return Number.isInteger(n) && n > 0 && n < 1e7 ? n : null; };
+/** Isian pick. Harga saham IDX selalu rupiah bulat, jadi "4.250" dibaca 4250. */
+export function cleanPick(b, today = wibToday()) {
+  const t2 = String(b.tp2 ?? "").trim();
+  const p = { date: String(b.date ?? "").slice(0, 10), code: String(b.code ?? "").trim().toUpperCase(), entry: PRICE(b.entry), sl: PRICE(b.sl), tp1: PRICE(b.tp1), tp2: t2 ? PRICE(t2) : null };
+  if (!ISO.test(p.date)) return { error: "Tanggal belum benar." };
+  if (p.date > today) return { error: "Hari yang belum datang belum bisa dicatat." };
+  if (!/^[A-Z]{4}$/.test(p.code)) return { error: "Kode saham harus 4 huruf, mis. BBRI." };
+  if (!p.entry || !p.sl || !p.tp1 || (t2 && !p.tp2)) return { error: "Isi entry, SL, dan TP1 dengan angka rupiah (TP2 boleh kosong)." };
+  if (!(p.sl < p.entry && p.entry < p.tp1 && (!p.tp2 || p.tp1 < p.tp2))) return { error: "Urutan harga harus SL < entry < TP1 < TP2." };
+  return p;
+}
+/** Status dari harga penutupan [{d, c}] (urut tanggal) sejak tanggal pick: SL atau TP1 yang tercapai duluan; setelah TP1 tetap dipantau sampai TP2. */
+export function pickStatus(p, bars) {
+  let status = "open", hit_date = null, tp2_date = null, last = null, last_date = null;
+  for (const { d, c } of bars) {
+    if (d < p.date) continue;
+    last = c; last_date = d;
+    if (status === "open" && c <= p.sl) { status = "sl"; hit_date = d; break; }
+    if (status === "open" && c >= p.tp1) { status = "tp1"; hit_date = d; }
+    if (status === "tp1" && p.tp2 && c >= p.tp2) { status = "tp2"; tp2_date = d; break; }
+  }
+  return { status, hit_date, tp2_date, last, last_date };
+}
+/** Return pick: kena SL di harga SL, kena TP1/TP2 di harga TP1, on going di harga terakhir (sementara). */
+export function pickReturn(p) {
+  const out = p.status === "sl" ? p.sl : p.status === "open" ? p.last : p.tp1;
+  return out ? (out - p.entry) / p.entry : null;
+}
+/** Tanggal EOD terbaru yang sudah final: harga penutupan hari ini baru dipakai setelah 16.30 WIB. */
+export function eodSlot(now = Date.now()) {
+  const w = new Date(now + 7 * 3600e3);
+  if (w.getUTCHours() * 60 + w.getUTCMinutes() < 16 * 60 + 30) w.setUTCDate(w.getUTCDate() - 1);
+  return w.toISOString().slice(0, 10);
+}
+/** Harga penutupan harian dari Yahoo sejak tanggal from (WIB), hanya sampai tanggal EOD final. */
+async function eodCloses(sym, from, upto) {
+  const p1 = Math.floor(Date.parse(from + "T00:00:00+07:00") / 1000) - 86400, p2 = Math.floor(Date.now() / 1000) + 86400;
+  const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${p1}&period2=${p2}&interval=1d`,
+    { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36", Accept: "application/json" } });
+  if (!r.ok) throw new Error("Yahoo " + r.status);
+  const x = (await r.json())?.chart?.result?.[0], ts = x?.timestamp || [], c = x?.indicators?.quote?.[0]?.close || [];
+  return ts.map((t, i) => ({ d: new Date(t * 1000 + 7 * 3600e3).toISOString().slice(0, 10), c: c[i] == null ? null : Math.round(c[i]) })).filter((b) => b.c && b.d <= upto);
+}
+const PCOLS = ["date", "code", "entry", "sl", "tp1", "tp2"];
+async function savePick(env, me, b) {
+  await ensure(env);
+  const meE = lower(me.e), now = new Date().toISOString();
+  const prev = b.id ? await env.DB.prepare("SELECT email FROM stockpick WHERE id=?").bind(String(b.id)).first() : null;
+  if (b.id && !prev) return { error: "Stock pick ini sudah dihapus. Muat ulang halaman." };
+  if (prev && prev.email !== meE && !me.adm) return { error: "Hanya pembuat stock pick atau admin yang bisa mengubahnya." };
+  const p = cleanPick(b);
+  if (p.error) return p;
+  // diubah: status dihitung ulang dari awal saat dibuka berikutnya
+  if (prev) {
+    await env.DB.prepare(`UPDATE stockpick SET ${PCOLS.map((k) => k + "=?").join(", ")}, status='open', hit_date=NULL, tp2_date=NULL, last=NULL, last_date=NULL, checked=NULL, updated_at=? WHERE id=?`).bind(...PCOLS.map((k) => p[k]), now, String(b.id)).run();
+    return { id: String(b.id) };
+  }
+  const id = crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO stockpick (id, email, name, job, ${PCOLS.join(", ")}, created_at, updated_at) VALUES (?, ?, ?, ?${", ?".repeat(PCOLS.length)}, ?, ?)`)
+    .bind(id, meE, who(me), (await jobOf(env, me)) || null, ...PCOLS.map((k) => p[k]), now, now).run();
+  return { id };
+}
+async function deletePick(env, me, id) {
+  await ensure(env);
+  const p = await env.DB.prepare("SELECT email FROM stockpick WHERE id=?").bind(String(id || "")).first();
+  if (!p) return { ok: true };
+  if (!me.adm && p.email !== lower(me.e)) return { error: "Hanya pembuat stock pick atau admin yang bisa menghapusnya." };
+  await env.DB.prepare("DELETE FROM stockpick WHERE id=?").bind(String(id)).run();
+  return { ok: true };
+}
+/** Pick pada periode (menurut tanggal pick). Yang belum final dicek ulang sekali per EOD lalu disimpan; ihsg: return IHSG periode itu. */
+async function listPicks(env, from, to, withIhsg) {
+  await ensure(env);
+  if (!ISO.test(from) || !ISO.test(to) || from > to) return { error: "Periode belum benar." };
+  if ((Date.parse(to) - Date.parse(from)) / 864e5 > 400) return { error: "Periode maksimal 1 tahun." };
+  const picks = (await env.DB.prepare("SELECT * FROM stockpick WHERE date BETWEEN ? AND ? ORDER BY date, created_at").bind(from, to).all()).results;
+  const slot = eodSlot(), todo = picks.filter((p) => (p.status === "open" || (p.status === "tp1" && p.tp2)) && (p.checked || "") < slot);
+  // shortcut: maks. 40 kode per kali buka (batas 50 subrequest Workers Free); sisanya dicek saat dibuka berikutnya
+  const codes = [...new Set(todo.slice().sort((a, b) => (a.checked || "").localeCompare(b.checked || "")).map((p) => p.code))].slice(0, 40);
+  const upd = [];
+  await Promise.all(codes.map(async (code) => {
+    const mine = todo.filter((p) => p.code === code);
+    const bars = await eodCloses(code + ".JK", mine.reduce((a, p) => (p.date < a ? p.date : a), mine[0].date), slot).catch(() => null);
+    if (!bars) return;   // Yahoo gagal: status lama dipakai, dicoba lagi saat dibuka berikutnya
+    for (const p of mine) {
+      Object.assign(p, pickStatus(p, bars), { checked: slot });
+      upd.push(env.DB.prepare("UPDATE stockpick SET status=?, hit_date=?, tp2_date=?, last=?, last_date=?, checked=? WHERE id=?").bind(p.status, p.hit_date, p.tp2_date, p.last, p.last_date, slot, p.id));
+    }
+  }));
+  if (upd.length) await env.DB.batch(upd);
+  const out = { picks: picks.map((p) => ({ ...p, ret: pickReturn(p) })) };
+  if (withIhsg) {
+    // return IHSG: penutupan terakhir s.d. akhir periode dibanding penutupan terakhir sebelum periode
+    const d0 = new Date(from + "T00:00:00Z"); d0.setUTCDate(d0.getUTCDate() - 14);
+    const bars = await eodCloses("^JKSE", d0.toISOString().slice(0, 10), to < slot ? to : slot).catch(() => null);
+    const base = bars && bars.filter((b) => b.d < from).pop(), last = bars && bars.filter((b) => b.d >= from).pop();
+    out.ihsg = base && last ? { base: base.c, last: last.c, last_date: last.d, ret: (last.c - base.c) / base.c } : null;
+  }
+  return out;
+}
 /** Jumlah posting semua orang pada periode (maks. ±1 tahun, cukup untuk laporan triwulan / tahunan). */
 async function listWa(env, from, to) {
   await ensure(env);
@@ -1163,6 +1267,7 @@ export default {
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
       }
       if (path === "/api/weekly" && request.method === "GET") {
         return new Response(await weeklyCached(env, ctx, url.searchParams.has("refresh")), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -1176,7 +1281,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
-          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

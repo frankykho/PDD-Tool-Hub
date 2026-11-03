@@ -651,4 +651,74 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await save(DES, { title: "x" })).status, 403, "desainer setelah visual tidak dibutuhkan");
 }
 
+/* ---------- stock pick: status dari harga penutupan sejak pick dibuat, yang tercapai duluan menentukan ---------- */
+{
+  const { pickStatus, pickReturn, cleanPick, eodSlot } = await import("./worker.js");
+  const P = { date: "2026-10-01", entry: 1000, sl: 950, tp1: 1100, tp2: 1200 };
+  const bars = (...c) => c.map((x, i) => ({ d: `2026-10-${String(i + 1).padStart(2, "0")}`, c: x }));
+  assert.deepEqual(pickStatus(P, bars(1000, 1020)), { status: "open", hit_date: null, tp2_date: null, last: 1020, last_date: "2026-10-02" });
+  assert.equal(pickStatus(P, bars(1000, 940, 1300)).status, "sl", "SL duluan: ditutup walau lalu naik");
+  assert.equal(pickStatus(P, bars(1000, 940)).hit_date, "2026-10-02");
+  const t1 = pickStatus(P, bars(1100, 900));
+  assert.deepEqual([t1.status, t1.hit_date], ["tp1", "2026-10-01"], "TP1 duluan: tidak bisa jadi SL lagi");
+  const t2 = pickStatus(P, bars(1100, 1050, 1250));
+  assert.deepEqual([t2.status, t2.hit_date, t2.tp2_date], ["tp2", "2026-10-01", "2026-10-03"], "setelah TP1 tetap dipantau sampai TP2");
+  assert.deepEqual([pickStatus(P, bars(1250)).status, pickStatus(P, bars(1250)).hit_date], ["tp2", "2026-10-01"], "loncat langsung lewat TP2");
+  assert.equal(pickStatus({ ...P, tp2: null }, bars(1300)).status, "tp1", "TP2 kosong: berhenti di TP1");
+  assert.equal(pickStatus({ ...P, date: "2026-10-02" }, bars(940, 1000)).status, "open", "harga sebelum tanggal pick tidak dihitung");
+  assert.equal(pickStatus(P, bars(950)).status, "sl", "tepat di SL = kena");
+  assert.equal(pickStatus(P, bars(1100)).status, "tp1", "tepat di TP1 = kena");
+  assert.equal(pickStatus(P, []).status, "open");
+  // return: SL di harga SL, TP1/TP2 di harga TP1, on going di harga terakhir
+  assert.equal(pickReturn({ ...P, status: "sl", last: 900 }), -0.05);
+  assert.equal(pickReturn({ ...P, status: "tp2", last: 1300 }), 0.1);
+  assert.equal(pickReturn({ ...P, status: "open", last: 1020 }), 0.02);
+  assert.equal(pickReturn({ ...P, status: "open", last: null }), null);
+  // isian: kode 4 huruf, harga rupiah bulat ("4.250" = 4250), SL < entry < TP1 < TP2
+  assert.deepEqual(cleanPick({ date: "2026-10-01", code: " bbri ", entry: "4.250", sl: "4100", tp1: 4500, tp2: "" }, "2026-11-03"),
+    { date: "2026-10-01", code: "BBRI", entry: 4250, sl: 4100, tp1: 4500, tp2: null });
+  const bad = (x, m) => assert.ok(cleanPick({ date: "2026-10-01", code: "BBRI", entry: 4250, sl: 4100, tp1: 4500, ...x }, "2026-11-03").error, m);
+  bad({ sl: 4300 }, "SL harus di bawah entry"); bad({ tp1: 4200 }, "TP1 harus di atas entry"); bad({ tp2: 4400 }, "TP2 harus di atas TP1");
+  bad({ code: "BB" }, "kode 4 huruf"); bad({ date: "2026-11-04" }, "tanggal belum datang"); bad({ entry: "" }, "entry wajib"); bad({ sl: "0" }, "harga > 0");
+  // EOD: sebelum 16.30 WIB harga penutupan hari ini belum dipakai
+  assert.equal(eodSlot(Date.parse("2026-11-03T15:00:00+07:00")), "2026-11-02");
+  assert.equal(eodSlot(Date.parse("2026-11-03T17:00:00+07:00")), "2026-11-03");
+
+  // API: harga dari Yahoo (ditiru), dicek saat dibuka, pick yang sudah ditutup tidak diambil lagi
+  const realFetch = globalThis.fetch, hits = [];
+  const S = { "BBRI.JK": [[plus(-3), 4200], [plus(-2), 4600]], "TLKM.JK": [[plus(-3), 2850]], "ASII.JK": [[plus(-2), 5050]], "^JKSE": [[plus(-9), 7000], [plus(-8), 7000], [plus(-2), 7140]] };
+  globalThis.fetch = async (u) => {
+    u = String(u); const sym = decodeURIComponent(u.split("/chart/")[1].split("?")[0]); hits.push(sym);
+    if (sym === "GOTO.JK") return new Response("down", { status: 500 });
+    const L = S[sym] || [];
+    return Response.json({ chart: { result: [{ timestamp: L.map(([d]) => Date.parse(d + "T09:00:00+07:00") / 1000), indicators: { quote: [{ close: L.map(([, c]) => c) }] } }] } });
+  };
+  const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
+  const pk = (ck, body) => call("/api/picks", { ck, body });
+  let r = await pk(COPY, { date: plus(-3), code: "BBRI", entry: 4200, sl: 4000, tp1: 4500, tp2: 5000 });
+  assert.equal(r.status, 200, JSON.stringify(r.j)); const BB = r.j.id;
+  const TL = (await pk(COPY, { date: plus(-3), code: "TLKM", entry: 3000, sl: 2900, tp1: 3300 })).j.id;
+  await pk(DES, { date: plus(-2), code: "ASII", entry: 5000, sl: 4800, tp1: 5500 });
+  await pk(DES, { date: plus(-2), code: "GOTO", entry: 60, sl: 55, tp1: 70 });
+  assert.equal((await pk(COPY, { date: plus(-3), code: "BBRI", entry: 4200, sl: 4300, tp1: 4500 })).status, 400, "isian salah ditolak");
+  assert.equal((await pk(DES, { id: BB, date: plus(-3), code: "BBRI", entry: 4200, sl: 4000, tp1: 4500 })).status, 400, "ubah milik orang lain ditolak");
+  const list = async (q = "") => (await call(`/api/picks?from=${plus(-5)}&to=${wib}${q}`, { ck: PART })).j;
+  let L = await list("&ihsg=1"), by = (c) => L.picks.find((p) => p.code === c);
+  assert.deepEqual(["BBRI", "TLKM", "ASII", "GOTO"].map((c) => by(c).status), ["tp1", "sl", "open", "open"], "Yahoo gagal: tetap on going, tidak error");
+  assert.deepEqual([by("BBRI").hit_date, by("BBRI").last, by("BBRI").ret], [plus(-2), 4600, (4500 - 4200) / 4200]);
+  assert.equal(by("TLKM").ret, (2900 - 3000) / 3000, "kena SL dihitung di harga SL");
+  assert.deepEqual([by("ASII").last, by("ASII").name], [5050, "Dodi"]);
+  assert.ok(Math.abs(L.ihsg.ret - 0.02) < 1e-9, "IHSG: penutupan terakhir dibanding penutupan sebelum periode");
+  hits.length = 0; L = await list();
+  assert.deepEqual(hits, ["GOTO.JK"], "yang sudah dicek di EOD yang sama tidak diambil lagi; yang gagal dicoba lagi");
+  // ubah pick: status dihitung ulang dari awal
+  assert.equal((await pk(COPY, { id: TL, date: plus(-3), code: "TLKM", entry: 3000, sl: 2800, tp1: 3300 })).status, 200);
+  L = await list(); assert.equal(by("TLKM").status, "open", "SL baru 2800, harga 2850: on going");
+  assert.equal((await call("/api/picks/delete", { ck: DES, body: { id: BB } })).status, 400, "hapus milik orang lain ditolak");
+  assert.equal((await call("/api/picks/delete", { ck: ADM, body: { id: BB } })).status, 200, "admin boleh menghapus");
+  L = await list(); assert.equal(by("BBRI"), undefined);
+  assert.equal((await call(`/api/picks?from=2024-01-01&to=2026-12-31`, { ck: PART })).status, 400, "periode maks. 1 tahun");
+  globalThis.fetch = realFetch;
+}
+
 console.log("semua cek lolos");

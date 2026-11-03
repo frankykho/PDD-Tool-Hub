@@ -176,7 +176,9 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .dteam h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 4px}
 .dperson{font-weight:700;font-size:13px;margin:8px 0 0}
 @media (max-width:900px){.daily{grid-template-columns:minmax(0,1fr)}}
-.dcol{display:grid;gap:12px;min-width:0}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
+.dcol{display:grid;gap:12px;min-width:0}
+.pkf{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0 0 10px}.pkf .acts{grid-column:1/-1}.pkf input::placeholder{text-transform:none}
+@media (max-width:600px){.pkf{grid-template-columns:repeat(2,minmax(0,1fr))}}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
 .wabox summary{cursor:pointer;margin:0}.wabox[open] summary{margin-bottom:8px}
 .wa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.wac{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
 .wab{display:flex;align-items:center;gap:6px}.wab .btn{min-width:30px;justify-content:center;padding-left:0;padding-right:0}.wab b{min-width:22px;text-align:center;font-size:16px}
@@ -778,7 +780,7 @@ function renderTasksView(){
 }
 /* ---------- Harian: pekerjaan yang dikerjakan tiap orang per hari (semua bisa melihat; mengubah hanya milik sendiri) ---------- */
 const WS=PL.workStatuses||{selesai:"Selesai",berjalan:"Berjalan",kendala:"Kendala"},WCL={selesai:4,berjalan:2,kendala:5};
-const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[],waDraft:{}};
+const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[],waDraft:{},picks:[],picksFor:"",picksReq:"",pEdit:null};
 const WK=PL.waKinds||{insight:"Insight pasar",berita:"Berita",stockpick:"Stockpick",lain:"Lainnya"};
 // tim = role pekerjaan: role saat mencatat, kalau kosong role orangnya sekarang
 const roleOf=e=>(USERS.find(u=>u.email===e)||{}).role||"";
@@ -797,7 +799,7 @@ async function loadDaily(){
       api(`/api/wa?from=${mk}-01&to=${monthEnd(mk+"-01")}`).catch(()=>[])]);
     DV.logs=logs;DV.items=its;DV.itemsAt=mk;DV.wa=Array.isArray(wa)?wa:[];showErr("calErr");
   }catch(e){DV.logs=[];showErr("calErr",e)}
-  renderCal();
+  renderCal();loadPicks();
 }
 const logRow=(l,own)=>`<div class="trow"><span class="ap c${WCL[l.status]||1}">${esc(WS[l.status]||l.status||"–")}</span><div class="ti"><b translate="no">${esc(l.text)}</b>`+
   (l.item_id&&l.item_title?`<small translate="no"><button type="button" class="lnk" data-open="${esc(l.item_id)}">${ICON[l.item_kind]||""} ${esc(l.item_title)}</button></small>`:"")+
@@ -847,6 +849,45 @@ async function saveWaUi(){
     delete DV.waDraft[d];waRedraw();
   }catch(e){$("waMsg").textContent="Belum disimpan";showErr("calErr",e)}
 }
+// stock pick: entry, SL, TP1, TP2; status dari harga penutupan (EOD) sejak pick dibuat, dihitung server saat dibuka
+const PST={open:"On going",sl:"Kena SL",tp1:"Kena TP1",tp2:"Kena TP2"},PCL={open:2,sl:5,tp1:4,tp2:4};
+const pctR=r=>r==null?"–":pct(r*100,1);
+// winrate = kena TP ÷ pick yang ditutup (TP + SL); return akumulasi = jumlah return pick yang ditutup
+const pickSum=L=>{const c=k=>L.filter(p=>k.includes(p.status)).length,tp=c(["tp1","tp2"]),sl=c(["sl"]),closed=tp+sl;
+  return {n:L.length,tp,sl,closed,open:L.length-closed,wr:closed?tp/closed:null,ret:L.filter(p=>p.status!=="open").reduce((a,p)=>a+(p.ret||0),0)}};
+const pickSt=p=>PST[p.status]+(p.status==="tp1"&&p.tp2?" (menunggu TP2)":"");
+async function loadPicks(force){
+  const mk=DV.date.slice(0,7);if(!force&&(DV.picksFor===mk||DV.picksReq===mk))return;DV.picksReq=mk;
+  try{const r=await api(`/api/picks?from=${mk}-01&to=${monthEnd(mk+"-01")}`);if(DV.date.slice(0,7)===mk){DV.picks=Array.isArray(r&&r.picks)?r.picks:[];DV.picksFor=mk}}
+  catch(e){showErr("calErr",e)}finally{if(DV.picksReq===mk)DV.picksReq=""}
+  pickRedraw();
+}
+// gambar ulang panelnya saja; isian yang sedang diketik tetap ada
+function pickRedraw(){
+  const b=$("pkBox");if(!b)return;const ids=["pkCode","pkEntry","pkSl","pkTp1","pkTp2"],v=ids.map(id=>$(id)&&$(id).value),ed=b.dataset.ed;
+  b.outerHTML=pickPanel(b.open);if((DV.pEdit||"")===ed)ids.forEach((id,i)=>{if($(id)&&v[i]!=null)$(id).value=v[i]});
+}
+function pickPanel(open){
+  const d=DV.date,mk=d.slice(0,7),me=PL.me.email,L=DV.picksFor===mk?DV.picks:null,ed=DV.pEdit&&L&&L.find(p=>p.id===DV.pEdit)||{},S=L&&pickSum(L);
+  const inp=(id,k,ph,lab)=>`<input class="f" id="${id}" ${k==="code"?'maxlength="4" style="text-transform:uppercase"':'inputmode="numeric"'} placeholder="${ph}" aria-label="${lab}" value="${esc(ed[k]==null?"":ed[k])}"${k==="tp2"?"":" required"}>`;
+  const form=d>todayIso()?"":`<form id="pkForm" class="pkf">${inp("pkCode","code","Kode","Kode saham")}${inp("pkEntry","entry","Entry","Harga entry")}${inp("pkSl","sl","SL","Harga stop loss")}${inp("pkTp1","tp1","TP1","Harga TP1")}${inp("pkTp2","tp2","TP2","Harga TP2 (opsional)")}
+    <div class="acts"><button class="btn pri sm" type="submit">${DV.pEdit?"Simpan perubahan":"+ Tambah stock pick"}</button>${DV.pEdit?'<button type="button" class="btn sm" data-pcancel="1">Batal</button>':""}<span class="muted small" id="pkMsg">${DV.pEdit?"Mengubah pick "+esc(fmtShort(ed.date||d)):"Tanggal pick: "+esc(fmtShort(d))}</span></div></form>`;
+  const row=p=>`<div class="trow"><span class="ap c${PCL[p.status]||1}">${esc(PST[p.status]||p.status)}</span><div class="ti"><b translate="no">${esc(p.code)}</b>`+
+    `<small>${esc(fmtShort(p.date))} · ${esc(p.name||nameOf(p.email)||"")} · Entry ${int(p.entry)} · SL ${int(p.sl)} · TP1 ${int(p.tp1)}${p.tp2?" · TP2 "+int(p.tp2):""}</small>`+
+    `<small>${p.last?`Terakhir ${int(p.last)} (${esc(fmtShort(p.last_date))})`:"Belum ada harga penutupan"}${p.hit_date?" · kena "+(p.status==="sl"?"SL":"TP1")+" "+esc(fmtShort(p.hit_date)):""}${p.tp2_date?" · TP2 "+esc(fmtShort(p.tp2_date)):""}${p.status==="tp1"&&p.tp2?" · menunggu TP2":""} · return ${pctR(p.ret)}${p.status==="open"?" (sementara)":""}</small></div>`+
+    (PL.me.adm||p.email===me?`<button type="button" class="btn sm" data-pedit="${esc(p.id)}">Ubah</button><button type="button" class="x" data-pdel="${esc(p.id)}" aria-label="Hapus stock pick ${esc(p.code)}">×</button>`:"")+"</div>";
+  const body=form+(L?(L.length?`<p class="muted small" style="margin:0 0 6px">${MON[D(d).getUTCMonth()]}: ${S.n} pick · ${S.tp} kena TP · ${S.sl} kena SL · ${S.open} on going · winrate ${S.wr==null?"–":Math.round(S.wr*100)+"%"} · return ${pctR(S.ret)}</p>`+L.slice().reverse().map(row).join(""):`<p class="muted small" style="margin:0">Belum ada stock pick bulan ini.</p>`):`<p class="muted small" style="margin:0">Memuat harga penutupan…</p>`)+
+    `<p class="muted small" style="margin:8px 0 0">TP2 boleh kosong. Status dari harga penutupan (EOD) sejak tanggal pick; yang tercapai duluan menentukan. Harga hari ini dipakai setelah 16.30 WIB. Masuk ke ⬇ Laporan.</p>`;
+  const h=`📈 Stock pick ${MON[D(d).getUTCMonth()]}`,att=`id="pkBox" data-ed="${esc(DV.pEdit||"")}"`;
+  return PL.me.role==="is"||L&&L.some(p=>p.email===me)||DV.pEdit?`<div class="card wabox" ${att}><h3>${h}</h3>${body}</div>`:`<details class="card wabox" ${att}${open?" open":""}><summary>${h}</summary>${body}</details>`;
+}
+async function savePickUi(){
+  const ed=DV.pEdit&&DV.picks.find(p=>p.id===DV.pEdit)||{},v=id=>$(id).value.trim();
+  const b={id:DV.pEdit||undefined,date:ed.date||DV.date,code:v("pkCode"),entry:v("pkEntry"),sl:v("pkSl"),tp1:v("pkTp1"),tp2:v("pkTp2")};
+  $("pkMsg").textContent="Menyimpan…";
+  try{await api("/api/picks",b);DV.pEdit=null;["pkCode","pkEntry","pkSl","pkTp1","pkTp2"].forEach(id=>$(id).value="");await loadPicks(true);if($("pkCode"))$("pkCode").focus()}
+  catch(e){$("pkMsg").textContent="";showErr("calErr",e)}
+}
 // posting yang belum disimpan: browser mengingatkan sebelum halaman ditutup
 addEventListener("beforeunload",e=>{if(Object.keys(DV.waDraft).length)e.preventDefault()});
 function renderDaily(){
@@ -867,7 +908,7 @@ function renderDaily(){
   const team=`<div class="card"><h2>Tim${d===t?" hari ini":""}</h2>`+(keys.length?keys.map(k=>`<div class="dteam"><h3>${esc(PL.roles[k]||"Lainnya")}</h3>`+
     (T[k]?[...T[k].people].map(([e,n])=>`<div class="dperson" translate="no">${esc(n)}</div>`+T[k].logs.filter(l=>l.email===e).map(l=>logRow(l,false)).join("")).join(""):"")+
     (missing[k]?`<p class="muted small" style="margin:6px 0 0">Belum mengisi: ${missing[k].map(esc).join(", ")}</p>`:"")+"</div>").join(""):`<p class="muted small" style="margin:4px 0">Belum ada catatan dari anggota lain.</p>`)+"</div>";
-  $("calBox").innerHTML=`<div class="daily"><div class="dcol">${d>t?"":waPanel(false)}${my}</div>${team}</div>`;
+  $("calBox").innerHTML=`<div class="daily"><div class="dcol">${d>t?"":waPanel(false)}${pickPanel(false)}${my}</div>${team}</div>`;
   const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit);
   if($("dvSt")){$("dvSt").value=ed?ed.status||"selesai":"selesai";$("dvItem").value=ed&&ed.item_id&&[...$("dvItem").options].some(o=>o.value===ed.item_id)?ed.item_id:""}
 }
@@ -880,6 +921,10 @@ async function saveDaily(){
 function dailyClick(e){
   const wa=e.target.closest("[data-wa]");if(wa){waStep(wa.dataset.wa,+wa.dataset.d);return}
   if(e.target.closest("[data-wasave]")){saveWaUi();return}
+  const pe=e.target.closest("[data-pedit]");if(pe){DV.pEdit=pe.dataset.pedit;pickRedraw();$("pkCode").focus();return}
+  if(e.target.closest("[data-pcancel]")){DV.pEdit=null;pickRedraw();return}
+  const pd=e.target.closest("[data-pdel]");
+  if(pd&&confirm("Hapus stock pick ini?")){api("/api/picks/delete",{id:pd.dataset.pdel}).then(()=>{if(DV.pEdit===pd.dataset.pdel)DV.pEdit=null;return loadPicks(true)}).catch(x=>showErr("calErr",x));return}
   const ed=e.target.closest("[data-ledit]");if(ed){DV.edit=ed.dataset.ledit;renderCal();$("dvText").focus();return}
   if(e.target.closest("[data-lcancel]")){DV.edit=null;renderCal();return}
   const del=e.target.closest("[data-ldel]");
@@ -1138,7 +1183,7 @@ $("calBox").addEventListener("click",e=>{
   const c=e.target.closest(".chip,.task,tr[data-id]");if(c){openForm(items.find(i=>i.id===c.dataset.id));return}
   const d=e.target.closest(".day");if(d)openForm(null,d.dataset.date);
 });
-$("calBox").addEventListener("submit",e=>{if(e.target.id==="dvForm"){e.preventDefault();saveDaily()}});
+$("calBox").addEventListener("submit",e=>{if(e.target.id==="dvForm"){e.preventDefault();saveDaily()}if(e.target.id==="pkForm"){e.preventDefault();savePickUi()}});
 $("calBox").addEventListener("change",e=>{
   if(view==="daily")return dailyChange(e);
   const ts=e.target.closest("[data-tstat]");if(ts){setTaskStatus(ts.dataset.tstat,ts.value,TV.list);return}
@@ -1416,6 +1461,18 @@ function waKpis(W){
   return {t:"kpis",h3:"Posting WA Channel",items:[...["insight","stockpick","berita"].map(k=>[WK[k],int(waSum(W,k)),of(k)]),
     ["Total posting",int(tot),`${ppl} orang · ${new Set(W.map(w=>w.date)).size} hari${lain?` · ${lain} lainnya`:""}`]]};
 }
+// hasil stock pick: jumlah, winrate, return akumulasi (SL di harga SL, TP di harga TP1) dibanding IHSG
+function pickKpis(L,ih){
+  const S=pickSum(L);
+  return {t:"kpis",h3:"Hasil stock pick",items:[["Stock pick",int(S.n),`${S.tp} kena TP · ${S.sl} kena SL · ${S.open} on going`],
+    ["Winrate",S.wr==null?"–":Math.round(S.wr*100)+"%",S.closed?`${S.tp} dari ${S.closed} pick yang ditutup`:"belum ada pick yang ditutup"],
+    ["Return akumulasi",S.closed?pctR(S.ret):"–","SL di harga SL, TP di harga TP1"],["Return IHSG",ih?pctR(ih.ret):"–",ih?`${int(ih.base)} → ${int(ih.last)}`:"harga IHSG tidak tersedia"]]};
+}
+function pickTable(L){
+  return {t:"table",h3:`Stock pick (${L.length})`,cols:[["Tanggal",9],["Kode",7],["Pembuat",12],["Entry",8,1],["SL",7,1],["TP1",7,1],["TP2",7,1],["Terakhir",9,1],["Status",16],["Kena",9],["Return",9,1]],
+    rows:L.map(p=>[fmtShort(p.date),p.code,p.name||nameOf(p.email)||"–",int(p.entry),int(p.sl),int(p.tp1),int(p.tp2),int(p.last),pickSt(p),p.hit_date?fmtShort(p.hit_date):"–",pctR(p.ret)+(p.status==="open"?" (sementara)":"")]),
+    empty:"Belum ada stock pick pada periode ini."};
+}
 // jumlah posting WA Channel per orang per jenis (+ baris total kalau lebih dari satu orang)
 function waTable(W,h3){
   const by={};W.forEach(w=>{const r=by[w.email]=by[w.email]||{name:w.name||nameOf(w.email)||w.email,L:[]};r.L.push(w)});
@@ -1508,22 +1565,24 @@ async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
   const [its0,logs,wa,gal]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]),api("/api/galeri").catch(()=>[])]);
+  const pk=await api(`/api/picks?from=${from}&to=${to}&ihsg=1`).catch(()=>null),picks=pk&&Array.isArray(pk.picks)?pk.picks:[];
   // rencana galeri: yang masih berproses di periode ini (walau mulai lebih awal), lengkap dengan riwayat progresnya
   const its=[...its0.filter(i=>kindOf(i)!=="galeri"),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to))];
   // hanya role di tim laporan (tim = kumpulan role, diatur di Tool Hub); tiap role jadi satu bagian
   const tk=$("rTeam").value,inT=k=>teamKey(k)===tk,order=Object.keys(PL.roles),T={};
-  const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[]};
+  const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[],picks:[]};
   (Array.isArray(wa)?wa:[]).forEach(w=>{const k=teamOf(w.job,w.email);if(!inT(k))return;const t=team(k);t.wa.push(w);if(!t.members.has(w.email))t.members.set(w.email,w.name||nameOf(w.email)||w.email)});
+  picks.forEach(p=>{const k=teamOf(p.job,p.email);if(!inT(k))return;const t=team(k);t.picks.push(p);if(!t.members.has(p.email))t.members.set(p.email,p.name||nameOf(p.email)||p.email)});
   USERS.forEach(u=>{if(PL.roles[u.role]&&inT(u.role))team(u.role).members.set(u.email,u.name)});
   // catatan lama yang isinya hanya tanda ("-") tanpa catatan/kegiatan/tautan tidak ikut laporan
   logs.filter(l=>/[\p{L}\p{N}]/u.test(l.text)||l.note||l.item_id||l.link).forEach(l=>{const k=teamOf(l.job,l.email);if(!inT(k))return;const t=team(k);t.logs.push(l);if(!t.members.has(l.email))t.members.set(l.email,l.name||nameOf(l.email)||l.email)});
   // kegiatan masuk ke role PIC-nya; kegiatan yang butuh visual juga ke role desainernya
   its.forEach(i=>{const ks=new Set();const o=roleOf(i.owner_email);if(o)ks.add(o);const d=i.d_need&&roleOf(i.d_who);if(d)ks.add(d);ks.forEach(k=>{const r=PL.roles[k]?k:"lain";if(inT(r))team(r).items.push(i)})});
-  const teams=Object.values(T).filter(t=>t.logs.length||t.items.length||t.wa.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
+  const teams=Object.values(T).filter(t=>t.logs.length||t.items.length||t.wa.length||t.picks.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
   if(!teams.length)throw new Error(`Belum ada pekerjaan harian atau kegiatan kalender ${tk==="-"?"dari role tanpa tim":"tim "+teamName(tk)} pada periode ini.`);
   const month=from.endsWith("-01")&&to===monthEnd(from),f=D(from);
   const per=month?`${MON_EN[f.getUTCMonth()]} ${f.getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from,to,per,month,div,teams,logs:logs.filter(l=>inT(teamOf(l.job,l.email)))};
+  return {from,to,per,month,div,teams,ihsg:pk&&pk.ihsg,logs:logs.filter(l=>inT(teamOf(l.job,l.email)))};
 }
 // tahap kegiatan bagi tim k: tim PIC menurut status kegiatan, tim desainer menurut status visualnya (k kosong = ringkasan semua tim)
 const mrOwn=(i,k)=>!k||roleOf(i.owner_email)===k||!i.d_need;
@@ -1544,6 +1603,7 @@ function monDoc(R){
   const Bk=[{t:"cover",lines:[R.month?"Monthly Report":"Report",R.per],sub:R.div},
     {t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.teams.length} role · ${members} anggota`},{t:"kpis",items:mrKpis(R.logs,allItems,"",members)},
     ...(R.teams.some(t=>t.wa.length)?[waKpis(R.teams.flatMap(t=>t.wa))]:[]),
+    ...(R.teams.some(t=>t.picks.length)?[pickKpis(R.teams.flatMap(t=>t.picks),R.ihsg)]:[]),
     ...(allItems.some(i=>kindOf(i)==="cabang")?[cabKpis(allItems.filter(i=>kindOf(i)==="cabang"))]:[]),
     ...(allItems.some(i=>kindOf(i)==="galeri")?[galKpis(allItems.filter(i=>kindOf(i)==="galeri"),R.from,R.to)]:[]),
     {t:"table",h3:"Per role",cols:[["Role",22],["Anggota",8,1],["Pekerjaan harian",11,1],["Selesai",8,1],["Berjalan",8,1],["Kendala",8,1],["Kegiatan kalender",12,1],["Keg. selesai",11,1],["Keg. berjalan",12,1]],
@@ -1554,10 +1614,11 @@ function monDoc(R){
   // per tim: (hasil program) lalu kegiatan kalender lalu pekerjaan harian per orang
   for(const t of R.teams){
     // tim yang hanya punya kegiatan cabang / rencana galeri (tim regional, tanpa pekerjaan harian): langsung ke hasilnya
-    const cabOnly=!t.logs.length&&!t.wa.length&&t.items.every(i=>REGK.includes(kindOf(i)));
+    const cabOnly=!t.logs.length&&!t.wa.length&&!t.picks.length&&t.items.every(i=>REGK.includes(kindOf(i)));
     Bk.push({t:"page",h2:t.name,sub:"Anggota: "+([...t.members.values()].sort((a,b)=>a.localeCompare(b)).join(", ")||"–")},...(cabOnly?[]:[{t:"kpis",items:mrKpis(t.logs,t.items,t.key,t.members.size)}]));
     // posting WA Channel tim ini: total & per jenis, lalu per orang
     if(t.wa.length){Bk.push(waKpis(t.wa));if(new Set(t.wa.map(w=>w.email)).size>1)Bk.push(waTable(t.wa,"Posting WA Channel per orang"))}
+    if(t.picks.length)Bk.push(pickKpis(t.picks,R.ihsg),pickTable(t.picks));
     // kegiatan cabang tim ini (tim regional): hasil & rekap per cabang; rinciannya tetap di tabel kegiatan kalender
     const cab=t.items.filter(i=>kindOf(i)==="cabang"&&mrOwn(i,t.key));
     if(cab.length){Bk.push(cabKpis(cab));if(new Set(cab.map(i=>i.branch)).size>1)Bk.push(cabRekap(cab))}
