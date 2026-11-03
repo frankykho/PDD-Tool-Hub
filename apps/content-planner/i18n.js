@@ -578,10 +578,10 @@ const D = {
   // nama bulan sendirian (mis. "Oktober (kamu): …"); tanggal lengkap sudah diterjemahkan mesin
   "Januari": "January", "Februari": "February", "Maret": "March", "April": "April", "Mei": "May", "Juni": "June",
   "Juli": "July", "Agustus": "August", "September": "September", "Oktober": "October", "November": "November", "Desember": "December",
-  "{m} (kamu): belum ada. Cukup jumlahnya, isi posting tidak perlu dicatat; masuk ke ⬇ Laporan.": "{m} (you): none yet. Just the count, no need to record the post content; it goes into ⬇ Report.",
+  "{m} (kamu): belum ada. Cukup jumlahnya, langsung tersimpan dan masuk ke ⬇ Laporan. Tidak perlu dicatat lagi di Pekerjaanku.": "{m} (you): none yet. Just the count; it is saved right away and goes into ⬇ Report. No need to add it again under My work.",
   "{m} (kamu): {x}": "{m} (you): {x}",
-  "total {n}. Cukup jumlahnya, isi posting tidak perlu dicatat; masuk ke ⬇ Laporan.": "total {n}. Just the count, no need to record the post content; it goes into ⬇ Report.",
-  "seluruh tim {n}. Cukup jumlahnya, isi posting tidak perlu dicatat; masuk ke ⬇ Laporan.": "whole team {n}. Just the count, no need to record the post content; it goes into ⬇ Report.",
+  "total {n}. Cukup jumlahnya, langsung tersimpan dan masuk ke ⬇ Laporan. Tidak perlu dicatat lagi di Pekerjaanku.": "total {n}. Just the count; it is saved right away and goes into ⬇ Report. No need to add it again under My work.",
+  "seluruh tim {n}. Cukup jumlahnya, langsung tersimpan dan masuk ke ⬇ Laporan. Tidak perlu dicatat lagi di Pekerjaanku.": "whole team {n}. Just the count; it is saved right away and goes into ⬇ Report. No need to add it again under My work.",
   "total {n}": "total {n}",
   "{n} insight pasar": "{n} market insights",
   "{n} berita": "{n} news",

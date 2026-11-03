@@ -176,7 +176,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .dteam h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 4px}
 .dperson{font-weight:700;font-size:13px;margin:8px 0 0}
 @media (max-width:900px){.daily{grid-template-columns:minmax(0,1fr)}}
-.wabox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
+.dcol{display:grid;gap:12px;min-width:0}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
 .wabox summary{cursor:pointer;margin:0}.wabox[open] summary{margin-bottom:8px}
 .wa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.wac{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
 .wab{display:flex;align-items:center;gap:6px}.wab .btn{min-width:30px;justify-content:center;padding-left:0;padding-right:0}.wab b{min-width:22px;text-align:center;font-size:16px}
@@ -821,9 +821,9 @@ const waTxt=L=>Object.keys(WK).filter(k=>waSum(L,k)).map(k=>`${waSum(L,k)} ${WK[
 function waPanel(open){
   const d=DV.date,me=PL.me.email,mine=DV.wa.filter(w=>w.email===me),day=k=>waSum(mine.filter(w=>w.date===d),k),tot=waSum(mine),team=waSum(DV.wa);
   const body=`<div class="wa">${Object.entries(WK).map(([k,l])=>`<div class="wac"><span>${esc(l)}</span><div class="wab"><button type="button" class="btn sm" data-wa="${k}" data-d="-1" aria-label="Kurangi ${esc(l)}"${day(k)?"":" disabled"}>−</button><b>${day(k)}</b><button type="button" class="btn sm" data-wa="${k}" data-d="1" aria-label="Tambah ${esc(l)}">+</button></div></div>`).join("")}</div>
-    <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}. Cukup jumlahnya, isi posting tidak perlu dicatat; masuk ke ⬇ Laporan.</p>`;
+    <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}. Cukup jumlahnya, langsung tersimpan dan masuk ke ⬇ Laporan. Tidak perlu dicatat lagi di Pekerjaanku.</p>`;
   const h=`📣 Posting WA Channel ${d===todayIso()?"hari ini":fmtShort(d)}`;
-  return PL.me.role==="is"||mine.length?`<div class="wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
+  return PL.me.role==="is"||mine.length?`<div class="card wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="card wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
 }
 // angka diubah dulu di layar, lalu disimpan; hanya panelnya yang digambar ulang supaya isian pekerjaan yang sedang diketik tidak hilang
 async function bumpWaUi(kind,delta){
@@ -836,9 +836,11 @@ async function bumpWaUi(kind,delta){
 function renderDaily(){
   const d=DV.date,t=todayIso(),me=PL.me.email,mine=DV.logs.filter(l=>l.email===me),others=DV.logs.filter(l=>l.email!==me);
   const kd=DV.logs.filter(l=>l.status==="kendala").length,who=new Set(DV.logs.map(l=>l.email));
+  // yang hari itu hanya posting WA Channel juga dihitung sudah mengisi
+  DV.wa.forEach(w=>{if(w.date===d&&+w.n>0)who.add(w.email)});
   $("stats").innerHTML=`<span class="stat">${DV.logs.length} pekerjaan tercatat</span><span class="stat">${who.size} dari ${USERS.length} orang mengisi</span>${kd?`<span class="stat c5">${kd} kendala</span>`:""}`;
   const head=`<h2>Pekerjaanku <span class="muted small" style="font-weight:600">${esc(fmtDate(d,true))}</span><span class="sp"></span><input class="f" type="date" id="dvDate" value="${d}" max="${t}" aria-label="Pilih tanggal" style="padding:4px 8px;font-size:12.5px"></h2>`;
-  const my=`<div class="card">${head}${d>t?"":waPanel(false)}${mine.length?mine.map(l=>logRow(l,true)).join(""):`<p class="muted small" style="margin:4px 0">Belum ada pekerjaan tercatat${d===t?" hari ini":" di tanggal ini"}.</p>`}`+
+  const my=`<div class="card">${head}${mine.length?mine.map(l=>logRow(l,true)).join(""):`<p class="muted small" style="margin:4px 0">Belum ada pekerjaan tercatat${d===t?" hari ini":" di tanggal ini"}.</p>`}`+
     (d>t?`<p class="muted small">Hari yang belum datang belum bisa dicatat.</p>`:dailyForm())+
     `<p class="muted small" style="margin:10px 0 0">Satu baris untuk tiap pekerjaan. Kaitkan dengan kegiatan kalender kalau ada; semua catatan masuk ke Monthly Report tim (⬇ Laporan).</p></div>`;
   // tim: dikelompokkan per role; di hari kerja, anggota yang belum mengisi ikut disebut
@@ -849,7 +851,7 @@ function renderDaily(){
   const team=`<div class="card"><h2>Tim${d===t?" hari ini":""}</h2>`+(keys.length?keys.map(k=>`<div class="dteam"><h3>${esc(PL.roles[k]||"Lainnya")}</h3>`+
     (T[k]?[...T[k].people].map(([e,n])=>`<div class="dperson" translate="no">${esc(n)}</div>`+T[k].logs.filter(l=>l.email===e).map(l=>logRow(l,false)).join("")).join(""):"")+
     (missing[k]?`<p class="muted small" style="margin:6px 0 0">Belum mengisi: ${missing[k].map(esc).join(", ")}</p>`:"")+"</div>").join(""):`<p class="muted small" style="margin:4px 0">Belum ada catatan dari anggota lain.</p>`)+"</div>";
-  $("calBox").innerHTML=`<div class="daily">${my}${team}</div>`;
+  $("calBox").innerHTML=`<div class="daily"><div class="dcol">${d>t?"":waPanel(false)}${my}</div>${team}</div>`;
   const ed=DV.edit&&DV.logs.find(l=>l.id===DV.edit);
   if($("dvSt")){$("dvSt").value=ed?ed.status||"selesai":"selesai";$("dvItem").value=ed&&ed.item_id&&[...$("dvItem").options].some(o=>o.value===ed.item_id)?ed.item_id:""}
 }
