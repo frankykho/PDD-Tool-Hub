@@ -12,7 +12,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: ci, overlap, parseConcept, conceptText, igUser, igPlan, igRow } = await import("./worker.js");
+const { default: ci, overlap, parseConcept, conceptText, CONCEPT_GOALS, igUser, igPlan, igRow } = await import("./worker.js");
 const { default: planner } = await import("../content-planner/worker.js");
 
 function d1() {
@@ -91,11 +91,16 @@ assert.match(user1.content, /sasaran karyawan muda/);
 assert.match(user2, /terlalu mirip/);
 const K = r.j.concept;
 assert.deepEqual([K.body.judul, K.body.format, K.body.alur.length, K.body.hashtag], [good.judul, "Carousel", 2, ["#danadarurat", "#reksadana"]]);
+// tanpa pilihan tujuan -> Edukasi (bawaan); tujuan ikut di prompt, tersimpan di konsep, dan tertulis di teks konsep
+assert.match(user1.content, /TUJUAN KONSEP: Edukasi\./); assert.equal(K.body.tujuan, "edukasi"); assert.match(K.text, /^Tujuan: Edukasi$/m);
 assert.match(K.text, /Terinspirasi dari konten @pesaing \(Instagram\): https:\/\/www\.instagram\.com\/p\/ABC123\//);
 // satu ide saja
 AIQ.push(JSON.stringify({ ...good, judul: "Versi kuis" }));
-r = await call("/api/concepts", { ck: SMS, method: "POST", body: { content_id: X, idea_id: VI } });
+r = await call("/api/concepts", { ck: SMS, method: "POST", body: { content_id: X, idea_id: VI, goal: "promosi" } });
 assert.equal(r.status, 200);
+assert.match(prompts[2][1].content, /TUJUAN KONSEP: Promosi\. Tonjolkan produk/); assert.equal(r.j.concept.body.tujuan, "promosi");
+r = await call("/api/concepts", { ck: SMS, method: "PATCH", body: { id: r.j.concept.id, body: { judul: "Promo diubah" } } });
+assert.equal(r.j.body.tujuan, "promosi", "tujuan tetap setelah konsep diubah");
 assert.ok(/Format kuis/.test(prompts[2][1].content) && !/bandingkan dengan deposito/.test(prompts[2][1].content), "hanya ide yang dipilih");
 // AI gagal dua kali -> pesan jelas
 AIQ.push("bukan json sama sekali, hanya teks panjang tanpa kurung kurawal apa pun di sini", "masih bukan json, teks panjang lagi supaya lolos batas minimal panjang");
@@ -140,6 +145,9 @@ assert.match(page, /function bulkIg\(user\)/);
 // jendela konten ditutup lewat ✕ di kanan atas (bukan tombol "Tutup" di antara tombol aksi)
 assert.match(page, /class="dlgx" type="button" id="cX" aria-label="Tutup">✕</); assert.doesNotMatch(page, /id="cX">Tutup</);
 // tab Konsep AI: semua konsep dalam satu daftar, centang lalu ekspor (pilihan sama dengan centang di jendela konten)
+// pilihan tujuan konsep di halaman = daftar di server (kunci & label sama)
+assert.match(page, /id="cgGoal"/); assert.match(page, /id="kGoal"/);
+for (const [k, [label]] of Object.entries(CONCEPT_GOALS)) assert.ok(page.includes(`${k}:"${label}"`), "tujuan " + k);
 assert.match(page, /id="kQ"/); assert.match(page, /id="kFmt"/); assert.match(page, /id="kBy"/); assert.match(page, /id="kSt"/);   // cari & filter konsep
 assert.match(page, /role="tab" id="vK"/); assert.match(page, /function renderKonsep\(\)/); assert.match(page, /data-kopen=/); assert.match(page, /id="kAll"/);
 // ekspor konsep terpilih ke PPT / PDF, dengan logo iKISI dari aset tool ini

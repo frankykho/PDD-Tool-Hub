@@ -183,6 +183,12 @@ export default {
   // ekspor konsep terpilih (isi file PPT/PDF = data konsep, tetap bahasa Indonesia)
   "Pilih untuk ekspor": "Select for export",
   "Konsep AI": "AI concepts",
+  "Tujuan konsep": "Concept goal",
+  "Tujuan": "Goal",
+  "Semua tujuan": "All goals",
+  "Promosi": "Promotion",
+  "Brand awareness": "Brand awareness",
+  "Info pasar": "Market info",
   "Pembuat": "Created by",
   "Semua pembuat": "All creators",
   "Belum ke Content Planner": "Not in Content Planner yet",
