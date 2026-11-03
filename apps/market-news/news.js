@@ -130,10 +130,9 @@ export function score(items, px = {}, now = Date.now()) {
       const age = (now - Date.parse(x.at || x.seen_at || now)) / 3600e3;
       const up = (x.tickers || []).map((c) => px[c]).filter((v) => typeof v === "number");
       let s = 2 * Math.min(media, 5) + (age <= 6 ? 2 : age <= 12 ? 1 : 0);
-      if (x.corp && x.corp !== "Kinerja") s += 3; else if (x.corp) s += 1;
+      if (x.corp && x.corp !== "Kinerja") s += 6; else if (x.corp) s += 2;   // aksi korporasi paling dicari nasabah
       if (x.cat === "makro") s += RELEASE.test(x.title) && !PREDICT.test(x.title) ? 4 : 1;
       if (up.some((v) => v >= 3)) s += 3; else if (up.some((v) => v > 0)) s += 1;
-      if (/\bihsg\b/i.test(x.title)) s += 1;
       if (age > 36) s -= 4;
       out[x.id] = { ckey: ck, score: s };
     }
@@ -146,6 +145,21 @@ export function score(items, px = {}, now = Date.now()) {
     out[lead.id].score += Math.min(others.length, 4); // makin banyak media, makin "ramai"
   }
   return out;
+}
+
+// kata sentimen di judul (sederhana; judul yang memuat keduanya = netral)
+const POS = /\b(naik|menguat|melonjak|melesat|meroket|rebound|menghijau|tumbuh|laba|untung|surplus|rekor|dividen|buy ?back|net buy|beli bersih|ara|ekspansi|kontrak baru)\b/;
+const NEG = /\b(turun|melemah|anjlok|merosot|ambles|ambruk|longsor|terkoreksi|koreksi|tertekan|lesu|rugi|merugi|defisit|gagal bayar|pkpu|pailit|bangkrut|suspensi|digembok|delisting|denda|sanksi|phk|net sell|jual bersih|arb)\b/;
+/** Sentimen berita dari judul: "pos" | "neg" | "" (netral / campur). Bukan rekomendasi, hanya penanda untuk tim. */
+export function sentiment(title) {
+  const s = String(title || "").toLowerCase();
+  const rate = /suku bunga|bi[ -]?rate|\bfed\b|fomc/.test(s), up = /\bnaik(kan)?\b|\bkerek|\bmengerek/.test(s), down = /\bturun(kan)?\b|\bpangkas|\bmemangkas/.test(s);
+  if (rate && (up || down)) return down && !up ? "pos" : up && !down ? "neg" : "";   // bunga turun = baik untuk pasar
+  if (/inflasi/.test(s) && (up || down)) return up && !down ? "neg" : down && !up ? "pos" : "";
+  if (/\b(laba|pendapatan|penjualan)\b.{0,25}\b(turun|anjlok|merosot|susut|tergerus)\b/.test(s)) return "neg";
+  if (/\brugi\b.{0,25}\b(turun|menyusut|susut|berkurang)\b/.test(s)) return "pos";
+  const p = POS.test(s), n = NEG.test(s);
+  return p === n ? "" : p ? "pos" : "neg";
 }
 
 /* ---------------- artikel & AI ---------------- */

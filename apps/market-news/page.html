@@ -33,7 +33,7 @@ a{color:var(--g)}
 :root[data-theme="dark"] .tag.makro{background:#1c2a44;color:#9cbcf5}:root[data-theme="dark"] .tag.pasar{background:#2a2140;color:#c7a8f5}
 .tk{display:inline-block;border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-size:12px;font-weight:700}
 .tk .sy{color:var(--g);background:var(--g2);border-radius:5px;padding:0 4px;margin-left:4px;font-size:10.5px;font-weight:800;letter-spacing:.2px}
-.up{color:var(--up)}.dn{color:var(--dn)}
+.up{color:var(--up)}.dn{color:var(--dn)}.tag.sent.pos{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}.tag.sent.neg{background:color-mix(in srgb,var(--dn) 16%,transparent);color:var(--dn)}
 /* ringkasan pasar */
 .mk h2{margin:0 0 10px;font-size:16px}
 .mk .top{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}
@@ -316,7 +316,8 @@ function teamCard(x){
   var ed=C.canEdit,pubd=x.status==="terbit",ro=ed?"":" readonly";
   var st=x.ai_state==="gagal"?'<span class="dn">AI gagal; coba lagi</span>':x.ai_state==="bukan"?'<span class="dn">AI: bukan berita pasar</span>':x.ai_state==="done"?"Diringkas AI":"Belum diringkas";
   return'<article class="card it" data-id="'+esc(x.id)+'">'+teamBan(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"–")+"</span>"+(x.theme?'<span class="tag" style="background:var(--bg);color:var(--t2)">'+esc(x.theme)+"</span>":"")+tks(x)
-   +'<span title="skor hype (maks. 23)">🔥 '+nf(x.score||0,0)+" · "+(1+(x.sources||[]).length)+" media</span><span>"+esc(x.src)+" · "+esc(ago(x.at||x.seen_at))+"</span><span>"+st+"</span>"+(pubd?'<span class="tag">Terbit · '+esc(x.published_by||"")+"</span>":"")+"</div>"
+   +(x.sent?'<span class="tag sent '+x.sent+'" data-sent="'+x.sent+'" title="Sentimen dari kata di judul, bukan rekomendasi">'+(x.sent==="pos"?"▲ Positif":"▼ Negatif")+"</span>":"")
+   +'<span title="skor hype (maks. 25)">🔥 '+nf(x.score||0,0)+" · "+(1+(x.sources||[]).length)+" media</span><span>"+esc(x.src)+" · "+esc(ago(x.at||x.seen_at))+"</span><span>"+st+"</span>"+(pubd?'<span class="tag">Terbit · '+esc(x.published_by||"")+"</span>":"")+"</div>"
    +'<label class="fld">Judul<input data-f="title" value="'+esc(x.title)+'"'+ro+"></label>"
    +(x.raw_title&&x.raw_title!==x.title?'<div class="muted small">Judul asli: <span translate="no">'+esc(x.raw_title)+"</span></div>":"")
    +'<label class="fld">Ringkasan<textarea data-f="summary" placeholder="Klik “Ringkas dengan AI” atau tulis 2–3 kalimat fakta utama"'+ro+">"+esc(x.summary||"")+"</textarea></label>"
@@ -419,14 +420,14 @@ function bgView(){
 // urutan daftar tim: hype (skor) atau terbaru (waktu terbit berita)
 var srt="hype",SORTS=/^(pick|skip|all)$/;
 function sorter(a,b){var t=function(x){return Date.parse(x.at||x.seen_at)||0};return srt==="new"?t(b)-t(a):(b.score||0)-(a.score||0)||t(b)-t(a)}
-var HYPE=["Jumlah media yang memberitakan emiten atau topik yang sama dalam 24 jam: +2 per media, maks. +10","Berita utama kelompok itu: +1 per media lain yang ikut memberitakan, maks. +4","Kebaruan: terbit kurang dari 6 jam +2, kurang dari 12 jam +1","Aksi korporasi (dividen, buyback, rights issue, akuisisi, dan sejenisnya) +3; laporan kinerja +1","Rilis data atau keputusan ekonomi +4; opini atau proyeksi +1","Saham terkait naik 3% atau lebih hari ini +3; naik sedikit +1","Judul menyebut IHSG +1"];
+var HYPE=["Jumlah media yang memberitakan emiten atau topik yang sama dalam 24 jam: +2 per media, maks. +10","Berita utama kelompok itu: +1 per media lain yang ikut memberitakan, maks. +4","Kebaruan: terbit kurang dari 6 jam +2, kurang dari 12 jam +1","Aksi korporasi (dividen, buyback, rights issue, akuisisi, IPO, dan sejenisnya) +6; laporan kinerja +2","Rilis data atau keputusan ekonomi +4; opini atau proyeksi +1","Saham terkait naik 3% atau lebih hari ini +3; naik sedikit +1"];
 function renderTeam(){
   var L=items.filter(function(x){return!cat||x.cat===cat}).sort(SORTS.test(view)?sorter:function(){return 0}),ok=Object.keys(srcSt.src||{}).filter(function(k){return srcSt.src[k].ok}).length;
   $("app").innerHTML='<div class="bar">'+(C.logo?'<img src="'+esc(C.logo)+'" alt="">':"")+'<h1>Market News</h1><span class="sp"></span>'
    +(C.canEdit?'<button class="btn" type="button" id="bCollect">Ambil berita sekarang</button>':"")
    +'<button class="btn" type="button" data-copy="'+esc(C.publicUrl)+'">Salin link publik</button><a class="btn" href="'+esc(C.publicUrl)+'" target="_blank" rel="noopener">Halaman publik ↗</a></div>'
    +'<p class="muted small" style="margin:-6px 0 0">Berita makro, pasar, dan emiten dari CNBC Indonesia, Kontan, IDX Channel, Bloomberg Technoz, Bisnis.com, EmitenNews, dan Investor Daily. Diurutkan menurut skor hype: berapa media yang memberitakan, aksi korporasi, rilis data ekonomi, dan saham yang ikut naik. Berita teratas diringkas AI otomatis; tim mengecek lalu menerbitkan.</p>'
-   +'<details class="src card" style="padding:10px 14px"><summary>Apa itu skor hype? (maks. 23)</summary><p class="small" style="margin:8px 0 4px">Skor hype menunjukkan seberapa ramai sebuah berita diberitakan. Makin tinggi, makin ramai. Nilainya jumlah dari:</p><ul class="small" style="margin:0;padding-left:18px">'+HYPE.map(function(t){return"<li>"+t+"</li>"}).join("")+"</ul></details>"
+   +'<details class="src card" style="padding:10px 14px"><summary>Apa itu skor hype? (maks. 25)</summary><p class="small" style="margin:8px 0 4px">Skor hype menunjukkan seberapa ramai sebuah berita diberitakan. Makin tinggi, makin ramai. Nilainya jumlah dari:</p><ul class="small" style="margin:0;padding-left:18px">'+HYPE.map(function(t){return"<li>"+t+"</li>"}).join("")+"</ul></details>"
    +market(mk)
    +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 24 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
    +(view==="fin"||view==="bg"?"":'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join(""))

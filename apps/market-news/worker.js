@@ -16,7 +16,7 @@ import { themeHead } from "../../shared/theme.js";
 import EN from "./i18n.js";
 import { ai, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
-import { SOURCES, parseRss, parseList, classify, cleanTitle, score, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
+import { SOURCES, parseRss, parseList, classify, cleanTitle, score, sentiment, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { BG_MODEL, BG_DAILY, BG_THEMES, BG_LABEL, bgTheme, bgPrompt, SCENE_RULES, imageB64 } from "./banner.js";
 import { shariaCached, shariaLabel } from "../../shared/sharia.js";
@@ -447,7 +447,7 @@ export default withCron({
             : [`status='baru' AND lead=1 AND ${D} ORDER BY score DESC, seen_at DESC LIMIT 80`, [since, since]];
           const L = (await env.DB.prepare(`SELECT ${ITEM_COLS} FROM mn_items${v === "pub" ? "" : " INDEXED BY mn_items_seen"} WHERE ${q[0]}`).bind(...q[1]).all()).results || [];
           const m = await getMeta(env, "mkt"), px = (m && m.px) || {};
-          return json(L.map((x) => ({ ...pub(x), raw_title: x.title, score: x.score, status: x.status, ai_state: x.ai_state, model: x.model, no_img: !!x.no_img, has_img: !!x.has_img, seen_at: x.seen_at, published_by: x.published_by,
+          return json(L.map((x) => ({ ...pub(x), raw_title: x.title, score: x.score, sent: sentiment(x.ai_title || x.title), status: x.status, ai_state: x.ai_state, model: x.model, no_img: !!x.no_img, has_img: !!x.has_img, seen_at: x.seen_at, published_by: x.published_by,
             px: Object.fromEntries((x.tickers ? x.tickers.split(",") : []).filter((c) => typeof px[c] === "number").map((c) => [c, px[c]])) })));
         }
       }

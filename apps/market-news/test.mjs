@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { parseRss, parseList, cleanTitle, classify, score, article, parseAi, marketFrom, overview, SOURCES, idOf, parseFin, finMoney } from "./news.js";
+import { parseRss, parseList, cleanTitle, classify, score, article, parseAi, marketFrom, overview, SOURCES, idOf, parseFin, finMoney, sentiment } from "./news.js";
 
 registerHooks({
   load(url, ctx, next) {
@@ -63,11 +63,21 @@ assert.deepEqual(sc.a1.sources.map((x) => x.src), ["Kontan", "Bisnis.com"], "med
 assert.ok(sc.a1.score > sc.c1.score, "3 media + buyback + saham naik > 1 media");
 assert.ok(sc.b1.score > sc.b2.score, "rilis keputusan (ditahan 5,75%) > proyeksi lama");
 assert.equal(sc.b1.lead, 1);
-// skor hype tertinggi = 23 (angka di penjelasan halaman tim): 5+ media, baru, aksi korporasi, saham naik ≥3%, menyebut IHSG
+// skor hype tertinggi = 25 (angka di penjelasan halaman tim): 5+ media, baru, aksi korporasi, saham naik ≥3%; menyebut IHSG tidak menambah
 {
   const T = (id, src) => ({ id, src, title: "BBCA Bagi Dividen, IHSG Menguat", at: new Date(now).toISOString(), cat: "emiten", tickers: ["BBCA"], corp: "Dividen" });
   const mx = score(["CNBC Indonesia", "Kontan", "Bisnis.com", "EmitenNews", "IDX Channel", "Investor Daily", "Bloomberg Technoz"].map((s, i) => T("m" + i, s)), { BBCA: 5 }, now);
-  assert.equal(Math.max(...Object.values(mx).map((x) => x.score)), 23);
+  assert.equal(Math.max(...Object.values(mx).map((x) => x.score)), 25);
+  // bobot: aksi korporasi +6, laporan kinerja +2 (selisih dengan berita emiten biasa dari 1 media)
+  const one = (corp) => score([{ id: "o", src: "Kontan", title: "BBCA hari ini", at: new Date(now).toISOString(), cat: "emiten", tickers: ["BBCA"], corp }], {}, now).o.score;
+  assert.deepEqual([one("Dividen") - one(""), one("Kinerja") - one("")], [6, 2]);
+}
+// sentimen dari judul: positif / negatif / kosong (netral atau campur)
+{
+  const S = (t) => sentiment(t);
+  assert.deepEqual([S("Laba BBRI Melonjak 20% di Kuartal III"), S("Saham GOTO Anjlok, Asing Net Sell Rp500 Miliar"), S("BI Rate Turun ke 5,50%"), S("The Fed Naikkan Suku Bunga"),
+    S("Laba UNVR Turun 15%"), S("Rugi Bersih WIKA Menyusut"), S("Inflasi Oktober Naik ke 2,9%"), S("RUPS ADRO Digelar Pekan Depan"), S("IHSG Dibuka Menguat"), S("PT ABC Masuk PKPU")],
+    ["pos", "neg", "pos", "neg", "neg", "pos", "neg", "", "pos", "neg"]);
 }
 
 /* ---------- artikel & AI ---------- */
@@ -153,6 +163,7 @@ assert.equal(s, 401);
 [s, j] = await call("/api/items?view=pick", VIEW);
 assert.equal(s, 200);
 assert.equal(j.find((x) => x.id === lead.id).px.MBSS, 6.2, "perubahan harga saham ikut ditampilkan");
+assert.ok(j.every((x) => ["pos", "neg", ""].includes(x.sent)), "tanda sentimen ikut di daftar tim");
 assert.equal(j.filter((x) => x.tickers.includes("MBSS")).length, 1, "satu kartu per kelompok berita");
 // halaman tim hanya berita 24 jam terakhir: menurut waktu terbit (berita lama yang baru terbaca tidak ikut)
 {
@@ -250,8 +261,9 @@ globalThis.fetch = realFetch;
 // skrip halaman harus bisa di-parse
 const page = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
 for (const [, sc2] of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(sc2);
-// halaman tim: tab 24 jam, urutan hype / terbaru, dan penjelasan skor hype (maks. 23 = uji skor di atas)
-assert.match(page, /"Semua 24 jam"/); assert.match(page, /data-sort="/); assert.match(page, /Apa itu skor hype\? \(maks\. 23\)/);
+// halaman tim: tab 24 jam, urutan hype / terbaru, penjelasan skor hype (maks. 25 = uji skor di atas), tanda sentimen
+assert.match(page, /"Semua 24 jam"/); assert.match(page, /data-sort="/); assert.match(page, /Apa itu skor hype\? \(maks\. 25\)/);
+assert.doesNotMatch(page, /Judul menyebut IHSG/); assert.match(page, /data-sent="/);
 assert.equal(idOf("https://a.test/x"), idOf("https://a.test/x"));
 // ---- banner KISI: tema, prompt aman, latar AI tersimpan & bisa diambil publik ----
 {
