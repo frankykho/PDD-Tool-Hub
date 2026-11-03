@@ -890,6 +890,7 @@ const ERR = {
   "Hanya pemberi tugas atau admin yang bisa menghapusnya": "Only the task assigner or an admin can delete it",
   "Tanggal belum benar": "The date is not valid",
   "Tulis dulu apa yang dikerjakan": "First write what you worked on",
+  "Tulis apa yang dikerjakan dengan kata, bukan hanya tanda": "Describe the work in words, not just symbols",
   "Catatan ini sudah dihapus. Muat ulang halaman": "This entry has been deleted. Reload the page",
   "Hanya pemilik catatan yang bisa mengubahnya": "Only the owner of the entry can edit it",
   "Hanya pemilik catatan atau admin yang bisa menghapusnya": "Only the owner of the entry or an admin can delete it",

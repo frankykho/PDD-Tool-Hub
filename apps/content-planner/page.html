@@ -1496,7 +1496,8 @@ async function monData(div){
   const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[]};
   (Array.isArray(wa)?wa:[]).forEach(w=>{const k=teamOf(w.job,w.email);if(!inT(k))return;const t=team(k);t.wa.push(w);if(!t.members.has(w.email))t.members.set(w.email,w.name||nameOf(w.email)||w.email)});
   USERS.forEach(u=>{if(PL.roles[u.role]&&inT(u.role))team(u.role).members.set(u.email,u.name)});
-  logs.forEach(l=>{const k=teamOf(l.job,l.email);if(!inT(k))return;const t=team(k);t.logs.push(l);if(!t.members.has(l.email))t.members.set(l.email,l.name||nameOf(l.email)||l.email)});
+  // catatan lama yang isinya hanya tanda ("-") tanpa catatan/kegiatan/tautan tidak ikut laporan
+  logs.filter(l=>/[\p{L}\p{N}]/u.test(l.text)||l.note||l.item_id||l.link).forEach(l=>{const k=teamOf(l.job,l.email);if(!inT(k))return;const t=team(k);t.logs.push(l);if(!t.members.has(l.email))t.members.set(l.email,l.name||nameOf(l.email)||l.email)});
   // kegiatan masuk ke role PIC-nya; kegiatan yang butuh visual juga ke role desainernya
   its.forEach(i=>{const ks=new Set();const o=roleOf(i.owner_email);if(o)ks.add(o);const d=i.d_need&&roleOf(i.d_who);if(d)ks.add(d);ks.forEach(k=>{const r=PL.roles[k]?k:"lain";if(inT(r))team(r).items.push(i)})});
   const teams=Object.values(T).filter(t=>t.logs.length||t.items.length||t.wa.length).sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));

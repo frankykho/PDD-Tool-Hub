@@ -320,6 +320,8 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   r = await log(COPY, { date: wib, text: "Revisi caption promo", status: "selesai", item_id: KG, link: "contoh.test/hasil" });
   assert.equal(r.status, 200, JSON.stringify(r.j)); const L1 = r.j.id;
   assert.equal((await log(COPY, { date: wib, text: "  " })).status, 400, "isian kosong ditolak");
+  assert.equal((await log(COPY, { date: wib, text: " - " })).status, 400, "isian cuma tanda ditolak");
+  assert.equal((await log(COPY, { date: wib, text: "..." })).status, 400, "isian cuma titik ditolak");
   assert.equal((await log(COPY, { date: plus(1), text: "besok" })).status, 400, "hari yang belum datang ditolak");
   r = await log(DES, { date: plus(-1), text: "Banner webinar", status: "kendala", note: "tunggu foto narasumber", item_id: "tidak-ada" });
   assert.equal(r.status, 200); const L2 = r.j.id;

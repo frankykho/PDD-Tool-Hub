@@ -805,6 +805,7 @@ export function cleanLog(b, today = wibToday()) {
   if (!l.date) return { error: "Tanggal belum benar." };
   if (l.date > today) return { error: "Hari yang belum datang belum bisa dicatat." };
   if (!l.text) return { error: "Tulis dulu apa yang dikerjakan." };
+  if (!/[\p{L}\p{N}]/u.test(l.text)) return { error: "Tulis apa yang dikerjakan dengan kata, bukan hanya tanda." };
   return l;
 }
 async function saveLog(env, me, b) {
