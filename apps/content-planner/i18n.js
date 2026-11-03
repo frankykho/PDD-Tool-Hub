@@ -583,7 +583,7 @@ const D = {
   "total {n}.": "total {n}.",
   "seluruh tim {n}.": "whole team {n}.",
   "Simpan posting": "Save posts", "Belum disimpan": "Not saved yet", "Tersimpan ✓": "Saved ✓",
-  "Atur jumlahnya dengan − / +, lalu klik Simpan posting. Masuk ke ⬇ Laporan; tidak perlu dicatat lagi di Pekerjaanku.": "Set the counts with − / +, then click Save posts. They go into ⬇ Report; no need to add them again under My work.",
+  "Atur jumlahnya dengan − / +, lalu klik Simpan posting. Masuk ke ⬇ Laporan; tidak perlu dicatat lagi di Pekerjaanku. Stock pick otomatis terhitung dari kotak Stock pick.": "Set the counts with − / +, then click Save posts. They go into ⬇ Report; no need to add them again under My work. Stock picks are counted automatically from the Stock pick box.",
   "total {n}": "total {n}",
   "{n} insight pasar": "{n} market insights",
   "{n} berita": "{n} news",

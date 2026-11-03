@@ -968,7 +968,9 @@ async function listWa(env, from, to) {
   await ensure(env);
   if (!ISO.test(from) || !ISO.test(to) || from > to) return { error: "Periode belum benar." };
   if ((Date.parse(to) - Date.parse(from)) / 864e5 > 400) return { error: "Periode maksimal 1 tahun." };
-  return (await env.DB.prepare("SELECT date, email, name, job, kind, n FROM wapost WHERE date BETWEEN ? AND ? AND n > 0 ORDER BY date, name").bind(from, to).all()).results;
+  // tiap stock pick = satu posting WA Stockpick, jadi tidak perlu dicatat dua kali di kotak posting
+  return (await env.DB.prepare("SELECT date, email, name, job, kind, n FROM wapost WHERE date BETWEEN ? AND ? AND n > 0 "
+    + "UNION ALL SELECT date, email, MAX(name), MAX(job), 'stockpick', COUNT(*) FROM stockpick WHERE date BETWEEN ? AND ? GROUP BY date, email ORDER BY date, name").bind(from, to, from, to).all()).results;
 }
 
 async function programs(env) {

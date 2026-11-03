@@ -180,7 +180,7 @@ table.t td.n,table.t th.n{text-align:right;white-space:nowrap;font-variant-numer
 .pkf{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0 0 10px}.pkf .acts{grid-column:1/-1}.pkf input::placeholder{text-transform:none}
 @media (max-width:600px){.pkf{grid-template-columns:repeat(2,minmax(0,1fr))}}.wabox h3,.wabox summary{font-size:13px;font-weight:700;margin:0 0 8px}
 .wabox summary{cursor:pointer;margin:0}.wabox[open] summary{margin-bottom:8px}
-.wa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.wac{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
+.wa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.wac{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
 .wab{display:flex;align-items:center;gap:6px}.wab .btn{min-width:30px;justify-content:center;padding-left:0;padding-right:0}.wab b{min-width:22px;text-align:center;font-size:16px}
 @media (max-width:600px){.wa{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Laporan PDF 16:9 (template divisi): gaya halamannya ada di MR_CSS (script), area cetaknya #mrArea */
@@ -782,6 +782,8 @@ function renderTasksView(){
 const WS=PL.workStatuses||{selesai:"Selesai",berjalan:"Berjalan",kendala:"Kendala"},WCL={selesai:4,berjalan:2,kendala:5};
 const DV={date:todayIso(),logs:[],items:[],itemsAt:"",edit:null,wa:[],waDraft:{},picks:[],picksFor:"",picksReq:"",pEdit:null};
 const WK=PL.waKinds||{insight:"Insight pasar",berita:"Berita",stockpick:"Stockpick",lain:"Lainnya"};
+// Stockpick tidak diisi di kotak posting: tiap stock pick yang dicatat sudah dihitung server sebagai posting WA Stockpick
+const WKP=Object.fromEntries(Object.entries(WK).filter(([k])=>k!=="stockpick"));
 // tim = role pekerjaan: role saat mencatat, kalau kosong role orangnya sekarang
 const roleOf=e=>(USERS.find(u=>u.email===e)||{}).role||"";
 // tim & role (Tool Hub → Admin → Tim & role): tim sebuah role ("-" = role tanpa tim, termasuk role yang tidak dikenal)
@@ -823,10 +825,10 @@ const waTxt=L=>Object.keys(WK).filter(k=>waSum(L,k)).map(k=>`${waSum(L,k)} ${WK[
 // angka − / + hanya draf di layar (per tanggal); baru tersimpan lewat tombol Simpan supaya tidak berubah tanpa sengaja
 function waPanel(open){
   const d=DV.date,me=PL.me.email,mine=DV.wa.filter(w=>w.email===me),saved=k=>waSum(mine.filter(w=>w.date===d),k),dr=DV.waDraft[d],day=k=>dr&&k in dr?dr[k]:saved(k),tot=waSum(mine),team=waSum(DV.wa);
-  const body=`<div class="wa">${Object.entries(WK).map(([k,l])=>`<div class="wac"><span>${esc(l)}</span><div class="wab"><button type="button" class="btn sm" data-wa="${k}" data-d="-1" aria-label="Kurangi ${esc(l)}"${day(k)?"":" disabled"}>−</button><b>${day(k)}</b><button type="button" class="btn sm" data-wa="${k}" data-d="1" aria-label="Tambah ${esc(l)}">+</button></div></div>`).join("")}</div>
+  const body=`<div class="wa">${Object.entries(WKP).map(([k,l])=>`<div class="wac"><span>${esc(l)}</span><div class="wab"><button type="button" class="btn sm" data-wa="${k}" data-d="-1" aria-label="Kurangi ${esc(l)}"${day(k)?"":" disabled"}>−</button><b>${day(k)}</b><button type="button" class="btn sm" data-wa="${k}" data-d="1" aria-label="Tambah ${esc(l)}">+</button></div></div>`).join("")}</div>
     <div class="acts" style="margin-top:10px"><button type="button" class="btn pri sm" data-wasave="1"${dr?"":" disabled"}>Simpan posting</button><span class="small ${dr?"late":"muted"}" id="waMsg">${dr?"Belum disimpan":saved()?"Tersimpan ✓":""}</span></div>
     <p class="muted small" style="margin:8px 0 0">${MON[D(d).getUTCMonth()]} (kamu): ${tot?waTxt(mine)+` · total ${tot}`:"belum ada"}${team>tot?` · seluruh tim ${team}`:""}.</p>
-    <p class="muted small" style="margin:4px 0 0">Atur jumlahnya dengan − / +, lalu klik Simpan posting. Masuk ke ⬇ Laporan; tidak perlu dicatat lagi di Pekerjaanku.</p>`;
+    <p class="muted small" style="margin:4px 0 0">Atur jumlahnya dengan − / +, lalu klik Simpan posting. Masuk ke ⬇ Laporan; tidak perlu dicatat lagi di Pekerjaanku. Stock pick otomatis terhitung dari kotak Stock pick.</p>`;
   const h=`📣 Posting WA Channel ${d===todayIso()?"hari ini":fmtShort(d)}`;
   return PL.me.role==="is"||mine.length||dr?`<div class="card wabox" id="waBox"><h3>${h}</h3>${body}</div>`:`<details class="card wabox" id="waBox"${open?" open":""}><summary>${h}</summary>${body}</details>`;
 }
@@ -834,10 +836,10 @@ function waPanel(open){
 const waRedraw=()=>{const b=$("waBox");if(b)b.outerHTML=waPanel(b.open)};
 function waStep(kind,delta){
   const d=DV.date,me=PL.me.email,saved=k=>waSum(DV.wa.filter(w=>w.email===me&&w.date===d),k);
-  const dr=DV.waDraft[d]||Object.fromEntries(Object.keys(WK).map(k=>[k,saved(k)]));
+  const dr=DV.waDraft[d]||Object.fromEntries(Object.keys(WKP).map(k=>[k,saved(k)]));
   dr[kind]=Math.max(0,dr[kind]+delta);
   // kembali sama dengan yang tersimpan = tidak ada perubahan
-  if(Object.keys(WK).every(k=>dr[k]===saved(k)))delete DV.waDraft[d];else DV.waDraft[d]=dr;
+  if(Object.keys(WKP).every(k=>dr[k]===saved(k)))delete DV.waDraft[d];else DV.waDraft[d]=dr;
   waRedraw();
 }
 async function saveWaUi(){
@@ -845,7 +847,7 @@ async function saveWaUi(){
   $("waMsg").textContent="Menyimpan…";
   try{
     await api("/api/wa",{date:d,n:dr});
-    DV.wa=DV.wa.filter(w=>!(w.email===me&&w.date===d)).concat(Object.entries(dr).filter(([,n])=>n>0).map(([kind,n])=>({date:d,email:me,name:PL.me.name,job:PL.me.role,kind,n})));
+    DV.wa=DV.wa.filter(w=>!(w.email===me&&w.date===d&&w.kind in dr)).concat(Object.entries(dr).filter(([,n])=>n>0).map(([kind,n])=>({date:d,email:me,name:PL.me.name,job:PL.me.role,kind,n})));
     delete DV.waDraft[d];waRedraw();
   }catch(e){$("waMsg").textContent="Belum disimpan";showErr("calErr",e)}
 }

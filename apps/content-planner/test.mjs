@@ -702,6 +702,8 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   await pk(DES, { date: plus(-2), code: "GOTO", entry: 60, sl: 55, tp1: 70 });
   assert.equal((await pk(COPY, { date: plus(-3), code: "BBRI", entry: 4200, sl: 4300, tp1: 4500 })).status, 400, "isian salah ditolak");
   assert.equal((await pk(DES, { id: BB, date: plus(-3), code: "BBRI", entry: 4200, sl: 4000, tp1: 4500 })).status, 400, "ubah milik orang lain ditolak");
+  const spw = (await call(`/api/wa?from=${plus(-5)}&to=${wib}`, { ck: PART })).j.filter((w) => w.kind === "stockpick");
+  assert.deepEqual(spw.map((w) => [w.date, w.name, w.n]), [[plus(-3), "Cici", 2], [plus(-2), "Dodi", 2]], "stock pick terhitung sebagai posting WA Stockpick");
   const list = async (q = "") => (await call(`/api/picks?from=${plus(-5)}&to=${wib}${q}`, { ck: PART })).j;
   let L = await list("&ihsg=1"), by = (c) => L.picks.find((p) => p.code === c);
   assert.deepEqual(["BBRI", "TLKM", "ASII", "GOTO"].map((c) => by(c).status), ["tp1", "sl", "open", "open"], "Yahoo gagal: tetap on going, tidak error");
