@@ -1,5 +1,6 @@
 // Content Insight: galeri konten media sosial kompetitor, ide tim, dan konsep konten otomatis.
 // Secret: SSO_SECRET, ANTHROPIC_API_KEY (opsional; kosong = Workers AI lewat binding AI).
+// assets/brand/ikisi-color.png = salinan brand/ (logo ekspor konsep PPT/PDF).
 // PLANNER = service binding ke Content Planner (konsep -> kegiatan); karena itu di-deploy setelah content-planner.
 {
   "name": "content-insight",
@@ -7,5 +8,6 @@
   "compatibility_date": "2026-09-22",
   "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }],
   "ai": { "binding": "AI" },
+  "assets": { "directory": "./assets" },
   "services": [{ "binding": "PLANNER", "service": "content-planner" }]
 }
