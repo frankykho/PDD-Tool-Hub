@@ -83,7 +83,7 @@ textarea.f{resize:vertical}
 .spk .crop input{width:100%;accent-color:var(--g)}
 .picks{display:grid;gap:6px;max-height:260px;overflow:auto}
 .pick{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--card);cursor:pointer;text-align:left;min-height:44px;width:100%}
-.prevs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.prevs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,380px));gap:12px}
 .prev{display:flex;flex-direction:column;gap:8px}
 .prev canvas{width:100%;height:auto;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .prev h3{margin:0;font-size:14px}
@@ -107,9 +107,11 @@ th{font-size:12px;color:var(--t2)}
 .ed{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,330px);gap:16px;align-items:start}
 .stage{position:relative;width:100%;max-width:520px;margin:0 auto;user-select:none;touch-action:none}
 .stage canvas{width:100%;height:auto;display:block;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.fpick{align-self:flex-start;cursor:pointer}
 .box{position:absolute;border:2px dashed #f5a623;background:rgba(245,166,35,.10);cursor:move;font:600 11px/1.2 var(--font);color:#8a5a00;display:flex;align-items:flex-start;justify-content:flex-start;padding:2px 4px;overflow:hidden}
 .box.on{border:2px solid #2563eb;background:rgba(37,99,235,.10);color:#1d4ed8;z-index:2}
 .box.lock{border-color:#64748b;color:#334155;background:rgba(100,116,139,.10)}
+.box .bl{background:#f5a623;color:#3b2600;border-radius:3px;padding:1px 5px;white-space:nowrap;pointer-events:none}.box.on .bl{background:#2563eb;color:#fff}.box.lock .bl{background:#64748b;color:#fff}
 .box .hd{position:absolute;right:-2px;bottom:-2px;width:18px;height:18px;background:#2563eb;border:2px solid #fff;border-radius:4px;cursor:nwse-resize}
 .trim{position:absolute;border:1px dashed #e11d48;pointer-events:none}
 .safe{position:absolute;border:1px dotted #0ea5e9;pointer-events:none}
@@ -187,7 +189,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   <div class="form">
     <div class="fld"><label for="spName">Nama <span class="req">*</span></label><input class="f" id="spName" maxlength="80" autocomplete="off"></div>
     <div class="fld"><label for="spJob">Jabatan</label><input class="f" id="spJob" maxlength="120" placeholder="mis. Head of Research, KISI" autocomplete="off"></div>
-    <div class="fld"><label for="spFile">Foto <span class="req" id="spReq">*</span></label><input class="f" id="spFile" type="file" accept="image/*">
+    <div class="fld"><label for="spFile">Foto <span class="req" id="spReq">*</span></label><label class="btn sm fpick">📄 Pilih foto<input id="spFile" type="file" accept="image/*" hidden></label>
       <div class="cropbox" id="spBox" hidden><canvas id="spCv" width="600" height="600" aria-label="Geser foto untuk mengatur posisi"></canvas></div>
       <label class="small" id="spZoomL" hidden>Zoom <input type="range" id="spZoom" min="1" max="3" step="0.01" value="1" style="width:100%;accent-color:var(--g)"></label>
       <span class="hint">Geser foto di dalam lingkaran untuk mengatur posisi wajah.</span></div>
@@ -249,7 +251,7 @@ async function home(){
 }
 let FILES=null;
 async function files(force){
-  if(!FILES||force){$("fileList").innerHTML=`<div class="empty">${esc(T("Memuat…"))}</div>`;try{FILES=await api("/api/files"+(force?"?fresh=1":""))}catch(e){showMsg("fMsg",e.message);$("fileList").innerHTML="";return}}
+  if(!FILES||force){$("fileList").innerHTML=`<div class="empty">${esc(T("Memuat…"))}</div>`;try{FILES=await api("/api/files"+(force?"?fresh=1":""))}catch(e){showMsg("fMsg",ME.adm?e.message:T("File resmi belum bisa dimuat. Kabari admin Brand Kit."));$("fileList").innerHTML="";return}}
   showMsg("fMsg",FILES.error?T(FILES.error):"","msg");
   const q=$("fQ").value.trim().toLowerCase(),C=FILES.categories.map(c=>({...c,files:c.files.filter(f=>!q||f.name.toLowerCase().includes(q))})).filter(c=>c.files.length);
   $("fileList").innerHTML=C.length?C.map(c=>`<h3 class="cat" translate="no">${esc(c.name==="Lainnya"?T("Lainnya"):c.name)}</h3><div class="fgrid">${c.files.map(f=>`<div class="card file">
@@ -341,8 +343,9 @@ function upDlg(deck){
   $("dkH").textContent=T(deck?"Unggah versi baru":"Ajukan deck baru");$("dkOk").textContent=T("Ajukan");showMsg("dkM","");
   $("dkB").innerHTML=`<div class="fld"><label for="dkT">${esc(T("Judul"))} <span class="req">*</span></label><input class="f" id="dkT" maxlength="120" value="${esc((deck&&deck.title)||"")}" translate="no"></div>
     <div class="fld"><label for="dkD">${esc(T("Keterangan singkat"))}</label><input class="f" id="dkD" maxlength="300" value="${esc((deck&&deck.note)||"")}" placeholder="${esc(T("Mis. untuk seminar kampus, 20 menit"))}" translate="no"></div>
-    <div class="fld"><label for="dkFile">${esc(T("File"))} <span class="req">*</span></label><input class="f" id="dkFile" type="file" accept=".ppt,.pptx,.pdf"><span class="hint">${esc(T("PPT, PPTX, atau PDF, maksimal 100 MB."))}</span></div>
+    <div class="fld"><label for="dkFile">${esc(T("File"))} <span class="req">*</span></label><label class="btn sm fpick">📄 ${esc(T("Pilih file"))}<input id="dkFile" type="file" accept=".ppt,.pptx,.pdf" hidden></label> <span id="dkFn" translate="no"></span><span class="hint">${esc(T("PPT, PPTX, atau PDF, maksimal 100 MB."))}</span></div>
     <div id="dkProg" hidden><progress id="dkP" max="100" value="0" style="width:100%"></progress><span class="hint" id="dkPT"></span></div>`;
+  $("dkFile").onchange=()=>{$("dkFn").textContent=($("dkFile").files[0]||{}).name||""};
   $("dkF").onsubmit=async e=>{e.preventDefault();showMsg("dkM","");
     const f=$("dkFile").files[0],x=f&&(/\.([a-z0-9]+)$/i.exec(f.name)||[])[1],mime=x&&DKT[x.toLowerCase()];
     if(!$("dkT").value.trim())return showMsg("dkM",T("Isi judul deck."));
@@ -441,7 +444,7 @@ function redraw(delay=150){clearTimeout(TIMER);TIMER=setTimeout(async()=>{if(!TP
       if(r.cut)W.push(T("Ukuran ini hanya memuat")+" "+(ST.sel.length-r.cut)+" "+T("narasumber pertama")+".");
       $("w_"+s.id).innerHTML=W.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}
     catch(e){$("w_"+s.id).innerHTML=`<div class="msg err">${esc(e.message)}</div>`}}},delay)}
-function missing(){const x=F.text.find(x=>x.required&&!String(ST.values[x.field]||"").trim());if(x){showMsg("dlMsg",T("Isian wajib belum diisi")+": "+x.label+".");$("v_"+x.field).focus();return true}showMsg("dlMsg","");return false}
+function missing(){const L=F.text.filter(x=>x.required&&!String(ST.values[x.field]||"").trim());if(L.length){showMsg("dlMsg",T("Isian wajib belum diisi")+": "+L.map(x=>x.label).join(", ")+".");$("v_"+L[0].field).focus();return true}showMsg("dlMsg","");return false}
 const toBlob=cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error(T("Gambar gagal dibuat. Coba lagi."))),"image/png"));
 function saveBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 /** Buat file ukuran penuh. as = png | pdf | all (semua ukuran dalam ZIP: PNG + PDF untuk ukuran cetak). */
@@ -606,11 +609,11 @@ function drawBoxes(){
   let h="";
   if(z.print){const dpi=z.w/(z.mm[0]/25.4),t=3/25.4*dpi,s2=6/25.4*dpi;h+=`<div class="trim" style="${px(t,t,z.w-2*t,z.h-2*t)}"></div><div class="safe" style="${px(s2,s2,z.w-2*s2,z.h-2*s2)}"></div>`}
   // lebar logo mengikuti perbandingan file logo (kisi-color.png 1200×206)
-  const lg=ESZ.logo,lw=lg.h*1200/206;h+=`<div class="box lock${ESEL==="logo"?" on":""}" data-b="logo" style="${px((z.w-lw)/2,lg.y,lw,lg.h)}">${esc(T("Logo"))}<span class="hd" data-h="logo"></span></div>`;
+  const lg=ESZ.logo,lw=lg.h*1200/206;h+=`<div class="box lock${ESEL==="logo"?" on":""}" data-b="logo" style="${px((z.w-lw)/2,lg.y,lw,lg.h)}"><span class="bl">${esc(T("Logo"))}</span><span class="hd" data-h="logo"></span></div>`;
   // tinggi kotak disclaimer = tinggi teks yang benar-benar tergambar
-  const d=ESZ.disc;h+=`<div class="box lock${ESEL==="disc"?" on":""}" data-b="disc" style="${px(d.x,d.y,d.w,Math.max(EDISC||d.size*1.2,20))}">${esc(T("Disclaimer"))}<span class="hd" data-h="disc"></span></div>`;
+  const d=ESZ.disc;h+=`<div class="box lock${ESEL==="disc"?" on":""}" data-b="disc" style="${px(d.x,d.y,d.w,Math.max(EDISC||d.size*1.2,20))}"><span class="bl">${esc(T("Disclaimer"))}</span><span class="hd" data-h="disc"></span></div>`;
   (ESZ.slots||[]).forEach(s=>{const w=s.type==="qr"?s.size:s.w,hh=s.type==="qr"?s.size:s.h;
-    h+=`<div class="box${ESEL===s.id?" on":""}" data-b="${esc(s.id)}" style="${px(s.x,s.y,w,hh)}" translate="no">${esc(s.type==="text"?s.label:s.type==="qr"?"QR":T("Narasumber")+" (maks. "+s.max+")")}<span class="hd" data-h="${esc(s.id)}"></span></div>`});
+    h+=`<div class="box${ESEL===s.id?" on":""}" data-b="${esc(s.id)}" style="${px(s.x,s.y,w,hh)}" translate="no"><span class="bl">${esc(s.type==="text"?s.label:s.type==="qr"?"QR":T("Narasumber")+" (maks. "+s.max+")")}</span><span class="hd" data-h="${esc(s.id)}"></span></div>`});
   bx.innerHTML=h;
   bx.querySelectorAll("[data-b]").forEach(el=>el.addEventListener("pointerdown",e=>startDrag(e,el.dataset.b,!!e.target.dataset.h)));
 }
@@ -633,7 +636,7 @@ const col=(id,lbl,v)=>`<label>${esc(T(lbl))}<input class="f" type="color" data-p
 const sel=(id,lbl,v,opts)=>`<label>${esc(T(lbl))}<select class="f" data-p="${id}">${opts.map(([a,b])=>`<option value="${esc(a)}"${String(a)===String(v)?" selected":""}>${esc(T(b))}</option>`).join("")}</select></label>`;
 function drawPane(){
   const z=SIZES[ESZ.kind],o=ESEL?target(ESEL):null,fonts=FONTS.map(f=>[f,f]),aligns=[["left","Kiri"],["center","Tengah"],["right","Kanan"]];
-  let h=`<div class="fld"><span class="lbl">${esc(T("Gambar latar dari Canva"))} (${z.w}×${z.h} px${z.print?", "+esc(T("dengan bleed 3 mm")):""})</span><input class="f" type="file" id="eBg" accept="image/png,image/jpeg"><span class="hint" id="eBgM">${esc(T(ESZ.has_bg?"Sudah diunggah. Pilih file lain untuk mengganti.":"Belum ada gambar latar."))} ${esc(T("Ekspor tanpa logo dan disclaimer."))}</span></div>
+  let h=`<div class="fld"><span class="lbl">${esc(T("Gambar latar dari Canva"))} (${z.w}×${z.h} px${z.print?", "+esc(T("dengan bleed 3 mm")):""})</span><label class="btn sm fpick">📄 ${esc(T("Pilih gambar latar"))}<input type="file" id="eBg" accept="image/png,image/jpeg" hidden></label><span class="hint" id="eBgM">${esc(T(ESZ.has_bg?"Sudah diunggah. Pilih file lain untuk mengganti.":"Belum ada gambar latar."))} ${esc(T("Ekspor tanpa logo dan disclaimer."))}</span></div>
     <label class="chk"><input type="checkbox" id="eDark"${ESZ.dark?" checked":""}> ${esc(T("Latar gelap (logo putih)"))}</label>
     <div class="acts"><button type="button" class="btn sm" data-add="text">+ ${esc(T("Kotak teks"))}</button>${ESZ.slots.some(s=>s.type==="speakers")?"":`<button type="button" class="btn sm" data-add="speakers">+ ${esc(T("Area narasumber"))}</button>`}${ESZ.slots.some(s=>s.type==="qr")?"":`<button type="button" class="btn sm" data-add="qr">+ QR</button>`}</div>`;
   if(o&&ESEL==="logo")h+=`<b>${esc(T("Logo perusahaan"))}</b><div class="g2">${num("y","Jarak dari atas",o.y,0,z.h)}${num("h","Tinggi",o.h,20,z.h/3)}</div><span class="hint">${esc(T("Selalu di tengah. Versi putih dipakai kalau latar gelap."))}</span>`;
