@@ -389,6 +389,14 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   const done = (await call("/api/items", { ck: PART, body: { ...prog, title: "Program tuntas", date: plus(-40), end_date: plus(-20), status: "selesai" } })).j.id;
   const rep = (await call(`/api/items?from=${wib}&to=${plus(5)}&overlap=1`, { ck: COPY })).j.map((i) => i.id);
   assert.ok(rep.includes(late) && !rep.includes(done), "program molor ikut, yang selesai tidak");
+  // aktivitas: pekerjaan rutin dicatat sekali dengan periode; status Kendala sah; ikut laporan selama periodenya menyentuh
+  r = await call("/api/items", { ck: COPY, body: { kind: "aktivitas", title: "Menaikkan Berita Pagi", channel: "Pekerjaan rutin", date: plus(-10), end_date: plus(10), status: "kendala", note: "server lambat" } });
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  const ak = (await call("/api/items?id=" + r.j.id, { ck: COPY })).j;
+  assert.deepEqual([ak.kind, ak.status, ak.end_date, ak.d_need], ["aktivitas", "kendala", plus(10), 0]);
+  assert.ok((await call(`/api/items?from=${wib}&to=${plus(5)}&overlap=1`, { ck: COPY })).j.some((i) => i.id === ak.id), "aktivitas lintas periode ikut laporan");
+  const ak1 = (await call("/api/items", { ck: COPY, body: { kind: "aktivitas", title: "Rapat tim", date: wib, end_date: plus(-1) } })).j.id;
+  assert.deepEqual((({ end_date, status }) => [end_date, status])((await call("/api/items?id=" + ak1, { ck: COPY })).j), ["", "rencana"], "tanggal selesai sebelum mulai diabaikan, status bawaan rencana");
   assert.ok((await call(`/api/program-report?from=${wib}&to=${plus(5)}`, { ck: COPY })).j.programs.some((p) => p.id === late), "laporan program: program molor ikut");
   // anggota Partnership bisa menerima tugas (dari admin atau sesama Partnership)
   r = await call("/api/tasks", { ck: await cookie({ e: "adm@acme.test", n: "Admin", adm: true }), body: { item_id: id, title: "Follow up partner", job: "partnership", who: "pia@acme.test", due: plus(2) } });

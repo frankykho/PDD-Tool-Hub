@@ -99,6 +99,8 @@ export const KINDS = {
   edukasi: { label: "Edukasi / narasumber", channels: ["Webinar", "Seminar", "Talkshow", "Kelas / kunjungan", "Live IG / TikTok", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // dibuat Partnership: kerja sama dengan pihak luar; kegiatan lain bisa dikaitkan (program_id) dan tugas dibagi di dalamnya
   program: { label: "Program partnership", channels: ["Manajer investasi (AM)", "APERD / agen penjual", "Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
+  // aktivitas tim di luar kegiatan di atas: pekerjaan rutin cukup dicatat sekali dengan periode (date .. end_date), lalu statusnya diubah
+  aktivitas: { label: "Aktivitas", channels: ["Pekerjaan rutin", "Koordinasi", "Persiapan program", "Rapat", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "kendala"] },
   // dicatat tim regional (sales & pengelola galeri investasi): acara di cabang / galeri, dengan cabang (+ regionalnya) dari daftar Tool Hub
   cabang: { label: "Kegiatan cabang", channels: ["Gathering nasabah", "Edukasi / seminar", "Open booth / pameran", "Kunjungan korporasi / komunitas", "Sosialisasi produk", "Kunjungan kampus / sekolah", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // rencana galeri investasi baru bersama mitra (pengelola galeri / sales): tahap demi tahap, tiap update progres tercatat di riwayat (comments, kind "progres:<tahap>")
@@ -248,6 +250,11 @@ export function cleanItem(b) {
     it.end_date = ISO.test(end) && end >= it.date ? end : "";
     it.program_id = ""; it.d_need = 0;
   }
+  if (kind === "aktivitas") {
+    const end = s(b.end_date, 10);
+    it.end_date = ISO.test(end) && end >= it.date ? end : "";
+    it.d_need = 0;
+  }
   if (kind === "program") {
     // program tidak bisa menjadi bagian dari program lain; pekerjaan untuk orang lain lewat tugas, bukan permintaan visual
     it.program_id = ""; it.d_need = 0;
@@ -268,7 +275,7 @@ export function cleanItem(b) {
 // Tiap link menempel ke satu kegiatan saja, jadi tidak ada yang terhitung dua kali. Semua nol -> NULL (tampil kosong).
 const OWN = (t) => `COALESCE((SELECT SUM(clicks) FROM links WHERE links.item_id = ${t}.id), 0) + COALESCE((SELECT n FROM qrclicks WHERE qrclicks.item_id = ${t}.id), 0)`;
 const CLICKS = `NULLIF(${OWN("items")} + CASE WHEN items.kind = 'program' THEN COALESCE((SELECT SUM(${OWN("c")}) FROM items c WHERE c.program_id = items.id), 0) ELSE 0 END, 0) AS clicks`;
-/** overlap (laporan): ikut program yang mulai sebelum periode tapi masih berjalan di dalamnya, termasuk yang statusnya masih "berjalan"
+/** overlap (laporan): ikut program & aktivitas yang mulai sebelum periode tapi masih berjalan di dalamnya, termasuk yang statusnya masih "berjalan"
  *  walau tanggal selesainya sudah lewat (kalender cukup menurut tanggal mulai). */
 async function listItems(env, from, to, overlap, reg) {
   await ensure(env);
@@ -276,7 +283,7 @@ async function listItems(env, from, to, overlap, reg) {
   // tim regional hanya melihat kegiatan cabang & rencana galeri
   const L = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE date >= ? AND date <= ?${reg ? " AND " + REG_SQL : ""} ORDER BY date, time, created_at`).bind(from, to).all()).results;
   if (!overlap || reg) return L;
-  const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind = 'program' AND date < ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status = 'berjalan') ORDER BY date`).bind(from, from).all()).results;
+  const run = (await env.DB.prepare(`SELECT items.*, ${CLICKS} FROM items WHERE kind IN ('program', 'aktivitas') AND date < ? AND (COALESCE(NULLIF(end_date, ''), date) >= ? OR status IN ('berjalan', 'kendala')) ORDER BY date`).bind(from, from).all()).results;
   return [...run, ...L];
 }
 /** Tugas desain: semua yang belum selesai (tanggal berapa pun) + yang selesai dengan tenggat di rentang itu. */
