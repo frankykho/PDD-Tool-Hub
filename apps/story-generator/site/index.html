@@ -139,6 +139,9 @@ select.fi{font-family:'Inter',sans-serif;cursor:pointer;appearance:none;backgrou
 .btn-dl.loading{background:var(--inp);color:var(--t2);cursor:not-allowed;transform:none}
 .btn-sec{width:100%;background:transparent;color:var(--t2);border:1px solid var(--border);border-radius:var(--r);padding:8px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;margin-top:5px;transition:all .15s}
 .btn-sec:hover{background:var(--inp);color:var(--t1)}
+button.tb-status{font-family:inherit;cursor:pointer}.m-only{display:none}
+@media(max-width:760px){.d-only{display:none}.m-only{display:inline}}
+.fi-pick{display:inline-flex;width:auto;align-items:center;gap:6px;padding:7px 12px}.fi-name{margin-left:8px;font-size:11px;color:var(--t2)}
 .dl-grp{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px}
 .btn-dl-sm{background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:9px;font-size:11px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s}
 .btn-dl-sm:hover{background:#1d4ed8}
@@ -796,7 +799,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="tab-btn" data-tab="bondpicks" onclick="switchTab('bondpicks')" data-pname="Weekly Bond Picks">Weekly Bond Picks</button>
   </div>
   <div class="tb-user"><span id="tb-email"></span><a id="tb-logout" href="/logout" style="display:none">Keluar</a></div>
-  <div class="tb-status">● Live Preview</div>
+  <button type="button" class="tb-status" onclick="document.querySelector('.preview-panel').scrollIntoView({behavior:'smooth'})"><span class="d-only">● Pratinjau langsung</span><span class="m-only">👁 Lihat pratinjau</span></button>
 </div>
 <div class="main">
 <div class="form-panel">
@@ -807,40 +810,40 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
 
   <div class="fst">IHSG</div>
   <div class="fg">
-    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="m-iv" placeholder="7.307,59" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">% Perubahan</label><input class="fi" id="m-ic" placeholder="+0,39" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="m-iv" placeholder="contoh: 7.307,59" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">% Perubahan</label><input class="fi" id="m-ic" placeholder="contoh: +0,39" oninput="up('morning')"></div>
   </div>
 
     <div class="fst">Global Markets</div>
   <div class="fg">
-    <div class="ff"><label class="fl">DJIA</label><input class="fi" id="m-djia" placeholder="48.739" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">DJIA %</label><input class="fi" id="m-djia-c" placeholder="+0,49" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">NASDAQ</label><input class="fi" id="m-ndq" placeholder="22.807" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">NASDAQ %</label><input class="fi" id="m-ndq-c" placeholder="+1,29" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">S&P 500</label><input class="fi" id="m-sp" placeholder="6.869" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">S&P 500 %</label><input class="fi" id="m-sp-c" placeholder="+0,78" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Nikkei</label><input class="fi" id="m-nk" placeholder="54.245" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Nikkei %</label><input class="fi" id="m-nk-c" placeholder="-3,61" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">HSI</label><input class="fi" id="m-hsi" placeholder="25.249" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">HSI %</label><input class="fi" id="m-hsi-c" placeholder="-2,01" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">USD/IDR</label><input class="fi" id="m-idr" placeholder="16.420" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">USD/IDR %</label><input class="fi" id="m-idr-c" placeholder="-0,12" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">DJIA</label><input class="fi" id="m-djia" placeholder="contoh: 48.739" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">DJIA %</label><input class="fi" id="m-djia-c" placeholder="contoh: +0,49" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">NASDAQ</label><input class="fi" id="m-ndq" placeholder="contoh: 22.807" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">NASDAQ %</label><input class="fi" id="m-ndq-c" placeholder="contoh: +1,29" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">S&P 500</label><input class="fi" id="m-sp" placeholder="contoh: 6.869" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">S&P 500 %</label><input class="fi" id="m-sp-c" placeholder="contoh: +0,78" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Nikkei</label><input class="fi" id="m-nk" placeholder="contoh: 54.245" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Nikkei %</label><input class="fi" id="m-nk-c" placeholder="contoh: -3,61" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">HSI</label><input class="fi" id="m-hsi" placeholder="contoh: 25.249" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">HSI %</label><input class="fi" id="m-hsi-c" placeholder="contoh: -2,01" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">USD/IDR</label><input class="fi" id="m-idr" placeholder="contoh: 16.420" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">USD/IDR %</label><input class="fi" id="m-idr-c" placeholder="contoh: -0,12" oninput="up('morning')"></div>
   </div>
 
   <div class="fst">Komoditas</div>
   <div class="fg">
-    <div class="ff"><label class="fl">Minyak WTI (US$/bbl)</label><input class="fi" id="m-oil" placeholder="74,7" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Minyak %</label><input class="fi" id="m-oil-c" placeholder="+0,13" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Emas (US$/oz)</label><input class="fi" id="m-gold" placeholder="3.140" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Emas %</label><input class="fi" id="m-gold-c" placeholder="+1,01" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Timah (US$/t)</label><input class="fi" id="m-tin" placeholder="31.018" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Timah %</label><input class="fi" id="m-tin-c" placeholder="+4,46" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Batu bara (US$/t)</label><input class="fi" id="m-coal" placeholder="131,7" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Batu bara %</label><input class="fi" id="m-coal-c" placeholder="-2,48" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">CPO (RM/t)</label><input class="fi" id="m-cpo" placeholder="4.071" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">CPO %</label><input class="fi" id="m-cpo-c" placeholder="-0,22" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Nikel (US$/t)</label><input class="fi" id="m-ni" placeholder="17.491" oninput="up('morning')"></div>
-    <div class="ff"><label class="fl">Nikel %</label><input class="fi" id="m-ni-c" placeholder="+2,17" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Minyak WTI (US$/bbl)</label><input class="fi" id="m-oil" placeholder="contoh: 74,7" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Minyak %</label><input class="fi" id="m-oil-c" placeholder="contoh: +0,13" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Emas (US$/oz)</label><input class="fi" id="m-gold" placeholder="contoh: 3.140" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Emas %</label><input class="fi" id="m-gold-c" placeholder="contoh: +1,01" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Timah (US$/t)</label><input class="fi" id="m-tin" placeholder="contoh: 31.018" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Timah %</label><input class="fi" id="m-tin-c" placeholder="contoh: +4,46" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Batu bara (US$/t)</label><input class="fi" id="m-coal" placeholder="contoh: 131,7" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Batu bara %</label><input class="fi" id="m-coal-c" placeholder="contoh: -2,48" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">CPO (RM/t)</label><input class="fi" id="m-cpo" placeholder="contoh: 4.071" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">CPO %</label><input class="fi" id="m-cpo-c" placeholder="contoh: -0,22" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Nikel (US$/t)</label><input class="fi" id="m-ni" placeholder="contoh: 17.491" oninput="up('morning')"></div>
+    <div class="ff"><label class="fl">Nikel %</label><input class="fi" id="m-ni-c" placeholder="contoh: +2,17" oninput="up('morning')"></div>
   </div>
 
   <div class="fetch-row">
@@ -889,7 +892,6 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-m-3" onclick="dlPNG('m',3)">⬇ Page 3 News</button>
     <button class="btn-dl-sm" id="dlbtn-m-4" onclick="dlPNG('m',4)">⬇ Page 4 Kalender</button>
   </div>
-  <button class="btn-dl-all" onclick="dlAll('m',4)">⬇ Download Semua 4 Page</button>
   <div class="fst">Bagikan ke WhatsApp Channel</div>
   <div class="fetch-row"><button type="button" class="btn-fetch" onclick="waBuild('m')">📝 Buat Caption</button></div>
   <div class="wa-pg">
@@ -917,7 +919,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   </details>
   <div id="m-wa-status" class="fetch-status"></div>
   <div class="auto-note">Bagikan Semua: semua gambar terkirim sebagai 1 post dengan 1 caption (caption menempel di gambar pertama). Format WhatsApp: *tebal*, _miring_. Di HP / Chrome muncul menu Bagikan → WhatsApp → pilih Channel. Kalau menu Bagikan tidak tersedia, gambar diunduh dan caption disalin — tempel sendiri.</div>
-  <button class="btn-sec" onclick="up('morning')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('morning')">↺ Muat ulang pratinjau</button>
 </div>
 
 <div class="gen-sec" id="form-halftime">
@@ -925,18 +927,18 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   <div class="ff"><label class="fl">Tanggal Terbit</label><input type="date" class="fi" id="h-date" oninput="up('halftime')"></div>
   <div class="fst">IHSG Sesi 1</div>
   <div class="fg">
-    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="h-iv" placeholder="7.250,00" oninput="up('halftime')"></div>
-    <div class="ff"><label class="fl">%</label><input class="fi" id="h-ic" placeholder="-0,57" oninput="up('halftime')"></div>
-    <div class="ff"><label class="fl">High</label><input class="fi" id="h-hi" placeholder="7.290,10" oninput="up('halftime')"></div>
-    <div class="ff"><label class="fl">Low</label><input class="fi" id="h-lo" placeholder="7.235,80" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="h-iv" placeholder="contoh: 7.250,00" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">%</label><input class="fi" id="h-ic" placeholder="contoh: -0,57" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">High</label><input class="fi" id="h-hi" placeholder="contoh: 7.290,10" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">Low</label><input class="fi" id="h-lo" placeholder="contoh: 7.235,80" oninput="up('halftime')"></div>
     <div class="ff"><label class="fl">Volume (lembar)</label><input class="fi" id="h-vol" placeholder="contoh: 12,4M" oninput="up('halftime')"></div>
     <div class="ff"><label class="fl">Nilai Transaksi</label><input class="fi" id="h-val2" placeholder="contoh: 8,2T" oninput="up('halftime')"></div>
   </div>
   <div class="fst">Market Breadth</div>
   <div class="fg3">
-    <div class="ff"><label class="fl">Naik</label><input class="fi" id="h-up" placeholder="234" oninput="up('halftime')"></div>
-    <div class="ff"><label class="fl">Flat</label><input class="fi" id="h-flat" placeholder="187" oninput="up('halftime')"></div>
-    <div class="ff"><label class="fl">Turun</label><input class="fi" id="h-dn" placeholder="312" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">Naik</label><input class="fi" id="h-up" placeholder="contoh: 234" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">Flat</label><input class="fi" id="h-flat" placeholder="contoh: 187" oninput="up('halftime')"></div>
+    <div class="ff"><label class="fl">Turun</label><input class="fi" id="h-dn" placeholder="contoh: 312" oninput="up('halftime')"></div>
   </div>
   <div class="fetch-row">
     <button type="button" class="btn-fetch" id="btn-fetch-h-market" onclick="fetchHalftime()">🔄 Ambil IHSG, Breadth & Sektor</button>
@@ -976,7 +978,6 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-h-1" onclick="dlPNG('h',1)">⬇ Page 1 Halftime</button>
     <button class="btn-dl-sm" id="dlbtn-h-2" onclick="dlPNG('h',2)">⬇ Page 2 Stock Pick</button>
   </div>
-  <button class="btn-dl-all" onclick="dlAll('h',2)">⬇ Download Semua 2 Page</button>
   <div class="fst">Bagikan ke WhatsApp Channel</div>
   <div class="fetch-row"><button type="button" class="btn-fetch" onclick="waBuild('h')">📝 Buat Caption</button></div>
   <div class="wa-pg">
@@ -996,7 +997,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   </details>
   <div id="h-wa-status" class="fetch-status"></div>
   <div class="auto-note">Bagikan Semua: semua gambar terkirim sebagai 1 post dengan 1 caption (caption menempel di gambar pertama). Format WhatsApp: *tebal*, _miring_. Di HP / Chrome muncul menu Bagikan → WhatsApp → pilih Channel. Kalau menu Bagikan tidak tersedia, gambar diunduh dan caption disalin — tempel sendiri.</div>
-  <button class="btn-sec" onclick="up('halftime')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('halftime')">↺ Muat ulang pratinjau</button>
 </div>
 
 <div class="gen-sec" id="form-wrap">
@@ -1004,18 +1005,18 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   <div class="ff"><label class="fl">Tanggal Terbit</label><input type="date" class="fi" id="w-date" oninput="up('wrap')"></div>
   <div class="fst">IHSG Penutupan</div>
   <div class="fg">
-    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="w-iv" placeholder="7.280,00" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">%</label><input class="fi" id="w-ic" placeholder="+0,21" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">High</label><input class="fi" id="w-hi" placeholder="7.315,50" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">Low</label><input class="fi" id="w-lo" placeholder="7.240,20" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">Volume (lembar)</label><input class="fi" id="w-vol" placeholder="22,1B" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Nilai</label><input class="fi" id="w-iv" placeholder="contoh: 7.280,00" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">%</label><input class="fi" id="w-ic" placeholder="contoh: +0,21" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">High</label><input class="fi" id="w-hi" placeholder="contoh: 7.315,50" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Low</label><input class="fi" id="w-lo" placeholder="contoh: 7.240,20" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Volume (lembar)</label><input class="fi" id="w-vol" placeholder="contoh: 22,1B" oninput="up('wrap')"></div>
     <div class="ff"><label class="fl">Nilai Transaksi</label><input class="fi" id="w-val2" placeholder="Rp15,4T" oninput="up('wrap')"></div>
   </div>
   <div class="fst">Market Breadth</div>
   <div class="fg3">
-    <div class="ff"><label class="fl">Naik</label><input class="fi" id="w-up" placeholder="289" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">Flat</label><input class="fi" id="w-flat" placeholder="201" oninput="up('wrap')"></div>
-    <div class="ff"><label class="fl">Turun</label><input class="fi" id="w-dn" placeholder="258" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Naik</label><input class="fi" id="w-up" placeholder="contoh: 289" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Flat</label><input class="fi" id="w-flat" placeholder="contoh: 201" oninput="up('wrap')"></div>
+    <div class="ff"><label class="fl">Turun</label><input class="fi" id="w-dn" placeholder="contoh: 258" oninput="up('wrap')"></div>
   </div>
   <div class="fetch-row">
     <button type="button" class="btn-fetch" id="btn-fetch-w-market" onclick="fetchWrap()">🔄 Ambil Data Penutupan IDX</button>
@@ -1072,7 +1073,6 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" onclick="dlPNG('w',1)">⬇ Page 1 Wrap</button>
     <button class="btn-dl-sm" onclick="dlPNG('w',2)">⬇ Page 2 Contribution</button>
   </div>
-  <button class="btn-dl-all" onclick="dlAll('w',2)">⬇ Download Semua 2 Page</button>
   <div class="fst">Bagikan ke WhatsApp Channel</div>
   <div class="fetch-row"><button type="button" class="btn-fetch" onclick="waBuild('w')">📝 Buat Caption</button></div>
   <div class="wa-pg">
@@ -1092,7 +1092,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   </details>
   <div id="w-wa-status" class="fetch-status"></div>
   <div class="auto-note">Bagikan Semua: semua gambar terkirim sebagai 1 post dengan 1 caption (caption menempel di gambar pertama). Format WhatsApp: *tebal*, _miring_. Di HP / Chrome muncul menu Bagikan → WhatsApp → pilih Channel. Kalau menu Bagikan tidak tersedia, gambar diunduh dan caption disalin — tempel sendiri.</div>
-  <button class="btn-sec" onclick="up('wrap')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('wrap')">↺ Muat ulang pratinjau</button>
 </div>
 
 <div class="gen-sec" id="form-weekly">
@@ -1104,13 +1104,13 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
 
   <div class="fst">Data Reksa Dana</div>
   <div class="ff"><label class="fl">Cadangan kalau gagal: workbook mingguan Bareksa (.xlsx / .csv)</label>
-    <input type="file" class="fi" id="wk-file" accept=".xlsx,.xls,.csv" onchange="importBareksa(this.files[0])"></div>
+    <label class="btn-sec fi-pick">📄 Pilih file workbook<input type="file" id="wk-file" accept=".xlsx,.xls,.csv" onchange="importBareksa(this.files[0]);this.parentNode.nextElementSibling.textContent=this.files[0]?this.files[0].name:''" hidden></label><span class="fi-name"></span></div>
   <div id="wk-status" class="fetch-status"></div>
   <div class="auto-note">Produk diambil dari daftar produk RD, diurutkan dari return 1 tahun tertinggi, maksimal 5 per kategori. Return minus atau 0% tidak ditampilkan. Kategori tanpa produk otomatis dinonaktifkan.</div>
   <details style="margin-top:8px;font-size:11px;color:var(--t2)">
     <summary style="cursor:pointer">Daftar produk RD (<span id="wk-rd-count">–</span> produk)</summary>
     <div class="auto-note" style="margin:6px 0">Daftar permanen ada di site/data/RD_list.xlsx di GitHub. Untuk sementara (hanya sesi ini), bisa diganti dengan upload RD_list.xlsx terbaru:</div>
-    <input type="file" class="fi" id="wk-rd-file" accept=".xlsx,.xls" onchange="importRDList(this.files[0])">
+    <label class="btn-sec fi-pick">📄 Pilih file workbook<input type="file" id="wk-rd-file" accept=".xlsx,.xls" onchange="importRDList(this.files[0]);this.parentNode.nextElementSibling.textContent=this.files[0]?this.files[0].name:''" hidden></label><span class="fi-name"></span>
     <div id="wk-rd-status" class="fetch-status"></div>
   </details>
   <div id="wk-result" style="margin-top:10px"></div>
@@ -1122,8 +1122,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-wk-4" onclick="dlPNG('wk',4)">⬇ P4 Saham</button>
   </div>
   <div style="margin-top:6px"><button class="btn-dl-sm" id="dlbtn-wk-5" style="width:100%" onclick="dlPNG('wk',5)">⬇ P5 Indeks</button></div>
-  <button class="btn-dl-all" onclick="dlAll('wk',5)">⬇ Download Semua 5 Page</button>
-  <button class="btn-sec" onclick="up('weekly')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('weekly')">↺ Muat ulang pratinjau</button>
 </div>
 <div class="gen-sec" id="form-rdh">
   <div class="fst">Tanggal & Data</div>
@@ -1132,10 +1131,10 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <div class="ff"><label class="fl">Data NAV (otomatis)</label><input class="fi fi-auto" id="rh-nav" readonly tabindex="-1"></div>
   </div>
   <div class="ff"><label class="fl">Cadangan kalau gagal: workbook master reksa dana bulan ini (terbaru)</label>
-    <input type="file" class="fi" id="rh-file" accept=".xlsx,.xls" onchange="importRDH(this.files[0],'now')"></div>
+    <label class="btn-sec fi-pick">📄 Pilih file workbook<input type="file" id="rh-file" accept=".xlsx,.xls" onchange="importRDH(this.files[0],'now');this.parentNode.nextElementSibling.textContent=this.files[0]?this.files[0].name:''" hidden></label><span class="fi-name"></span></div>
   <div id="rh-status" class="fetch-status"></div>
   <div class="ff" style="margin-top:8px"><label class="fl">Cadangan kalau gagal: workbook bulan lalu (untuk Page 4 · pertumbuhan AUM)</label>
-    <input type="file" class="fi" id="rh-file-prev" accept=".xlsx,.xls" onchange="importRDH(this.files[0],'prev')"></div>
+    <label class="btn-sec fi-pick">📄 Pilih file workbook<input type="file" id="rh-file-prev" accept=".xlsx,.xls" onchange="importRDH(this.files[0],'prev');this.parentNode.nextElementSibling.textContent=this.files[0]?this.files[0].name:''" hidden></label><span class="fi-name"></span></div>
   <div id="rh-status-prev" class="fetch-status"></div>
   <div class="auto-note">Hanya produk dalam daftar RD. Satu produk terbaik per kategori (Pasar Uang, Pendapatan Tetap, Campuran, Saham, Indeks). Kategori yang nilai terbaiknya minus atau 0 disembunyikan; Page 6 hanya produk syariah; halaman tanpa produk otomatis nonaktif. Pertumbuhan AUM dihitung dari AUM workbook bulan ini dibanding workbook bulan lalu.</div>
   <div id="rh-result" style="margin-top:10px"></div>
@@ -1154,8 +1153,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-rh-5" onclick="dlPNG('rh',5)">⬇ P5 Top AUM</button>
     <button class="btn-dl-sm" id="dlbtn-rh-6" onclick="dlPNG('rh',6)">⬇ P6 Syariah 1Y</button>
   </div>
-  <button class="btn-dl-all" onclick="dlAll('rh',6)">⬇ Download Semua 6 Page</button>
-  <button class="btn-sec" onclick="up('rdh')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('rdh')">↺ Muat ulang pratinjau</button>
 </div>
 <div class="gen-sec" id="form-bondpicks">
   <div class="fst">Tanggal & Info</div>
@@ -1183,8 +1181,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-bp-1" onclick="dlPNG('bp',1)">⬇ P1 Gov Bonds</button>
     <button class="btn-dl-sm" id="dlbtn-bp-2" onclick="dlPNG('bp',2)">⬇ P2 Corp Bonds</button>
   </div>
-  <button class="btn-dl-all" onclick="dlAll('bp',2)">⬇ Download Semua 2 Page</button>
-  <button class="btn-sec" onclick="up('bondpicks')">↺ Refresh Preview</button>
+  <button class="btn-sec" onclick="up('bondpicks')">↺ Muat ulang pratinjau</button>
 </div>
 
 </div><!-- /form-panel -->
@@ -3706,7 +3703,7 @@ function renderCalForm(){
       </div>
       <div class="fg">
         <div class="ff"><label class="fl">Keterangan</label><input class="fi" id="calm-title-${i}" value="${esc(x.title)}" placeholder="contoh: Cum Dividen Tunai" oninput="syncCalManual();up('morning')"></div>
-        <div class="ff"><label class="fl">Jam WIB (opsional)</label><input class="fi" id="calm-time-${i}" value="${esc(x.time)}" placeholder="10:00" maxlength="5" oninput="syncCalManual();up('morning')"></div>
+        <div class="ff"><label class="fl">Jam WIB (opsional)</label><input class="fi" id="calm-time-${i}" value="${esc(x.time)}" placeholder="contoh: 10:00" maxlength="5" oninput="syncCalManual();up('morning')"></div>
       </div>
       ${CAL_MANUAL.length>1?`<button onclick="syncCalManual();CAL_MANUAL.splice(${i},1);renderCalForm();up('morning')" style="margin-top:6px;font-size:10px;color:var(--red);background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);border-radius:5px;padding:2px 8px;cursor:pointer;font-family:'Inter',sans-serif">× Hapus</button>`:''}
     </div>`).join('')+(CAL_MANUAL.length<6?`<button onclick="syncCalManual();CAL_MANUAL.push({cat:'CA',code:'',title:'',time:''});renderCalForm()" style="width:100%;padding:8px;border:1px dashed var(--inp-b);border-radius:var(--r);background:transparent;color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">+ Tambah agenda manual</button>`:'');
@@ -3899,7 +3896,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>
 (function(){
   const NAME={morning:brandName('Morning'),halftime:brandName('Halftime'),wrap:brandName('Wrap'),weekly:'Weekly Update',rdh:'RD Highlights',bondpicks:'Weekly Bond Picks'};
-  const SLOT={morning:'Harian · pagi',halftime:'Harian · siang',wrap:'Harian · sore',weekly:'Pekanan',rdh:'Pekanan',bondpicks:'Pekanan'};
+  // jam data siap = jadwal Ritme hari ini di Tool Hub (Story Data pagi, jeda sesi 1, penutupan IDX)
+  const SLOT={morning:'Pagi · data siap dini hari',halftime:'Siang · data siap ±12.00 (Jumat 11.30)',wrap:'Sore · data siap ±16.50',weekly:'',rdh:'',bondpicks:''};
   const DAILY=['morning','halftime','wrap'],TABS=Object.keys(NAME).filter(t=>document.getElementById('form-'+t));
   const DKEY='story-draft-v1',LKEY='story-dl-v1',get=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}},put=(k,o)=>{try{localStorage.setItem(k,JSON.stringify(o))}catch(e){}};
   const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+'.'+String(d.getMinutes()).padStart(2,'0')};
@@ -3943,7 +3941,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const card=t=>{const a=dlAt(t),draft=D.date===TODAY&&D.tabs&&D.tabs[t],[ok,act]=readiness(t);
       const st=doneToday(t)?`<span class="sf-st done">✓ Diunduh ${hm(a)}</span>`:(draft||TL.find(x=>x.k===t))?`<span class="sf-st wip">Sedang dikerjakan · ${ok}/${act} halaman siap</span>`:`<span class="sf-st new">${a&&!DAILY.includes(t)?'Terakhir '+new Date(a).toLocaleDateString('id-ID',{day:'numeric',month:'short'}):'Belum dimulai'}</span>`;
       const tm=TL.find(x=>x.k===t);
-      return `<button class="sf-card" data-sf="${t}"><span class="slot">${SLOT[t]}</span><b>${NAME[t]}</b>${tm?`<span class="slot" style="text-transform:none;letter-spacing:0">Draft tim · diubah ${String(tm.by||'').replace(/</g,'&lt;')} ${hm(tm.at)}</span>`:''}${draft&&!doneToday(t)?`<div class="sf-prog"><i style="width:${act?Math.round(ok/act*100):0}%"></i></div>`:''}${st}</button>`};
+      return `<button class="sf-card" data-sf="${t}">${SLOT[t]?`<span class="slot">${SLOT[t]}</span>`:''}<b>${NAME[t]}</b>${tm?`<span class="slot" style="text-transform:none;letter-spacing:0">Draft tim · diubah ${String(tm.by||'').replace(/</g,'&lt;')} ${hm(tm.at)}</span>`:''}${draft&&!doneToday(t)?`<div class="sf-prog"><i style="width:${act?Math.round(ok/act*100):0}%"></i></div>`:''}${st}</button>`};
     const daily=TABS.filter(t=>DAILY.includes(t)),weekly=TABS.filter(t=>!DAILY.includes(t)),nd=daily.filter(doneToday).length;
     document.getElementById('sfHomeIn').innerHTML=`<h1>Konten hari ini</h1><p class="lead">${tdy}${daily.length?` · ${nd} dari ${daily.length} story harian sudah diunduh`:''}. Isian tersimpan otomatis selama hari yang sama.</p>`
       +(daily.length?`<h2>Harian</h2><div class="sf-grid">${daily.map(card).join('')}</div>`:'')+(weekly.length?`<h2>Pekanan</h2><div class="sf-grid">${weekly.map(card).join('')}</div>`:'')}
