@@ -487,7 +487,7 @@ function rolePage(sess, org, users, note = '', err = '') {
   const n = k => users.filter(x => x.status === 'approved' && x.job === k).length;
   const tOpts = cur => `<option value=""${cur ? '' : ' selected'}>Tanpa tim</option>` + org.teams.map(t => `<option value="${t.id}"${cur === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
   const ck = (name, on, label) => `<label class="ck"><input type="checkbox" name="${name}" value="1"${on ? ' checked' : ''}>${label}</label>`;
-  const flags = (x, r) => ck(x + '_head', r.head, 'Head') + ck(x + '_assign', r.assign, 'Program &amp; tugas') + ck(x + '_ops', r.ops, 'Peringatan ops');
+  const flags = (x, r) => ck(x + '_head', r.head, 'Head') + ck(x + '_assign', r.assign, 'Program &amp; tugas') + ck(x + '_ops', r.ops, 'Peringatan ops') + ck(x + '_gal', r.gal, 'Impor galeri');
   const row = r => `<tr><td><input name="r_${r.k}_name" value="${esc(r.name)}" maxlength="60" required aria-label="Nama role ${esc(r.name)}"></td><td><select name="r_${r.k}_team" aria-label="Tim ${esc(r.name)}">${tOpts(r.team)}</select></td><td>${flags('r_' + r.k, r)}</td><td class="inl"><small><span class="ml">Orang</span>${n(r.k) || '–'}</small></td><td class="inl">${n(r.k) ? '<small>dipakai</small>' : ck(`r_${r.k}_del`, false, 'Hapus')}</td></tr>`;
   return doc('Tim & role', `<form class="card wide xl" method="post" action="/admin/role">${topBar(sess, 'Tim &amp; role pekerjaan', '/admin/role')}
 <p class="sub">Role pekerjaan dipilih per orang di <a href="/admin">Admin</a> &rarr; Atur akses. Di Content Planner, laporan dibuat per tim; orang dengan role tanpa tim membuat laporannya masing-masing.</p>
@@ -497,7 +497,7 @@ ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ?
 <p class="sub" style="margin:4px 0 0">Tim regional: anggotanya di Content Planner hanya melihat dan mencatat kegiatan cabang dan rencana galeri. Menghapus tim membuat role-nya menjadi tanpa tim.</p>
 ${orgGroups(org).map(([l, R]) => `<h2>${esc(l)} (${R.length})</h2><div class="scroll"><table class="rt"><tr><th>Role</th><th>Tim</th><th>Hak tambahan</th><th>Orang</th><th></th></tr>${R.map(row).join('')}</table></div>`).join('')}
 <h2>Tambah role</h2><div class="scroll"><table class="rt"><tr><th>Nama role</th><th>Tim</th><th>Hak tambahan</th></tr><tr><td><input name="nr_name" maxlength="60" placeholder="Mis. Digital Marketing Specialist" aria-label="Nama role baru"></td><td><select name="nr_team" aria-label="Tim role baru">${tOpts('')}</select></td><td>${flags('nr', {})}</td></tr></table></div>
-<p class="sub" style="margin:4px 0 0"><b>Head</b>: pimpinan tim, laporannya bawaan seluruh tim (untuk tim regional, semua regional). <b>Program &amp; tugas</b>: boleh membuat program partnership dan membagi tugas. <b>Peringatan ops</b>: lonceng NAB terlambat, premium/diskon ETF, dan gerak harian tidak biasa.</p>
+<p class="sub" style="margin:4px 0 0"><b>Head</b>: pimpinan tim, laporannya bawaan seluruh tim (untuk tim regional, semua regional). <b>Program &amp; tugas</b>: boleh membuat program partnership dan membagi tugas. <b>Peringatan ops</b>: lonceng NAB terlambat, premium/diskon ETF, dan gerak harian tidak biasa. <b>Impor galeri</b>: tombol Impor galeri di Content Planner (admin selalu boleh).</p>
 <div style="margin-top:14px" class="row savebar"><button type="submit">Simpan</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
 <p class="sub" style="margin:10px 0 0">Mengganti nama atau tim sebuah role tidak mengubah kegiatan yang sudah tercatat; laporan langsung memakai tim yang baru. Berlaku di tool yang sedang dibuka paling lambat 2 jam kemudian.</p></form>`);
 }
@@ -555,7 +555,7 @@ async function admin(request, env, url, sess) {
     const teams = old.teams.filter(t => !fv(f, `t_${t.id}_del`)).map(t => ({ id: t.id, name: fv(f, `t_${t.id}_name`) || t.name, regional: !!fv(f, `t_${t.id}_reg`) }));
     const nt = fv(f, 'nt_name').slice(0, 60);
     if (nt) { if (teams.some(t => t.name.toLowerCase() === nt.toLowerCase())) return page(400, rolePage(sess, old, users, '', `Belum tersimpan: tim &ldquo;${esc(nt)}&rdquo; sudah ada.`)); teams.push({ id: newKey(nt, old.teams.map(t => t.id)), name: nt, regional: !!fv(f, 'nt_reg') }); }
-    const flag = (x, r) => ({ ...r, head: !!fv(f, x + '_head'), assign: !!fv(f, x + '_assign'), ops: !!fv(f, x + '_ops') });
+    const flag = (x, r) => ({ ...r, head: !!fv(f, x + '_head'), assign: !!fv(f, x + '_assign'), ops: !!fv(f, x + '_ops'), gal: !!fv(f, x + '_gal') });
     const roles = old.roles.filter(r => !(fv(f, `r_${r.k}_del`) && !used(r.k))).map(r => flag('r_' + r.k, { k: r.k, name: fv(f, `r_${r.k}_name`) || r.name, team: fv(f, `r_${r.k}_team`) }));
     const nr = fv(f, 'nr_name').slice(0, 60);
     if (nr) roles.push(flag('nr', { k: newKey(nr, old.roles.map(r => r.k)), name: nr, team: fv(f, 'nr_team') }));

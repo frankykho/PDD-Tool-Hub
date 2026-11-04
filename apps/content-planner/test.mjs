@@ -491,6 +491,7 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   r = await call("/api/galeri/import", { ck: GANI, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Surat permohonan dikirim" }] } });
   assert.deepEqual([r.j.added, r.j.updated, r.j.same], [0, 0, 1]);
   // rekan tim galeri mengimpor sheet bersama: galeri buatan Gani tetap diperbarui (impor tidak lewat izin edit form)
+  const ADMG = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
   const GITA = await cookie({ e: "gita@acme.test", n: "Gita", j: "galeri", c: "Cabang Surabaya" });
   r = await call("/api/galeri/import", { ck: GITA, body: { rows: [{ title: "Galeri Investasi ITS", status: "proposal", progress: "Proposal direvisi" }] } });
   assert.deepEqual([r.status, r.j.updated, r.j.errors], [200, 1, []], JSON.stringify(r.j));
@@ -502,6 +503,9 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   r = await call("/api/galeri/import", { ck: GANI, body: { rows: [{ title: "Galeri Investasi ITS", owner: "Gita", owner_email: "gita@acme.test" }] } });
   assert.equal((await call("/api/galeri", { ck: GANI })).j.find((i) => i.title === "Galeri Investasi ITS").owner_email, "gita@acme.test", "PIC lama boleh mengganti PIC lewat sheet");
   assert.equal((await call("/api/galeri/import", { ck: COPY, body: { rows: [] } })).status, 400);
+  r = await call("/api/galeri/import", { ck: COPY, body: { rows: [{ title: "Galeri Investasi ITS", progress: "coba" }] } });
+  assert.deepEqual([r.status, /Impor galeri/.test(r.j.error)], [400, true], "tanpa hak Impor galeri ditolak");
+  assert.equal((await call("/api/galeri/import", { ck: ADMG, body: { rows: [{ title: "Galeri Investasi ITS" }] } })).status, 200, "admin selalu boleh impor");
   // usulan ke admin Tool Hub: sudah MoU, belum ada di daftar; setelah masuk daftar, hilang dari usulan
   const usul = (h) => planner.fetch(new Request(BASE + "/__hub/galeri", { headers: h }), env).then((x) => x.status === 200 ? x.json() : x.status);
   assert.equal(await usul({}), 403, "usulan galeri hanya untuk Tool Hub");
@@ -535,7 +539,7 @@ assert.equal((await call("/api/moments/delete", { ck: CI, body: { id: mid } })).
   assert.equal((await cfgOf(DM)).roles.dm, "Digital Marketing");
   // org rusak / kosong = daftar bawaan; head tanpa tim tidak berlaku; tim yang dihapus = role tanpa tim
   assert.deepEqual(cleanOrg({ roles: [] }), DEFAULT_ORG);
-  assert.deepEqual(cleanOrg({ teams: [{ id: "a", name: "A" }], roles: [{ k: "x", name: "X", team: "b", head: true }, { k: "X!", name: "Y" }] }).roles, [{ k: "x", name: "X", team: "", head: false, assign: false, ops: false }]);
+  assert.deepEqual(cleanOrg({ teams: [{ id: "a", name: "A" }], roles: [{ k: "x", name: "X", team: "b", head: true }, { k: "X!", name: "Y" }] }).roles, [{ k: "x", name: "X", team: "", head: false, assign: false, ops: false, gal: false }]);
   await hub("/__hub/users", { users: [{ email: "pia@acme.test", name: "Pia", job: "partnership" }, { email: "cici@acme.test", name: "Cici", job: "copy" }], org: DEFAULT_ORG });
 }
 const { newKey } = await import("../../shared/jobs.js");

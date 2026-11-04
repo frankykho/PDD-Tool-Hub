@@ -22,7 +22,8 @@ const D = {
   "Klik tanggal untuk menambah kegiatan, klik kegiatan untuk mengubah. Kegiatan bisa digeser ke tanggal lain (tarik & lepas).": "Click a date to add an activity, click an activity to edit it. Activities can be moved to another date (drag & drop).",
   "Sen": "Mon", "Sel": "Tue", "Rab": "Wed", "Kam": "Thu", "Jum": "Fri", "Sab": "Sat", "Min": "Sun",
   "{n} visual belum selesai": "{n} visuals not done",
-  "{n} kegiatan bulan ini": "{n} activities this month",
+  "{n} kegiatan bulan ini": "{n} activities this month", "{n} konten": "{n} content", "{n} artikel": "{n} articles", "{n} edukasi": "{n} education", "{n} program": "{n} programs", "{n} kegiatan cabang": "{n} branch activities", "{n} galeri": "{n} galleries",
+  "📄 Pilih file CSV": "📄 Choose CSV file", "Pilih file CSV": "Choose CSV file", "Tim lain hanya bisa dipilih admin.": "Only admins can choose another team.",
   "Belum ada kegiatan di bulan ini. Klik “+ Kegiatan” untuk menambah.": "No activities this month yet. Click “+ Activity” to add one.",
   "{d}, {n} kegiatan": "{d}, {n} activities",
   "+{n} lagi": "+{n} more",
@@ -664,7 +665,7 @@ const D = {
   // nama tim bawaan sudah berbahasa Inggris; tanpa ini pola "Regional {r}" (nama regional) mengubahnya jadi "Management Region"
   "Regional Management": "Regional Management", "Regional Management Report": "Regional Management Report",
   "Role tanpa tim": "Roles without a team", "Tanpa tim": "No team", "Semua orang dengan role tanpa tim": "Everyone whose role has no team",
-  "Semua anggota {t}": "All {t} members", "Laporan berisi anggota tim {t}.": "The report covers members of the {t} team.",
+  "Semua anggota {t}": "All {t} members", "Laporan berisi anggota tim {t}.": "The report covers members of the {t} team.", "Laporan berisi anggota tim {t}. Tim lain hanya bisa dipilih admin.": "The report covers members of the {t} team. Only admins can choose another team.",
   "Role kamu belum masuk tim mana pun, jadi laporannya laporan kamu sendiri.": "Your role is not in any team yet, so the report covers your own work.",
   "Per role": "By role", "{n} role": "{n} roles",
   "Belum ada pekerjaan harian atau kegiatan kalender tim {t} pada periode ini": "No daily work or calendar activities from the {t} team in this period",

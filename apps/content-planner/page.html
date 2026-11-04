@@ -605,6 +605,7 @@ function chip(i){
   const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
   return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="${canEditItem(i)}" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b translate="no">${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
+const STAT_W={konten:"konten",artikel:"artikel",edukasi:"edukasi",program:"program",cabang:"kegiatan cabang",galeri:"galeri"};
 function renderCal(){
   $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
   ["fKind","fSt","fOw","fBr"].forEach(id=>$(id).hidden=view==="tasks"||view==="daily"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design")||(id==="fBr"&&(view==="design"||!$("fBr").dataset.on)));$("calHelp").hidden=view!=="month"&&view!=="list";
@@ -615,7 +616,7 @@ function renderCal(){
   if(view==="perf")return renderPerf(list.filter(i=>i.date>=mStart&&i.date<=mEnd));
   const momBy={};MOMS.forEach((m,n)=>(momBy[m.date]=momBy[m.date]||[]).push(n));
   const inMonth=list.filter(i=>i.date>=mStart&&i.date<=mEnd);
-  $("stats").innerHTML=Object.keys(K).map(k=>{const n=inMonth.filter(i=>kindOf(i)===k).length;return n?`<span class="stat">${ICON[k]} ${n}</span>`:""}).join("")+
+  $("stats").innerHTML=Object.keys(K).map(k=>{const n=inMonth.filter(i=>kindOf(i)===k).length;return n?`<span class="stat">${ICON[k]} ${n} ${STAT_W[k]||K[k].label.toLowerCase()}</span>`:""}).join("")+
     (inMonth.some(i=>i.d_need)?`<span class="stat">🎨 ${inMonth.filter(i=>i.d_need&&i.d_status!=="selesai").length} visual belum selesai</span>`:"")+`<span class="stat muted">${inMonth.length} kegiatan bulan ini</span>`;
   const by={};list.forEach(i=>(by[i.date]=by[i.date]||[]).push(i));
   if(view==="list"){
@@ -685,7 +686,7 @@ function renderPerf(month){
     `<div class="card"><h2>Per kanal</h2><div class="scroll"><table class="t"><thead><tr><th>Kanal</th><th class="n">Konten</th><th class="n">Views</th><th class="n">Jangkauan</th><th class="n">Interaksi</th><th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${Object.keys(ch).sort((a,b)=>ch[b].length-ch[a].length).map(k=>{const C=ch[k],s=f=>C.reduce((a,i)=>a+(+f(i)||0),0);return `<tr><td>${esc(k)}</td><td class="n">${C.length}</td><td class="n">${int(s(i=>i.m_views))}</td><td class="n">${int(s(i=>i.m_reach))}</td><td class="n">${int(s(inter))}</td><td class="n">${pct2(erOf(C))}</td><td class="n">${int(s(i=>i.clicks))}</td></tr>`}).join("")||'<tr><td colspan="7" class="muted">Belum ada konten terbit bulan ini.</td></tr>'}</tbody></table></div></div>`+
     `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,6).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td translate="no">${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,6).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="11" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan) ÷ jangkauan.</p></div>`+
     `<div class="card"><h2>Impor angka dari Meta Business Suite</h2><p class="muted small" style="margin:0 0 8px">Di Meta Business Suite: Insights → Konten → Ekspor data (CSV). Baris dicocokkan dengan kegiatan lewat link postingan (kolom Permalink), jadi isi <b>Link postingan</b> di setiap konten.</p>`+
-    `<div class="acts"><input type="file" id="csvF" accept=".csv,text/csv"><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
+    `<div class="acts"><label class="btn sm" style="cursor:pointer">📄 Pilih file CSV<input type="file" id="csvF" accept=".csv,text/csv" hidden></label><span class="muted small" id="csvN"></span><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
     `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), gulir sampai postingan yang ingin diambil terlihat, lalu klik bookmark-nya. Suka, komentar, dan views tiap postingan (maks. 60) dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Bisa juga dari satu halaman postingan.</p>`+
     `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div></div>`;
   let bm=plBookmark.toString();
@@ -1258,7 +1259,7 @@ function repTeam(open){
   const tk=$("rTeam").value,mem=USERS.filter(u=>inTeam(u.email,tk));
   $("rWho").innerHTML=`<option value="">${tk==="-"?"Semua orang dengan role tanpa tim":"Semua anggota "+esc(teamName(tk))}</option>`+mem.map(u=>`<option value="${esc(u.email)}">${esc(u.name)}${u.role?" · "+esc(PL.roles[u.role]||""):""}</option>`).join("");
   $("rWho").value=open&&!PL.me.adm&&!PL.me.head&&!PL.me.reg&&mem.some(u=>u.email===PL.me.email)?PL.me.email:"";
-  $("rTeamNote").textContent=PL.me.adm?"":tk==="-"?"Role kamu belum masuk tim mana pun, jadi laporannya laporan kamu sendiri.":"Laporan berisi anggota tim "+teamName(tk)+".";
+  $("rTeamNote").textContent=PL.me.adm?"":tk==="-"?"Role kamu belum masuk tim mana pun, jadi laporannya laporan kamu sendiri.":"Laporan berisi anggota tim "+teamName(tk)+". Tim lain hanya bisa dipilih admin.";
   // nama divisi di sampul: nama tim (diingat per tim kalau diganti); tim regional tanpa Head: regional sendiri
   $("rDiv").value=recall("pl_div:"+tk)||(tk!=="-"?teamName(tk):"")||(PL.me.reg&&regionOf(PL.me.branch)?"Regional "+regionOf(PL.me.branch):"")||B.team||"Product & Digital Development";
 }
@@ -1873,6 +1874,7 @@ function impPreview(R){
     <div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="imptbl small"><tr><th>Galeri</th><th>Mitra</th><th>Regional</th><th>Tahap</th><th title="Surat · Bipartit · Tripartit (● selesai ◐ proses)">Dok.</th><th></th></tr>${L.map(r=>`<tr><td translate="no">${esc(r.title)}</td><td translate="no">${esc(r.partner||"–")}</td><td translate="no">${r.region?esc(r.region):'<span class="late">–</span>'}</td><td>${esc(GSL[r.status])}</td><td>${dc(r.docs)}</td><td>${IMP.have.has(r.title.toLowerCase())?"perbarui":"baru"}</td></tr>`).join("")}</table></div>`:"";
   $("impGo").disabled=!L.length;$("impGo").textContent=L.length?`Impor ${L.length} galeri`:"Impor";
 }
+document.addEventListener("change",e=>{if(e.target.id==="csvF")$("csvN").textContent=e.target.files[0]?e.target.files[0].name:""});
 $("impTx").addEventListener("input",()=>{$("impFileN").textContent="";impPreview(parseSheet($("impTx").value))});
 $("impReg").onchange=()=>{if($("impTx").value.trim())impPreview(parseSheet($("impTx").value));else if(IMP.sheet)impPreview(IMP.sheet)};
 $("impFile").onchange=async()=>{
@@ -1895,7 +1897,7 @@ $("impGo").onclick=async()=>{
     IMP.have=new Set([...IMP.have,...IMP.rows.map(x=>x.title.toLowerCase())]);loadCal();
   }catch(e){showErr("impErr",e);$("impMsg").textContent="";$("impGo").disabled=false}
 };
-$("impBtn").onclick=openImp;$("impClose").onclick=()=>$("imp").close();$("impBtn").hidden=!K.galeri;
+$("impBtn").onclick=openImp;$("impClose").onclick=()=>$("imp").close();$("impBtn").hidden=!K.galeri||!PL.me.gal;
 const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"}};
 const repDiv=()=>{const tk=$("rTeam").value,d=$("rDiv").value.trim()||teamName(tk)||"Product & Digital Development";if(d!==teamName(tk))store("pl_div:"+tk,d);else try{localStorage.removeItem("pl_div:"+tk)}catch(e){}return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";

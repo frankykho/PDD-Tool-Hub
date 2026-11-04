@@ -37,7 +37,7 @@ import { i18nHead } from "../../shared/i18n.js";
 import EN from "./i18n.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
-import { cleanOrg, jobsOf, roleIn, teamIn, canAssign, isRegional, branchType } from "../../shared/jobs.js";
+import { cleanOrg, jobsOf, roleIn, teamIn, canAssign, canImportGal, isRegional, branchType } from "../../shared/jobs.js";
 import { complianceScript } from "../../shared/compliance.js";
 import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
 import PAGE from "./page.html";
@@ -604,6 +604,8 @@ async function galleries(env, id) {
  */
 async function importGalleries(env, me, b) {
   await ensure(env);
+  const org = await orgOf(env);
+  if (!canImportGal(org, await jobOf(env, me, org), me.adm)) return { error: "Hanya admin atau role dengan hak Impor galeri (Tool Hub → Admin → Tim & role) yang bisa mengimpor galeri." };
   const rows = Array.isArray(b.rows) ? b.rows.slice(0, 300) : [];
   if (!rows.length) return { error: "Tidak ada baris untuk diimpor." };
   const B = await branches(env), all = await galleries(env, ""), out = { added: 0, updated: 0, same: 0, errors: [], warn: [] };
@@ -1197,7 +1199,7 @@ async function page(env, me, mode) {
     env.DB.prepare("SELECT branch FROM users WHERE email = ?").bind(lower(me.e)).first().catch(() => null)]);
   const etf = (profile(env).tools || {}).etf || {}, reg = isRegional(org, job, me.adm), rl = roleIn(org, job), tm = teamIn(org, job);
   // tim regional: hanya "Kegiatan cabang" & "Kerja sama galeri baru" (tanpa paket mingguan, tugas, harian, performa)
-  const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(org, job, me.adm), reg, branch: (u && u.branch) || me.c || "", team: tm ? tm.id : "", head: !!(rl && rl.head) },
+  const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(org, job, me.adm), gal: canImportGal(org, job, me.adm), reg, branch: (u && u.branch) || me.c || "", team: tm ? tm.id : "", head: !!(rl && rl.head) },
     branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, galDocs: GAL_DOCS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: jobsOf(org), org, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("", EN)}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;

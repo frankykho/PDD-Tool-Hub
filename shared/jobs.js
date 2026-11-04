@@ -12,7 +12,7 @@ export const DEFAULT_ORG = {
     { k: "ops", name: "ETF & Fund Ops", team: "pd", ops: true },
     { k: "head_rm", name: "Head of Regional Management", team: "rm", head: true },
     { k: "sales", name: "Sales", team: "rm" },
-    { k: "galeri", name: "GI Coordinator", team: "rm" },
+    { k: "galeri", name: "GI Coordinator", team: "rm", gal: true },
     { k: "copy", name: "Copywriter" }, { k: "sosmed", name: "Social Media Specialist" }, { k: "design", name: "Desainer" },
     { k: "pm", name: "Product Marketing" }, { k: "syariah", name: "Syariah" }, { k: "lain", name: "Lainnya" },
   ],
@@ -28,7 +28,7 @@ export function cleanOrg(o) {
   }
   for (const r of (o && Array.isArray(o.roles) ? o.roles : [])) {
     const k = txt(r && r.k, 24), name = txt(r && r.name, 60), team = T.some((x) => x.id === (r && r.team)) ? r.team : "";
-    if (KEY_RE.test(k) && name && !R.some((x) => x.k === k)) R.push({ k, name, team, head: !!(r && r.head && team), assign: !!(r && r.assign), ops: !!(r && r.ops) });
+    if (KEY_RE.test(k) && name && !R.some((x) => x.k === k)) R.push({ k, name, team, head: !!(r && r.head && team), assign: !!(r && r.assign), ops: !!(r && r.ops), gal: !!(r && r.gal) });
   }
   return R.length ? { teams: T.slice(0, 20), roles: R.slice(0, 80) } : structuredClone(DEFAULT_ORG);
 }
@@ -42,6 +42,8 @@ export const canAssign = (org, job, admin) => !!admin || !!(roleIn(org, job) || 
 // anggota tim regional (sales & GI coordinator di cabang): di Content Planner hanya melihat & mencatat kegiatan cabang dan rencana galeri
 export const isRegional = (org, job, admin) => !admin && !!(teamIn(org, job) || {}).regional;
 // mendapat peringatan ops (NAB terlambat, premium/diskon, gerak harian tidak biasa) di lonceng Tool Hub (admin hub selalu)
+// boleh mengimpor sheet galeri ke Content Planner (admin Tool Hub selalu boleh)
+export const canImportGal = (org, job, admin) => !!admin || !!(roleIn(org, job) || {}).gal;
 export const opsAlert = (org, job) => !!(roleIn(org, job) || {}).ops;
 /** Kunci baru dari nama (huruf kecil, _), unik terhadap kunci yang sudah dipakai. */
 export function newKey(name, taken) {

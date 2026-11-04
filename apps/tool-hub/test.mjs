@@ -400,13 +400,13 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
     const left = texts.filter((x) => /[a-z]{3}/i.test(x) && !known.has(x.replace(/ \(\d+\)$/, "")) && t(x) === x);
     assert.deepEqual(left, [], "teks halaman Tim & role yang belum punya terjemahan"); }
   const n0 = eventCalls.length, b0 = brandCalls.length, g0 = goCalls.length;
-  r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(DEFAULT_ORG, { r_copy_team: "pd", r_copy_assign: "1", t_rm_name: "Regional Mgmt",
+  r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(DEFAULT_ORG, { r_copy_team: "pd", r_copy_assign: "1", r_copy_gal: "1", t_rm_name: "Regional Mgmt",
     nr_name: "Digital Marketing Specialist", nr_team: "pd", r_lain_del: "1", r_partnership_del: "1", nt_name: "Marketing" }) });
   assert.equal(r.status, 200); assert.match(await r.text(), /Tersimpan: 3 tim, 13 role/);
   const org = JSON.parse(env.HUB_KV.m.get("cfg:org").v);
-  assert.deepEqual(org.roles.find((x) => x.k === "copy"), { k: "copy", name: "Copywriter", team: "pd", head: false, assign: true, ops: false });
+  assert.deepEqual(org.roles.find((x) => x.k === "copy"), { k: "copy", name: "Copywriter", team: "pd", head: false, assign: true, ops: false, gal: true });
   assert.ok(org.roles.some((x) => x.k === "partnership") && !org.roles.some((x) => x.k === "lain"), "yang masih dipakai tetap ada, yang tidak dipakai terhapus");
-  assert.deepEqual(org.roles.at(-1), { k: "digital_marketing_specia", name: "Digital Marketing Specialist", team: "pd", head: false, assign: false, ops: false });
+  assert.deepEqual(org.roles.at(-1), { k: "digital_marketing_specia", name: "Digital Marketing Specialist", team: "pd", head: false, assign: false, ops: false, gal: false });
   assert.deepEqual(org.teams, [{ id: "pd", name: "Product Development", regional: false }, { id: "rm", name: "Regional Mgmt", regional: true }, { id: "marketing", name: "Marketing", regional: false }]);
   assert.deepEqual(JSON.parse(plannerEnv.DB.db.prepare("SELECT v FROM cfg WHERE k = 'org'").get().v), org, "tim & role ikut ke Planner");
   assert.deepEqual(eventCalls.slice(n0), [{ url: "https://event/__hub/users", key: SECRET }], "tim & role ikut dikirim ke Event & Lead (sekali)");
