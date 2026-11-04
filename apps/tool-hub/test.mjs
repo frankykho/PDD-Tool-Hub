@@ -304,7 +304,7 @@ assert.ok(t.rhythm.data.steps.some((s) => s.id === "plan:a"), "kegiatan Planner 
   assert.deepEqual(R.steps.map((x) => x.id), ["pdf", "nav1", "nav2"]); assert.equal(R.planner, false);
   // status GitHub gagal dimuat: langkah GitHub abu-abu, bukan merah
   const p2 = parts("2026-10-19"); p2.jobs = { ok: false, error: "x" };
-  assert.deepEqual(by(rhythm(W("2026-10-19T12:30:00"), p2, all)).pdf, ["muted", "Status GitHub tidak terbaca"]);
+  assert.deepEqual(by(rhythm(W("2026-10-19T12:30:00"), p2, all)).pdf, ["muted", "Status jadwal belum terbaca"]);
 }
 
 /* ---------- notifikasi tugas (disimpan di Content Planner, dibaca lewat hub) ---------- */
@@ -346,7 +346,10 @@ assert.equal((await call("/sso?app=fund&back=" + encodeURIComponent("https://fun
 assert.equal((await call("/role", { cookie: user })).headers.get("location"), "/", "halaman pilih role sudah tidak ada");
 assert.equal(bootOf(await (await call("/", { cookie: user })).text()).me.job, "");
 assert.match(await (await call("/admin/user?e=user@acme.test", { cookie: admin })).text(), /<option value="none" selected>Tanpa role/);
-assert.match(await (await call("/admin", { cookie: admin })).text(), /user biasa/, "daftar admin menandai user biasa");
+const admTxt = await (await call("/admin", { cookie: admin })).text();
+assert.match(admTxt, /tanpa role pekerjaan/, "daftar admin menandai user tanpa role pekerjaan");
+assert.doesNotMatch(admTxt, /<small>- &middot;/, "nama kosong tidak tampil sebagai tanda -");
+assert.match(await (await call("/admin/user?e=" + encodeURIComponent(ADMIN), { cookie: admin })).text(), /status: disetujui/, "status akun dalam bahasa Indonesia");
 // admin memberi role
 assert.equal((await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "copy", a_fund: "viewer" } })).status, 200);
 assert.equal(JSON.parse(env.HUB_KV.m.get("u:user@acme.test").v).job, "copy");

@@ -211,7 +211,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
 .ml{display:none}.ml::after{content:": "}
 .tabs{display:flex;gap:6px;margin:16px 0 4px;padding:4px;border-radius:12px;background:var(--soft);border:1px solid var(--soft-line)}.tabs a{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:14px;font-weight:700;text-decoration:none;color:var(--text-2)}.tabs a.on{background:var(--primary);color:var(--primary-text)}
 .badge{display:inline-block;min-width:18px;padding:1px 6px;border-radius:9px;background:#d92d20;color:#fff;font-size:11px;font-weight:700;text-align:center}
-.row{display:flex;gap:8px}.row>*{flex:1}.row button{flex:none}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.scroll{overflow-x:auto}
+.savebar{position:sticky;bottom:0;z-index:2;padding:12px 0;margin-bottom:-12px;background:var(--card);border-top:1px solid var(--line);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}.row{display:flex;gap:8px}.row>*{flex:1}.row button{flex:none}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.scroll{overflow-x:auto}
 a.nav{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:10px;background:var(--soft);border:1px solid var(--soft-line);color:var(--soft-text);font-weight:600;font-size:13px;text-decoration:none;margin:2px 0 2px 4px}a.nav:hover{background:var(--soft-hover)}.navs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:13px;color:var(--text-2)}
 label.opt{display:flex;gap:10px;align-items:center;font-weight:400;font-size:14px;margin:0;padding:10px 12px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--field);cursor:pointer}label.opt+label.opt{margin-top:6px}label.opt input{width:18px;height:18px}label.opt small{color:var(--text-2);font-size:12.5px}label.opt:has(input:checked){border-color:var(--sel-line);background:var(--sel)}
 .pw{position:relative}.pw input{padding-right:84px}.pw button{position:absolute;right:3px;top:3px;bottom:3px;min-height:0;padding:0 12px;background:transparent;color:var(--link);font-size:13px;box-shadow:none}.pw button:hover{background:var(--soft)}
@@ -427,6 +427,7 @@ const ACTS = {
   reset: ['Reset password', u => { delete u.hash; }, 'di-reset passwordnya. Minta ia klik Daftar lagi dengan email yang sama'],
   delete: ['Hapus', null, 'dihapus'],
 };
+const ST_ID = { approved: 'disetujui', pending: 'menunggu persetujuan', rejected: 'ditolak', revoked: 'dicabut', added: 'ditambahkan admin' };
 const accessLabel = (x, apps) => x.role === 'admin' ? 'semua tool (admin)' : (apps || '').split(',').filter(Boolean).map(id => (appById(id) || {}).name || id).join(', ') || 'belum ada tool';
 
 /** changed = { email, u|null }: hasil aksi barusan, ditimpakan ke daftar karena KV list bisa terlambat sampai ~1 menit. */
@@ -442,7 +443,7 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
     : x.status === 'pending' ? `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Tinjau &amp; setujui</a>` + btn(x, 'reject', 'del')
     : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'delete', 'del'))
     : btn(x, 'approve', '') + btn(x, 'delete', 'del');
-  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || '-')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(J[x.job] || x.job) : 'user biasa'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small><span class="ml">Akses tool</span>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small><span class="ml">Terdaftar</span>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
+  const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || 'nama belum diisi')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(J[x.job] || x.job) : 'tanpa role pekerjaan'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small><span class="ml">Akses tool</span>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small><span class="ml">Terdaftar</span>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
   const by = s => users.filter(x => s.includes(x.status));
   return doc('Admin', `<div class="card wide">${topBar(sess, 'Admin &middot; Tool Hub', '/admin')}
 <p class="sub">Kelola siapa saja yang boleh masuk dan tool apa yang boleh dibuka. <a href="/admin/role">Tim &amp; role pekerjaan</a> &middot; <a href="/admin/cabang">Daftar regional &amp; cabang</a> untuk tim regional.${gp.length ? ` <a href="/admin/cabang"><b>${gp.length} usulan galeri baru</b></a> menunggu ditambahkan.` : ''}</p>${note ? `<div class="msg ${bad ? 'err' : 'ok'}" style="margin:0 0 6px">${note}</div>` : ''}
@@ -472,12 +473,12 @@ function userPage(sess, email, u, note = '', B = [], org = cleanOrg(null)) {
       : `<label class="ck"><input type="checkbox" name="a_${a.id}" value="1"${cur ? ' checked' : ''}>Boleh membuka</label>`;
     return `<fieldset><legend id="lg_${a.id}">${esc(a.name)}${asked ? ' &middot; diminta' : ''}</legend>${inner}</fieldset>`; };
   return doc('Atur akses', `<form class="card wide" method="post" action="/admin/access">${topBar(sess, 'Atur akses', '/admin/user')}
-<p class="sub"><b>${esc(email)}</b>${u.name ? ' &middot; ' + esc(u.name) : ''}${u.username ? ' &middot; @' + esc(u.username) : ''} &middot; status: ${esc(u.status)}${u.role === 'admin' ? ' &middot; <b>admin hub (otomatis punya semua akses)</b>' : ''}</p>
+<p class="sub"><b>${esc(email)}</b>${u.name ? ' &middot; ' + esc(u.name) : ''}${u.username ? ' &middot; @' + esc(u.username) : ''} &middot; status: ${esc(ST_ID[u.status] || u.status)}${u.role === 'admin' ? ' &middot; <b>admin hub (otomatis punya semua akses)</b>' : ''}</p>
 ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}<input type="hidden" name="email" value="${esc(email)}">
 <fieldset><legend>Role pekerjaan</legend><select name="job" aria-label="Role pekerjaan"><option value="none"${J[u.job] ? '' : ' selected'}>Tanpa role (user biasa: hanya memakai tool)</option>${jobOpts(org, u.job)}</select><small class="hint">Akun dengan role masuk daftar anggota Content Planner dan bisa diberi tugas. ${regT.length ? `Anggota tim ${regT.join(' &amp; ')}: di Content Planner hanya melihat dan mencatat <b>Kegiatan cabang</b> dan rencana galeri. ` : ''}<a href="/admin/role">Atur tim &amp; role</a></small>
 <button type="button" class="sm ghost" id="regAcc" style="margin:8px 0 0">Pakai akses tim regional</button></fieldset>
 <fieldset><legend>Regional &amp; cabang / galeri</legend>${B.length || u.branch ? `<select name="branch" aria-label="Cabang / galeri"><option value="none"${u.branch ? '' : ' selected'}>Tanpa cabang</option>${brOpts(u.branch, B)}</select>` : ''}<small class="hint">${B.length ? 'Untuk tim regional: cabang bawaan saat mencatat kegiatan, dan regional bawaan di laporan.' : 'Daftar cabang belum diisi.'} <a href="/admin/cabang">Atur daftar regional &amp; cabang</a></small></fieldset><div class="apps">${APPS.map(blk).join('')}</div>
-<div style="margin-top:18px" class="row"><button type="submit"${pend ? ' name="approve" value="1"' : ''}>${pend ? 'Setujui dengan akses ini' : 'Simpan akses'}</button><a href="/admin" style="flex:none;align-self:center">Kembali ke daftar</a></div>
+<div style="margin-top:18px" class="row savebar"><button type="submit"${pend ? ' name="approve" value="1"' : ''}>${pend ? 'Setujui dengan akses ini' : 'Simpan akses'}</button><a href="/admin" style="flex:none;align-self:center">Kembali ke daftar</a></div>
 <p class="sub" style="margin:14px 0 0">Perubahan berlaku paling lambat 2 jam kemudian di tool yang sedang dibuka orangnya, atau langsung setelah ia keluar lalu masuk lagi.</p></form>${regionalJs}`);
 }
 /** Tim & role pekerjaan: nama role, timnya, dan hak tambahannya (Head, membuat program & membagi tugas, peringatan ops).
@@ -497,7 +498,7 @@ ${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ?
 ${orgGroups(org).map(([l, R]) => `<h2>${esc(l)} (${R.length})</h2><div class="scroll"><table class="rt"><tr><th>Role</th><th>Tim</th><th>Hak tambahan</th><th>Orang</th><th></th></tr>${R.map(row).join('')}</table></div>`).join('')}
 <h2>Tambah role</h2><div class="scroll"><table class="rt"><tr><th>Nama role</th><th>Tim</th><th>Hak tambahan</th></tr><tr><td><input name="nr_name" maxlength="60" placeholder="Mis. Digital Marketing Specialist" aria-label="Nama role baru"></td><td><select name="nr_team" aria-label="Tim role baru">${tOpts('')}</select></td><td>${flags('nr', {})}</td></tr></table></div>
 <p class="sub" style="margin:4px 0 0"><b>Head</b>: pimpinan tim, laporannya bawaan seluruh tim (untuk tim regional, semua regional). <b>Program &amp; tugas</b>: boleh membuat program partnership dan membagi tugas. <b>Peringatan ops</b>: lonceng NAB terlambat, premium/diskon ETF, dan gerak harian tidak biasa.</p>
-<div style="margin-top:14px" class="row"><button type="submit">Simpan</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
+<div style="margin-top:14px" class="row savebar"><button type="submit">Simpan</button><a href="/admin" style="flex:none;align-self:center">Kembali ke Admin</a></div>
 <p class="sub" style="margin:10px 0 0">Mengganti nama atau tim sebuah role tidak mengubah kegiatan yang sudah tercatat; laporan langsung memakai tim yang baru. Berlaku di tool yang sedang dibuka paling lambat 2 jam kemudian.</p></form>`);
 }
 /** Daftar regional & cabang / galeri investasi: diketik atau ditempel dari Excel (2–3 kolom), satu per baris.
@@ -796,7 +797,7 @@ export function rhythm(now, parts, has) {
     const s = dow === 5 && s0.id === 's1' ? { ...s0, at: '11:30', late: '14:15', sub: 'Disusun saat jeda siang (Jumat)' } : s0;
     let st, url = '', sub = s.sub;
     if (s.wf) {
-      if (!jobs) st = ['muted', 'Status GitHub tidak terbaca'];
+      if (!jobs) st = ['muted', 'Status jadwal belum terbaca'];
       else {
         const rs = (jobs.today || []).filter(x => x.wf === s.wf && x.at >= at(s.from) && x.at < at(s.to)).sort((a, b) => b.at - a.at);
         const good = rs.find(x => x.state === 'ok'), last = rs[0];

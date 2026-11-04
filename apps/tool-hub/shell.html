@@ -683,7 +683,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     catOrder.forEach(function (c) { var k = apps.filter(function (a) { return a.cat === c; }).length; if (k) html += n("#/tools/" + c, cats[c].label, cats[c].icon, "tools/" + c, cnt(k)); });
     html += '<div class="nav-h">Ruang kerja</div><div class="nav-sep"></div>';
     html += n("#/tools/fav", "Favorit", "star", "tools/fav", fav.length ? cnt(fav.length) : "") + n("#/tools/recent", "Terakhir dibuka", "clock", "tools/recent");
-    if (H.me.admin) html += n("/admin", "Persetujuan akses", "shield", "admin", H.pending ? '<span class="badge" aria-label="' + H.pending + ' menunggu">' + H.pending + "</span>" : "");
+    if (H.me.admin) html += n("/admin", "Admin & akses", "shield", "admin", H.pending ? '<span class="badge" aria-label="' + H.pending + ' menunggu">' + H.pending + "</span>" : "");
     $("#nav").innerHTML = html;
   }
   function setKey(k) { curKey = k; [].forEach.call(document.querySelectorAll("#nav a"), function (a) { if (a.dataset.key === k) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }); }
@@ -747,6 +747,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   /* ---------- ringkasan hari ini ---------- */
   var feed = null;
   function skel(n) { var s = ""; for (var i = 0; i < n; i++) s += '<span class="sk" style="width:' + (90 - i * 15) + '%"></span>'; return s; }
+  // detail teknis (sambungan antar tool, GitHub) hanya untuk admin; anggota lain cukup tahu harus ke siapa
+  function why(r) { return H.me.admin ? ((r && r.error) || "tidak ada jawaban") : "kabari admin kalau masih gagal setelah Coba lagi"; }
   function errBox(msg) { return '<div class="errbox">' + icon("alert") + "<div>" + esc(msg) + '</div><button class="btn btn-sm" type="button" data-retry>Coba lagi</button></div>'; }
   var PST = { ide: "st-muted", draf: "st-warn", review: "st-info", terbit: "st-ok", rencana: "st-muted", konfirmasi: "st-info", selesai: "st-ok", batal: "st-err", belum: "st-muted", proses: "st-info", revisi: "st-warn" };
   function pctHtml(p) { if (p == null || p === "" || isNaN(+p)) return ""; p = +p; return '<span class="pct ' + (p > 0 ? "up" : p < 0 ? "down" : "") + '">' + (p > 0 ? "+" : "") + p.toFixed(2).replace(".", ",") + "%</span>"; }
@@ -768,7 +770,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   }
   function fillPlanner(r) {
     var el = $("#planBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Tugas dari Content Planner tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Tugas dari Content Planner tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, kinds = d.kinds || {};
     var item = function (it, when) { return '<div class="row"><div class="m"><b translate="no">' + esc(it.title) + "</b><small>" + esc([when, kinds[it.kind] || it.kind, it.channel].filter(Boolean).join(" · ")) + '</small></div><span class="badge cap ' + (PST[it.status] || "st-muted") + '">' + esc(it.status || "-") + "</span></div>"; };
     var design = function (it) { return '<div class="row"><div class="m"><b translate="no">' + esc(it.title) + "</b><small>Desain · tenggat " + esc(hari(it.d_due || it.date)) + '</small></div><span class="badge cap ' + (PST[it.d_status] || "st-muted") + '">' + esc(it.d_status || "belum") + "</span></div>"; };
@@ -794,7 +796,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function foot(text, id, label) { return '<div class="panel-f"><span class="muted">' + esc(text) + '</span><button class="btn btn-sm" type="button" data-open="' + id + '">' + esc(label) + " " + icon("arrowR") + "</button></div>"; }
   function fillFund(r) {
     var el = $("#fundBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Fund Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Fund Insight tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, m = d.moves || {}, dev = m.dev || [], rows = [];
     // aturan sama dengan kartu "Gerak harian tidak biasa" di Home Fund Insight
     var html = '<div class="subh">Gerak harian tidak biasa' + (m.nav ? " · NAB " + esc(hari(m.nav)) : "") + (m.n ? " · " + m.n + " produk" : "") + "</div>";
@@ -824,7 +826,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   // ETF Insight: peringatan ops (premium/diskon, NAB terlambat, likuiditas, tracking) dan kalender 7 hari
   function fillEtf(r) {
     var el = $("#etfBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan ETF Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan ETF Insight tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, A = d.alerts || [], C = d.calendar || [];
     var html = '<div class="subh">ETF hari ini</div><div class="rows">' + (d.kisi || []).map(function (k) {
       var p = k.premiumLive != null ? k.premiumLive : k.premium;
@@ -841,7 +843,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function fillBrand(r) {
     var el = $("#brandBody"); if (!el) return;
     var sec = el.closest("section");
-    if (!r || !r.ok) { sec.hidden = false; el.innerHTML = errBox("Ringkasan Brand Kit tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { sec.hidden = false; el.innerHTML = errBox("Ringkasan Brand Kit tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, P = d.pending || [], M = d.mine || [], N = d.notices || [], html = "";
     sec.hidden = !P.length && !M.length && !N.length;
     if (P.length) html += '<div class="subh">Menunggu persetujuanmu</div><div class="rows">' + P.map(function (x) { return rowHtml("warn", x.title, [x.by, ago(x.at)].filter(Boolean).join(" · ")); }).join("") + "</div>";
@@ -856,7 +858,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   }
   function fillBond(r) {
     var el = $("#bondBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Bond Insight tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Bond Insight tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, pct = function (v) { return v == null ? "–" : v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; };
     var bps = function (v) { return v == null ? "" : " · " + (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " bps dari kemarin"; };
     var html = '<div class="subh">Yield SBN (PHEI IGSYC)</div><div class="rows">' + (d.rates || []).map(function (x) {
@@ -870,7 +872,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   var CST = { "Perlu verifikasi": "st-warn", Aktif: "st-ok", Berakhir: "st-muted", "Tidak relevan": "st-muted" };
   function fillComp(r) {
     var el = $("#compBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Competitor Intelligence tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Competitor Intelligence tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, it = d.items || [];
     var html = '<div class="subh">Baru sejak kemarin · ' + d.n + " promo</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
       return rowHtml("", x.title, [x.platform || x.manager, x.category, x.promo_type].filter(Boolean).join(" · ") || "Promo baru", '<span class="badge ' + (CST[x.status] || "st-muted") + '">' + esc(x.status || "-") + "</span>");
@@ -882,7 +884,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   // Market News: laporan keuangan emiten yang dibaca AI dari berita (angka dalam miliar rupiah / juta USD)
   function fillNews(r) {
     var el = $("#newsBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Market News tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Market News tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, it = d.fin || [];
     var nf = function (x, k) { return Math.abs(x).toLocaleString("id-ID", { maximumFractionDigits: k }); };
     var fm = function (v, c) { if (v == null) return "–"; var s = v < 0 ? "−" : ""; return c === "USD" ? s + (Math.abs(v) >= 1000 ? "US$" + nf(v / 1000, 2) + " M" : "US$" + nf(v, 1) + " jt") : s + (Math.abs(v) >= 1000 ? "Rp" + nf(v / 1000, 2) + " T" : "Rp" + nf(v, 1) + " M"); };
@@ -898,7 +900,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   var FN = { web: "Artikel", feed: "Feed", story: "Story" };
   function fillEdu(r) {
     var el = $("#eduBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Edukasi Studio tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ringkasan Edukasi Studio tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, it = d.drafts || [];
     var html = '<div class="subh">Draf 7 hari terakhir · ' + d.n + (d.mine ? " · " + d.mine + " milikmu" : "") + "</div>" + (it.length ? '<div class="rows">' + it.map(function (x) {
       return rowHtml("", x.title || "Tanpa judul", [FN[x.format] || x.format, x.author === H.me.email ? "Kamu" : String(x.author || "").split("@")[0], ago(x.created_at)].filter(Boolean).join(" · "));
@@ -941,7 +943,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   }
   function fillRhythm(r) {
     var el = $("#rhythmBody"); if (!el) return;
-    if (!r || !r.ok) { el.innerHTML = errBox("Ritme hari ini tidak bisa dimuat: " + ((r && r.error) || "tidak ada jawaban")); return; }
+    if (!r || !r.ok) { el.innerHTML = errBox("Ritme hari ini tidak bisa dimuat: " + why(r)); return; }
     var d = r.data, now = mins(d.now.replace(".", ":")), steps = d.steps || [];
     var next = steps.filter(function (s) { return s.state === "wait"; })[0], badList = steps.filter(function (s) { return s.state === "err"; }), bad = badList.length;
     var badNames = badList.map(function (s) { return "<b>" + esc(s.title) + "</b>"; }).join(", ");
