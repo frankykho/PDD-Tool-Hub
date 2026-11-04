@@ -111,11 +111,11 @@ export default {
   "Ringkasan berita, laporan keuangan & latar banner": "News summaries, financial reports & banner backgrounds",
 
   "Kalender kegiatan tim, laporan & paket konten mingguan": "Team activity calendar, reports & weekly content pack",
-  "Kalender kegiatan tim: konten sosmed, artikel, edukasi, dan program partnership, lengkap dengan tugas, persetujuan caption, pekerjaan harian, performa, dan laporan.": "Team activity calendar: social content, articles, education, and partnership programs, complete with tasks, caption approval, daily work, performance, and reports.",
+  "Kalender kegiatan tim: konten sosmed, artikel, edukasi, dan program partnership, lengkap dengan tugas, persetujuan caption, aktivitas tim, performa, dan laporan.": "Team activity calendar: social content, articles, education, and partnership programs, complete with tasks, caption approval, team activities, performance, and reports.",
   "Kalender konten, artikel, edukasi, dan program partnership (jenis bisa ditulis sendiri)": "Calendar for content, articles, education, and partnership programs (custom types allowed)",
   "Tugas tim di dalam program dan papan tugas desain": "Team tasks within programs and a design task board",
   "Caption dicek otomatis, lalu disetujui atau diminta revisi": "Captions checked automatically, then approved or sent back for revision",
-  "Pekerjaan harian per orang": "Daily work per person",
+  "Aktivitas tim per orang": "Team activities per person",
   "Performa konten: impor CSV Meta dan link pelacak UTM": "Content performance: Meta CSV import and UTM tracking links",
   "Momen konten 60 hari ke depan": "Content moments for the next 60 days",
   "Laporan PDF & PPT: Kegiatan tim, Program partnership, Monthly Report per tim": "PDF & PPT reports: Team activities, Partnership programs, Monthly Report per team",
