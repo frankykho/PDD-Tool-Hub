@@ -698,7 +698,7 @@ export default {
 
   // ---------- PDF laporan manajemen ----------
   "Laporan manajemen (PDF)": "Management report (PDF)",
-  "Potret": "Portrait", "Lanskap": "Landscape", "Orientasi PDF laporan manajemen": "Management report PDF orientation",
+  "Potret": "Portrait", "Lanskap": "Landscape", "Orientasi PDF laporan manajemen": "Management report PDF orientation", "Orientasi PDF": "PDF orientation",
   "PDF internal untuk laporan ke manajemen: ringkasan mingguan, gerak tidak biasa, kategori rekomendasi, kinerja & arus dana, peluang produk baru": "Internal PDF for management reporting: weekly summary, unusual moves, recommendation categories, performance & net flows, new product opportunities",
   "Laporan manajemen": "Management report", "Laporan Manajemen Reksa Dana": "Mutual Fund Management Report",
   "Laporan Manajemen Fund Insight - {d}": "Fund Insight Management Report - {d}",
