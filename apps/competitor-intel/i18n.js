@@ -89,7 +89,7 @@ export default {
   "berakhir": "ended",
   "tanpa tanggal akhir": "no end date",
   "berakhir hari ini": "ends today",
-  "sisa {n} hari": "{n} days left", "transaksi sudah tutup · {x}": "transactions closed · {x}", "sudah tutup": "closed", "Filter ▾": "Filter ▾", "Tutup filter ▴": "Hide filters ▴",
+  "sisa {n} hari": "{n} days left", "transaksi sudah tutup · {x}": "transactions closed · {x}", "sudah tutup": "closed", "Filter ▾": "Filter ▾", "Tutup filter ▴": "Hide filters ▴", "Filter ({n}) ▾": "Filter ({n}) ▾",
   "Gambar tidak bisa dimuat dari sumber": "Image could not be loaded from the source",
   "Belum ada gambar promo": "No promo image yet",
   "Sesi habis": "Session expired",
