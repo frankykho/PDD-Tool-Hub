@@ -8,6 +8,8 @@ import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { GLASS_CSS } from "../../shared/theme.js";
 import { i18nHead } from "../../shared/i18n.js";
 import EN from "./i18n.js";
+import { ai, AiError } from "../../shared/ai.js";
+import { RULES_PROMPT, complianceScript } from "../../shared/compliance.js";
 
 // [pid Bareksa, nama, jenis, risiko, min_subs] — dari daftar produk (Excel). pid null = belum ada di Bareksa.
 // Daftar bawaan; admin bisa menggantinya lewat menu "Daftar RD" (disimpan di meta.funds).
@@ -466,6 +468,23 @@ async function work(env) {
      SSO_SECRET  (Secret)    nilai yang SAMA dengan SSO_SECRET di Tool Hub
      HUB_URL                 alamat Tool Hub (diisi otomatis oleh scripts/deploy.mjs)
    ========================================================= */
+// ---------- Caption konten WA Channel (Bandingkan -> Buat konten) ----------
+const CAP_SYS = ["Anda menulis caption WhatsApp Channel untuk masyarakat umum tentang perbandingan reksa dana. Bahasa Indonesia sehari-hari, singkat, tanpa istilah sulit.",
+  "Susunan: 1 kalimat pembuka; 3–5 poin angka (awali dengan •), misalnya return 1 tahun tiap produk; 1 kalimat netral bahwa tiap produk cocok untuk tujuan dan profil risiko yang berbeda; terakhir baris \"Kinerja masa lalu tidak mencerminkan kinerja masa depan. Investasi reksa dana mengandung risiko.\"",
+  "Pakai HANYA angka dari fakta. Angka \"–\" berarti tidak ada data: jangan disebut. Jangan mengajak membeli, jangan menyebut \"terbaik\", tanpa emoji berlebihan, tanpa tagar. Tulis teks caption saja.",
+  RULES_PROMPT].join("\n\n");
+/** Fakta produk terpilih untuk prompt caption, dari 'latest' + FUNDS (bukan dari kiriman browser). */
+function capFacts(L, ids) {
+  const pc = (v) => (v == null ? "–" : v.toFixed(2).replace(".", ",") + "%");
+  const rp = (v) => (v ? "Rp " + (v >= 1e12 ? (v / 1e12).toFixed(2).replace(".", ",") + " triliun" : Math.round(v / 1e9).toLocaleString("id-ID") + " miliar") : "–");
+  const per = [["m1", "1 bulan"], ["m3", "3 bulan"], ["m6", "6 bulan"], ["ytd", "YTD"], ["y1", "1 tahun"], ["y3", "3 tahun"], ["y5", "5 tahun"]];
+  const fs = ids.map((p) => [FUNDS.find((f) => f[0] === p), L.funds[p] || {}]);
+  const at = fs.map(([, d]) => d.navDate).filter(Boolean).sort().pop() || String(L.at || "").slice(0, 10);
+  return [`Data per ${at}.`, ...fs.map(([[, name, type, risk, min], d]) => [`Produk: ${name}`, `Jenis: ${type}`, `Profil risiko: ${risk}`, `Manajer investasi: ${d.im || "–"}`,
+    "Return: " + per.map(([k, l]) => `${l} ${pc(d.ret?.[k])}`).join(", "), `Naik-turun harga 1 th: ${pc(d.vol)}`, `Dana kelolaan: ${rp(d.aum)}`, `Min. pembelian: Rp ${(+min || 0).toLocaleString("id-ID")}`].join("\n")),
+    ...(new Set(fs.map(([f]) => f[2])).size > 1 ? ["Jenis berbeda: return tidak bisa dibandingkan langsung, sebutkan hal ini."] : [])].join("\n\n");
+}
+
 const HUBSSO = (() => {
   const HUB = "", APP = "fund", COOKIE = "hub_" + APP, HOURS = 2, te = new TextEncoder();
   // SameSite=None + Partitioned: cookie tetap terkirim saat tool tampil di dalam dashboard Tool Hub (bingkai).
@@ -747,7 +766,7 @@ export default withCron({
     if (u.pathname === "/profil") return html('window.NAS_VIEW="quiz";', true);
     // peran (viewer / editor / admin) datang dari Tool Hub; admin hub selalu admin di sini
     const hu = HUBSSO.ready(env) ? await HUBSSO.user(req, env) : null, hr = hu ? (hu.adm ? "admin" : hu.a) : null;
-    const me = hu && ROLES.includes(hr) ? { u: hu.u || hu.e, name: hu.n || hu.u || hu.e, role: hr } : null, isKey = env.ADMIN_KEY && (u.searchParams.get("key") === env.ADMIN_KEY || req.headers.get("x-edit-key") === env.ADMIN_KEY);
+    const me = hu && ROLES.includes(hr) ? { u: hu.u || hu.e, name: hu.n || hu.u || hu.e, role: hr, ko: !!(hu.adm || hu.j === "is") } : null, isKey = env.ADMIN_KEY && (u.searchParams.get("key") === env.ADMIN_KEY || req.headers.get("x-edit-key") === env.ADMIN_KEY);
     const can = (role) => isKey || (me && (me.role === "admin" || me.role === role));
     // Purwarupa tampilan nasabah (gaya aplikasi mobile): data & perhitungan sama, dibuka langsung tanpa bingkai Tool Hub
     if (u.pathname === "/m/") return Response.redirect(u.origin + "/m", 301);
@@ -812,6 +831,17 @@ export default withCron({
         const p = { ids, name: t(b.name, 60), goal: t(b.goal, 80), note: t(b.note, 500), by: me?.name || "admin", at: new Date().toISOString() };
         await env.DB.prepare("INSERT INTO meta VALUES (?, ?)").bind("prop:" + id, JSON.stringify(p)).run();
         return Response.json({ ok: true, id });
+      }
+      // Caption konten WA Channel dari Bandingkan: hanya admin hub & Investment Growth Specialist; angka diambil dari data server
+      if (u.pathname === "/api/caption" && req.method === "POST") {
+        if (!me && !isKey) return Response.json({ error: "login" }, { status: 401 });
+        if (!isKey && !me.ko) return Response.json({ error: "Hanya admin dan Investment Growth Specialist yang bisa membuat konten." }, { status: 403 });
+        const b = await req.json().catch(() => ({}));
+        const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(String).filter((p) => PIDS.has(p)))].slice(0, 3);
+        if (!ids.length) return Response.json({ error: "Pilih minimal 1 produk" }, { status: 400 });
+        const row = await env.DB.prepare("SELECT v FROM meta WHERE k='latest'").first();
+        try { return Response.json(await ai(env, CAP_SYS, capFacts(row ? JSON.parse(row.v) : { funds: {} }, ids), 700)); }
+        catch (e) { if (e instanceof AiError) return Response.json({ error: e.message }, { status: 502 }); throw e; }
       }
       if (u.pathname === "/api/funds") {
         const row = await env.DB.prepare("SELECT v FROM meta WHERE k='latest'").first();

@@ -130,4 +130,33 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
   assert.deepEqual(staleNav([{ pid: "1", name: "A", navDate: "2026-10-22" }, { pid: "2", name: "B", navDate: "2026-10-16" }, { pid: "3", name: "C", navDate: "2026-10-19" }, { pid: "4", name: "D", navDate: null }]).map((x) => x.name), ["B"], "tertinggal > 4 hari dari NAB terbaru");
   assert.deepEqual(staleNav([]), []);
 }
+/* ---------- konten WA Channel: caption AI hanya untuk admin hub & Investment Growth Specialist (j:"is") ---------- */
+{
+  const { RULES_PROMPT } = await import("../../shared/compliance.js");
+  const te = new TextEncoder(), b64 = (b) => Buffer.from(b).toString("base64url");
+  const hubCookie = async (p) => {
+    const body = b64(te.encode(JSON.stringify({ u: "budi", e: "budi@acme.test", n: "Budi", a: "viewer", app: "fund", x: Date.now() + 3600e3, ...p })));
+    const k = await crypto.subtle.importKey("raw", te.encode(env.SSO_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return `hub_fund=${body}.${b64(await crypto.subtle.sign("HMAC", k, te.encode(body)))}`;
+  };
+  let sent = null;
+  env.AI = { run: async (m, x) => { sent = x.messages; return { response: "Perbandingan reksa dana pekan ini. Kinerja masa lalu tidak menjamin kinerja masa depan." }; } };
+  await env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('latest', ?)").bind(JSON.stringify({ at: "2026-11-01T00:00:00Z", funds: { 2914: { im: "MI Contoh", aum: 5e11, ret: { y1: 7.123 }, vol: 2.5 } } })).run();
+  let r = await post("/api/caption", { ids: ["2914"] }, { origin: O });
+  assert.equal(r.status, 401, "tanpa login ditolak");
+  r = await post("/api/caption", { ids: ["2914"] }, { origin: O, cookie: await hubCookie({ j: "sales" }) });
+  assert.equal(r.status, 403, "jabatan lain ditolak");
+  r = await post("/api/caption", { ids: ["2914"] }, { origin: O, cookie: await hubCookie({ j: "is" }) });
+  assert.equal(r.status, 200);
+  assert.ok((await r.json()).text.length > 20);
+  assert.match(sent[1].content, /7[.,]12/, "angka return 1 tahun dari server");
+  assert.ok(sent[0].content.includes(RULES_PROMPT), "aturan kepatuhan ikut ke AI");
+  r = await post("/api/caption?key=kunci-admin", { ids: ["x"] });
+  assert.equal(r.status, 400, "tanpa produk sah");
+  r = await call("/", { headers: { cookie: await hubCookie({ j: "is" }) } });
+  assert.match(await r.text(), /"ko":true/, "tombol Buat konten muncul untuk IGS");
+  r = await call("/", { headers: { cookie: await hubCookie({ j: "sales" }) } });
+  assert.match(await r.text(), /"ko":false/);
+  delete env.AI;
+}
 console.log("semua cek lolos");
