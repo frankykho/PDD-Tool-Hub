@@ -108,6 +108,8 @@ export default {
   "Sampul konten {a}": "Content cover {a}",
   "Ganti sampul": "Replace cover",
   "Unggah sampul": "Upload cover",
+  "Filter ▾": "Filter ▾", "Tutup filter ▴": "Hide filters ▴", "Filter ({n}) ▾": "Filter ({n}) ▾",
+  "Hanya bisa dilihat. Minta admin Tool Hub memberi akses Editor untuk mengubah.": "View only. Ask a Tool Hub admin for Editor access to make changes.",
   "Atau tempel screenshot (Ctrl+V) saat jendela ini terbuka": "Or paste a screenshot (Ctrl+V) while this window is open",
   "{n} komentar": "{n} comments",
   "Pilar konten": "Content pillar",
