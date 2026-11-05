@@ -2,6 +2,7 @@
 // dan hitungan kartu "Berapa lama sebaiknya disimpan" + skor kuis. Jalankan: node apps/fund-insight/test.mjs   (Node 22.15+)
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
 import fund from "./worker.js";
 
 function d1() {
@@ -160,7 +161,9 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
   r = await post("/api/caption?key=kunci-admin", { ids: ["x"] });
   assert.equal(r.status, 400, "tanpa produk sah");
   r = await call("/", { headers: { cookie: await hubCookie({ j: "is" }) } });
-  assert.match(await r.text(), /"ko":true/, "tombol Buat konten muncul untuk IGS");
+  const koPage = await r.text();
+  assert.match(koPage, /"ko":true/, "tombol Buat konten muncul untuk IGS");
+  assert.ok(koPage.includes('data-th="light"') && koPage.includes("brand/ikisi-color.png") && fs.existsSync(new URL("./assets/brand/ikisi-color.png", import.meta.url)), "template gambar terang + logo berwarna");
   r = await call("/", { headers: { cookie: await hubCookie({ j: "sales" }) } });
   assert.match(await r.text(), /"ko":false/);
   delete env.AI;
