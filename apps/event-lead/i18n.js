@@ -18,6 +18,8 @@ const D = {
   "Pendaftaran dibuka": "Registration open",
   "Pendaftar": "Registered",
   "Dikonfirmasi": "Confirmed",
+  "Dikonfirmasi (termasuk hadir)": "Confirmed (incl. attended)",
+  "Mengikuti cabang akunmu.": "Follows your account's branch.",
   "Hadir": "Attended",
   "Walk-in": "Walk-in",
   "Sudah nasabah": "Existing clients",

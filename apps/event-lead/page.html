@@ -46,8 +46,8 @@ textarea.f{resize:vertical}
 .c1{background:var(--s1);color:var(--s1-t)}.c2{background:var(--s2);color:var(--s2-t)}.c3{background:var(--s3);color:var(--s3-t)}.c4{background:var(--s4);color:var(--s4-t)}.c5{background:var(--s5);color:var(--s5-t)}
 /* daftar event */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.evc{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;color:inherit;font:inherit;width:100%}
-.evc h3{margin:0;font-size:15.5px;line-height:1.35}
+.evc{text-decoration:none;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;color:inherit;font:inherit;width:100%}
+.evc h3{margin:0;font-size:15.5px;line-height:1.35}.evc:hover h3{text-decoration:underline}
 .evc .nums{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
 .num b{display:block;font-size:18px;line-height:1.2}
 .num span{font-size:12px;color:var(--t2)}
@@ -91,7 +91,7 @@ dialog h3{margin:0 0 12px}
 @media (max-width:640px){
   .row2,.row4{grid-template-columns:minmax(0,1fr)}
   .btn,.seg button,.f,.chk{min-height:44px}.btn.sm,.chip,td .f{min-height:44px}
-  .share{flex-direction:column}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.share .qr{width:96px;height:96px}
   table,thead,tbody,tr,td{display:block}thead{display:none}
   tr{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;margin-bottom:10px;background:var(--card)}
   td{border:0;padding:4px 0}
@@ -135,7 +135,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
       </div>
       <div class="fld" id="gPlace"><label for="iPlace">Lokasi</label><input class="f" id="iPlace" maxlength="200" placeholder="mis. Hotel Majapahit, Ruang Anggrek"></div>
       <div class="fld" id="gUrl" hidden><label for="iUrl">Link acara online</label><input class="f" id="iUrl" maxlength="500" placeholder="https://zoom.us/j/…"><span class="hint">Tidak tampil di halaman publik. Peserta melihatnya setelah mendaftar dan di teks WhatsApp.</span></div>
-      <div class="fld" id="gBranch"><label for="iBranch">Cabang / galeri</label><select class="f" id="iBranch"></select></div>
+      <div class="fld" id="gBranch"><label for="iBranch">Cabang / galeri</label><select class="f" id="iBranch"></select><p class="hint" id="branchHint" hidden>Mengikuti cabang akunmu.</p></div>
       <div class="fld"><label for="iDescr">Deskripsi singkat</label><textarea class="f" id="iDescr" rows="3" maxlength="2000"></textarea></div>
       <div class="row2">
         <div class="fld"><label for="iQuota">Kuota peserta</label><input class="f" id="iQuota" inputmode="numeric" maxlength="6" placeholder="kosong = tanpa batas"></div>
@@ -217,7 +217,7 @@ function drawList(){
   $("evList").innerHTML=L.length?L.map(e=>`<a class="card evc" href="#/e/${esc(e.id)}"><h3 translate="no">${esc(e.title)}</h3>
     <span class="muted small">${esc(tanggal(e.date))} · ${esc(jam(e))}</span><span class="muted small">${e.mode==="online"?"Online":esc(e.branch||e.place)}</span>
     <span>${e.status==="batal"?'<span class="tag c5">Dibatalkan</span> ':""}${e.open?"":'<span class="tag c1">Pendaftaran ditutup</span>'}</span>
-    <span class="nums"><span class="num"><b>${e.n_reg}</b><span>Pendaftar</span></span><span class="num"><b>${e.n_conf}</b><span>Dikonfirmasi</span></span><span class="num"><b>${e.n_hadir}</b><span>Hadir</span></span></span></a>`).join("")
+    <span class="nums"><span class="num"><b>${e.n_reg}</b><span>Pendaftar</span></span><span class="num"><b>${e.n_conf}</b><span>Dikonfirmasi (termasuk hadir)</span></span><span class="num"><b>${e.n_hadir}</b><span>Hadir</span></span></span></a>`).join("")
     :`<div class="card empty">${FILTER==="next"?"Belum ada event mendatang. Klik Buat event untuk mulai.":"Belum ada event."}</div>`;
 }
 document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{FILTER=b.dataset.f;drawList()});
@@ -249,7 +249,7 @@ async function form(id){
   // cabang: Sales / GI coordinator terkunci ke cabangnya; Head regional & admin memilih; lainnya tanpa cabang
   const B=EV.branches,canPick=ME.adm||(ME.reg&&ME.head);$("gBranch").hidden=!B.length&&!ME.reg;
   $("iBranch").innerHTML=(ME.adm&&!ME.reg?`<option value="">${esc(T("Tanpa cabang"))}</option>`:"")+B.map(x=>`<option value="${esc(x.c)}">${esc(x.c)} (${esc(x.r)})</option>`).join("")+(ME.reg&&!B.length?`<option value="${esc(ME.branch)}">${esc(ME.branch||T("Cabang belum diatur"))}</option>`:"");
-  $("iBranch").value=e.branch||(ME.reg?ME.branch:"")||"";$("iBranch").disabled=!canPick;
+  $("iBranch").value=e.branch||(ME.reg?ME.branch:"")||"";$("iBranch").disabled=!canPick;$("branchHint").hidden=canPick;
   await loadChoices();
 }
 $("fEv").onsubmit=async ev=>{
@@ -284,7 +284,7 @@ function drawDetail(warn){
     <p style="margin:6px 0 0">${e.status==="batal"?'<span class="tag c5">Dibatalkan</span> ':""}${e.open?'<span class="tag c4">Pendaftaran dibuka</span>':'<span class="tag c1">Pendaftaran ditutup</span>'}${e.quota?` <span class="tag c1">${esc(T("Kuota"))} ${e.quota}</span>`:""}
     ${e.item_id&&!e.item_gone?' <span class="tag c3">Tersambung ke Content Planner</span>':e.item_gone?' <span class="tag c5">Tidak tersambung ke Content Planner</span>':""}</p>
     ${e.item_gone?'<p class="hint">Kegiatannya sudah dihapus di Content Planner. Angka event tetap tersimpan di sini.</p>':""}</div>
-    <div class="kpis"><div class="kpi"><b>${e.n_reg}</b><span>Pendaftar</span></div><div class="kpi"><b>${e.n_conf}</b><span>Dikonfirmasi</span></div><div class="kpi"><b>${e.n_hadir}</b><span>Hadir</span></div>
+    <div class="kpis"><div class="kpi"><b>${e.n_reg}</b><span>Pendaftar</span></div><div class="kpi"><b>${e.n_conf}</b><span>Dikonfirmasi (termasuk hadir)</span></div><div class="kpi"><b>${e.n_hadir}</b><span>Hadir</span></div>
     <div class="kpi"><b>${e.n_walkin}</b><span>Walk-in</span></div>${e.purged?"":`<div class="kpi"><b>${cl}</b><span>Sudah nasabah</span></div><div class="kpi"><b>${P.length-cl}</b><span>Belum nasabah</span></div>`}</div>`
     +(e.purged?`<div class="card"><p style="margin:0">Data peserta sudah dihapus (lebih dari 12 bulan).</p></div>`:
     `<div class="shares">${shareBox("d","Link & QR pendaftaran","Untuk poster, story, atau dibagikan ke nasabah.")}${shareBox("h","Link & QR absen","Pasang di meja registrasi, atau bagikan saat acara online. Dibuka 1 jam sebelum mulai sampai 2 jam setelah selesai (jam setempat).")}</div>
