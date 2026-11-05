@@ -227,6 +227,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <button class="btn" id="momBtn" aria-expanded="false">✨ Momen</button>
     <button class="btn" id="impBtn" hidden>⬆ Impor galeri</button>
     <button class="btn" id="repBtn">⬇ Laporan</button>
+    <button type="button" class="btn" id="guideBtn" title="Panduan pemakaian tool ini">? Panduan</button>
     <button class="btn pri" id="addBtn">+ Kegiatan</button>
   </div>
 
@@ -1024,6 +1025,7 @@ $("iComSend").onclick=async()=>{
 $("iComTx").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("iComSend").click()}});
 // link baru dibuat di Link & QR Studio (link pendek + QR); link /go/ lama tetap tampil & dihitung di sini
 addEventListener("message",e=>{const d=e.data||{};if(e.source===parent&&d.type==="toolhub-apps"&&Array.isArray(d.apps)){HUBAPPS=d.apps;if(editing)loadLinks()}});
+$("guideBtn").onclick=()=>parent.postMessage({type:"toolhub-guide"},"*");
 $("lkStudio").onclick=()=>{if(editing)parent.postMessage({type:"toolhub-open",app:"go",path:"/?item="+encodeURIComponent(editing.id)},"*")};
 $("lkList").addEventListener("click",e=>{const b=e.target.closest("[data-lcopy]");if(b)copyText(b.dataset.lcopy)});
 $("iKind").addEventListener("click",e=>{const b=e.target.closest("[data-k]");if(b)setKind(b.dataset.k)});

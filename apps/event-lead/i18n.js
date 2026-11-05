@@ -146,5 +146,7 @@ const D = {
   "Library Excel gagal dimuat": "Excel library failed to load",
   "Library Excel gagal dimuat. Cek koneksi internet lalu coba lagi": "Excel library failed to load. Check your internet connection and try again",
   "Respons tidak terbaca (HTTP {n})": "Unreadable response (HTTP {n})",
+  "? Panduan": "? Guide",
+  "Panduan pemakaian tool ini": "Guide for this tool",
 };
 export default D;

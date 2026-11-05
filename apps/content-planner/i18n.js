@@ -2,6 +2,8 @@
 // Laporan PDF / PPT / Excel memakai kamus yang sama lewat window.hubT (lihat trDoc di page.html).
 // Kunci pola diurutkan otomatis di bawah (teks tetap terpanjang dicoba lebih dulu; pola umum "{x} ({n})" paling akhir).
 const D = {
+  "? Panduan": "? Guide",
+  "Panduan pemakaian tool ini": "Guide for this tool",
   // ---------- kalender & bilah atas ----------
   "Kalender Kegiatan": "Activity Calendar",
   "Tampilan": "View",

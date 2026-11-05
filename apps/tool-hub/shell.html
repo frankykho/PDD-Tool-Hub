@@ -301,6 +301,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 .detail-grid ul{margin:0;padding-left:18px;color:var(--text);font-size:13.5px}
 .detail-grid li{margin:4px 0}
 .detail-grid p{margin:0 0 10px;color:var(--text-2);font-size:13.5px}
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start}.guide summary{cursor:pointer;font-weight:600;font-size:14.5px}.guide ol{margin:10px 0 0;padding-left:20px;font-size:13.5px}.guide li{margin:5px 0}.guide dl{margin:0;font-size:13.5px}.guide dt{font-weight:600;margin-top:10px}.guide dt:first-child{margin-top:0}.guide dd{margin:2px 0 0;color:var(--text-2)}
 .pagelist{display:flex;flex-direction:column;gap:6px}
 .pagelist button{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);padding:9px 12px;text-align:left;font-size:13px}
 .pagelist button:hover{border-color:var(--border-strong);background:var(--hover)}
@@ -1041,8 +1042,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       '<div class="detail-grid">' +
       (a.features && a.features.length ? '<section class="panel"><div class="panel-h"><h3>Fitur utama</h3></div><ul>' + a.features.map(function (f) { return "<li>" + esc(f) + "</li>"; }).join("") + "</ul></section>" : "") +
       (pages.length > 1 ? '<section class="panel"><div class="panel-h"><h3>Halaman di tool ini</h3></div><div class="pagelist">' + pages.map(function (p) { return '<button type="button" data-page="' + id + '" data-url="' + esc(p[1]) + '">' + esc(p[0]) + icon("chevR") + "</button>"; }).join("") + "</div></section>" : "") +
-      (byId.tutorial && id !== "tutorial" ? '<section class="panel"><div class="panel-h"><h3>Cara menggunakan</h3></div><p>Panduan langkah demi langkah untuk tool tim ada di Tutorial Aplikasi.</p><button class="btn btn-sm" type="button" data-open="tutorial">Buka Tutorial Aplikasi ' + icon("arrowR") + "</button></section>" : "") +
+      (!a.guide && byId.tutorial && id !== "tutorial" ? '<section class="panel"><div class="panel-h"><h3>Cara menggunakan</h3></div><p>Panduan langkah demi langkah untuk tool tim ada di Tutorial Aplikasi.</p><button class="btn btn-sm" type="button" data-open="tutorial">Buka Tutorial Aplikasi ' + icon("arrowR") + "</button></section>" : "") +
       "</div>" +
+      (a.guide ? '<section class="sec" id="panduan"><div class="sec-h"><div class="t"><h2>Panduan</h2><p>Langkah singkat untuk tugas utama di tool ini.</p></div></div><div class="guide">' +
+        a.guide.tasks.map(function (g, i) { return '<details class="panel"' + (i ? '' : ' open') + '><summary>' + esc(g[0]) + '</summary><ol>' + g[1].map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></details>'; }).join('') +
+        (a.guide.faq && a.guide.faq.length ? '<section class="panel"><div class="panel-h"><h3>Sering ditanya</h3></div><dl>' + a.guide.faq.map(function (f) { return '<dt>' + esc(f[0]) + '</dt><dd>' + esc(f[1]) + '</dd>'; }).join('') + '</dl></section>' : '') + '</div></section>' : '') +
       (rel.length ? '<section class="sec"><div class="sec-h"><div class="t"><h2>Tool terkait</h2><p>Satu kategori dengan ' + esc(a.name) + '.</p></div></div><div class="grid compact">' + rel.map(function (x) { return card(x, true); }).join("") + "</div></section>" : "");
   }
 
@@ -1066,6 +1070,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       document.title = (cats[c] ? cats[c].label : c === "fav" ? "Favorit" : c === "recent" ? "Terakhir dibuka" : "Semua tools") + " · " + T0;
     } else if (p[0] === "about" && byId[p[1]]) {
       lastView = location.hash; show("detail"); renderDetail(p[1]); setKey("tools/" + byId[p[1]].cat); document.title = byId[p[1]].name + " · " + T0;
+      // bilah atas menempel (layar lebar): judul Panduan jangan tertutup
+      if (p[2] === "panduan" && $("#panduan")) { $("#panduan").scrollIntoView(); var tb = $(".topbar"); if (tb && getComputedStyle(tb).position === "sticky") window.scrollBy(0, -(tb.offsetHeight + 24)); }
     } else { lastView = "#/"; show("home"); }
   }
   function go(h) { if (location.hash === h) route(); else location.hash = h; }
@@ -1118,6 +1124,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       if (typeof d.hubShareUrl === "string" && d.hubShareUrl.length <= 500 && d.hubShareUrl.indexOf(e.origin + "/") === 0) SH[k] = d.hubShareUrl;
       if (d.type === "toolhub-theme-request") try { e.source.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (x) { }
       if (d.type === "toolhub-lang-request") try { e.source.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (x) { }
+      if (d.type === "toolhub-guide" && byId[k] && byId[k].guide) go("#/about/" + k + "/panduan");
       // buka halaman tool lain dari dalam tool (mis. Event & Lead -> Brand Kit "Buat poster"); hanya tool yang boleh dibuka pengguna
       if (d.type === "toolhub-open" && typeof d.app === "string" && byId[d.app] && typeof d.path === "string" && d.path.length <= 300 && /^\/[?#][\w=&%.\-\/#?]*$/.test(d.path)) {
         var o = appOrigin(byId[d.app]); if (o) openPage(d.app, "/sso?app=" + d.app + "&back=" + encodeURIComponent(o + d.path));

@@ -114,7 +114,7 @@ html[data-theme] dialog{background:var(--hg-float);-webkit-backdrop-filter:var(-
   <div id="vList">
     <div class="bar"><h1>Event &amp; Lead</h1>
       <div class="seg" role="group" aria-label="Filter event"><button type="button" data-f="next" class="on">Mendatang</button><button type="button" data-f="past">Selesai</button><button type="button" data-f="all">Semua</button></div>
-      <span class="sp"></span><button type="button" class="btn" id="bSet" hidden>Persetujuan data</button><a class="btn pri" href="#/new">+ Buat event</a></div>
+      <span class="sp"></span><button type="button" class="btn" id="guideBtn" title="Panduan pemakaian tool ini">? Panduan</button><button type="button" class="btn" id="bSet" hidden>Persetujuan data</button><a class="btn pri" href="#/new">+ Buat event</a></div>
     <div id="lMsg"></div>
     <div id="evList" class="grid" aria-live="polite"></div>
   </div>
@@ -268,6 +268,7 @@ let D=null,PF="",PQ="";
 let HUBAPPS=[];
 addEventListener("message",e=>{const d=e.data||{};if(e.source===parent&&d.type==="toolhub-apps"&&Array.isArray(d.apps)){HUBAPPS=d.apps;posterBtn()}});
 function posterBtn(){$("bPoster").hidden=!(HUBAPPS.includes("brand")&&D&&D.event&&D.event.status!=="batal")}
+$("guideBtn").onclick=()=>parent.postMessage({type:"toolhub-guide"},"*");
 $("bPoster").onclick=()=>parent.postMessage({type:"toolhub-open",app:"brand",path:"/?event="+encodeURIComponent(D.event.id)},"*");
 async function detail(id){
   show("vDetail");$("bEdit").href="#/edit/"+id;
