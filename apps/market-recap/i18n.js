@@ -14,8 +14,11 @@ export default {
   "Slide carousel 1080×1080, satu per halaman": "1080×1080 carousel slides, one per page",
   "Satu baris per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); setelah \"NARASI:\" teks untuk halaman web. Slide di atas ikut berubah saat diketik":
     "One line per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); after \"NARASI:\" comes the text for the web page. The slides above update as you type",
-  "Teks AI gagal dibuat ({e}); slide memakai judul otomatis. Tulis manual atau klik Susun ulang.":   // titik ikut: tanpa itu pola "Teks {s}" yang menang
-    "AI text could not be generated ({e}); the slides use automatic titles. Write it manually or click Rebuild.",
+  "Teks AI gagal dibuat; slide memakai judul otomatis. Tulis manual atau klik Susun ulang.":   // titik ikut: tanpa itu pola "Teks {s}" yang menang
+    "AI text could not be generated; the slides use automatic titles. Write it manually or click Rebuild.",
+  "Detail: {e}": "Details: {e}",
+  "draf": "draft",
+  "terbit": "published",
   "Tarik dari publik": "Unpublish",
   "Terbitkan": "Publish",
   "Susun ulang": "Rebuild",
@@ -46,7 +49,7 @@ export default {
   "menunggu data penutupan IDX": "waiting for IDX closing data",
   "Harga IHSG belum tersedia dari Story Data": "IHSG price is not yet available from Story Data",
   "Gagal: {e}": "Failed: {e}",
-  // pesan AI (shared/ai.js), tampil di "Teks AI gagal dibuat (…)"
+  // pesan AI (shared/ai.js), tampil di "Detail: …" di bawah "Teks AI gagal dibuat"
   "Claude menolak permintaan ini": "Claude declined this request",
   "Binding Workers AI (nama: AI) belum dipasang di worker ini": "The Workers AI binding (name: AI) is not set up on this worker",
   "Kuota AI gratis hari ini sudah habis. Kuota terisi lagi pukul 07.00 WIB": "Today's free AI quota is used up. It refills at 07.00 WIB",

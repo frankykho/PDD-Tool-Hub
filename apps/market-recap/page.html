@@ -27,11 +27,11 @@ a{color:var(--g)}
 .btn.pri{background:var(--g);border-color:var(--g);color:#fff}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .btn:focus-visible,.day:focus-visible{outline:2px solid var(--g);outline-offset:2px}
-.side{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;align-self:start;max-height:85vh;overflow:auto}
+.side[hidden]+main{grid-column:1/-1}.side{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;align-self:start;max-height:85vh;overflow:auto}
 .side h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin:6px 8px}
 .day{display:flex;gap:6px;align-items:center;width:100%;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer;text-align:left;text-decoration:none;color:var(--t)}
 .day:hover,.day.on{background:var(--g2)}
-.day small{margin-left:auto}
+.day small{margin-left:auto}.leg{display:flex;gap:5px;align-items:center;font-size:12px;margin:0 8px 6px}.leg .dot{margin-left:4px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
 .dot.published{background:var(--g)}
 main{display:grid;gap:16px;min-width:0}
@@ -40,7 +40,8 @@ main{display:grid;gap:16px;min-width:0}
 .sh h2{margin:0;font-size:17px}
 .st{font-size:12px;font-weight:700;border-radius:20px;padding:2px 9px;background:var(--line);color:var(--t2)}
 .st.published{background:var(--g2);color:var(--g)}
-.slides{display:grid;grid-template-columns:repeat(var(--cols),max-content);gap:10px;overflow-x:auto;padding-bottom:4px}
+.slides{display:grid;grid-template-columns:repeat(var(--cols),max-content);gap:10px;overflow-x:auto;padding-bottom:4px}.slides .slide{cursor:zoom-in}
+#zoom{border:0;padding:0;background:none;max-width:none;max-height:none;cursor:zoom-out}#zoom::backdrop{background:rgba(0,0,0,.7)}#zoom .slide{zoom:var(--zz)}
 .slides .slide{zoom:var(--z);border-radius:calc(14px / var(--z));box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .edit{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:14px}
 textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;resize:vertical;font-size:13.5px}
@@ -178,6 +179,7 @@ textarea.f{width:100%;min-height:260px;border:1px solid var(--line);background:v
 </div>
 <!-- slide PNG & laporan A4 = materi nasabah: tidak diterjemahkan -->
 <div id="stage" translate="no"></div>
+<dialog id="zoom" aria-label="Slide diperbesar" translate="no"></dialog>
 <div id="a4" translate="no"></div>
 <script>
 const C = window.RC, P = window.PROFILE || {}, B = P.brand || {}, TEAM = C.mode === "team";
@@ -426,6 +428,7 @@ function zoomFit() {
     const cols = TEAM ? 5 : innerWidth > 900 ? 2 : 1, w = el.clientWidth;
     el.style.setProperty("--cols", cols);
     el.style.setProperty("--z", Math.max(0.12, (w - 10 * (cols - 1)) / cols / 1080));
+    el.querySelectorAll(".slide").forEach((s) => { s.tabIndex = 0; s.setAttribute("role", "button"); s.setAttribute("aria-label", "Perbesar slide"); });
   });
 }
 addEventListener("resize", zoomFit);
@@ -435,10 +438,16 @@ function section(r) {
     <div class="sh"><h2>${SES[r.session]}</h2>${TEAM ? `<span class="st ${r.status}">${r.status === "published" ? "Terbit" : "Draf"}</span>` : ""}<span class="sp"></span>
       <button class="btn" data-a="png">Unduh PNG</button><button class="btn" data-a="pdf" title="Laporan A4: teks lengkap, angka kunci, grafik, tabel, dan berita">Unduh PDF A4</button><button class="btn" data-a="pdfslide" title="Slide carousel 1080×1080, satu per halaman">PDF slide</button></div>
     <div class="slides" translate="no">${slides(r).join("")}</div>
-    ${TEAM && C.canEdit ? `<div class="edit"><textarea class="f" aria-label="Teks ${SES[r.session]}">${esc(r.narrative)}</textarea>
+    ${TEAM && C.canEdit ? `<div class="edit"><textarea class="f" aria-label="Teks ${SES[r.session]}" placeholder="JUDUL: …
+PENGGERAK: …
+INTRADAY: …
+GLOBAL: …
+AGENDA: …
+OUTLOOK: …
+NARASI: paragraf untuk halaman web">${esc(r.narrative)}</textarea>
       <small class="muted">Satu baris per label (JUDUL, PENGGERAK, INTRADAY, GLOBAL, AGENDA, OUTLOOK); setelah "NARASI:" teks untuk halaman web. Slide di atas ikut berubah saat diketik.</small></div>`
       : `<div class="nar" translate="no" style="margin-top:14px">${p.paras.map((x) => `<p>${esc(x)}</p>`).join("")}</div>`}
-    ${failed ? `<p class="warn">Teks AI gagal dibuat (${esc(r.model.replace(/^gagal: /, ""))}); slide memakai judul otomatis. Tulis manual atau klik Susun ulang.</p>` : ""}
+    ${failed ? `<p class="warn">Teks AI gagal dibuat; slide memakai judul otomatis. Tulis manual atau klik Susun ulang.<br><small class="muted" style="font-weight:400">Detail: ${esc(r.model.replace(/^gagal: /, ""))}</small></p>` : ""}
     ${TEAM ? `<div class="acts">${C.canEdit ? `<button class="btn" data-a="save">Simpan</button>
       <button class="btn pri" data-a="publish">${r.status === "published" ? "Tarik dari publik" : "Terbitkan"}</button>
       ${DATE === C.today ? `<button class="btn" data-a="rebuild">Susun ulang</button>` : ""}` : ""}</div>
@@ -455,13 +464,14 @@ function render() {
 }
 async function side() {
   if (!TEAM) {
+    $("#side").hidden = !(C.days || []).length;
     $("#side").innerHTML = `<h3>Arsip</h3>` + (C.days || []).map((d) => `<a class="day${d === DATE ? " on" : ""}" href="/p/${d}">${dlong(d)}</a>`).join("");
     return;
   }
   const rows = await api("/api/days"), by = {};
   for (const r of rows) (by[r.date] ||= []).push(r);
   if (!by[C.today]) by[C.today] = [];
-  $("#side").innerHTML = `<h3>Arsip</h3>` + Object.keys(by).sort().reverse().map((d) => {
+  $("#side").innerHTML = `<h3>Arsip</h3><p class="muted leg"><span class="dot"></span> draf <span class="dot published"></span> terbit</p>` + Object.keys(by).sort().reverse().map((d) => {
     const close = by[d].find((r) => r.session === "close") || by[d][0];
     return `<button class="day${d === DATE ? " on" : ""}" data-d="${d}">${by[d].map((r) => `<span class="dot ${r.status}" title="${SES[r.session]}: ${r.status === "published" ? "terbit" : "draf"}"></span>`).join("")}
       ${esc(dshort(d))} ${d.slice(2, 4)}${close && close.pct != null ? `<small class="${close.pct > 0 ? "up" : close.pct < 0 ? "dn" : ""}">${sgn(close.pct)}%</small>` : ""}</button>`;
@@ -493,7 +503,11 @@ document.addEventListener("input", (e) => {
   clearTimeout(timer);
   timer = setTimeout(() => { sec.querySelector(".slides").innerHTML = slides({ ...r, narrative: ta.value }).join(""); zoomFit(); }, 300);
 });
+document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches(".slides .slide")) { e.preventDefault(); e.target.click(); } });
 document.addEventListener("click", async (e) => {
+  if (e.target.closest("#zoom")) return $("#zoom").close();
+  const sl = e.target.closest(".slides .slide");
+  if (sl) { const z = $("#zoom"); z.innerHTML = sl.outerHTML; z.style.setProperty("--zz", Math.min(innerWidth - 24, innerHeight - 24, 1080) / 1080); return z.showModal(); }
   const day = e.target.closest("button.day");
   if (day) return load(day.dataset.d).catch((err) => alert(err.message));
   const b = e.target.closest("[data-a]");
