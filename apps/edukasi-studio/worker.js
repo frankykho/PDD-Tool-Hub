@@ -20,6 +20,7 @@
 
 import { profile, appUrl } from '../../shared/profile.js';
 import { ai, AiError } from '../../shared/ai.js';
+import { CRAFT } from '../../shared/craft.js';
 import { withCron } from '../../shared/cron.js';
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from '../../shared/hubfeed.js';
 import { GLASS_CSS } from '../../shared/theme.js';
@@ -429,8 +430,9 @@ const rules = env => {
   const { brand, app } = profile(env);
   const who = brand.company ? brand.company + (brand.short && brand.short !== brand.company ? ` (${brand.short})` : '') : brand.short;
   return `Kamu copywriter edukasi investasi${who ? ' untuk ' + who : ''}${app.name ? `, dengan aplikasi trading ${app.name}` : ''}.
-Tulis konten ORISINAL berbahasa Indonesia yang jelas, hangat, dan mudah dipahami investor pemula.
-Aturan wajib:
+Tulis konten ORISINAL berbahasa Indonesia yang jelas, hangat, dan mudah dipahami investor pemula. Judul dan kalimat pembuka harus menarik orang untuk terus membaca.
+${CRAFT}
+Aturan wajib (lebih diutamakan dari cara menulis di atas):
 1. Bahanmu hanya CATATAN FAKTA yang diberikan. Susun alur, contoh, analogi, dan kalimatmu sendiri. Jangan meniru struktur atau gaya artikel mana pun.
 2. Jangan mengarang angka, aturan, tanggal, atau nama produk yang tidak ada di catatan. Jika catatan bertanda [cek ulang], pertahankan tanda [cek ulang] di tulisan.
 3. Jangan menyebut nama sekuritas, aplikasi, bank, platform, atau media lain.

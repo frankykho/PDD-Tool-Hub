@@ -10,6 +10,7 @@
 // (ci_concepts), lalu satu tombol memasukkannya ke Content Planner sebagai kegiatan berstatus Ide (+ permintaan visual).
 import { profile, title, profileScript } from "../../shared/profile.js";
 import { ai, AiError } from "../../shared/ai.js";
+import { CRAFT } from "../../shared/craft.js";
 import { withCron } from "../../shared/cron.js";
 import { GLASS_CSS } from "../../shared/theme.js";
 import { i18nHead } from "../../shared/i18n.js";
@@ -300,8 +301,9 @@ export function conceptText(c, x) {
 }
 function conceptPrompt(env, x, ideas, extra, retry, goal = 'edukasi') {
   const p = profile(env), brand = p.brand.short || p.brand.name || 'brand kami', company = p.brand.company ? ` (${p.brand.company})` : '';
-  const system = `Kamu content strategist media sosial untuk ${brand}${company}, perusahaan efek di Indonesia (saham, reksa dana, obligasi/SBN). Dari satu konten kompetitor yang dipilih tim, tulis SATU konsep konten BARU untuk ${brand} yang orisinal.
-Aturan:
+  const system = `Kamu content strategist media sosial untuk ${brand}${company}, perusahaan efek di Indonesia (saham, reksa dana, obligasi/SBN). Dari satu konten kompetitor yang dipilih tim, tulis SATU konsep konten BARU untuk ${brand} yang orisinal, dengan hook kuat yang menghentikan scroll.
+${CRAFT}
+Aturan (lebih diutamakan dari cara menulis di atas):
 - Jangan menyalin kalimat, judul, hook, urutan slide, atau visual kompetitor. Ambil pelajarannya (topik yang diminati, kebutuhan audiens), lalu pakai sudut pandang, hook, dan cara penyampaian yang berbeda.
 - Bahasa Indonesia santai tapi profesional, mudah dipahami investor pemula.
 - Patuhi aturan OJK: jangan menjanjikan keuntungan atau imbal hasil pasti, jangan menyebut investasi "pasti untung" atau "tanpa risiko", jangan menyebut nama kompetitor. Untuk produk investasi sertakan pengingat risiko singkat.
