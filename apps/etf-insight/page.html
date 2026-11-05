@@ -23,7 +23,7 @@ button{font:inherit;cursor:pointer}a{color:var(--brand)}
 html[data-theme="dark"] .btn:not(.s){color:#0E1A15}
 .btn.s{background:var(--p);color:var(--t);border-color:var(--l)}.btn.s:hover{border-color:var(--brand2)}
 .card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:16px}
-.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.grid2>*{min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.grid2>*{min-width:0}.grid2>.card:has(.msg){align-self:start}
 .etf{text-align:left;width:100%;color:inherit;display:block}.etf[aria-pressed="true"]{border-color:var(--brand2);box-shadow:0 0 0 2px var(--tint)}
 .etf .c{font-size:12px;font-weight:700;color:var(--brand2);letter-spacing:.5px}.etf .n{font-size:16px;font-weight:700;margin:2px 0 8px}
 .etf .r{display:flex;gap:18px;flex-wrap:wrap}.etf .r small{display:block;font-size:11px;color:var(--m)}.etf .r b{font-size:15px}
@@ -83,6 +83,7 @@ html[data-theme="dark"] .tag.dividen{background:#3a2f15;color:#f0c66b}html[data-
 .bars i{flex:1;position:relative;height:100%}.bars i b{position:absolute;left:0;right:0;border-radius:2px}
 .share{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--p2)}
 .share .qr svg{width:92px;height:92px;display:block;background:#fff;border-radius:6px}.share small{display:block;color:var(--m);font-size:11.5px}
+@media screen and (max-width:860px){td{white-space:nowrap}td.nm{white-space:normal;min-width:150px}.cal{max-height:none}.seg button{min-height:40px;padding:8px 14px}}
 @media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.kpis{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* ---- liquid glass di dalam Tool Hub (token --hg-* dari shared/theme.js); hanya layar, PDF tidak berubah ----
    kartu berisi tabel & grafik tetap hampir padat (--hg-solid); kartu pilihan ETF & KPI tembus pandang */
@@ -201,7 +202,7 @@ function perfTable(e,share){
   // tracking difference: NAB vs indeks pada tanggal NAB yang sama
   const an=bx.atNav;if(!share&&an)rows.push(["Selisih NAB vs indeks",fD(e.navDate)+(an.approx?" (perkiraan)":""),diff(e.ret,an.ret),1]);
   return`<div class="tblw"><table><thead><tr><th></th><th>Per</th>${PER.map(p=>`<th class="n">${p[1]}</th>`).join("")}</tr></thead><tbody>
-    ${rows.map(([l,dt,r,d])=>`<tr${d?' style="font-weight:600"':""}><td>${l}</td><td style="white-space:nowrap;color:var(--m)">${dt}</td>${PER.map(([k])=>`<td class="n ${cls(r[k])}">${d&&r[k]!=null?(r[k]>0?"+":"")+nf(r[k],2)+" poin":pct(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    ${rows.map(([l,dt,r,d])=>`<tr${d?' style="font-weight:600"':""}><td class="nm">${l}</td><td style="white-space:nowrap;color:var(--m)">${dt}</td>${PER.map(([k])=>`<td class="n ${cls(r[k])}">${d&&r[k]!=null?(r[k]>0?"+":"")+nf(r[k],2)+" poin":pct(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="note">${esc(bx.note||"")}. Return indeks adalah return harga (tanpa dividen). Return NAB dihitung sampai tanggal NAB.${share?"":an
       ?` Selisih NAB vs indeks memakai nilai indeks pada tanggal NAB${an.approx?" (IDX30: perkiraan, titik awal periode bergeser 1 hari bursa)":""}; selisih positif wajar karena dividen saham masuk ke NAB, sedangkan indeks tidak memasukkan dividen.`
       :" Selisih NAB vs indeks muncul setelah tanggal NAB tersedia dan sama dengan hari harga terakhir atau 1 hari bursa sebelumnya."}</p>`;
@@ -248,7 +249,7 @@ function riskBox(e,share){
   return`<div class="card"><h2>Risiko & kinerja per tahun</h2>
     <div class="facts st">${t.map(([a,b,c])=>`<div><small>${a}</small><b>${b}</b><br><span>${c}</span></div>`).join("")}</div>
     ${ys.length?`<div class="tblw"><table><thead><tr><th></th>${ys.map(y=>`<th class="n">${y}${y===cy?" (YTD)":""}</th>`).join("")}</tr></thead><tbody>
-      ${R.map(([l,o])=>`<tr><td>${l}</td>${ys.map(y=>`<td class="n ${cls(o[y])}">${pct(o[y])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:""}
+      ${R.map(([l,o])=>`<tr><td class="nm">${l}</td>${ys.map(y=>`<td class="n ${cls(o[y])}">${pct(o[y])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:""}
     <p class="note">Volatilitas & penurunan dari harga harian di bursa sejak ${fD(k.from)} (Yahoo Finance). Kinerja per tahun: harga & indeks (${esc(bx.name||"")}) akhir tahun, NAB akhir bulan; tahun berjalan sampai data terakhir.${bx.years&&!Object.keys(bx.years).some(y=>y!==cy)?" Riwayat tahunan indeks IDX30 tidak tersedia dari sumber publik; hanya tahun berjalan.":""}</p></div>`;
 }
 function simCalc(e){
@@ -286,7 +287,7 @@ function factList(e,share){
     f.custodian&&["Bank kustodian",esc(f.custodian)],f.risk&&["Tingkat risiko",esc(f.risk)],e.im&&["Manajer investasi",esc(e.im)]].filter(Boolean);
   const docs=[url(f.prospectus)&&`<a href="${url(f.prospectus)}" target="_blank" rel="noopener">Prospektus ↗</a>`,url(f.factsheet)&&`<a href="${url(f.factsheet)}" target="_blank" rel="noopener">Fund fact sheet ↗</a>`].filter(Boolean).join(" · ");
   return`<div class="facts">${L.map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join("")}</div>${docs?`<p class="buy">${docs}</p>`:""}
-    ${!share&&!FX[e.code]?`<p class="hint">Biaya pengelolaan, bank kustodian, tingkat risiko & link prospektus belum diisi: tambahkan di profile.json → tools.etf.facts.${esc(e.code)}.</p>`:""}`;
+    ${!share&&!FX[e.code]?`<p class="hint">Biaya pengelolaan, bank kustodian, tingkat risiko & link prospektus belum diisi. Minta admin Tool Hub melengkapinya.</p>`:""}`;
 }
 const chartBox=(e,share)=>`<div class="card sec"><div class="chead"><h2 style="margin:0">Harga pasar vs NAB</h2><div class="legend"><span><i style="background:var(--s1)"></i>Harga pasar (harian)</span><span><i style="background:var(--s2)"></i>NAB per unit</span></div><div class="sp"></div>
   <div class="seg noprint" role="group" aria-label="Rentang waktu">${[["m3","3 bln"],["m6","6 bln"],["y1","1 thn"],["all","Semua"]].map(([k,l])=>`<button type="button" data-rng="${k}" aria-pressed="${k===range}">${l}</button>`).join("")}</div></div>
@@ -316,8 +317,8 @@ function shariaBox(){
   const E=D.peers.filter(p=>S.etfs.includes(p.code));
   return`<div class="card sec"><h2>Pembanding indeks syariah <small>per ${fD(S.asOf)}</small></h2>
     <div class="tblw"><table><thead><tr><th></th>${P.map(p=>`<th class="n">${p[1]}</th>`).join("")}</tr></thead><tbody>
-    ${rows.map(([l,r,k])=>`<tr class="${k?"k":""}"><td>${l}</td>${P.map(([q])=>`<td class="n ${cls(r&&r[q])}">${pct(r&&r[q])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-    ${E.length?`<h2 style="margin-top:14px">ETF syariah di BEI</h2><div class="tblw"><table><thead><tr><th>Kode</th><th>Nama</th><th class="n">AUM</th><th class="n">NAB YTD</th><th class="n">NAB 1 thn</th><th class="n">Biaya/thn</th></tr></thead><tbody>${E.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.name)}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td><td class="n">${bn(p.aum)}</td><td class="n ${cls(p.ret.ytd)}">${pct(p.ret.ytd)}</td><td class="n ${cls(p.ret.y1)}">${pct(p.ret.y1)}</td><td class="n">${p.fee==null?"–":nf(p.fee,2)+"%"}</td></tr>`).join("")}</tbody></table></div>`:""}
+    ${rows.map(([l,r,k])=>`<tr class="${k?"k":""}"><td class="nm">${l}</td>${P.map(([q])=>`<td class="n ${cls(r&&r[q])}">${pct(r&&r[q])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    ${E.length?`<h2 style="margin-top:14px">ETF syariah di BEI</h2><div class="tblw"><table><thead><tr><th>Kode</th><th>Nama</th><th class="n">AUM</th><th class="n">NAB YTD</th><th class="n">NAB 1 thn</th><th class="n">Biaya/thn</th></tr></thead><tbody>${E.map(p=>`<tr><td>${esc(p.code)}</td><td class="nm">${esc(p.name)}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td><td class="n">${bn(p.aum)}</td><td class="n ${cls(p.ret.ytd)}">${pct(p.ret.ytd)}</td><td class="n ${cls(p.ret.y1)}">${pct(p.ret.y1)}</td><td class="n">${p.fee==null?"–":nf(p.fee,2)+"%"}</td></tr>`).join("")}</tbody></table></div>`:""}
     <p class="note">Return harga indeks tanpa dividen: JII & IHSG dari Yahoo Finance (^JKII, ^JKSE) sampai tanggal di atas, ISSI dari TradingView (berjalan). Untuk nasabah yang ingin pembanding syariah; XKMS & XKID sendiri bukan ETF syariah.</p></div>`;
 }
 
@@ -364,7 +365,7 @@ const gv=(p,k)=>k.includes(".")?p[k.split(".")[0]][k.split(".")[1]]:p[k];
 function peerTable(){
   const L=D.peers.filter(p=>grp==="all"||p.group===grp).slice().sort((a,b)=>{const x=gv(a,sortK),y=gv(b,sortK);if(x==null)return 1;if(y==null)return-1;return(typeof x==="string"?x.localeCompare(y):x-y)*sortD});
   $("peers").innerHTML=`<table><thead><tr>${PCOL.map(([k,l,n])=>`<th class="${n?"n":""}" data-sort="${k}" aria-sort="${k===sortK?(sortD>0?"ascending":"descending"):"none"}">${l}${k===sortK?(sortD>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>
-    ${L.map(p=>`<tr class="${p.kisi?"k":""}"><td>${esc(p.code)}</td><td>${esc(p.name)}${p.kisi?'<span class="pill">KISI</span>':""}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td>
+    ${L.map(p=>`<tr class="${p.kisi?"k":""}"><td>${esc(p.code)}</td><td class="nm">${esc(p.name)}${p.kisi?'<span class="pill">KISI</span>':""}<br><span style="font-size:11.5px;color:var(--m)">${esc(p.im)}</span></td>
       <td class="n">${bn(p.aum)}</td><td class="n ${cls(p.ret.m1)}">${pct(p.ret.m1)}</td><td class="n ${cls(p.ret.ytd)}">${pct(p.ret.ytd)}</td><td class="n ${cls(p.ret.y1)}">${pct(p.ret.y1)}</td>
       <td class="n">${p.fee==null?"–":nf(p.fee,2)+"%"}</td><td class="n">${nf(p.close)}</td><td class="n">${rp(p.value)}</td><td class="n">${nf(p.avgVol10)}</td></tr>`).join("")}</tbody></table>`;
 }

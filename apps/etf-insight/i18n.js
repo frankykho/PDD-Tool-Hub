@@ -128,7 +128,7 @@ export default {
   "Tingkat risiko": "Risk level",
   "Manajer investasi": "Investment manager",
   "Prospektus ↗": "Prospectus ↗",
-  "Biaya pengelolaan, bank kustodian, tingkat risiko & link prospektus belum diisi: tambahkan di profile.json → tools.etf.facts.{c}.": "Management fee, custodian bank, risk level & prospectus link not filled in yet: add them in profile.json → tools.etf.facts.{c}.",
+  "Biaya pengelolaan, bank kustodian, tingkat risiko & link prospektus belum diisi. Minta admin Tool Hub melengkapinya.": "Management fee, custodian bank, risk level & prospectus link not filled in yet. Ask a Tool Hub admin to complete them.",
 
   // ---- peringatan ops (judul & isi dari worker)
   "Perlu perhatian": "Needs attention",
