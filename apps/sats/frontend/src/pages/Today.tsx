@@ -31,7 +31,7 @@ function Block(props: { title: string; info: ReactNode; count: number; empty: st
           <WithInfo info={props.info}>{props.title}</WithInfo> <span className="muted small">{props.count}</span> {props.badge}
         </h2>
         {props.more && (
-          <a className="small" href={props.more} onClick={props.onMore}>
+          <a className="small more-link" href={props.more} onClick={props.onMore}>
             Lihat semua →
           </a>
         )}

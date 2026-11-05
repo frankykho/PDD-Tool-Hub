@@ -1034,3 +1034,12 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .idx-up { position: relative; cursor: pointer; align-self: flex-start; }
 .idx-up input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .idx-log { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- HP: 4 halaman utama + "Lainnya"; link teks kecil dengan area tekan ±40px (seperti .info-btn) */
+.nav-more.nav-lain { display: none; }
+@media (max-width: 640px) {
+  .nav > a.nav-sec, .nav-more.nav-admin { display: none; }
+  .nav-more.nav-lain { display: flex; }
+}
+.more-link { position: relative; }
+.more-link::after { content: ""; position: absolute; inset: -12px 0; }

@@ -22,7 +22,14 @@ export default function Header({
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const moreRef = useRef<HTMLDetailsElement>(null);
+  const lainRef = useRef<HTMLDetailsElement>(null);
   const adminActive = active === "track" || active === "lab" || active === "admin";
+  // HP: menu bawah cukup 4 halaman utama + "Lainnya" (sisanya tidak muat dan dulu tersembunyi di bilah yang digeser)
+  const SEC = [
+    ["#/pemegang", "owners", "Pemegang"], ["#/frekuensi", "flow", "Frekuensi"], ["#/radar", "radar", "Radar"],
+    ["#/backtest", "backtest", "Backtest"], ["#/waran", "warrant", "Waran"], ["#/pasar", "market", "Pasar"],
+  ] as const;
+  const lainActive = adminActive || SEC.some(([, k]) => k === active);
 
   useEffect(() => {
     const term = q.trim();
@@ -42,10 +49,10 @@ export default function Header({
   useEffect(() => {
     const close = (e: MouseEvent) => {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) moreRef.current.open = false;
+      for (const r of [moreRef, lainRef]) if (r.current && !r.current.contains(e.target as Node)) r.current.open = false;
     };
     const closeMore = () => {
-      if (moreRef.current) moreRef.current.open = false;
+      for (const r of [moreRef, lainRef]) if (r.current) r.current.open = false;
     };
     const slash = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -99,32 +106,32 @@ export default function Header({
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 4-7 5 6" /><path d="M3 21h18" /></svg>
           <span>Pola</span>
         </a>
-        <a href="#/pemegang" aria-current={active === "owners" ? "page" : undefined} title="Pemegang saham ≥ 1% dan jaringannya">
+        <a className="nav-sec" href="#/pemegang" aria-current={active === "owners" ? "page" : undefined} title="Pemegang saham ≥ 1% dan jaringannya">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="18" r="2.5" /><circle cx="19" cy="18" r="2.5" /><path d="M11 7.2L6.3 15.8M13 7.2l4.7 8.6M7.5 18h9" /></svg>
           <span>Pemegang</span>
         </a>
-        <a href="#/frekuensi" aria-current={active === "flow" ? "page" : undefined} title="Frequency Analyzer & HAKA/HAKI">
+        <a className="nav-sec" href="#/frekuensi" aria-current={active === "flow" ? "page" : undefined} title="Frequency Analyzer & HAKA/HAKI">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20V14M9 20V8M14 20V11M19 20V4" /></svg>
           <span>Frekuensi</span>
         </a>
-        <a href="#/radar" aria-current={active === "radar" ? "page" : undefined}>
+        <a className="nav-sec" href="#/radar" aria-current={active === "radar" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 12l6-6" /></svg>
           <span>Radar</span>
         </a>
-        <a href="#/backtest" aria-current={active === "backtest" ? "page" : undefined}>
+        <a className="nav-sec" href="#/backtest" aria-current={active === "backtest" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg>
           <span>Backtest</span>
         </a>
-        <a href="#/waran" aria-current={active === "warrant" ? "page" : undefined} title="Kalkulator waran terstruktur (SW)">
+        <a className="nav-sec" href="#/waran" aria-current={active === "warrant" ? "page" : undefined} title="Kalkulator waran terstruktur (SW)">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 19h8" /></svg>
           <span>Waran</span>
         </a>
-        <a href="#/pasar" aria-current={active === "market" ? "page" : undefined}>
+        <a className="nav-sec" href="#/pasar" aria-current={active === "market" ? "page" : undefined}>
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
           <span>Pasar</span>
         </a>
         {me?.isAdmin && (
-          <details className={`nav-more ${adminActive ? "active" : ""}`} ref={moreRef}>
+          <details className={`nav-more nav-admin ${adminActive ? "active" : ""}`} ref={moreRef}>
             <summary aria-current={adminActive ? "page" : undefined}>
               <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
               <span>Admin</span>
@@ -145,6 +152,31 @@ export default function Header({
             </div>
           </details>
         )}
+        <details className={`nav-more nav-lain ${lainActive ? "active" : ""}`} ref={lainRef}>
+          <summary aria-current={lainActive ? "page" : undefined}>
+            <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
+            <span>Lainnya</span>
+            {me?.isAdmin && pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
+          </summary>
+          <div className="nav-more-menu">
+            {SEC.map(([href, k, label]) => (
+              <a key={href} href={href} aria-current={active === k ? "page" : undefined}>
+                {label}
+              </a>
+            ))}
+            {me?.isAdmin && (
+              <>
+                <a href="#/track-record" aria-current={active === "track" ? "page" : undefined}>Track Record</a>
+                <a href="#/lab" aria-current={active === "lab" ? "page" : undefined}>Lab Uji</a>
+                {me.method !== "hub" && (
+                  <a href="#/admin" aria-current={active === "admin" ? "page" : undefined}>
+                    Kelola pengguna{pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
+                  </a>
+                )}
+              </>
+            )}
+          </div>
+        </details>
       </nav>
       <div className="search" ref={boxRef}>
         <label className="search-box">

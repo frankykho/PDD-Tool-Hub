@@ -130,10 +130,10 @@ function PatternCard({ item, hits, lab }: { item: Item; hits: Hit[]; lab: Map<st
             <span className="mono small dim">RS {top.r.rs_rank ?? "—"}</span>
           </button>
           <div className="pat-foot">
-            <button type="button" className="link-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
+            <button type="button" className="link-btn more-link" onClick={() => setOpen(!open)} aria-expanded={open}>
               {open ? "Tutup daftar" : `Lihat semua (${hits.length})`}
             </button>
-            {item.screener && <a className="small" href={item.screener}>Buka di Screener →</a>}
+            {item.screener && <a className="small more-link" href={item.screener}>Buka di Screener →</a>}
           </div>
           {open && (
             <div className="table-wrap">
