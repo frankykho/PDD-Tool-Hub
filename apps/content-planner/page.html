@@ -308,6 +308,19 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
         <p class="muted small" style="margin:4px 0 0">Tersimpan ke riwayat bersama tahap saat ini (jadi kolom Remarks di laporan). Pindah tahap &amp; perubahan dokumen juga tercatat otomatis.</p></div>
       <span class="lbl">Riwayat progres</span><div class="coms" id="iGLog" style="margin-top:6px"></div>
     </div>
+    <div class="grp" id="gOps">
+      <span class="lbl">Detail pekerjaan ETF</span>
+      <div class="grid2">
+        <div class="fld" id="fOEtf"><label for="iOEtf">ETF</label><input class="f" id="iOEtf" maxlength="80" placeholder="mis. XIIT"></div>
+        <div class="fld" id="fOFee"><label for="iOFee">Fee (Rp)</label><input class="f" id="iOFee" inputmode="numeric" maxlength="20" placeholder="mis. 1.250.000"></div>
+        <div class="fld"><label for="iOTrx" id="lOTrx">Nominal transaksi (Rp)</label><input class="f" id="iOTrx" inputmode="numeric" maxlength="20" placeholder="mis. 2.500.000.000"></div>
+      </div>
+      <div class="grid2" id="fOSt">
+        <div class="fld"><label for="iOIn">Saham masuk</label><input class="f" id="iOIn" maxlength="600" autocapitalize="characters" placeholder="mis. BBCA, TLKM"></div>
+        <div class="fld"><label for="iOOut">Saham keluar</label><input class="f" id="iOOut" maxlength="600" autocapitalize="characters" placeholder="mis. ASII"></div>
+        <p class="muted small" style="margin:0">Kode saham dipisah koma atau spasi.</p>
+      </div>
+    </div>
     <div class="grp" id="gEdu">
       <span class="lbl">Detail acara</span>
       <div class="grid3">
@@ -467,7 +480,7 @@ const STL={ide:"Ide",draf:"Draf",review:"Review",terbit:"Terbit",rencana:"Rencan
 const GSL={penjajakan:"Penjajakan",proposal:"Proposal dikirim",negosiasi:"Negosiasi",mou:"MoU ditandatangani",resmi:"Galeri diresmikan",batal:"Batal"};
 const SCL={ide:1,rencana:1,penjajakan:1,draf:2,konfirmasi:2,proposal:2,review:3,berjalan:3,negosiasi:3,mou:3,terbit:4,selesai:4,resmi:4,batal:5,kendala:6};
 const DSL={belum:"Belum mulai",proses:"Dikerjakan",revisi:"Revisi",selesai:"Selesai"},DCL={belum:1,proses:2,revisi:3,selesai:4};
-const ICON={konten:"📱",artikel:"📝",edukasi:"🎤",program:"🤝",aktivitas:"📋",cabang:"🏢",galeri:"🏛️"};
+const ICON={konten:"📱",artikel:"📝",edukasi:"🎤",program:"🤝",aktivitas:"📋",ops:"📊",cabang:"🏢",galeri:"🏛️"};
 // label isian per jenis kegiatan
 const LAB={
   konten:{title:"Ide / judul konten",date:"Tanggal tayang",ch:"Kanal",link:"Link postingan",note:"Ide / caption / catatan",res:"Jangkauan / views",ph:"mis. Edukasi: apa itu NAB?"},
@@ -475,6 +488,7 @@ const LAB={
   edukasi:{title:"Judul acara / materi",date:"Tanggal acara",ch:"Format",link:"Link materi / dokumentasi",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Webinar mengenal reksa dana"},
   program:{title:"Nama program / kegiatan kerja sama",date:"Tanggal (mulai)",ch:"Jenis kerja sama",link:"Link proposal / notulen / dokumentasi",note:"Catatan (hasil meeting, langkah berikutnya)",res:"Jumlah peserta",ph:"mis. Meeting dengan AM bahas program bersama"},
   aktivitas:{title:"Aktivitas",date:"Tanggal (mulai)",ch:"Jenis aktivitas",link:"Link hasil / dokumen",note:"Catatan / kendala",res:"",ph:"mis. Koordinasi program cashback dengan MI X"},
+  ops:{title:"Judul pekerjaan",date:"Tanggal",ch:"Pekerjaan",link:"Link dokumen",note:"Catatan",res:"",ph:"mis. Rebalancing XIIT kuartal IV"},
   cabang:{title:"Nama kegiatan",date:"Tanggal kegiatan",ch:"Jenis kegiatan",link:"Link dokumentasi (foto, absensi, materi)",note:"Catatan / persiapan",res:"Jumlah peserta",ph:"mis. Gathering nasabah: outlook pasar semester 2"},
   galeri:{title:"Galeri investasi (nama rencana)",date:"Tanggal mulai penjajakan",ch:"Jenis mitra",link:"Link dokumen (surat, PKS, foto)",note:"Catatan umum",res:"",ph:"mis. Galeri Investasi Universitas X"},
 };
@@ -483,6 +497,7 @@ const HINT={konten:"Postingan media sosial: IG, TikTok, YouTube, WhatsApp.",arti
   edukasi:"Acara edukasi: webinar, seminar, kelas, atau tim jadi narasumber.",
   program:"Semua kerja sama dengan pihak luar: meeting dengan AM / APERD, program bersama, kampus, komunitas, korporasi. Jenisnya tidak ada di pilihan? Pilih “Lainnya” lalu tulis sendiri.",
   aktivitas:"Pekerjaan rutin, koordinasi, persiapan program, atau rapat. Yang rutin cukup dicatat sekali dengan tanggal mulai dan selesai (mis. 1–30 Nov), lalu ubah statusnya. Kaitkan ke program kalau ada.",
+  ops:"Pekerjaan tim ETF & Fund Ops. Rebalancing: isi ETF, fee, nominal transaksi, saham masuk dan keluar. Masuk ke Laporan Kegiatan.",
   cabang:"Acara tim regional di cabang atau galeri investasi: gathering nasabah, seminar, open booth, kunjungan. Isi hasilnya (peserta, leads, akun baru, transaksi) setelah acara.",
   galeri:"Rencana galeri investasi baru bersama mitra. Ubah tahapnya dari penjajakan sampai diresmikan dan tulis update progres setiap ada kemajuan; semuanya masuk ke riwayat dan laporan. Setelah MoU / diresmikan, admin Tool Hub tinggal menambahkannya ke daftar galeri."};
 const KIND_OF_ROLE={partnership:"program",is:"edukasi",copy:"artikel",sosmed:"konten",design:"konten",lain:"konten",sales:"cabang",galeri:"cabang"};
@@ -546,7 +561,7 @@ function fillSelects(){
   const st=[...new Set(Object.values(K).flatMap(k=>k.statuses))];
   $("fSt").insertAdjacentHTML("beforeend",opts(st,STL));
   // program hanya bisa dibuat Partnership & admin
-  $("iKind").innerHTML=Object.keys(K).filter(k=>k!=="program"||PL.me.assign).map(k=>`<button type="button" data-k="${k}">${ICON[k]} ${esc(K[k].label)}</button>`).join("");
+  $("iKind").innerHTML=Object.keys(K).filter(k=>(k!=="program"||PL.me.assign)&&(k!=="ops"||PL.me.ops)).map(k=>`<button type="button" data-k="${k}">${ICON[k]} ${esc(K[k].label)}</button>`).join("");
   $("iRole").innerHTML=opts(PL.eduRoles);$("iDst").innerHTML=opts(PL.designStatuses,DSL);
   // semua role bisa menerima tugas, termasuk Partnership (dari sesama Partnership atau admin)
   $("tJob").innerHTML=Object.keys(PL.roles).map(k=>`<option value="${k}">${esc(PL.roles[k])}</option>`).join("");
@@ -601,7 +616,7 @@ function chip(i){
   const des=(i.d_need?` · 🎨 ${DSL[i.d_status]||""}`:"")+({menunggu:" · ⏳ menunggu",disetujui:" · ✅ disetujui",revisi:" · ↩ revisi"}[i.approval]||"");
   return `<button type="button" class="chip c${SCL[i.status]||1}" draggable="${canEditItem(i)}" data-id="${esc(i.id)}" title="${esc(i.title)} · ${esc(i.channel)} · ${STL[i.status]||""}${i.owner?" · "+esc(i.owner):""}${des}"><b translate="no">${ICON[kindOf(i)]} ${i.time?esc(i.time)+" ":""}${esc(i.title)}</b><small>${whereOf(i)?esc(whereOf(i))+" · ":""}${esc(i.channel)}${i.owner?" · "+esc(i.owner):""}${des}</small></button>`;
 }
-const STAT_W={konten:"konten",artikel:"artikel",edukasi:"edukasi",program:"program",aktivitas:"aktivitas",cabang:"kegiatan cabang",galeri:"galeri"};
+const STAT_W={konten:"konten",artikel:"artikel",edukasi:"edukasi",program:"program",aktivitas:"aktivitas",ops:"ops ETF",cabang:"kegiatan cabang",galeri:"galeri"};
 function renderCal(){
   $("vMonth").classList.toggle("on",view==="month");$("vList").classList.toggle("on",view==="list");$("vDesign").classList.toggle("on",view==="design");$("vTasks").classList.toggle("on",view==="tasks");$("vPerf").classList.toggle("on",view==="perf");$("vDaily").classList.toggle("on",view==="daily");
   ["fKind","fSt","fOw","fBr"].forEach(id=>$(id).hidden=view==="tasks"||view==="daily"||(view==="perf"&&id!=="fOw")||(id==="fSt"&&view==="design")||(id==="fBr"&&(view==="design"||!$("fBr").dataset.on)));$("calHelp").hidden=view!=="month"&&view!=="list";
@@ -900,9 +915,10 @@ function setKind(k){
   $("lAud").textContent=cb?"Sasaran peserta":"Penyelenggara / audiens";$("iAud").placeholder=cb?"mis. Nasabah prioritas, karyawan PT X, mahasiswa":"mis. Komunitas investor kampus X";$("iPlace").placeholder=cb?"Galeri, kantor nasabah, mal, …":"Zoom, kampus X, …";
   // tim regional tidak melihat program & papan desain: tanpa kaitan program dan permintaan visual
   // rencana galeri: tanpa kaitan program, permintaan visual, dan angka hasil (yang dilaporkan tahap & progresnya)
-  const pr=k==="program",ak=k==="aktivitas",rg=!!PL.me.reg||gl;$("gProg").hidden=!pr&&!ak;
+  // Ops ETF: tanpa kaitan program, permintaan visual, dan angka hasil (yang dilaporkan fee & nominal)
+  const pr=k==="program",ak=k==="aktivitas",op=k==="ops",rg=!!PL.me.reg||gl||op;$("gProg").hidden=!pr&&!ak;$("gOps").hidden=!op;
   ["iPartner","iGoal","iTarget"].forEach(id=>$(id).closest(".fld").hidden=ak);$("gProg").querySelector(".lbl").textContent=ak?"Periode":"Detail program";$("gBiz").hidden=!pr&&!cb;$("gTask").hidden=!pr;$("gLink").hidden=pr||rg;$("lNeed").hidden=pr||ak||rg;$("gDes").hidden=pr||ak||rg||!$("iNeed").checked;
-  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten"||gl||ak;
+  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten"||gl||ak||op;
   showMet();renderChk();
 }
 // cabang: pilihan dari daftar Tool Hub; daftar belum diisi -> ketik sendiri. Cabang lama yang sudah dihapus dari daftar tetap terpilih.
@@ -939,7 +955,12 @@ async function loadGalLog(){
   $("iGLog").innerHTML=L.length?L.map((l,n)=>galRow(l,!n)).reverse().join(""):'<p class="muted small" style="margin:0">Belum ada riwayat.</p>';
 }
 // "Lainnya" -> kotak isian bebas; kanal yang ditulis sendiri disimpan apa adanya
-const chOther=()=>{$("iChO").hidden=$("iCh").value!=="Lainnya"};
+const chOther=()=>{$("iChO").hidden=$("iCh").value!=="Lainnya";opsCh()};
+// Ops ETF: ETF, fee & saham hanya untuk rebalancing; pekerjaan lain cukup nominal (opsional)
+const opsOf=i=>{try{return JSON.parse(i&&i.ops||"{}")||{}}catch(e){return {}}};
+const opsCh=()=>{const rb=$("iCh").value==="Rebalancing ETF";["fOEtf","fOFee","fOSt"].forEach(id=>$(id).hidden=!rb);$("lOTrx").textContent=rb?"Nominal transaksi (Rp)":"Nominal (Rp, opsional)"};
+function setOps(it){const o=opsOf(it),rp=x=>x!=null?Number(x).toLocaleString("id-ID"):"";
+  $("iOEtf").value=o.etf||"";$("iOFee").value=rp(o.fee);$("iOTrx").value=rp(o.trx);$("iOIn").value=(o.in||[]).join(", ");$("iOOut").value=(o.out||[]).join(", ")}
 const chVal=()=>$("iCh").value==="Lainnya"&&$("iChO").value.trim()?$("iChO").value.trim():$("iCh").value;
 $("iCh").addEventListener("change",()=>{chOther();if(!$("iChO").hidden)$("iChO").focus()});
 // isian performa hanya untuk konten yang sudah terbit (atau yang angkanya sudah ada)
@@ -1017,7 +1038,7 @@ function openForm(it,date,preset){
   if(it){$("iCh").value=own?"Lainnya":it.channel;$("iSt").value=it.status;}
   chOther();
   $("iTime").value=v("time");$("iRole").value=v("role",PL.eduRoles[0]);$("iPlace").value=v("place");$("iAud").value=v("audience");
-  setBr(it?v("branch"):PL.me.branch);setGal(it&&kindOf(it)==="galeri"?it:null);
+  setBr(it?v("branch"):PL.me.branch);setGal(it&&kindOf(it)==="galeri"?it:null);setOps(it&&kindOf(it)==="ops"?it:null);
   $("iOw").value=it?v("owner"):PL.me.name;$("iLink").value=v("link");$("iNote").value=v("note");
   $("iRes").value=it&&it.result_num!=null?it.result_num:"";$("iResN").value=v("result_note");
   $("iNeed").checked=!!(it&&it.d_need);$("gDes").hidden=!$("iNeed").checked;
@@ -1092,7 +1113,8 @@ const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":
   copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
   // rencana galeri: isian sendiri menggantikan partner / tempat / tanggal selesai / regional / cabang
   ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value,
-    audience:$("iGPic").value,target:$("iGRank").value,result_num:$("iGStud").value,docs:docsVal()}:{})});
+    audience:$("iGPic").value,target:$("iGRank").value,result_num:$("iGStud").value,docs:docsVal()}:{}),
+  ...(fKind==="ops"?{ops:$("iCh").value==="Rebalancing ETF"?{etf:$("iOEtf").value,fee:$("iOFee").value,trx:$("iOTrx").value,in:$("iOIn").value,out:$("iOOut").value}:{trx:$("iOTrx").value}}:{})});
 // konflik: kegiatan sudah diubah orang lain sejak form dibuka -> pilih muat versi terbaru atau tetap simpan versi sendiri
 function showConflict(err){
   const d=err.data||{};showErr("dlgErr",err);
@@ -1164,9 +1186,9 @@ $("vMonth").onclick=()=>setView("month");$("vList").onclick=()=>setView("list");
 $("fOw").onchange=()=>{$("fOw").dataset.touched="1";renderCal()};
 
 /* =================== LAPORAN (PPT / PDF) =================== */
-const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["program","🤝 Program partnership"],["aktivitas","📋 Aktivitas"],["desain","🎨 Tugas desain"],["wa","📣 Posting WA Channel"],["cabang","🏢 Kegiatan cabang"]].filter(([k])=>!PL.me.reg||k==="cabang");
+const RK=[["edukasi","🎤 Edukasi / narasumber"],["artikel","📝 Artikel"],["konten","📱 Konten sosmed"],["program","🤝 Program partnership"],["aktivitas","📋 Aktivitas"],["ops","📊 Ops ETF"],["desain","🎨 Tugas desain"],["wa","📣 Posting WA Channel"],["cabang","🏢 Kegiatan cabang"]].filter(([k])=>!PL.me.reg||k==="cabang");
 // jenis kegiatan kalender yang punya bagian sendiri di laporan Kegiatan tim
-const KEG=["edukasi","artikel","konten","program","aktivitas","cabang"];
+const KEG=["edukasi","artikel","konten","program","aktivitas","ops","cabang"];
 // jenis laporan: kegiatan tim (per orang) atau program partnership (per program)
 let RT="keg";
 function setRT(t){
@@ -1245,7 +1267,7 @@ async function repData(){
   const run=KEG.flatMap(k=>S[k]||[]).filter(i=>stageOf(i)==="berjalan");
   // rekap per orang (hanya kalau semua orang): jumlah kegiatan yang ditangani & yang selesai, per jenis yang dipilih
   let people=[];
-  if(!who){const by={};const add=(e,n,k,st)=>{const key=e||"n:"+n;if(!key||key==="n:"||st==="batal")return;const r=by[key]=by[key]||{name:nameOf(e)||n||e,role:(USERS.find(x=>x.email===e)||{}).role||"",edukasi:[0,0],artikel:[0,0],konten:[0,0],program:[0,0],desain:[0,0],cabang:[0,0]};r[k][0]++;if(st==="selesai")r[k][1]++};
+  if(!who){const by={};const add=(e,n,k,st)=>{const key=e||"n:"+n;if(!key||key==="n:"||st==="batal")return;const r=by[key]=by[key]||{name:nameOf(e)||n||e,role:(USERS.find(x=>x.email===e)||{}).role||"",edukasi:[0,0],artikel:[0,0],konten:[0,0],program:[0,0],ops:[0,0],desain:[0,0],cabang:[0,0]};r[k][0]++;if(st==="selesai")r[k][1]++};
     KEG.forEach(k=>(S[k]||[]).forEach(i=>add(i.owner_email,i.owner,k,stageOf(i))));
     (S.desain||[]).forEach(i=>add(i.d_who,i.d_name,"desain",dStage(i)));
     people=Object.values(by).sort((a,b)=>a.name.localeCompare(b.name));}
@@ -1260,10 +1282,16 @@ const COLS={
   konten:[["Tanggal",i=>fmtShort(i.date)],["Konten",i=>i.title],["Kanal",i=>i.channel],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Jangkauan",i=>int(i.result_num)],["Klik",i=>int(i.clicks)],["Link",i=>i.link||"–"]],
   program:[["Periode",i=>fmtShort(i.date)+(i.end_date&&i.end_date!==i.date?" – "+fmtShort(i.end_date):"")],["Program",i=>i.title],["Partner",i=>i.partner||"–"],["Jenis",i=>i.channel||"–"],["PIC",i=>i.owner||"–"],["Status",i=>stLate(i)],["Peserta",i=>int(i.result_num)],["Leads",i=>int(i.leads)],["Akun baru",i=>int(i.accounts)]],
   aktivitas:[["Aktivitas",i=>i.title],["Jenis",i=>i.channel||"–"],["PIC",i=>i.owner||"–"],["Status",i=>STL[i.status]||i.status],["Catatan / kendala",i=>i.note||"–"]],
+  ops:[["Tanggal",i=>fmtShort(i.date)],["ETF",i=>opsOf(i).etf||"–"],["Pekerjaan",i=>i.title],["Fee",i=>rp(opsOf(i).fee)],["Nominal",i=>rp(opsOf(i).trx)],["Saham masuk",i=>(opsOf(i).in||[]).join(", ")||"–"],["Saham keluar",i=>(opsOf(i).out||[]).join(", ")||"–"],["Status",i=>STL[i.status]||i.status]],
   desain:[["Tenggat",i=>fmtShort(i.d_due||i.date)],["Visual untuk",i=>i.title],["Jenis / kanal",i=>`${(K[kindOf(i)]||{}).label} · ${i.channel}`],["Diminta",i=>i.owner||"–"],["Desainer",i=>i.d_name||nameOf(i.d_who)||"–"],["Status",i=>DSL[i.d_status]||"–"],["Link",i=>i.d_link||"–"]],
   cabang:[["Tanggal",i=>fmtShort(i.date)+(i.time?" "+i.time:"")],["Kegiatan",i=>i.title],["Jenis",i=>i.channel],["Cabang",i=>i.branch||"–"],["PIC",i=>i.owner||"–"],["Peserta",i=>int(i.result_num)],["Leads",i=>int(i.leads)],["Akun baru",i=>int(i.accounts)],["Transaksi / AUM",i=>rp(i.aum)],["Status",i=>STL[i.status]||i.status]],
 };
-const SEC={edukasi:"Edukasi & narasumber",artikel:"Artikel",konten:"Konten media sosial",program:"Program partnership",aktivitas:"Aktivitas",desain:"Tugas desain",cabang:"Kegiatan cabang"};
+const SEC={edukasi:"Edukasi & narasumber",artikel:"Artikel",konten:"Konten media sosial",program:"Program partnership",aktivitas:"Aktivitas",ops:"Ops ETF",desain:"Tugas desain",cabang:"Kegiatan cabang"};
+// Ops ETF: jumlah rebalancing, total fee (rebalancing), total nominal (semua pekerjaan ETF)
+function opsKpis(L){
+  const rb=L.filter(i=>i.channel==="Rebalancing ETF"),n=(X,f)=>X.reduce((a,i)=>a+(+opsOf(i)[f]||0),0);
+  return {t:"kpis",h3:"Ops ETF",items:[["Rebalancing ETF",int(rb.length),stageSum(rb)],["Total fee",rp(n(rb,"fee")),`dari ${rb.length} rebalancing`],["Total nominal transaksi",rp(n(L,"trx")),`${L.length} pekerjaan ETF`]]};
+}
 // hasil kegiatan cabang (tanpa batal): kegiatan, peserta, leads & akun baru, nilai transaksi; angka hasil dari yang sudah selesai
 function cabKpis(L,h3){
   const A=L.filter(i=>stageOf(i)!=="batal"),F=A.filter(i=>stageOf(i)==="selesai"),n=f=>F.reduce((a,i)=>a+(+i[f]||0),0),cost=n("cost");
@@ -1388,14 +1416,15 @@ function galDoc(R){
 const cell=v=>{const s=String(v??"–");return /^https?:\/\//.test(s)?{href:s}:s};
 const pctCols=L=>{const tw=L.reduce((a,c)=>a+c[1],0);return L.map(c=>[c[0],Math.round(c[1]/tw*1000)/10,c[2]])};
 // lebar relatif kolom laporan Kegiatan tim: judul & keterangan panjang lebih lebar
-const kegW=t=>/^(Acara|Judul|Konten|Visual untuk|Program|Kegiatan)/.test(t)?2.4:/Penyelenggara|Jenis|Partner|Periode|Cabang|Transaksi/.test(t)?1.9:/Tanggal|Tenggat/.test(t)?1.3:1;
-const kegN=t=>/Peserta|Pembaca|Jangkauan|Leads|Akun baru|Transaksi/.test(t);
+const kegW=t=>/^(Acara|Judul|Konten|Visual untuk|Program|Kegiatan|Pekerjaan)/.test(t)?2.4:/Penyelenggara|Jenis|Partner|Periode|Cabang|Transaksi|Saham|Nominal/.test(t)?1.9:/Tanggal|Tenggat|Fee/.test(t)?1.3:1;
+const kegN=t=>/Peserta|Pembaca|Jangkauan|Leads|Akun baru|Transaksi|^Fee|^Nominal/.test(t);
 // kolom rekap per orang: jenis yang dipilih di laporan saja
-const PPL=[["edukasi","Edukasi"],["artikel","Artikel"],["konten","Konten"],["program","Program"],["desain","Visual"],["cabang","Kegiatan cabang"]];
+const PPL=[["edukasi","Edukasi"],["artikel","Artikel"],["konten","Konten"],["program","Program"],["ops","Ops ETF"],["desain","Visual"],["cabang","Kegiatan cabang"]];
 function kegDoc(R){
   // kegiatan cabang punya kotak angkanya sendiri (cabKpis), tidak di baris angka umum
   const Bk=[{t:"cover",lines:["Laporan Kegiatan",R.per],sub:[R.div,R.who].join(" · ")},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${R.who}`},...(R.kpi.length?[{t:"kpis",items:R.kpi}]:[])];
   if(R.wa)Bk.push(waKpis(R.wa));
+  if(R.S.ops&&R.S.ops.length)Bk.push(opsKpis(R.S.ops));
   if(R.S.cabang){Bk.push(cabKpis(R.S.cabang));if(new Set(R.S.cabang.map(i=>i.branch)).size>1)Bk.push(cabRekap(R.S.cabang))}
   const pc=PPL.filter(([k])=>R.S[k]),w=Math.round(58/Math.max(pc.length,1)*10)/10;
   if(R.people.length)Bk.push({t:"table",h3:"Rekap per orang (kegiatan ditangani · yang selesai)",cols:[["Nama",22],["Peran",20],...pc.map(([,l])=>[l,w,1])],
