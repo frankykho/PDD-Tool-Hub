@@ -739,4 +739,25 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   globalThis.fetch = realFetch;
 }
 
+/* ---------- Ops ETF: rebalancing (fee, nominal, saham masuk & keluar), hanya role ops & admin ---------- */
+{
+  const OPS = await cookie({ e: "oki@acme.test", n: "Oki", j: "ops" }), ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
+  const o = { kind: "ops", title: "Rebalancing XIIT Q4", date: wib, channel: "Rebalancing ETF", status: "selesai", d_need: true, program_id: "p1",
+    ops: { etf: "XIIT", fee: "1.250.000", trx: "2.500.000.000", in: "bbca, tlkm;  BBCA x12 GOTO", out: ["asii", "ASII"] } };
+  assert.equal((await call("/api/items", { ck: COPY, body: o })).status, 400, "selain ops & admin tidak bisa mencatat Ops ETF");
+  r = await call("/api/items", { ck: OPS, body: o });
+  assert.equal(r.status, 200);
+  let it = (await call("/api/items?id=" + r.j.id, { ck: OPS })).j;
+  assert.deepEqual([JSON.parse(it.ops), it.d_need, it.program_id], [{ etf: "XIIT", fee: 1250000, trx: 2500000000, in: ["BBCA", "TLKM", "GOTO"], out: ["ASII"] }, 0, ""]);
+  assert.equal((await call("/api/items", { ck: ADM, body: { ...it, ops: { trx: "5000000" }, channel: "Pekerjaan ETF lainnya", base: it.updated_at } })).status, 200, "admin boleh mengubah");
+  it = (await call("/api/items?id=" + r.j.id, { ck: OPS })).j;
+  assert.deepEqual(JSON.parse(it.ops), { etf: "", fee: null, trx: 5000000, in: [], out: [] });
+  const k = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "x", date: wib } })).j.id, ki = (await call("/api/items?id=" + k, { ck: COPY })).j;
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...ki, kind: "ops", base: ki.updated_at } })).status, 400, "kegiatan lama tidak bisa dijadikan Ops ETF");
+  const { cleanOps } = await import("./worker.js");
+  assert.equal(cleanOps({ etf: " ", in: "1234 AB" }), "", "isian kosong / kode salah -> kosong");
+  const me = async (ck) => JSON.parse((await planner.fetch(new Request(BASE + "/", { headers: { cookie: ck } }), env, { waitUntil() { } }).then((x) => x.text())).match(/window\.PL=(\{.*?\});<\/script>/)[1]).me.ops;
+  assert.deepEqual([await me(OPS), await me(ADM), await me(COPY)], [true, true, false]);
+}
+
 console.log("semua cek lolos");

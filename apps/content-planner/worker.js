@@ -37,7 +37,7 @@ import { i18nHead } from "../../shared/i18n.js";
 import EN from "./i18n.js";
 import { macroItems, macroUrls } from "../../shared/macro.js";
 import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.js";
-import { cleanOrg, jobsOf, roleIn, teamIn, canAssign, canImportGal, isRegional, branchType } from "../../shared/jobs.js";
+import { cleanOrg, jobsOf, roleIn, teamIn, canAssign, canImportGal, isRegional, branchType, opsAlert } from "../../shared/jobs.js";
 import { complianceScript } from "../../shared/compliance.js";
 import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
 import PAGE from "./page.html";
@@ -104,6 +104,8 @@ export const KINDS = {
   // dicatat tim regional (sales & pengelola galeri investasi): acara di cabang / galeri, dengan cabang (+ regionalnya) dari daftar Tool Hub
   cabang: { label: "Kegiatan cabang", channels: ["Gathering nasabah", "Edukasi / seminar", "Open booth / pameran", "Kunjungan korporasi / komunitas", "Sosialisasi produk", "Kunjungan kampus / sekolah", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // rencana galeri investasi baru bersama mitra (pengelola galeri / sales): tahap demi tahap, tiap update progres tercatat di riwayat (comments, kind "progres:<tahap>")
+  // pekerjaan tim ETF & Fund Ops (kolom ops, JSON); hanya role ops & admin yang mencatat
+  ops: { label: "Ops ETF", channels: ["Rebalancing ETF", "Pekerjaan ETF lainnya"], statuses: ["rencana", "berjalan", "selesai", "kendala"] },
   galeri: { label: "Kerja sama galeri baru", channels: ["Kampus / universitas", "Sekolah", "Komunitas", "Korporasi", "Pemerintah daerah", "Lainnya"], statuses: ["penjajakan", "proposal", "negosiasi", "mou", "resmi", "batal"] },
 };
 /** Jenis kegiatan yang dilihat & dicatat tim regional. */
@@ -129,6 +131,15 @@ function docChanges(before, after) {
   const A = JSON.parse(before || "{}"), B = JSON.parse(after || "{}");
   return Object.keys(GAL_DOCS).filter((k) => ((A[k] || {}).s || "") !== ((B[k] || {}).s || "")).map((k) => GAL_DOCS[k] + ": " + ((B[k] || {}).s || "belum"));
 }
+/** Isian Ops ETF -> JSON { etf, fee, trx, in, out } ("" kalau kosong). Saham: kode 4 huruf, tanpa dobel, maks. 60. */
+export function cleanOps(v) {
+  let o = v; if (typeof o === "string") { try { o = JSON.parse(o || "{}"); } catch { o = {}; } }
+  o = o || {};
+  const codes = (x) => [...new Set((Array.isArray(x) ? x.join(" ") : String(x ?? "")).toUpperCase().split(/[\s,;]+/).filter((c) => /^[A-Z]{4}$/.test(c)))].slice(0, 60);
+  const out = { etf: String(o.etf ?? "").trim().slice(0, 80), fee: numOf(o.fee), trx: numOf(o.trx), in: codes(o.in), out: codes(o.out) };
+  return out.etf || out.fee != null || out.trx != null || out.in.length || out.out.length ? JSON.stringify(out) : "";
+}
+const canOps = (org, job, adm) => !!adm || job === "ops" || opsAlert(org, job);
 // kanal / jenis di luar pilihan boleh ditulis sendiri (pilih "Lainnya" di form); kosong -> "Lainnya"
 export const EDU_ROLES = ["Narasumber", "Moderator", "Penyelenggara", "Peserta"];
 export const DESIGN_STATUSES = ["belum", "proses", "revisi", "selesai"];
@@ -142,7 +153,7 @@ const COLS = {
   kind: "TEXT", channel: "TEXT", status: "TEXT", owner: "TEXT", owner_email: "TEXT", note: "TEXT", link: "TEXT",
   time: "TEXT", place: "TEXT", role: "TEXT", audience: "TEXT", result_num: "INTEGER", result_note: "TEXT",
   d_need: "INTEGER", d_who: "TEXT", d_name: "TEXT", d_due: "TEXT", d_status: "TEXT", d_link: "TEXT", d_brief: "TEXT",
-  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT", region: "TEXT", branch: "TEXT", docs: "TEXT",
+  program_id: "TEXT", partner: "TEXT", end_date: "TEXT", goal: "TEXT", target: "TEXT", region: "TEXT", branch: "TEXT", docs: "TEXT", ops: "TEXT",
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
@@ -213,7 +224,7 @@ export function cleanItem(b) {
     note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
     d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
     program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", region: "", branch: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
-    copy: "", approver: "", approver_email: "", docs: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
+    copy: "", approver: "", approver_email: "", docs: "", ops: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
   };
   if (COPY_KINDS.includes(kind)) {
     it.copy = s(b.copy, 6000);
@@ -250,6 +261,7 @@ export function cleanItem(b) {
     it.end_date = ISO.test(end) && end >= it.date ? end : "";
     it.program_id = ""; it.d_need = 0;
   }
+  if (kind === "ops") { it.ops = cleanOps(b.ops); it.program_id = ""; it.d_need = 0; }
   if (kind === "aktivitas") {
     const end = s(b.end_date, 10);
     it.end_date = ISO.test(end) && end >= it.date ? end : "";
@@ -348,6 +360,7 @@ async function saveItem(env, me, b, opts = {}) {
   // base = updated_at versi yang dibuka: kalau sudah diubah lagi sejak itu (orang lain / tab lain), jangan ditimpa diam-diam
   if (prev && b.base !== undefined && !b.force && (prev.updated_at || "") !== String(b.base || ""))
     return { conflict: true, by: prev.updated_by || "", at: prev.updated_at || "", error: `Kegiatan ini sudah diubah ${prev.updated_by || "orang lain"} setelah kamu membukanya.` };
+  if ((it.kind === "ops" || (prev && prev.kind === "ops")) && !canOps(org, job, me.adm)) return { error: "Ops ETF hanya bisa dicatat dan diubah oleh ETF & Fund Ops atau admin." };
   if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(org, job, me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh role yang punya hak Program & tugas (mis. Partnership, Head), atau admin." };
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
@@ -1206,7 +1219,7 @@ async function page(env, me, mode) {
     env.DB.prepare("SELECT branch FROM users WHERE email = ?").bind(lower(me.e)).first().catch(() => null)]);
   const etf = (profile(env).tools || {}).etf || {}, reg = isRegional(org, job, me.adm), rl = roleIn(org, job), tm = teamIn(org, job);
   // tim regional: hanya "Kegiatan cabang" & "Kerja sama galeri baru" (tanpa paket mingguan, tugas, harian, performa)
-  const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(org, job, me.adm), gal: canImportGal(org, job, me.adm), reg, branch: (u && u.branch) || me.c || "", team: tm ? tm.id : "", head: !!(rl && rl.head) },
+  const cfg = { mode: reg ? "kalender" : mode, me: { name: who(me), email: String(me.e || "").toLowerCase(), adm: !!me.adm, role: job, assign: canAssign(org, job, me.adm), gal: canImportGal(org, job, me.adm), ops: canOps(org, job, me.adm), reg, branch: (u && u.branch) || me.c || "", team: tm ? tm.id : "", head: !!(rl && rl.head) },
     branches: B, kinds: reg ? Object.fromEntries(REG_KINDS.map((k) => [k, KINDS[k]])) : KINDS, galDocs: GAL_DOCS, eduRoles: EDU_ROLES, designStatuses: DESIGN_STATUSES, taskStatuses: TASK_STATUSES, roles: jobsOf(org), org, programNums: PROGRAM_NUMS, hub: String(env.HUB_URL || "").replace(/\/+$/, ""), story: appUrl(env, "story"),
     copyKinds: COPY_KINDS, approval: APPROVAL, momentTypes: MOMENT_TYPES, glossary: gl, allow: Object.keys(etf.facts || {}), workStatuses: WORK_STATUSES, waKinds: WA_KINDS };
   const head = `<title>${esc(title(env, "Content Planner"))}</title>${profileScript(env)}${themeHead("", EN)}${mode === "kalender" ? complianceScript() : ""}<script>${HUBSSO.onlyInHub(env)}window.PL=${JSON.stringify(cfg).replace(/</g, "\\u003c")};</script>`;
