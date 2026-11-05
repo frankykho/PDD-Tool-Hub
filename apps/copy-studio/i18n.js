@@ -159,7 +159,8 @@ export default {
   // ---- panduan "Cara pakai" (kalimat utuh ber-HTML, diterjemahkan lewat window.hubT) ----
   "Memeriksa caption, teks push notif, atau subject email sebelum terbit: batas karakter tiap platform, jumlah hashtag, kalimat yang dilarang untuk produk investasi, dan ejaan sesuai glosarium tim.": "Checks captions, push notification text, or email subjects before publishing: each platform's character limit, hashtag count, phrases prohibited for investment products, and spelling per the team glossary.",
   "Pilih <b>Platform</b> tempat teks akan tayang (batas karakternya ikut berubah).": "Choose the <b>Platform</b> where the text will appear (its character limit changes accordingly).",
-  "Tempel atau ketik teks. Hasil cek muncul langsung di kanan.": "Paste or type the text. The check results appear instantly on the right.",
+  "Tempel atau ketik teks. Hasil cek muncul langsung di kanan (di HP: di bawah).": "Paste or type the text. The check results appear instantly on the right (below on a phone).",
+  "Pilih video atau audio": "Choose video or audio", "Pilih gambar": "Choose image", "Belum ada berkas dipilih": "No file chosen yet",
   "Baca daftar <b>Hasil cek</b>: <b>Perbaiki</b> = wajib diubah, <b>Periksa</b> = cek ulang, <b>Saran</b> = sebaiknya ditambah. Klik satu baris untuk menandai kata itu di teks.": "Read the <b>Check results</b> list: <b>Fix</b> = must be changed, <b>Review</b> = double-check, <b>Suggestion</b> = worth adding. Click a row to highlight that word in the text.",
   "Pakai <b>+ Izin & disclaimer</b> / <b>+ Hashtag brand</b> untuk menambah teks baku dari profil.": "Use <b>+ License & disclaimer</b> / <b>+ Brand hashtags</b> to add standard text from the profile.",
   "Kalau masih ada catatan, klik <b>Perbaiki dengan AI</b>, baca usulannya, lalu <b>Pakai teks ini</b> bila sesuai.": "If notes remain, click <b>Fix with AI</b>, read the suggestion, then <b>Use this text</b> if it fits.",

@@ -26,6 +26,11 @@ a{color:var(--g)}
 .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:thin}
 .tab{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t2)}
 .tab.on{background:var(--g);border-color:var(--g);color:#fff}
+@media (min-width:821px){.tabs{flex-wrap:wrap;overflow-x:visible}}
+.fpick{position:relative;display:flex;align-items:center;gap:8px;min-width:0;font-weight:400}
+.fin{position:absolute;width:1px;height:1px;opacity:0}
+.fin:focus-visible+.btn{outline:2px solid var(--g);outline-offset:2px}
+.fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
 .card h2{font-size:16px;margin:0 0 4px}
 .card h3{font-size:14px;margin:14px 0 6px}
@@ -267,7 +272,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     <div class="card stack">
       <div><h2>Subtitle otomatis</h2><p class="muted small" style="margin:0">Unggah video atau audio. Suara dipotong per ±20 detik di browser, lalu ditulis Whisper (Workers AI). Hasilnya bisa disunting lalu diunduh sebagai .srt atau .vtt untuk CapCut, Premiere, atau YouTube.</p></div>
       <div class="row">
-        <label class="grow">Berkas video/audio<input type="file" id="sbFile" accept="video/*,audio/*"></label>
+        <label class="grow">Berkas video/audio<span class="fpick"><input type="file" id="sbFile" accept="video/*,audio/*" class="fin"><span class="btn" aria-hidden="true">Pilih video atau audio</span><span class="muted small fname">Belum ada berkas dipilih</span></span></label>
         <label>Bahasa<select id="sbLang"><option value="id">Indonesia</option><option value="en">Inggris</option><option value="">Otomatis</option></select></label>
         <label>Maks. karakter/baris<input type="number" id="sbMax" value="42" min="20" max="60" style="width:90px"></label>
         <button class="btn pri" id="sbGo" type="button" disabled>Buat subtitle</button>
@@ -287,7 +292,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     <div class="card stack">
       <div><h2>Ubah ukuran</h2><p class="muted small" style="margin:0">Satu gambar menjadi beberapa ukuran platform sekaligus. Semua dikerjakan di browser; gambar tidak diunggah ke mana pun.</p></div>
       <div class="row">
-        <label class="grow">Gambar<input type="file" id="szFile" accept="image/*"></label>
+        <label class="grow">Gambar<span class="fpick"><input type="file" id="szFile" accept="image/*" class="fin"><span class="btn" aria-hidden="true">Pilih gambar</span><span class="muted small fname">Belum ada berkas dipilih</span></span></label>
         <label>Isi ruang kosong<select id="szMode"><option value="blur">Latar blur</option><option value="color">Warna polos</option><option value="crop">Potong (penuh)</option></select></label>
         <label id="szColorL">Warna<input type="color" id="szColor" value="#ffffff"></label>
         <label>Format<select id="szFmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
@@ -352,7 +357,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   /* ---------- panduan per menu: [untuk apa, langkah, tips] ---------- */
   var GUIDE = {
     cek: ["Memeriksa caption, teks push notif, atau subject email sebelum terbit: batas karakter tiap platform, jumlah hashtag, kalimat yang dilarang untuk produk investasi, dan ejaan sesuai glosarium tim.",
-      ["Pilih <b>Platform</b> tempat teks akan tayang (batas karakternya ikut berubah).", "Tempel atau ketik teks. Hasil cek muncul langsung di kanan.", "Baca daftar <b>Hasil cek</b>: <b>Perbaiki</b> = wajib diubah, <b>Periksa</b> = cek ulang, <b>Saran</b> = sebaiknya ditambah. Klik satu baris untuk menandai kata itu di teks.", "Pakai <b>+ Izin & disclaimer</b> / <b>+ Hashtag brand</b> untuk menambah teks baku dari profil.", "Kalau masih ada catatan, klik <b>Perbaiki dengan AI</b>, baca usulannya, lalu <b>Pakai teks ini</b> bila sesuai.", "Klik <b>Salin</b> dan tempel ke Instagram/WhatsApp/aplikasi."],
+      ["Pilih <b>Platform</b> tempat teks akan tayang (batas karakternya ikut berubah).", "Tempel atau ketik teks. Hasil cek muncul langsung di kanan (di HP: di bawah).", "Baca daftar <b>Hasil cek</b>: <b>Perbaiki</b> = wajib diubah, <b>Periksa</b> = cek ulang, <b>Saran</b> = sebaiknya ditambah. Klik satu baris untuk menandai kata itu di teks.", "Pakai <b>+ Izin & disclaimer</b> / <b>+ Hashtag brand</b> untuk menambah teks baku dari profil.", "Kalau masih ada catatan, klik <b>Perbaiki dengan AI</b>, baca usulannya, lalu <b>Pakai teks ini</b> bila sesuai.", "Klik <b>Salin</b> dan tempel ke Instagram/WhatsApp/aplikasi."],
       ["Kotak “Terlihat sebelum lainnya” menunjukkan bagian caption yang terbaca tanpa diklik: taruh pesan utama di situ.", "Kode produk sendiri (mis. ETF di profil) boleh disebut bersama kata “beli”; kode saham lain akan ditandai.", "Cek ini alat bantu, bukan pengganti review compliance."]],
     ab: ["Membuat beberapa versi judul, subject email, kalimat pembuka (hook), atau ajakan (CTA) dengan sudut berbeda untuk diuji mana yang paling efektif.",
       ["Pilih <b>Jenis</b> teks dan <b>Platform</b>.", "Pilih <b>Jumlah</b> variasi (3, 5, atau 8).", "Pilih <b>Nada</b>, lalu tulis <b>Brief</b>: produk/topik, target pembaca, dan pesan utama.", "Klik <b>Buat variasi</b>. Tiap versi memakai formula copywriting berbeda (label di atasnya: pertanyaan, angka spesifik, mitos vs fakta, PAS, dll.), lengkap dengan alasan kenapa versi itu bisa menang, dan status cek.", "<b>Salin</b> versi yang dipilih, atau <b>Cek</b> untuk membukanya di Cek Caption. <b>Salin semua</b> untuk dikirim ke atasan/tim."],
@@ -392,13 +397,14 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   window.addEventListener("hub-lang", function () {
     document.querySelectorAll("details.guide").forEach(function (d) { var x = document.createElement("div"); x.innerHTML = guideHtml(d.dataset.guide); d.innerHTML = x.firstChild.innerHTML; });
   });
-  // terbuka saat menu pertama kali dibuka; setelah ditutup, tetap tertutup (diingat per browser)
+  // terbuka saat menu pertama kali dibuka (di HP tertutup); pilihan buka/tutup diingat per browser.
+  // kunci baru cs_guide2_: kunci lama ikut menyimpan "1" saat terbuka otomatis, jadi hanya "0" (ditutup) yang dibawa
   document.querySelectorAll("section[data-tab]").forEach(function (s) {
     var id = s.dataset.tab; if (!GUIDE[id]) return;
     s.insertAdjacentHTML("afterbegin", guideHtml(id));
-    var d = s.querySelector(".guide"), seen = null; try { seen = localStorage.getItem("cs_guide_" + id); } catch (e) {}
-    d.open = seen !== "0";
-    d.addEventListener("toggle", function () { try { localStorage.setItem("cs_guide_" + id, d.open ? "1" : "0"); } catch (e) {} });
+    var d = s.querySelector(".guide"), k = "cs_guide2_" + id, seen = null; try { seen = localStorage.getItem(k) || (localStorage.getItem("cs_guide_" + id) === "0" ? "0" : null); } catch (e) {}
+    d.open = seen ? seen === "1" : !matchMedia("(max-width:820px)").matches;
+    d.addEventListener("toggle", function () { try { localStorage.setItem(k, d.open ? "1" : "0"); } catch (e) {} });
   });
 
   /* ---------- tab ---------- */
@@ -408,7 +414,10 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     document.querySelectorAll("[data-tab]").forEach(function (s) { s.hidden = s.dataset.tab !== id; });
     nav.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("on", b.dataset.t === id); b.setAttribute("aria-selected", b.dataset.t === id); });
     try { localStorage.setItem("cs_tab", id); } catch (e) {}
+    // HP: baris tab digeser supaya tab yang aktif terlihat
+    var on = nav.querySelector(".tab.on"); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   }
+  document.querySelectorAll(".fin").forEach(function (i) { i.addEventListener("change", function () { i.parentNode.querySelector(".fname").textContent = i.files[0] ? i.files[0].name : "Belum ada berkas dipilih"; }); });
   nav.addEventListener("click", function (e) { var b = e.target.closest(".tab"); if (b) show(b.dataset.t); });
   var first = "cek"; try { var s0 = localStorage.getItem("cs_tab"); if (TABS.some(function (t) { return t[0] === s0; })) first = s0; } catch (e) {}
   show(first);
