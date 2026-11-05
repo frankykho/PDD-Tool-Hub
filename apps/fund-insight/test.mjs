@@ -141,7 +141,10 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
   };
   let sent = null;
   env.AI = { run: async (m, x) => { sent = x.messages; return { response: "Perbandingan reksa dana pekan ini. Kinerja masa lalu tidak menjamin kinerja masa depan." }; } };
-  await env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('latest', ?)").bind(JSON.stringify({ at: "2026-11-01T00:00:00Z", funds: { 2914: { im: "MI Contoh", aum: 5e11, ret: { y1: 7.123 }, vol: 2.5 } } })).run();
+  await env.DB.prepare("INSERT OR REPLACE INTO meta VALUES ('latest', ?)").bind(JSON.stringify({ at: "2026-11-01T00:00:00Z", funds: { 2914: { im: "MI Contoh", aum: 5e11, ret: { y1: 7.123 }, vol: 2.5, navDate: "2026-11-01" } } })).run();
+  // NAB 1 tahun: puncak 110 (Jan), turun 10% ke 99 (1 Mar), kembali ke 110+ pada 1 Jun = 92 hari; data lebih tua dari 1 tahun diabaikan
+  env.DB.db.exec("CREATE TABLE nav (pid TEXT, date TEXT, nav REAL)");
+  for (const [d, n] of [["2025-06-01", 50], ["2025-11-01", 100], ["2026-01-01", 110], ["2026-03-01", 99], ["2026-06-01", 111], ["2026-11-01", 115]]) env.DB.db.prepare("INSERT INTO nav VALUES ('2914', ?, ?)").run(d, n);
   let r = await post("/api/caption", { ids: ["2914"] }, { origin: O });
   assert.equal(r.status, 401, "tanpa login ditolak");
   r = await post("/api/caption", { ids: ["2914"] }, { origin: O, cookie: await hubCookie({ j: "sales" }) });
@@ -150,6 +153,9 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
   assert.equal(r.status, 200);
   assert.ok((await r.json()).text.length > 20);
   assert.match(sent[1].content, /7[.,]12/, "angka return 1 tahun dari server");
+  assert.match(sent[1].content, /Turun terdalam 1 th: -10,00%/, "drawdown 1 tahun dari NAB server");
+  assert.match(sent[1].content, /pulih dalam 92 hari/);
+  assert.doesNotMatch(sent[1].content, /Manajer investasi|Naik-turun/, "baris yang tidak ada di gambar tidak dikirim");
   assert.ok(sent[0].content.includes(RULES_PROMPT), "aturan kepatuhan ikut ke AI");
   r = await post("/api/caption?key=kunci-admin", { ids: ["x"] });
   assert.equal(r.status, 400, "tanpa produk sah");
