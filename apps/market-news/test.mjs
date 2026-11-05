@@ -25,6 +25,8 @@ const een = parseList(`<a href="https://www.emitennews.com/news/bantah-delisting
 assert.equal(een[0].title, "Bantah delisting bnga pilih kejar minimum free float", "teks 'Read More' -> judul dari slug");
 const inv = parseList(`<a href="https://investor.id/market/1/berita-berbayar">★ PREMIUM</a><a href="https://investor.id/market/1/berita-berbayar">Judul berita berbayar yang panjang</a><a href="https://investor.id/market/2/amman-buyback">Amman Mineral (AMMN) Siap Buyback Saham Rp 1 T</a>`, SOURCES.find((s) => s.id === "investor-market").link);
 assert.deepEqual(inv.map((x) => x.title), ["Amman Mineral (AMMN) Siap Buyback Saham Rp 1 T"], "artikel PREMIUM dilewati");
+const invImg = parseList(`<a href="https://investor.id/market/3/telkom-tlkm-siapkan-manuver" class="stretched-link"><img src="x.webp" alt="Telkom (TLKM) Siapkan Manuver Besar, Sahamnya Bisa Melesat 75%"></a>`, SOURCES.find((s) => s.id === "investor-market").link);
+assert.equal(invImg[0].title, "Telkom (TLKM) Siapkan Manuver Besar, Sahamnya Bisa Melesat 75%", "link berisi gambar saja -> judul dari alt gambar, bukan slug");
 assert.equal(cleanTitle("Emiten News --> Bos OJK Sebut PAM Jaya Mulai IPO"), "Bos OJK Sebut PAM Jaya Mulai IPO");
 assert.equal(cleanTitle("Bukan Delisting, Saham HSC Dihapus dari IHSG 19/10/2026, 19:37 WIB"), "Bukan Delisting, Saham HSC Dihapus dari IHSG");
 

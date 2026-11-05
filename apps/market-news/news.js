@@ -40,7 +40,7 @@ export function parseList(html, re) {
   for (const m of String(html).matchAll(/<a\b[^>]*href=["']([^"'#?]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/g)) {
     const url = m[1].replace(/\/$/, "");
     if (!re.test(url)) continue;
-    const t = strip(m[2]);
+    const alt = strip((/<img\b[^>]*\balt=["']([^"']+)["']/i.exec(m[2]) || [])[1]), txt = strip(m[2]), t = alt.length > txt.length ? alt : txt;
     if (/premium/i.test(t)) skip.add(url);
     if (!by.has(url) || t.length > by.get(url).length) by.set(url, t);
   }

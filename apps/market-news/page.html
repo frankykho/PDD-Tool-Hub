@@ -25,7 +25,7 @@ a{color:var(--g)}
 .btn:hover{border-color:var(--g)}.btn.pri{background:var(--g);border-color:var(--g);color:#fff}.btn.sm{padding:5px 10px;font-size:13px}.btn.dng{color:var(--dn)}
 .btn:disabled{opacity:.55;cursor:not-allowed}.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--g);outline-offset:2px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.fbar{display:grid;gap:8px}.flab{min-width:70px}
 .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:600;font-size:13px;color:var(--t)}
 .chip.on{background:var(--g);border-color:var(--g);color:#fff}
 .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;background:var(--g2);color:var(--g)}
@@ -38,7 +38,7 @@ a{color:var(--g)}
 .mk h2{margin:0 0 10px;font-size:16px}
 .mk .top{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}
 .mk .ihsg b{font-size:26px;font-weight:800}.mk .ihsg span{font-weight:700;margin-left:6px}
-.mk .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.mk .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}.it [readonly]{opacity:.6;cursor:not-allowed}
 .mk .grid>div{background:var(--bg);border-radius:10px;padding:10px 12px;min-width:0}
 .mk h3{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin:0 0 6px}
 .mk ol{margin:0;padding:0;list-style:none;display:grid;gap:3px;font-size:13.5px}.mk li{display:flex;justify-content:space-between;gap:8px}
@@ -61,7 +61,7 @@ a{color:var(--g)}
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
 .fld{display:grid;gap:4px;font-size:12.5px;font-weight:600;color:var(--t2)}
 .fld input,.fld textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);font-weight:400;font-size:14px;color:var(--t)}
-.fld textarea{min-height:76px;resize:vertical}
+.fld textarea{min-height:76px;resize:vertical}.fld textarea.ttl{min-height:0;resize:none}
 .empty{text-align:center;color:var(--t2);padding:40px 16px}
 .disc{font-size:12px;color:var(--t2);line-height:1.5}
 .dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:8;padding:16px}
@@ -84,7 +84,7 @@ table.fin td b{font-size:14.5px}table.fin .num{white-space:nowrap}table.fin .num
 .toast.show{opacity:1}
 details.src summary{cursor:pointer;color:var(--t2);font-size:12.5px}
 .srcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin-top:8px;font-size:12.5px}
-@media(max-width:760px){.it{grid-template-columns:1fr}.bar h1{font-size:19px}}
+@media(max-width:760px){.it{grid-template-columns:1fr}.chip{min-height:40px}.mk .grid{grid-template-columns:minmax(0,1fr)}.bar h1{font-size:19px}}
 /* ---------- liquid glass (hanya di dalam Tool Hub: html[data-theme] + token --hg-* dari shared/theme.js; tidak berlaku saat cetak) ----------
    Kartu tembus pandang di atas latar gradasi. Angka pasar, tabel laporan keuangan, dan kolom isian tetap di permukaan padat.
    Blur hanya di dialog (lapisan melayang; .dlg tidak punya anak position:fixed). Halaman publik /p bukan iframe -> tidak berubah. */
@@ -318,7 +318,7 @@ function teamCard(x){
   return'<article class="card it" data-id="'+esc(x.id)+'">'+teamBan(x)+'<div class="bd"><div class="meta"><span class="tag '+esc(x.cat)+'">'+esc(CAT[x.cat]||"–")+"</span>"+(x.theme?'<span class="tag" style="background:var(--bg);color:var(--t2)">'+esc(x.theme)+"</span>":"")+tks(x)
    +(x.sent?'<span class="tag sent '+x.sent+'" data-sent="'+x.sent+'" title="Sentimen dari kata di judul, bukan rekomendasi">'+(x.sent==="pos"?"▲ Positif":"▼ Negatif")+"</span>":"")
    +'<span title="skor hype (maks. 25)">🔥 '+nf(x.score||0,0)+" · "+(1+(x.sources||[]).length)+" media</span><span>"+esc(x.src)+" · "+esc(ago(x.at||x.seen_at))+"</span><span>"+st+"</span>"+(pubd?'<span class="tag">Terbit · '+esc(x.published_by||"")+"</span>":"")+"</div>"
-   +'<label class="fld">Judul<input data-f="title" value="'+esc(x.title)+'"'+ro+"></label>"
+   +(ed?"":'<p class="muted small" style="margin:0">Hanya bisa dilihat. Minta admin Tool Hub memberi akses Editor untuk mengubah.</p>')+'<label class="fld">Judul<textarea data-f="title" rows="2" class="ttl"'+ro+">"+esc(x.title)+"</textarea></label>"
    +(x.raw_title&&x.raw_title!==x.title?'<div class="muted small">Judul asli: <span translate="no">'+esc(x.raw_title)+"</span></div>":"")
    +'<label class="fld">Ringkasan<textarea data-f="summary" placeholder="Klik “Ringkas dengan AI” atau tulis 2–3 kalimat fakta utama"'+ro+">"+esc(x.summary||"")+"</textarea></label>"
    +'<label class="fld">Mengapa penting (opsional)<input data-f="why" value="'+esc(x.why||"")+'"'+ro+"></label>"
@@ -429,9 +429,9 @@ function renderTeam(){
    +'<p class="muted small" style="margin:-6px 0 0">Berita makro, pasar, dan emiten dari CNBC Indonesia, Kontan, IDX Channel, Bloomberg Technoz, Bisnis.com, EmitenNews, dan Investor Daily. Diurutkan menurut skor hype: berapa media yang memberitakan, aksi korporasi, rilis data ekonomi, dan saham yang ikut naik. Berita teratas diringkas AI otomatis; tim mengecek lalu menerbitkan.</p>'
    +'<details class="src card" style="padding:10px 14px"><summary>Apa itu skor hype? (maks. 25)</summary><p class="small" style="margin:8px 0 4px">Skor hype menunjukkan seberapa ramai sebuah berita diberitakan. Makin tinggi, makin ramai. Nilainya jumlah dari:</p><ul class="small" style="margin:0;padding-left:18px">'+HYPE.map(function(t){return"<li>"+t+"</li>"}).join("")+"</ul></details>"
    +market(mk)
-   +'<div class="tabs">'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 24 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
-   +(view==="fin"||view==="bg"?"":'<span style="width:12px"></span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join(""))
-   +(SORTS.test(view)?'<span style="width:12px"></span><span class="muted small">Urutkan</span>'+[["hype","🔥 Hype"],["new","Terbaru"]].map(function(o){return'<button class="chip'+(srt===o[0]?" on":"")+'" type="button" data-sort="'+o[0]+'" aria-pressed="'+(srt===o[0])+'">'+o[1]+"</button>"}).join(""):"")+"</div>"
+   +'<div class="fbar"><div class="tabs"><span class="muted small flab">Tampilan</span>'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 24 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
+   +"</div>"+(view==="fin"||view==="bg"?"":'<div class="tabs"><span class="muted small flab">Kategori</span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
+   +(SORTS.test(view)?'<div class="tabs"><span class="muted small flab">Urutkan</span>'+[["hype","🔥 Hype"],["new","Terbaru"]].map(function(o){return'<button class="chip'+(srt===o[0]?" on":"")+'" type="button" data-sort="'+o[0]+'" aria-pressed="'+(srt===o[0])+'">'+o[1]+"</button>"}).join("")+"</div>":"")+"</div>"
    +'<details class="src card" style="padding:10px 14px"><summary>Sumber berita: '+ok+" dari "+(C.sources||[]).length+" terbaca terakhir"+(srcSt.ai&&srcSt.ai.n!=null?" · AI hari ini "+srcSt.ai.n+"/"+srcSt.aiLimit:"")+'</summary><div class="srcs">'
    +(C.sources||[]).map(function(s){var v=(srcSt.src||{})[s.id];return"<div>"+(v?(v.ok?'<span class="up">●</span> ':'<span class="dn">●</span> '):"○ ")+esc(s.name)+' <span class="muted">'+esc(s.id)+" · "+(v?(v.ok?v.n+" berita relevan":esc(v.err||"gagal"))+", "+esc(ago(v.at)):"belum dibaca")+"</span></div>"}).join("")+"</div></details>"
    +(view==="fin"?finView():view==="bg"?bgView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
@@ -439,7 +439,8 @@ function renderTeam(){
 }
 function loadTeam(){
   return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):view==="bg"?Promise.resolve([]):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}}),api("/api/bg").catch(function(){return null})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];if(r[3])BG=r[3];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
-function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.type==="checkbox"?el.checked:el.value});return o}
+function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.type==="checkbox"?el.checked:el.dataset.f==="title"?el.value.replace(/\s+/g," ").trim():el.value});return o}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("ttl"))e.preventDefault()});
 
 document.addEventListener("click",function(e){
   var t=e.target.closest("button,[data-copy]");if(!t)return;var d=t.dataset;
