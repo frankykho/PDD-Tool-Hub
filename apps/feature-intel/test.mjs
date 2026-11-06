@@ -63,4 +63,62 @@ assert.equal((await call("GET", "/", null, null)).status, 303, "tanpa sesi -> lo
 const cross = await worker.fetch(new Request(BASE + "/api/features", { method: "POST", headers: { origin: "https://evil.test", cookie: await cookie("editor"), "content-type": "application/json" }, body: "{}" }), env, {});
 assert.equal(cross.status, 403, "POST dari situs lain ditolak");
 
+/* ---------- Task 2: fitur, bukti, verifikasi, perbandingan ---------- */
+const SB = "stockbit", IP = "ipot";
+let pendingN = 0;
+const insertPending = (competitor, source, text) => {
+  const id = "ev" + ++pendingN;
+  env.DB.db.prepare("INSERT INTO ft_evidence (id, competitor_id, source, url, text, launched_at, status, hash, created_at) VALUES (?, ?, ?, ?, ?, NULL, 'Perlu verifikasi', ?, ?)")
+    .run(id, competitor, source, "https://contoh.test/" + id, text, "h-" + id, new Date().toISOString());
+  return id;
+};
+const j = async (r) => [(await r).status, await (await r).clone().json()];
+// isian manual wajib bukti: url ATAU gambar; tanggal peluncuran wajib
+assert.equal((await call("POST", "/api/evidence", { competitor_id: SB, name: "Auto Invest", area: "Reksa Dana", launched_at: "2026-10-01" }, "editor")).status, 400, "tanpa url & gambar");
+assert.equal((await call("POST", "/api/evidence", { competitor_id: SB, name: "Auto Invest", area: "Reksa Dana", url: "https://stockbit.com/x" }, "editor")).status, 400, "tanpa tanggal");
+assert.equal((await call("POST", "/api/evidence", { competitor_id: SB, name: "Auto Invest", area: "Reksa Dana", launched_at: "2026-10-01", url: "javascript:alert(1)" }, "editor")).status, 400, "url bukan http");
+assert.equal((await call("POST", "/api/evidence", { competitor_id: "tidakada", name: "Auto Invest", area: "Reksa Dana", launched_at: "2026-10-01", url: "https://x.test" }, "editor")).status, 400, "kompetitor tidak dikenal");
+const [ms, m] = await j(call("POST", "/api/evidence", { competitor_id: SB, name: "Auto Invest", area: "Reksa Dana", description: "Beli rutin", launched_at: "2026-10-01", url: "https://stockbit.com/x" }, "editor"));
+assert.equal(ms, 200, JSON.stringify(m));
+assert.ok(m.feature_id && m.id);
+// temuan otomatis: gabung ke fitur yang ada butuh launched_at
+const evId = insertPending(IP, "ig", "Fitur Auto Invest kini hadir");
+assert.equal((await call("POST", "/api/evidence/verify", { id: evId, action: "merge", feature_id: m.feature_id }, "editor")).status, 400);
+assert.equal((await call("POST", "/api/evidence/verify", { id: evId, action: "merge", feature_id: m.feature_id, launched_at: "2026-10-05" }, "viewer")).status, 403);
+assert.equal((await call("POST", "/api/evidence/verify", { id: evId, action: "merge", feature_id: m.feature_id, launched_at: "2026-10-05" }, "editor")).status, 200);
+assert.equal((await call("POST", "/api/evidence/verify", { id: evId, action: "reject" }, "editor")).status, 400, "yang sudah diverifikasi tidak bisa diproses lagi");
+let [, list] = await j(call("GET", "/api/features", null, "viewer"));
+let f = list.features[0];
+assert.deepEqual(f.has, { [SB]: "2026-10-01", [IP]: "2026-10-05" });
+assert.equal(f.ikisi_status, "Belum ada");                               // bawaan
+assert.deepEqual(list.competitors.map((c) => c.id).sort(), [IP, SB]);
+assert.equal((await call("PATCH", "/api/features", { id: f.id, decision: "Beli" }, "editor")).status, 400);  // di luar FT.DECISIONS
+assert.equal((await call("PATCH", "/api/features", { id: f.id, decision: "Kejar", priority: "H", ikisi_status: "Sebagian" }, "editor")).status, 200);
+assert.equal((await call("PATCH", "/api/features", { id: f.id, priority: "H" }, "viewer")).status, 403);
+// jadikan fitur baru dari temuan; area di luar daftar ditolak
+const ev3 = insertPending(SB, "playstore", "[Baru] Pro Chart di Company Page");
+assert.equal((await call("POST", "/api/evidence/verify", { id: ev3, action: "new", name: "Pro Chart", area: "Kripto", launched_at: "2026-11-01" }, "editor")).status, 400);
+assert.equal((await call("POST", "/api/evidence/verify", { id: ev3, action: "new", name: "Pro Chart", area: "Saham", launched_at: "2026-11-01" }, "editor")).status, 200);
+// bukti ditolak tidak dihitung
+const ev2 = insertPending(IP, "appstore", "x");
+assert.equal((await call("POST", "/api/evidence/verify", { id: ev2, action: "reject" }, "editor")).status, 200);
+assert.equal(env.DB.db.prepare("SELECT status FROM ft_evidence WHERE id=?").get(ev2).status, "Ditolak");
+[, list] = await j(call("GET", "/api/features?area=Saham", null, "viewer"));
+assert.deepEqual(list.features.map((x) => [x.name, x.has]), [["Pro Chart", { [SB]: "2026-11-01" }]], "filter area; ditolak tidak dihitung");
+[, list] = await j(call("GET", "/api/features?decision=Kejar&priority=H", null, "viewer"));
+assert.deepEqual(list.features.map((x) => x.name), ["Auto Invest"]);
+const [, pend] = await j(call("GET", "/api/evidence?status=Perlu%20verifikasi", null, "viewer"));
+assert.equal(pend.evidence.length, 0);
+const [, det] = await j(call("GET", "/api/features/" + f.id, null, "viewer"));
+assert.equal(det.feature.name, "Auto Invest"); assert.equal(det.evidence.length, 2);
+// gambar bukti: hanya data:image png/jpeg/webp
+assert.equal((await call("POST", "/api/evidence", { competitor_id: IP, name: "Y", area: "Saham", launched_at: "2026-10-01", image_data: "data:text/html;base64,PGI+" }, "editor")).status, 400);
+assert.equal((await call("POST", "/api/evidence", { competitor_id: IP, name: "Y", area: "Saham", launched_at: "2026-10-01", image_data: "data:image/png;base64,iVBORw0KGgo=" }, "editor")).status, 200);
+// kompetitor: hanya admin
+assert.equal((await call("POST", "/api/competitors", { name: "Ajaib" }, "editor")).status, 403);
+assert.equal((await call("POST", "/api/competitors", { name: "Ajaib", enabled: 0 }, "admin")).status, 200);
+assert.equal((await call("POST", "/api/competitors", { id: SB, name: "Stockbit", ig_account: "stockbit", play_id: "com.stockbit.android", appstore_id: "1184800207", enabled: 1 }, "admin")).status, 200);
+const [, comps] = await j(call("GET", "/api/competitors", null, "viewer"));
+assert.deepEqual(comps.competitors.map((c) => [c.name, c.enabled]).sort(), [["Ajaib", 0], ["IPOT", 1], ["Stockbit", 1]]);
+
 console.log("feature-intel: semua tes lolos");

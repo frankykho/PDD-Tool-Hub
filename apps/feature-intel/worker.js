@@ -107,10 +107,147 @@ function page(env, me) {
   return PAGE.replace("<title>Feature Intelligence</title>", () => head);
 }
 
+/* ---------- fitur, bukti, kompetitor ---------- */
+const now = () => new Date().toISOString();
+const uid = () => crypto.randomUUID();
+const s = (v, max) => (typeof v === "string" || typeof v === "number" ? String(v) : "").trim().slice(0, max);
+const IMG_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, IMG_MAX = 700 * 1024;
+/** Nilai satu isian yang sudah dirapikan, atau null bila tidak sah (pilihan di luar daftar, tanggal/url salah bentuk). */
+export function ftClean(field, value) {
+  const v = s(value, field === "image_data" ? IMG_MAX + 1 : 2000);
+  switch (field) {
+    case "name": return v ? v.slice(0, 160) : null;
+    case "description": case "notes": return v;
+    case "area": return FT.AREAS.includes(v) ? v : null;
+    case "ikisi_status": return FT.IKISI.includes(v) ? v : null;
+    case "decision": return v === "" || FT.DECISIONS.includes(v) ? v : null;
+    case "priority": return v === "" || FT.PRIOS.includes(v) ? v : null;
+    case "launched_at": return /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v)) ? v : null;
+    case "url": return v === "" || /^https?:\/\/[^\s]+$/i.test(v) ? v.slice(0, 600) : null;
+    case "image_data": return v === "" || (v.length <= IMG_MAX && IMG_RE.test(v)) ? v : null;
+    default: return null;
+  }
+}
+const FEATURE_EDIT = ["name", "area", "description", "ikisi_status", "decision", "priority", "notes"];
+const LABEL = { name: "nama fitur", area: "area", launched_at: "tanggal peluncuran (YYYY-MM-DD)", url: "link (http/https)", image_data: "gambar (PNG/JPEG/WebP, maks. 700 KB)",
+  ikisi_status: "status iKISI", decision: "keputusan", priority: "prioritas", description: "deskripsi", notes: "catatan" };
+/** Ambil isian dari body; { error } bila ada yang tidak sah. required = isian yang wajib terisi. */
+function pick(b, fields, required = []) {
+  const out = {};
+  for (const k of fields) {
+    if (b[k] === undefined && !required.includes(k)) continue;
+    const v = ftClean(k, b[k]);
+    if (v === null || (required.includes(k) && v === "")) return { error: "Isian tidak sah: " + LABEL[k] };
+    out[k] = v;
+  }
+  return out;
+}
+async function competitorOk(env, id) {
+  return !!(await env.DB.prepare("SELECT 1 FROM ft_competitors WHERE id=?").bind(s(id, 60)).first());
+}
+async function newFeature(env, me, f) {
+  const id = uid(), t = now();
+  await env.DB.prepare("INSERT INTO ft_features (id, name, area, description, ikisi_status, created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, 'Belum ada', ?, ?, ?, ?)")
+    .bind(id, f.name, f.area, f.description || "", me.name, t, me.name, t).run();
+  return id;
+}
+/** Daftar fitur + kompetitor mana yang sudah punya (dari bukti Terverifikasi: tanggal peluncuran paling awal). */
+async function listFeatures(env, q) {
+  const where = [], args = [];
+  for (const k of ["area", "decision", "priority"]) { const v = s(q.get(k), 40); if (v) { where.push(k + "=?"); args.push(v); } }
+  const [fs, ev, cs] = await env.DB.batch([
+    env.DB.prepare(`SELECT id, name, area, description, ikisi_status, decision, priority, notes, updated_by, updated_at FROM ft_features${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY area, name`).bind(...args),
+    env.DB.prepare("SELECT feature_id, competitor_id, MIN(launched_at) AS d FROM ft_evidence WHERE status='Terverifikasi' AND feature_id IS NOT NULL GROUP BY feature_id, competitor_id"),
+    env.DB.prepare("SELECT id, name FROM ft_competitors WHERE enabled=1 ORDER BY name"),
+  ]);
+  const has = {};
+  for (const r of ev.results) (has[r.feature_id] ||= {})[r.competitor_id] = r.d;
+  return { features: fs.results.map((f) => ({ ...f, has: has[f.id] || {} })), competitors: cs.results };
+}
+const EV_COLS = "e.id, e.feature_id, e.competitor_id, c.name AS competitor, e.source, e.url, e.text, e.image_data, e.launched_at, e.ai_json, e.status, e.created_by, e.created_at";
+async function addManual(env, me, b) {
+  const f = pick(b, ["name", "area", "description", "launched_at", "url", "image_data"], ["name", "area", "launched_at"]);
+  if (f.error) return { error: f.error };
+  if (!f.url && !f.image_data) return { error: "Isi link sumber, atau unggah screenshot sebagai bukti." };
+  if (!(await competitorOk(env, b.competitor_id))) return { error: "Kompetitor tidak dikenal." };
+  const feature_id = await newFeature(env, me, f), id = uid();
+  await env.DB.prepare("INSERT INTO ft_evidence (id, feature_id, competitor_id, source, url, text, image_data, launched_at, status, hash, created_by, created_at) VALUES (?, ?, ?, 'manual', ?, ?, ?, ?, 'Terverifikasi', ?, ?, ?)")
+    .bind(id, feature_id, s(b.competitor_id, 60), f.url || "", f.description || "", f.image_data || "", f.launched_at, "manual:" + id, me.name, now()).run();
+  return { id, feature_id };
+}
+/** Temuan scan: gabung ke fitur yang ada / jadikan fitur baru / tolak. Tanggal peluncuran wajib saat disetujui. */
+async function verify(env, me, b) {
+  const ev = await env.DB.prepare("SELECT id, status FROM ft_evidence WHERE id=?").bind(s(b.id, 60)).first();
+  if (!ev) return { error: "Temuan tidak ditemukan.", status: 404 };
+  if (ev.status !== "Perlu verifikasi") return { error: "Temuan ini sudah diproses." };
+  if (b.action === "reject") {
+    await env.DB.prepare("UPDATE ft_evidence SET status='Ditolak' WHERE id=?").bind(ev.id).run();
+    return { ok: true };
+  }
+  const d = pick(b, ["launched_at"], ["launched_at"]);
+  if (d.error) return { error: d.error };
+  let feature_id;
+  if (b.action === "merge") {
+    feature_id = s(b.feature_id, 60);
+    if (!(await env.DB.prepare("SELECT 1 FROM ft_features WHERE id=?").bind(feature_id).first())) return { error: "Fitur tujuan tidak ditemukan." };
+  } else if (b.action === "new") {
+    const f = pick(b, ["name", "area", "description"], ["name", "area"]);
+    if (f.error) return { error: f.error };
+    feature_id = await newFeature(env, me, f);
+  } else return { error: "Aksi tidak dikenal." };
+  await env.DB.prepare("UPDATE ft_evidence SET status='Terverifikasi', feature_id=?, launched_at=? WHERE id=? AND status='Perlu verifikasi'").bind(feature_id, d.launched_at, ev.id).run();
+  return { ok: true, feature_id };
+}
+async function patchFeature(env, me, b) {
+  const f = pick(b, FEATURE_EDIT);
+  if (f.error) return { error: f.error };
+  const keys = Object.keys(f);
+  if (!keys.length) return { error: "Tidak ada yang diubah." };
+  const r = await env.DB.prepare(`UPDATE ft_features SET ${keys.map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`)
+    .bind(...keys.map((k) => f[k]), me.name, now(), s(b.id, 60)).run();
+  return r.meta && r.meta.changes === 0 ? { error: "Fitur tidak ditemukan.", status: 404 } : { ok: true };
+}
+async function saveCompetitor(env, b) {
+  const name = s(b.name, 80);
+  if (!name) return { error: "Isi nama kompetitor." };
+  const id = s(b.id, 60) || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || uid();
+  await env.DB.prepare("INSERT INTO ft_competitors (id, name, play_id, appstore_id, ig_account, enabled) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, play_id=excluded.play_id, appstore_id=excluded.appstore_id, ig_account=excluded.ig_account, enabled=excluded.enabled")
+    .bind(id, name, s(b.play_id, 120), s(b.appstore_id, 20).replace(/\D/g, ""), s(b.ig_account, 60).replace(/^@/, "").toLowerCase(), b.enabled === 0 || b.enabled === false ? 0 : 1).run();
+  return { id };
+}
+
+/** Hasil fungsi -> respons JSON (status dari { status }, atau 400 kalau ada error). */
+const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 async function api(req, env, u, me, can) {
-  const path = u.pathname;
-  if (req.method === "GET" && path === "/api/me") return json({ name: me.name, role: me.role });
-  if (req.method !== "GET" && !can("editor")) return json({ error: "Hanya editor atau admin yang bisa mengubah data." }, 403);
+  const path = u.pathname, m = req.method;
+  if (m === "GET") {
+    if (path === "/api/me") return json({ name: me.name, role: me.role });
+    if (path === "/api/features") return json(await listFeatures(env, u.searchParams));
+    if (path.startsWith("/api/features/")) {
+      const id = decodeURIComponent(path.slice(14));
+      const feature = await env.DB.prepare("SELECT * FROM ft_features WHERE id=?").bind(id).first();
+      if (!feature) return json({ error: "Fitur tidak ditemukan." }, 404);
+      const ev = await env.DB.prepare(`SELECT ${EV_COLS} FROM ft_evidence e LEFT JOIN ft_competitors c ON c.id=e.competitor_id WHERE e.feature_id=? AND e.status='Terverifikasi' ORDER BY e.launched_at`).bind(id).all();
+      return json({ feature, evidence: ev.results });
+    }
+    if (path === "/api/evidence") {
+      const st = FT.EV_STATUS.includes(u.searchParams.get("status")) ? u.searchParams.get("status") : "Perlu verifikasi";
+      const ev = await env.DB.prepare(`SELECT ${EV_COLS} FROM ft_evidence e LEFT JOIN ft_competitors c ON c.id=e.competitor_id WHERE e.status=? ORDER BY e.created_at DESC LIMIT 200`).bind(st).all();
+      return json({ evidence: ev.results });
+    }
+    if (path === "/api/competitors") return json({ competitors: (await env.DB.prepare("SELECT * FROM ft_competitors ORDER BY name").all()).results });
+    return json({ error: "Tidak ditemukan" }, 404);
+  }
+  if (!can("editor")) return json({ error: "Hanya editor atau admin yang bisa mengubah data." }, 403);
+  const b = await req.json().catch(() => ({}));
+  if (m === "POST" && path === "/api/evidence") return out(await addManual(env, me, b));
+  if (m === "POST" && path === "/api/evidence/verify") return out(await verify(env, me, b));
+  if (m === "POST" && path === "/api/features") {
+    const f = pick(b, ["name", "area", "description"], ["name", "area"]);
+    return out(f.error ? f : { id: await newFeature(env, me, f) });
+  }
+  if (m === "PATCH" && path === "/api/features") return out(await patchFeature(env, me, b));
+  if (path === "/api/competitors" && m === "POST") return can("admin") ? out(await saveCompetitor(env, b)) : json({ error: "Hanya admin yang bisa mengatur kompetitor." }, 403);
   return json({ error: "Tidak ditemukan" }, 404);
 }
 
