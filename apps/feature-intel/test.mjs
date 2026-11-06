@@ -200,4 +200,59 @@ assert.equal(igAt(), before);
 await cron("2026-11-08T01:00:00Z");                                     // Minggu 08.00 WIB
 assert.notEqual(igAt(), before, "Minggu 01:00 UTC scan");
 
+/* ---------- Task 4: BRD (kerangka tetap, draf AI, kolom manusia dikunci) ---------- */
+const { BRD_KEYS, brdSkeleton, brdParse } = await import("./brd.js");
+assert.deepEqual(BRD_KEYS, ["ringkasan", "tujuan", "ruang_lingkup", "kebutuhan", "definisi", "keamanan", "pemangku", "kendala", "tambahan", "jadwal", "open_items", "lampiran"]);
+const F = { id: "f1", name: "Auto Invest", area: "Reksa Dana", description: "Beli rutin", ikisi_status: "Belum ada", priority: "H" };
+const E = { feature_id: "f1", competitor: "Stockbit", launched_at: "2026-10-01", url: "https://stockbit.com/x", source: "manual" };
+const sk = brdSkeleton({ title: "Auto Invest", features: [F], evidence: [E] });
+assert.equal(sk.identitas.no_dokumen, "IT-BRD-2026-___ (akan ditetapkan)");
+assert.equal(sk.identitas.tanggal, "___");
+assert.equal(sk.identitas.versi, "1.0 – Draft untuk direview");
+assert.equal(sk.identitas.disusun_oleh, "Product / Business Analyst – Divisi Digital Business");
+assert.equal(sk.jadwal.length, 8); assert.equal(sk.pemangku.length, 10);
+assert.ok(sk.pemangku.every((x) => x.jabatan && x.tugas && !("nama" in x)), "nama pemangku tidak diisi");
+assert.match(sk.lampiran.at(-1), /^Lampiran E – Referensi Kompetitor: .*Stockbit.*2026-10-01/);
+assert.match(sk.ringkasan.at(-1), /Stockbit/, "satu kalimat referensi kompetitor di Ringkasan Eksekutif");
+assert.ok(sk.kebutuhan.length >= 2 && sk.kebutuhan.every((m) => m.tetap), "modul Data & Integrasi + Non-Fungsional tetap");
+assert.ok(sk.keamanan.some((x) => /TLS 1\.2/.test(x)));
+const p = brdParse(JSON.stringify({ identitas: { no_dokumen: "IT-BRD-2026-077", tanggal: "1 Nov 2026", nama_proyek: "Investasi Berkala Reksa Dana" },
+  ringkasan: ["Paragraf AI."],
+  kebutuhan: [{ modul: "Modul 1 – Auto Invest", rows: [{ id: "X", pri: "Z", text: "Harus ada <jadwal> & \"pause\"" }, { text: "" }] }],
+  jadwal: [{ fase: "1", aktivitas: "x", durasi: "10", target: "1 Des" }], pemangku: [{ nama: "Budi", jabatan: "PM", tugas: "x" }], hacker: 1 }), sk);
+assert.equal(p.identitas.no_dokumen, sk.identitas.no_dokumen);
+assert.equal(p.identitas.tanggal, "___");
+assert.equal(p.identitas.nama_proyek, "Investasi Berkala Reksa Dana");
+assert.deepEqual(p.kebutuhan[0], { modul: "Modul 1 – Auto Invest", rows: [{ id: "BR-1.1", pri: "M", text: "Harus ada <jadwal> & \"pause\"" }] });
+assert.equal(p.kebutuhan.length, sk.kebutuhan.length + 1, "modul tetap tetap ada");
+assert.match(p.kebutuhan[1].rows[0].id, /^BR-2\.1$/, "modul tetap dinomori ulang");
+assert.deepEqual(p.jadwal, sk.jadwal); assert.deepEqual(p.pemangku, sk.pemangku);
+assert.deepEqual(p.ringkasan, ["Paragraf AI.", sk.ringkasan.at(-1)]);
+assert.deepEqual(brdParse(JSON.stringify(p), sk).ringkasan, p.ringkasan, "kalimat kompetitor tidak dobel saat disimpan ulang");
+assert.deepEqual(brdParse(JSON.stringify(p), sk).kebutuhan, p.kebutuhan, "simpan ulang tidak menggandakan modul tetap");
+assert.equal("hacker" in p, false);
+assert.deepEqual(brdParse("{rusak", sk), sk);
+// API: viewer tidak boleh membuat; status di luar daftar ditolak; draf AI
+assert.equal((await call("POST", "/api/brds", { title: "x", feature_ids: [f.id] }, "viewer")).status, 403);
+assert.equal((await call("POST", "/api/brds", { title: "x", feature_ids: ["tidakada"] }, "editor")).status, 400);
+const [bs, brd] = await j(call("POST", "/api/brds", { title: "Auto Invest", feature_ids: [f.id], brief: { modul: "Reksa Dana", catatan: "Debet RDN", target: "Nasabah ritel" } }, "editor"));
+assert.equal(bs, 200, JSON.stringify(brd));
+assert.equal((await call("PATCH", "/api/brds", { id: brd.id, status: "Selesai" }, "editor")).status, 400);
+assert.equal((await call("PATCH", "/api/brds", { id: brd.id, status: "Diserahkan ke IT", version: "1.1 – Revisi IT" }, "editor")).status, 200);
+let [, one] = await j(call("GET", "/api/brds/" + brd.id, null, "viewer"));
+assert.equal(one.brd.status, "Diserahkan ke IT"); assert.equal(one.brd.sections.identitas.versi, "1.1 – Revisi IT");
+assert.match(one.brd.sections.lampiran.at(-1), /Stockbit.*2026-10-01/);
+env.AI = { run: async () => ({ response: JSON.stringify({ ringkasan: ["Ringkasan dari AI untuk Auto Invest."], tujuan: ["Tujuan A"], identitas: { no_dokumen: "IT-BRD-2026-001" } }) }) };
+const [ds, dr] = await j(call("POST", "/api/brds/draft", { id: brd.id }, "editor"));
+assert.equal(ds, 200, JSON.stringify(dr));
+assert.equal(dr.sections.ringkasan[0], "Ringkasan dari AI untuk Auto Invest.");
+assert.equal(dr.sections.identitas.no_dokumen, "IT-BRD-2026-___ (akan ditetapkan)");
+env.AI = { run: async () => ({ response: JSON.stringify({ tujuan: ["Tujuan B saja, bagian lain tidak berubah"] }) }) };
+const [, dk] = await j(call("POST", "/api/brds/draft", { id: brd.id, key: "tujuan" }, "editor"));
+assert.deepEqual(dk.sections.tujuan, ["Tujuan B saja, bagian lain tidak berubah"]);
+assert.equal(dk.sections.ringkasan[0], "Ringkasan dari AI untuk Auto Invest.", "tulis ulang satu bagian tidak menyentuh bagian lain");
+assert.equal((await call("POST", "/api/brds/draft", { id: brd.id, key: "jadwal" }, "editor")).status, 400, "bagian terkunci tidak ditulis AI");
+const [, blist] = await j(call("GET", "/api/brds", null, "viewer"));
+assert.deepEqual(blist.brds.map((x) => [x.title, x.status, x.feature_names]), [["Auto Invest", "Diserahkan ke IT", ["Auto Invest"]]]);
+
 console.log("feature-intel: semua tes lolos");

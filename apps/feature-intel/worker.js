@@ -8,7 +8,8 @@
 import { title, profileScript } from "../../shared/profile.js";
 import { withCron } from "../../shared/cron.js";
 import { themeHead } from "../../shared/theme.js";
-import { ai } from "../../shared/ai.js";
+import { ai, AiError } from "../../shared/ai.js";
+import { BRD_AI_KEYS, BRD_VERSION, brdParse, brdSkeleton } from "./brd.js";
 import EN from "./i18n.js";
 import PAGE from "./page.html";
 
@@ -74,7 +75,7 @@ export const FT = {
   PRIOS: ["H", "M", "L"],
   EV_STATUS: ["Perlu verifikasi", "Terverifikasi", "Ditolak"],
   BRD_STATUS: ["Draf", "Diserahkan ke IT", "Disetujui", "Dibatalkan"],
-  BRD_VERSION: "1.0 – Draft untuk direview",
+  BRD_VERSION,
 };
 // id aplikasi dicek 2026-11-06 (App Store search & Play Store); akun IG = dugaan, Pengaturan memberi tanda bila tidak ada di ci_content
 const SEED = [
@@ -352,6 +353,84 @@ export async function ftScan(env, { fetcher = fetch, stores = true } = {}) {
   return out;
 }
 
+/* ---------- BRD ---------- */
+const parseJ = (v, d) => { try { return v ? JSON.parse(v) : d; } catch { return d; } };
+async function brdInput(env, ids) {
+  const q = ids.map(() => "?").join(",");
+  const [fs, ev] = await env.DB.batch([
+    env.DB.prepare(`SELECT id, name, area, description, ikisi_status, decision, priority, notes FROM ft_features WHERE id IN (${q})`).bind(...ids),
+    env.DB.prepare(`SELECT e.feature_id, c.name AS competitor, e.source, e.url, e.text, e.launched_at FROM ft_evidence e LEFT JOIN ft_competitors c ON c.id=e.competitor_id WHERE e.status='Terverifikasi' AND e.feature_id IN (${q}) ORDER BY e.launched_at`).bind(...ids),
+  ]);
+  return { features: fs.results, evidence: ev.results };
+}
+const BRD_RULES = `Kamu Business Analyst di Divisi Digital Business PT Korea Investment and Sekuritas Indonesia (KISI), pemilik aplikasi iKISI.
+Tulis isi Business Requirements Document (BRD) untuk tim IT dalam Bahasa Indonesia baku, ringkas, dengan gaya kalimat seperti contoh: kebutuhan memakai kata "harus".
+Larangan: jangan mengarang angka bisnis, target, nama orang, tanggal, nomor dokumen, atau fakta kompetitor di luar data yang diberikan. Kalau ada yang belum pasti, jadikan Open Items.
+Jangan menulis modul Kebutuhan Data dan Integrasi atau Non-Fungsional (sudah ada sebagai kerangka tetap).
+Jawab JSON saja dengan kunci yang diminta. Bentuk: ringkasan: [paragraf]; tujuan, ruang_lingkup, keamanan, open_items: [butir]; kebutuhan: [{"modul":"Modul 1 – ...","rows":[{"pri":"H|M|L","text":"..."}]}] (H = wajib untuk go-live, M = sebaiknya ada, L = fase berikutnya);
+definisi: [{"istilah":"...","id":"penjelasan Bahasa Indonesia","en":"English"}] (istilah/teks pop-up baru fitur ini; [] bila tidak ada); kendala: [{"kendala":"...","deskripsi":"..."}]; tambahan: [{"butir":"...","alasan":"..."}]; identitas: {"nama_proyek":"..."}.`;
+// cuplikan contoh BRD (few-shot gaya bahasa)
+const BRD_EXAMPLE = `Contoh gaya (BRD Reksa Dana iKISI):
+Ringkasan Eksekutif: "Proyek ini mengimplementasikan pengalaman Reksa Dana yang telah dirancang pada desain Figma terlampir. Pengembangan ini menghadirkan (1) Product Score ... Tujuan bisnisnya adalah membantu nasabah mengambil keputusan yang lebih baik, meningkatkan tingkat konversi ..., dengan tetap patuh pada ketentuan OJK terkait pemasaran dan pengungkapan risiko."
+Modul 2 – Daftar Reksa Dana, Label Syariah, dan Pengurutan:
+BR-2.2 H "Label "Syariah" harus ditampilkan pada setiap produk yang sesuai prinsip syariah, menggunakan logo dan posisi label sesuai desain."
+BR-2.3 H "Daftar harus menyediakan "Sort by" dengan pilihan: Return 1Y, AUM, dan Product Score. Pengurutan harus diterapkan pada seluruh hasil pencarian di sisi server, tidak hanya pada halaman yang telah dimuat."
+BR-2.7 M "Daftar harus mendukung pagination atau infinite scroll dengan status loading, status kosong, dan status error dengan opsi coba lagi."`;
+const brdPrompt = (inp, brief, keys, current) => [
+  `Tulis bagian: ${keys.join(", ")}.`,
+  "Fitur yang akan dibangun di iKISI:\n" + inp.features.map((f) => `- ${f.name} [${f.area}] status iKISI: ${f.ikisi_status}; prioritas: ${f.priority || "-"}; ${f.description || ""}${f.notes ? " Catatan tim: " + f.notes : ""}`).join("\n"),
+  "Bukti di kompetitor:\n" + (inp.evidence.map((e) => `- ${e.competitor} (${e.launched_at || "-"}, ${e.source}): ${s(e.text, 600)}`).join("\n") || "-"),
+  `Arahan tim: modul iKISI terdampak: ${brief.modul || "-"}; catatan/kebutuhan khusus: ${brief.catatan || "-"}; target pengguna: ${brief.target || "-"}`,
+  current ? "Isi BRD saat ini (untuk konteks):\n" + s(JSON.stringify(current), 6000) : "",
+  BRD_EXAMPLE,
+].filter(Boolean).join("\n\n");
+async function brdRow(env, id) {
+  const r = await env.DB.prepare("SELECT * FROM ft_brds WHERE id=?").bind(s(id, 60)).first();
+  return r && { ...r, feature_ids: parseJ(r.feature_ids, []), brief: parseJ(r.brief, {}), sections: parseJ(r.sections, null) };
+}
+const saveSections = (env, me, id, sections) => env.DB.prepare("UPDATE ft_brds SET sections=?, updated_by=?, updated_at=? WHERE id=?").bind(JSON.stringify(sections), me.name, now(), id).run();
+async function createBrd(env, me, b) {
+  const title = s(b.title, 200), ids = [...new Set((Array.isArray(b.feature_ids) ? b.feature_ids : []).map((x) => s(x, 60)).filter(Boolean))].slice(0, 20);
+  if (!title) return { error: "Isi judul BRD." };
+  if (!ids.length) return { error: "Pilih minimal satu fitur." };
+  const inp = await brdInput(env, ids);
+  if (inp.features.length !== ids.length) return { error: "Ada fitur yang tidak ditemukan." };
+  const brief = { modul: s(b.brief && b.brief.modul, 300), catatan: s(b.brief && b.brief.catatan, 2000), target: s(b.brief && b.brief.target, 300) };
+  const id = uid(), t = now();
+  await env.DB.prepare("INSERT INTO ft_brds (id, title, feature_ids, brief, sections, version, status, created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'Draf', ?, ?, ?, ?)")
+    .bind(id, title, JSON.stringify(ids), JSON.stringify(brief), JSON.stringify(brdSkeleton({ title, ...inp })), BRD_VERSION, me.name, t, me.name, t).run();
+  return { id };
+}
+async function patchBrd(env, me, b) {
+  const r = await brdRow(env, b.id);
+  if (!r) return { error: "BRD tidak ditemukan.", status: 404 };
+  const set = {};
+  if (b.title !== undefined) { set.title = s(b.title, 200); if (!set.title) return { error: "Isi judul BRD." }; }
+  if (b.status !== undefined) { if (!FT.BRD_STATUS.includes(b.status)) return { error: "Status BRD tidak dikenal." }; set.status = b.status; }
+  let sec = r.sections;
+  if (b.sections !== undefined) sec = brdParse(b.sections, sec);
+  if (b.version !== undefined) { set.version = s(b.version, 80); if (!set.version) return { error: "Isi versi BRD." }; sec = { ...sec, identitas: { ...sec.identitas, versi: set.version } }; }
+  set.sections = JSON.stringify(sec);
+  const keys = Object.keys(set);
+  await env.DB.prepare(`UPDATE ft_brds SET ${keys.map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...keys.map((k) => set[k]), me.name, now(), r.id).run();
+  return { ok: true, sections: sec };
+}
+/** Draf AI: semua bagian (kerangka disegarkan dari bukti terbaru) atau satu bagian (bagian lain tidak disentuh). */
+async function draftBrd(env, me, b) {
+  const r = await brdRow(env, b.id);
+  if (!r) return { error: "BRD tidak ditemukan.", status: 404 };
+  const key = b.key ? s(b.key, 40) : "";
+  if (key && !BRD_AI_KEYS.includes(key)) return { error: "Bagian ini kerangka tetap; sunting langsung atau di Word." };
+  if (!(await aiTake(env))) return { error: "Batas AI harian tercapai. Coba lagi besok, atau sunting bagian ini langsung.", status: 429 };
+  const inp = await brdInput(env, r.feature_ids);
+  const { text } = await ai(env, BRD_RULES, brdPrompt(inp, r.brief, key ? [key] : BRD_AI_KEYS, key ? r.sections : null), key ? 2500 : 6000, undefined, { temperature: 0.3, json: true });
+  let sec;
+  if (key) { const j = parseJ(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1), {}); sec = brdParse({ [key]: j[key] }, r.sections); }
+  else sec = brdParse(text, brdSkeleton({ title: r.title, ...inp, version: r.version }));
+  await saveSections(env, me, r.id, sec);
+  return { sections: sec };
+}
+
 /** Hasil fungsi -> respons JSON (status dari { status }, atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 async function api(req, env, u, me, can) {
@@ -372,6 +451,15 @@ async function api(req, env, u, me, can) {
       return json({ evidence: ev.results });
     }
     if (path === "/api/competitors") return json({ competitors: (await env.DB.prepare("SELECT * FROM ft_competitors ORDER BY name").all()).results });
+    if (path === "/api/brds") {
+      const [bs, fs] = await env.DB.batch([env.DB.prepare("SELECT id, title, feature_ids, version, status, updated_by, updated_at FROM ft_brds ORDER BY updated_at DESC"), env.DB.prepare("SELECT id, name FROM ft_features")]);
+      const fname = Object.fromEntries(fs.results.map((f) => [f.id, f.name]));
+      return json({ brds: bs.results.map(({ feature_ids, ...x }) => ({ ...x, feature_ids: parseJ(feature_ids, []), feature_names: parseJ(feature_ids, []).map((i) => fname[i]).filter(Boolean) })) });
+    }
+    if (path.startsWith("/api/brds/")) {
+      const brd = await brdRow(env, decodeURIComponent(path.slice(10)));
+      return brd ? json({ brd }) : json({ error: "BRD tidak ditemukan." }, 404);
+    }
     if (path === "/api/scan") {
       const st = {};
       for (const src of ["ig", "appstore", "playstore"]) { try { st[src] = JSON.parse(await getMeta(env, "scan_" + src)); } catch { st[src] = null; } }
@@ -392,6 +480,12 @@ async function api(req, env, u, me, can) {
   if (m === "PATCH" && path === "/api/features") return out(await patchFeature(env, me, b));
   if (path === "/api/competitors" && m === "POST") return can("admin") ? out(await saveCompetitor(env, b)) : json({ error: "Hanya admin yang bisa mengatur kompetitor." }, 403);
   if (path === "/api/scan" && m === "POST") return can("admin") ? json(await ftScan(env)) : json({ error: "Hanya admin yang bisa menjalankan scan." }, 403);
+  if (path === "/api/brds" && m === "POST") return out(await createBrd(env, me, b));
+  if (path === "/api/brds" && m === "PATCH") return out(await patchBrd(env, me, b));
+  if (path === "/api/brds/draft" && m === "POST") {
+    try { return out(await draftBrd(env, me, b)); }
+    catch (e) { if (e instanceof AiError) return json({ error: e.message }, 502); throw e; }
+  }
   return json({ error: "Tidak ditemukan" }, 404);
 }
 
