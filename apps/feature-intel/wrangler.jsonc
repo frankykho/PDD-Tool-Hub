@@ -1,0 +1,13 @@
+// Feature Intelligence: fitur aplikasi kompetitor -> perbandingan, BRD (Word) & report (PDF). Secret: SSO_SECRET (sama dengan Tool Hub),
+// GEMINI_API_KEY / GROQ_API_KEY (opsional, gratis; dipakai sebelum Workers AI). Var opsional FT_AI_DAILY = batas panggilan AI per hari (bawaan 30).
+// DB = insight-db (dipakai bersama karena akun gratis maks. 10 database D1; tabel berawalan ft_).
+{
+  "name": "feature-intel",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "triggers": { "crons": [] },  // dijadwalkan oleh apps/cron (Minggu :00/:30 UTC)
+  // aset statis (publik, tanpa login): logo report, template BRD, pengisi .docx
+  "assets": { "directory": "./assets" },
+  "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }],
+  "ai": { "binding": "AI" }
+}

@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Feature Intelligence</title>
+<style>
+:root{
+  --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;--bad:#b42318;--warn:#8a5a00;--warn2:#fff4dc;
+  --r:12px;--font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512;--card:#17201b;--line:#29352e;--t:#e8efe9;--t2:#a3b0a8;--g:#4fc285;--g2:#1d3327;--bad:#ef6b5e;--warn:#f0c66b;--warn2:#3a2f15;color-scheme:dark
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:var(--g)}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.2px}
+h2{font-size:16px;margin:0 0 12px;font-weight:800}
+h3{font-size:14px;margin:14px 0 6px;font-weight:700}
+.sp{flex:1}
+.muted{color:var(--t2)}
+.small{font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;white-space:nowrap;color:var(--t);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn.bad{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:default}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tab{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600;white-space:nowrap;min-height:40px}
+.tab[aria-selected="true"]{background:var(--g);border-color:var(--g);color:#fff}
+.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.cols>*,.ev>*{min-width:0}
+.cols{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:grid;gap:4px;font-weight:600;font-size:13px}
+input,select,textarea{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;min-height:40px;width:100%}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;background:var(--g2);color:var(--g)}
+.pill.warn{background:var(--warn2);color:var(--warn)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--t2);font-weight:700}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--g2)}
+.yes{color:var(--g);font-weight:700;white-space:nowrap}
+#cmp td:first-child{min-width:150px}
+.no{color:var(--t2)}
+.ev{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px}
+.evtext{white-space:pre-wrap;max-height:9em;overflow:auto;background:var(--bg);border-radius:8px;padding:8px;font-size:13px}
+.msg{padding:10px 12px;border-radius:10px;background:var(--g2)}
+.msg.err{background:#fde8e6;color:var(--bad)}
+:root[data-theme="dark"] .msg.err{background:#3a1d1a}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--t);max-width:760px;width:calc(100% - 32px);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.sec{border-top:1px solid var(--line);padding-top:10px}
+#print{display:none}
+@media print{
+  body{background:#fff;color:#111}
+  .wrap{display:none!important}
+  #print{display:block;padding:0 4mm;font:11pt/1.45 Arial,sans-serif;color:#111}
+  #print h1{font-size:18pt;margin:6mm 0 1mm}
+  #print h2{font-size:13pt;margin:6mm 0 2mm;color:#1f5a3c}
+  #print table{font-size:9.5pt;page-break-inside:auto}
+  #print tr{page-break-inside:avoid}
+  #print th{color:#333;background:#eef5f0}
+  #print .logo{height:15mm}
+  @page{size:A4;margin:14mm}
+}
+@media (max-width:600px){.bar h1{font-size:18px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h1>Feature Intelligence</h1>
+    <span class="muted small" id="who" translate="no"></span>
+    <span class="sp"></span>
+    <button class="btn" id="guideBtn" type="button">? Panduan</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Halaman">
+    <button class="tab" role="tab" data-tab="temuan">Temuan <span id="nPending"></span></button>
+    <button class="tab" role="tab" data-tab="banding">Perbandingan</button>
+    <button class="tab" role="tab" data-tab="brd">BRD</button>
+    <button class="tab ed" role="tab" data-tab="report">Report</button>
+    <button class="tab adm" role="tab" data-tab="atur">Pengaturan</button>
+  </nav>
+  <div id="flash" role="status" aria-live="polite"></div>
+
+  <!-- TEMUAN -->
+  <section id="p-temuan" class="grid" hidden>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Temuan yang perlu diverifikasi</h2><span class="sp"></span><button class="btn pri ed" id="addManual" type="button">+ Tambah manual</button></div>
+      <p class="muted small">Dari caption Instagram kompetitor, catatan rilis App Store, dan Play Store. Gabungkan ke fitur yang sudah ada, jadikan fitur baru, atau tolak kalau bukan fitur.</p>
+      <div id="evList" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- PERBANDINGAN -->
+  <section id="p-banding" class="grid" hidden>
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0">Perbandingan fitur</h2><span class="sp"></span>
+        <label>Area<select id="fArea"><option value="">Semua</option></select></label>
+        <label>Keputusan<select id="fDec"><option value="">Semua</option></select></label>
+        <label>Prioritas<select id="fPri"><option value="">Semua</option></select></label>
+      </div>
+      <div class="scroll" style="margin-top:12px"><table id="cmp"></table></div>
+      <p class="muted small">✓ = kompetitor sudah punya (tanggal peluncuran paling awal). Klik baris untuk detail, keputusan, dan Buat BRD.</p>
+    </div>
+  </section>
+
+  <!-- BRD -->
+  <section id="p-brd" class="grid" hidden>
+    <div class="card" id="brdListCard">
+      <div class="row"><h2 style="margin:0">BRD</h2><span class="sp"></span><button class="btn pri ed" id="newBrd" type="button">+ BRD baru</button></div>
+      <div class="scroll" style="margin-top:12px"><table id="brdList"></table></div>
+    </div>
+    <div class="card" id="brdEdit" hidden></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="p-report" class="grid" hidden>
+    <div class="card grid">
+      <h2 style="margin:0">Report untuk management</h2>
+      <div class="row">
+        <label>Dari<input type="date" id="rFrom"></label>
+        <label>Sampai<input type="date" id="rTo"></label>
+        <button class="btn" id="rLoad" type="button" style="align-self:end">Tampilkan</button>
+      </div>
+      <div id="rBody"></div>
+    </div>
+  </section>
+
+  <!-- PENGATURAN -->
+  <section id="p-atur" class="grid" hidden>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Scan otomatis</h2><span class="sp"></span><button class="btn pri" id="scanNow" type="button">Scan sekarang</button></div>
+      <p class="muted small">Berjalan otomatis tiap Minggu pukul 08.00 WIB. Caption Instagram dibaca dari Content Insight; App Store dan Play Store dibaca langsung.</p>
+      <div id="scanSt"></div>
+    </div>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Kompetitor</h2><span class="sp"></span><button class="btn" id="addComp" type="button">+ Tambah kompetitor</button></div>
+      <div class="scroll"><table id="compTbl"></table></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="print"></div>
+
+<script>
+const C = window.FT, me = C.me, ED = me.role !== "viewer", ADM = me.role === "admin";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const T = (s) => (window.hubT ? window.hubT(s) : s);
+const opt = (vals, cur, blank) => (blank != null ? `<option value="">${esc(blank)}</option>` : "") + vals.map((v) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
+const SRC = { ig: "Instagram", appstore: "App Store", playstore: "Play Store", manual: "Isian tim" };
+async function api(path, method, body) {
+  const r = await fetch(path, body !== undefined ? { method: method || "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
+  const j = await r.json().catch(() => ({ error: "Respons tidak terbaca (HTTP " + r.status + ")" }));
+  if (!r.ok) throw new Error(j.error || "Gagal (HTTP " + r.status + ")");
+  return j;
+}
+function flash(text, err) {
+  $("flash").innerHTML = text ? `<div class="msg${err ? " err" : ""}">${esc(text)}</div>` : "";
+  if (text && !err) setTimeout(() => { if ($("flash").textContent === text) flash(""); }, 4000);
+}
+const busy = async (btn, fn) => { btn.disabled = true; try { await fn(); } catch (e) { flash(e.message, true); } finally { btn.disabled = false; } };
+
+$("who").textContent = me.name + " · " + ({ admin: "Admin", editor: "Editor", viewer: "Lihat saja" })[me.role];
+document.querySelectorAll(".ed").forEach((x) => (x.hidden = !ED));
+document.querySelectorAll(".adm").forEach((x) => (x.hidden = !ADM));
+$("guideBtn").onclick = () => parent.postMessage({ type: "toolhub-guide" }, "*");
+
+/* ---------- tab ---------- */
+const LOAD = { temuan: loadEvidence, banding: loadFeatures, brd: loadBrds, report: () => (REP ? Promise.resolve() : loadReport()), atur: loadSettings };
+function show(tab) {
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  document.querySelectorAll("section[id^=p-]").forEach((s) => (s.hidden = s.id !== "p-" + tab));
+  try { localStorage.setItem("ft_tab", tab); } catch {}
+  LOAD[tab]().catch((e) => flash(e.message, true));
+}
+document.querySelectorAll(".tab").forEach((b) => (b.onclick = () => show(b.dataset.tab)));
+
+/* ---------- data bersama ---------- */
+let FEATURES = [], COMPS = [];
+async function refreshFeatures(q = "") { const j = await api("/api/features" + q); if (!q) FEATURES = j.features; COMPS = j.competitors; return j; }
+
+/* ---------- Temuan ---------- */
+async function loadEvidence() {
+  const [{ evidence }] = await Promise.all([api("/api/evidence?status=" + encodeURIComponent("Perlu verifikasi")), refreshFeatures()]);
+  $("nPending").textContent = evidence.length ? "(" + evidence.length + ")" : "";
+  $("evList").innerHTML = evidence.length ? evidence.map(evCard).join("") : `<p class="muted">Tidak ada temuan yang menunggu. Temuan baru masuk setiap Minggu pagi, atau lewat Scan sekarang.</p>`;
+  $("evList").querySelectorAll("[data-ev]").forEach(wireEv);
+}
+function evCard(e) {
+  const s = (() => { try { return JSON.parse(e.ai_json || "{}"); } catch { return {}; } })();
+  const merge = s.merge_id && FEATURES.some((f) => f.id === s.merge_id);
+  return `<div class="ev" data-ev="${esc(e.id)}">
+    <div class="row"><b translate="no">${esc(e.competitor || e.competitor_id)}</b><span class="pill">${esc(SRC[e.source] || e.source)}</span>
+      <span class="muted small">${esc(e.launched_at || "")}</span><span class="sp"></span>${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">Buka sumber</a>` : ""}</div>
+    ${s.name ? `<div><span class="muted small">Usulan AI:</span> <b translate="no">${esc(s.name)}</b> · ${esc(s.area || "")}<div class="small" translate="no">${esc(s.description || "")}</div></div>` : ""}
+    <div class="evtext" translate="no">${esc(e.text || "")}</div>
+    ${ED ? `<div class="cols">
+      <label>Tindakan<select data-k="action"><option value="new"${merge ? "" : " selected"}>Jadikan fitur baru</option><option value="merge"${merge ? " selected" : ""}>Gabung ke fitur yang ada</option></select></label>
+      <label data-for="merge">Fitur<select data-k="feature_id">${FEATURES.map((f) => `<option value="${esc(f.id)}"${f.id === s.merge_id ? " selected" : ""}>${esc(f.name)}</option>`).join("")}</select></label>
+      <label data-for="new">Nama fitur<input data-k="name" value="${esc(s.name || "")}" maxlength="160"></label>
+      <label data-for="new">Area<select data-k="area">${opt(C.AREAS, s.area || "Lainnya")}</select></label>
+      <label>Tanggal peluncuran<input type="date" data-k="launched_at" value="${esc(e.launched_at || "")}" required></label>
+    </div>
+    <label data-for="new">Deskripsi<textarea data-k="description" maxlength="2000">${esc(s.description || "")}</textarea></label>
+    <div class="row"><button class="btn pri" data-do="ok" type="button">Setujui</button><button class="btn bad" data-do="reject" type="button">Tolak</button></div>` : ""}
+  </div>`;
+}
+function wireEv(el) {
+  if (!ED) return;
+  const v = (k) => el.querySelector(`[data-k="${k}"]`);
+  const sync = () => el.querySelectorAll("[data-for]").forEach((x) => (x.hidden = x.dataset.for !== v("action").value));
+  if (!FEATURES.length) { v("action").value = "new"; v("action").querySelector('[value="merge"]').disabled = true; }
+  v("action").onchange = sync; sync();
+  el.querySelector('[data-do="ok"]').onclick = (ev) => busy(ev.target, async () => {
+    const b = { id: el.dataset.ev, action: v("action").value, launched_at: v("launched_at").value, feature_id: v("feature_id").value, name: v("name").value, area: v("area").value, description: v("description").value };
+    if (!b.launched_at) throw new Error("Isi tanggal peluncuran.");
+    await api("/api/evidence/verify", "POST", b); flash("Temuan disetujui."); await loadEvidence();
+  });
+  el.querySelector('[data-do="reject"]').onclick = (ev) => busy(ev.target, async () => { if (!confirm(T("Tolak temuan ini? Temuan yang ditolak tidak bisa dikembalikan."))) return; await api("/api/evidence/verify", "POST", { id: el.dataset.ev, action: "reject" }); flash("Temuan ditolak."); await loadEvidence(); });
+}
+// screenshot dikompres di browser (maks. lebar 1400 px, WebP/JPEG) supaya di bawah 700 KB
+async function compress(file) {
+  const img = await createImageBitmap(file), w = Math.min(1400, img.width), h = Math.round(img.height * w / img.width);
+  const c = Object.assign(document.createElement("canvas"), { width: w, height: h }); c.getContext("2d").drawImage(img, 0, 0, w, h);
+  for (const q of [0.85, 0.7, 0.55, 0.4]) { const d = c.toDataURL("image/webp", q); if (d.length < 700 * 1024) return d.startsWith("data:image/webp") ? d : c.toDataURL("image/jpeg", q); }
+  throw new Error("Screenshot terlalu besar; potong dulu bagian yang penting.");
+}
+$("addManual").onclick = async () => {
+  if (!COMPS.length) await refreshFeatures();
+  const d = $("dlg");
+  d.innerHTML = `<h2>Tambah fitur manual</h2><div class="grid">
+    <div class="cols"><label>Kompetitor<select id="mC">${COMPS.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label>
+    <label>Fitur<select id="mF"><option value="">Fitur baru</option>${FEATURES.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join("")}</select></label>
+    <label>Tanggal peluncuran<input type="date" id="mD" required></label></div>
+    <div class="cols" id="mNew"><label>Nama fitur<input id="mN" maxlength="160" required></label><label>Area<select id="mA">${opt(C.AREAS, "Lainnya")}</select></label></div>
+    <label id="mDescL">Deskripsi<textarea id="mDesc" maxlength="2000"></textarea></label>
+    <label>Link sumber<input id="mU" type="url" placeholder="https://…"></label>
+    <label>Screenshot (kalau tidak ada link)<input id="mI" type="file" accept="image/*"></label>
+    <div class="row"><button class="btn pri" id="mSave" type="button">Simpan</button><button class="btn" id="mX" type="button">Batal</button></div></div>`;
+  d.showModal();
+  $("mX").onclick = () => d.close();
+  // fitur yang sudah tercatat: cukup tambah bukti kompetitor ini, tidak membuat baris ganda di Perbandingan
+  $("mF").onchange = () => { $("mNew").hidden = $("mDescL").hidden = !!$("mF").value; };
+  $("mSave").onclick = (ev) => busy(ev.target, async () => {
+    const f = $("mI").files[0], b = { competitor_id: $("mC").value, launched_at: $("mD").value, url: $("mU").value.trim() };
+    if ($("mF").value) b.feature_id = $("mF").value; else Object.assign(b, { name: $("mN").value, area: $("mA").value, description: $("mDesc").value });
+    if (f) b.image_data = await compress(f);
+    await api("/api/evidence", "POST", b); d.close(); flash("Fitur tersimpan."); await refreshFeatures();
+  });
+};
+
+/* ---------- Perbandingan ---------- */
+$("fArea").innerHTML += opt(C.AREAS); $("fDec").innerHTML += opt(C.DECISIONS); $("fPri").innerHTML += opt(C.PRIOS);
+["fArea", "fDec", "fPri"].forEach((id) => ($(id).onchange = () => loadFeatures().catch((e) => flash(e.message, true))));
+async function loadFeatures() {
+  const q = new URLSearchParams(Object.entries({ area: $("fArea").value, decision: $("fDec").value, priority: $("fPri").value }).filter(([, v]) => v));
+  const j = await refreshFeatures(q.toString() ? "?" + q : "");
+  const cs = j.competitors, by = {};
+  for (const f of j.features) (by[f.area || "Lainnya"] ||= []).push(f);
+  $("cmp").innerHTML = `<thead><tr><th>Fitur</th>${cs.map((c) => `<th translate="no">${esc(c.name)}</th>`).join("")}<th>iKISI</th><th>Keputusan</th><th>Prioritas</th></tr></thead>` +
+    (j.features.length ? Object.keys(by).map((a) => `<tbody><tr><th colspan="${cs.length + 4}">${esc(a)}</th></tr>${by[a].map((f) => `<tr class="click" tabindex="0" data-f="${esc(f.id)}">
+      <td translate="no"><b>${esc(f.name)}</b></td>${cs.map((c) => f.has[c.id] ? `<td class="yes">✓ <span class="small">${esc(f.has[c.id])}</span></td>` : `<td class="no">—</td>`).join("")}
+      <td>${esc(f.ikisi_status)}</td><td>${esc(f.decision || "—")}</td><td>${esc(f.priority || "—")}</td></tr>`).join("")}</tbody>`).join("")
+      : `<tbody><tr><td colspan="${cs.length + 4}" class="muted">Belum ada fitur. Setujui temuan atau tambah manual.</td></tr></tbody>`);
+  $("cmp").querySelectorAll("[data-f]").forEach((tr) => { tr.onclick = () => openFeature(tr.dataset.f); tr.onkeydown = (e) => { if (e.key === "Enter") openFeature(tr.dataset.f); }; });
+}
+async function openFeature(id) {
+  const { feature: f, evidence } = await api("/api/features/" + encodeURIComponent(id)), d = $("dlg"), dis = ED ? "" : " disabled";
+  d.innerHTML = `<h2 translate="no">${esc(f.name)}</h2><p class="muted small">${esc(f.area || "")}</p><p translate="no">${esc(f.description || "")}</p>
+    <h3>Bukti di kompetitor</h3>${evidence.map((e) => `<div class="small"><b translate="no">${esc(e.competitor)}</b> · ${esc(SRC[e.source] || e.source)} · ${esc(e.launched_at || "")}
+      ${e.url ? ` · <a href="${esc(e.url)}" target="_blank" rel="noopener">sumber</a>` : ""}${e.image_data ? `<div><img src="${esc(e.image_data)}" alt="Screenshot bukti" style="max-width:100%;max-height:240px;border-radius:8px"></div>` : ""}</div>`).join("") || `<p class="muted">Belum ada bukti terverifikasi.</p>`}
+    <div class="cols" style="margin-top:12px"><label>Status iKISI<select id="dS"${dis}>${opt(C.IKISI, f.ikisi_status)}</select></label>
+      <label>Keputusan<select id="dD"${dis}>${opt(C.DECISIONS, f.decision || "", "—")}</select></label>
+      <label>Prioritas<select id="dP"${dis}>${opt(C.PRIOS, f.priority || "", "—")}</select></label></div>
+    <label style="margin-top:8px">Catatan<textarea id="dN"${dis}>${esc(f.notes || "")}</textarea></label>
+    <div class="row" style="margin-top:12px">${ED ? `<button class="btn pri" id="dSave" type="button">Simpan</button><button class="btn" id="dBrd" type="button">Buat BRD</button>` : ""}<button class="btn" id="dX" type="button">Tutup</button></div>`;
+  d.showModal();
+  $("dX").onclick = () => d.close();
+  if (!ED) return;
+  $("dSave").onclick = (ev) => busy(ev.target, async () => {
+    await api("/api/features", "PATCH", { id, ikisi_status: $("dS").value, decision: $("dD").value, priority: $("dP").value, notes: $("dN").value });
+    d.close(); flash("Tersimpan."); await loadFeatures();
+  });
+  $("dBrd").onclick = () => { d.close(); show("brd"); newBrdForm([id], f.name); };
+}
+
+/* ---------- BRD ---------- */
+const SEC = { ringkasan: "Ringkasan Eksekutif", tujuan: "Tujuan Proyek", ruang_lingkup: "Ruang Lingkup Proyek", kebutuhan: "Kebutuhan Bisnis", definisi: "Definisi Metrik dan Isi Pop-up Informasi",
+  keamanan: "Kebutuhan Keamanan", pemangku: "Pemangku Kepentingan Utama", kendala: "Kendala Proyek", tambahan: "Hal Tambahan yang Direkomendasikan untuk Dilengkapi", jadwal: "Jadwal",
+  open_items: "Hal yang Masih Perlu Dikonfirmasi (Open Items)", lampiran: "Lampiran" };
+const LOCKED = ["pemangku", "jadwal", "lampiran"];
+const LINES = ["ringkasan", "tujuan", "ruang_lingkup", "keamanan", "open_items"];
+const PIPE = { definisi: ["istilah", "id", "en"], kendala: ["kendala", "deskripsi"], tambahan: ["butir", "alasan"] };
+async function loadBrds() {
+  $("brdEdit").hidden = true; $("brdListCard").hidden = false;
+  const { brds } = await api("/api/brds");
+  $("brdList").innerHTML = `<thead><tr><th>Judul</th><th>Fitur</th><th>Versi</th><th>Status</th><th>Diubah</th></tr></thead><tbody>` +
+    (brds.map((b) => `<tr class="click" tabindex="0" data-b="${esc(b.id)}"><td translate="no"><b>${esc(b.title)}</b></td><td translate="no">${esc(b.feature_names.join(", "))}</td><td translate="no">${esc(b.version)}</td>
+      <td><span class="pill">${esc(b.status)}</span></td><td class="small">${esc((b.updated_at || "").slice(0, 10))} · <span translate="no">${esc(b.updated_by || "")}</span></td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">Belum ada BRD. Buat dari tab Perbandingan (Buat BRD) atau + BRD baru.</td></tr>`) + "</tbody>";
+  $("brdList").querySelectorAll("[data-b]").forEach((tr) => { tr.onclick = () => openBrd(tr.dataset.b); tr.onkeydown = (e) => { if (e.key === "Enter") openBrd(tr.dataset.b); }; });
+}
+$("newBrd").onclick = async () => { if (!FEATURES.length) await refreshFeatures(); newBrdForm([], ""); };
+function newBrdForm(pre, title) {
+  const d = $("dlg");
+  d.innerHTML = `<h2>BRD baru</h2><div class="grid"><label>Judul / nama proyek<input id="bT" value="${esc(title)}" maxlength="200"></label>
+    <fieldset style="border:1px solid var(--line);border-radius:10px"><legend>Fitur</legend>${FEATURES.map((f) => `<label style="display:flex;gap:8px;font-weight:400"><input type="checkbox" value="${esc(f.id)}" style="width:auto;min-height:0"${pre.includes(f.id) ? " checked" : ""}> <span translate="no">${esc(f.name)}</span></label>`).join("") || `<span class="muted">Belum ada fitur.</span>`}</fieldset>
+    <label>Modul aplikasi iKISI yang terdampak<input id="bM" maxlength="300" placeholder="mis. Reksa Dana › Subscription"></label>
+    <label>Catatan / kebutuhan khusus<textarea id="bC" maxlength="2000"></textarea></label>
+    <label>Target pengguna<input id="bG" maxlength="300" placeholder="mis. nasabah ritel reksa dana"></label>
+    <div class="row"><button class="btn pri" id="bOk" type="button">Buat</button><button class="btn" id="bX" type="button">Batal</button></div></div>`;
+  d.showModal();
+  $("bX").onclick = () => d.close();
+  $("bOk").onclick = (ev) => busy(ev.target, async () => {
+    const ids = [...d.querySelectorAll("fieldset input:checked")].map((x) => x.value);
+    const { id } = await api("/api/brds", "POST", { title: $("bT").value, feature_ids: ids, brief: { modul: $("bM").value, catatan: $("bC").value, target: $("bG").value } });
+    d.close(); await openBrd(id);
+  });
+}
+let BRD = null;
+const toText = (k, v) => LINES.includes(k) ? v.join("\n") : PIPE[k] ? v.map((r) => PIPE[k].map((c) => r[c]).join(" | ")).join("\n")
+  : k === "kebutuhan" ? v.filter((m) => !m.tetap).map((m) => "## " + m.modul + "\n" + m.rows.map((r) => r.pri + " | " + r.text).join("\n")).join("\n\n") : "";
+function fromText(k, t) {
+  const ls = t.split("\n").map((x) => x.trim()).filter(Boolean);
+  if (LINES.includes(k)) return ls;
+  if (PIPE[k]) return ls.map((l) => { const p = l.split("|").map((x) => x.trim()); return Object.fromEntries(PIPE[k].map((c, i) => [c, i === PIPE[k].length - 1 ? p.slice(i).join(" | ") : p[i] || ""])); });
+  const mods = [];
+  for (const l of ls) {
+    if (l.startsWith("##")) mods.push({ modul: l.replace(/^#+\s*/, ""), rows: [] });
+    else { if (!mods.length) mods.push({ modul: "Modul 1", rows: [] }); const m = l.match(/^([HML])\s*\|\s*(.+)$/); mods.at(-1).rows.push(m ? { pri: m[1], text: m[2] } : { pri: "M", text: l }); }
+  }
+  return mods;
+}
+function lockedView(k, v) {
+  if (k === "pemangku") return v.map((p) => `<div class="small">${esc(p.jabatan)} — ${esc(p.tugas)}</div>`).join("");
+  if (k === "jadwal") return v.map((j) => `<div class="small">${esc(j.fase)}. ${esc(j.aktivitas)} · durasi & target: ___</div>`).join("");
+  return v.map((x) => `<div class="small" translate="no">${esc(x)}</div>`).join("");
+}
+async function openBrd(id) {
+  BRD = (await api("/api/brds/" + encodeURIComponent(id))).brd;
+  $("brdListCard").hidden = true; const el = $("brdEdit"); el.hidden = false;
+  const S = BRD.sections, ro = ED ? "" : " readonly";
+  el.innerHTML = `<div class="row"><button class="btn" id="eBack" type="button">← Daftar BRD</button><span class="sp"></span>
+      ${ED ? `<button class="btn" id="eAi" type="button">Susun draf dengan AI</button><button class="btn" id="eSave" type="button">Simpan</button>` : ""}<button class="btn pri" id="eWord" type="button">Unduh Word</button></div>
+    <div class="cols" style="margin-top:12px"><label>Judul<input id="eT" value="${esc(BRD.title)}"${ro}></label><label>Versi<input id="eV" value="${esc(BRD.version)}"${ro}></label>
+      <label>Status<select id="eS"${ED ? "" : " disabled"}>${opt(C.BRD_STATUS, BRD.status)}</select></label></div>
+    <p class="muted small">No. Dokumen, tanggal, nama pemangku kepentingan, durasi & target jadwal, dan tanda tangan sengaja dikosongkan (___), diisi di Word. Bagian bertanda 🔒 adalah kerangka tetap.</p>
+    <div class="small"><b>Nama proyek:</b> <span translate="no">${esc(S.identitas.nama_proyek)}</span> · <b>No. Dokumen:</b> ${esc(S.identitas.no_dokumen)}</div>
+    ${Object.keys(SEC).map((k) => `<div class="sec" data-sec="${k}"><div class="row"><h3>${LOCKED.includes(k) ? "🔒 " : ""}${esc(SEC[k])}</h3><span class="sp"></span>
+      ${ED && !LOCKED.includes(k) ? `<button class="btn small" data-ai="${k}" type="button">Tulis ulang dengan AI</button>` : ""}</div>
+      ${LOCKED.includes(k) ? lockedView(k, S[k]) : `<textarea data-t="${k}" rows="${k === "kebutuhan" ? 12 : 5}"${ro} translate="no">${esc(toText(k, S[k]))}</textarea>
+      <div class="muted small">${LINES.includes(k) ? "Satu butir per baris." : PIPE[k] ? "Satu baris per isi, kolom dipisah | (" + PIPE[k].join(" | ") + ")." : "Judul modul diawali ##, lalu tiap baris: H/M/L | deskripsi kebutuhan. Modul Data & Integrasi dan Non-Fungsional ditambahkan otomatis."}</div>`}</div>`).join("")}`;
+  $("eBack").onclick = () => loadBrds().catch((e) => flash(e.message, true));
+  $("eWord").onclick = (ev) => busy(ev.target, downloadWord);
+  if (!ED) return;
+  const collect = () => Object.fromEntries([...el.querySelectorAll("[data-t]")].map((t) => [t.dataset.t, fromText(t.dataset.t, t.value)]));
+  $("eSave").onclick = (ev) => busy(ev.target, async () => {
+    const r = await api("/api/brds", "PATCH", { id: BRD.id, title: $("eT").value, version: $("eV").value, status: $("eS").value, sections: collect() });
+    flash("BRD tersimpan."); BRD.sections = r.sections; await openBrd(BRD.id);
+  });
+  $("eAi").onclick = (ev) => busy(ev.target, async () => {
+    if (!confirm(T("Susun ulang semua bagian dengan AI? Isi bagian yang bisa ditulis AI akan diganti."))) return;
+    flash("AI sedang menyusun draf… bisa sampai 1 menit."); await api("/api/brds/draft", "POST", { id: BRD.id }); flash("Draf AI selesai. Periksa dan sunting sebelum diunduh."); await openBrd(BRD.id);
+  });
+  el.querySelectorAll("[data-ai]").forEach((b) => (b.onclick = (ev) => busy(ev.target, async () => {
+    const r = await api("/api/brds/draft", "POST", { id: BRD.id, key: b.dataset.ai });
+    el.querySelector(`[data-t="${b.dataset.ai}"]`).value = toText(b.dataset.ai, r.sections[b.dataset.ai]); BRD.sections = r.sections; flash("Bagian ditulis ulang dan tersimpan.");
+  })));
+}
+async function downloadWord() {
+  const [{ brdDocx }, tpl] = await Promise.all([import("/brd-docx.js"), fetch("/brd-template.docx").then((r) => { if (!r.ok) throw new Error("Template BRD gagal dimuat."); return r.arrayBuffer(); })]);
+  const bytes = await brdDocx(new Uint8Array(tpl), BRD.sections);
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })),
+    download: `BRD_${BRD.title.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_")}_v${BRD.version.split(/\s/)[0]}.docx` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ---------- Report ---------- */
+let REP = null;
+$("rLoad").onclick = (ev) => busy(ev.target, loadReport);
+async function loadReport() {
+  const q = new URLSearchParams(Object.entries({ from: $("rFrom").value, to: $("rTo").value }).filter(([, v]) => v));
+  REP = await api("/api/report" + (q.toString() ? "?" + q : ""));
+  $("rFrom").value = REP.from; $("rTo").value = REP.to;
+  const ids = new Set([...REP.launched.map((x) => x.feature_id), ...REP.pursued.map((x) => x.feature_id)]);
+  $("rBody").innerHTML = `<p class="muted small">${REP.launched.length} peluncuran kompetitor dalam periode · ${REP.pursued.length} fitur diusulkan dikejar.</p>
+    <fieldset style="border:1px solid var(--line);border-radius:10px"><legend>Fitur yang dibahas</legend>${REP.features.map((f) => `<label style="display:flex;gap:8px;font-weight:400"><input type="checkbox" value="${esc(f.id)}" style="width:auto;min-height:0"${ids.has(f.id) ? " checked" : ""}> <span translate="no">${esc(f.name)}</span></label>`).join("") || `<span class="muted">Belum ada fitur.</span>`}</fieldset>
+    <label style="margin-top:10px">Ringkasan untuk management<textarea id="rSum" rows="7" translate="no" placeholder="Tulis sendiri, atau klik Tulis ringkasan dengan AI."></textarea></label>
+    <div class="row" style="margin-top:10px"><button class="btn" id="rAi" type="button">Tulis ringkasan dengan AI</button><button class="btn pri" id="rPdf" type="button">Simpan PDF</button></div>`;
+  const picked = () => [...$("rBody").querySelectorAll("fieldset input:checked")].map((x) => x.value);
+  $("rAi").onclick = (ev) => busy(ev.target, async () => { $("rSum").value = (await api("/api/report/summary", "POST", { from: REP.from, to: REP.to, feature_ids: picked() })).text; });
+  $("rPdf").onclick = () => { printReport(new Set(picked()), $("rSum").value); window.print(); };
+}
+const dmy = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "";
+function printReport(sel, summary) {
+  const has = (id) => !sel.size || sel.has(id), cs = REP.competitors;
+  const fs = REP.features.filter((f) => has(f.id)), L = REP.launched.filter((x) => has(x.feature_id)), P = REP.pursued.filter((x) => has(x.feature_id));
+  $("print").innerHTML = `<img class="logo" src="/brand/ikisi-color.png" alt="iKISI">
+    <h1>Laporan Fitur Aplikasi Kompetitor</h1><div>Periode ${esc(dmy(REP.from))} – ${esc(dmy(REP.to))} · dibuat ${esc(dmy(new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10)))} oleh ${esc(me.name)}</div>
+    ${summary.trim() ? `<h2>Ringkasan</h2>${summary.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("")}` : ""}
+    <h2>Fitur baru kompetitor dalam periode</h2>${L.length ? `<table><tr><th>Tanggal</th><th>Kompetitor</th><th>Fitur</th><th>Area</th><th>Sumber</th></tr>${L.map((x) => `<tr><td>${esc(x.launched_at)}</td><td>${esc(x.competitor)}</td><td>${esc(x.feature)}</td><td>${esc(x.area || "")}</td><td>${x.url ? `<a href="${esc(x.url)}">${esc(SRC[x.source] || x.source)}</a>` : esc(SRC[x.source] || x.source)}</td></tr>`).join("")}</table>` : "<p>Tidak ada peluncuran tercatat dalam periode ini.</p>"}
+    <h2>Perbandingan dengan iKISI</h2><table><tr><th>Fitur</th>${cs.map((c) => `<th>${esc(c.name)}</th>`).join("")}<th>iKISI</th><th>Keputusan</th></tr>${fs.map((f) => `<tr><td>${esc(f.name)}</td>${cs.map((c) => `<td>${f.has[c.id] ? "✓ " + esc(f.has[c.id]) : "—"}</td>`).join("")}<td>${esc(f.ikisi_status)}</td><td>${esc(f.decision || "—")}</td></tr>`).join("")}</table>
+    <h2>Fitur yang diusulkan dikejar</h2>${P.length ? `<table><tr><th>Fitur</th><th>Prioritas</th><th>Status iKISI</th><th>BRD</th></tr>${P.map((x) => `<tr><td>${esc(x.feature)}</td><td>${esc(x.priority || "—")}</td><td>${esc(x.ikisi_status)}</td><td>${x.brd ? esc(x.brd.title + " (" + x.brd.status + ", v" + x.brd.version + ")") : "Belum ada"}</td></tr>`).join("")}</table>` : "<p>Belum ada fitur yang diputuskan untuk dikejar.</p>"}
+    <h2>Sumber data</h2><p style="font-size:9.5pt">Caption Instagram resmi kompetitor (dikumpulkan Content Insight), catatan rilis App Store dan Play Store, serta isian tim produk. Semua temuan otomatis diverifikasi tim sebelum masuk laporan. Tanggal = tanggal peluncuran yang tercatat.</p>`;
+}
+
+/* ---------- Pengaturan ---------- */
+async function loadSettings() {
+  const [st, { competitors }] = await Promise.all([api("/api/scan"), api("/api/competitors")]);
+  const line = (k, label) => { const x = st[k]; return `<div>${esc(label)}: ${x ? `${esc(new Date(x.at).toLocaleString("id-ID"))} · ${x.n} temuan baru${x.error ? ` · <span style="color:var(--bad)">${esc(x.error)}</span>` : ""}` : `<span class="muted">belum pernah</span>`}</div>`; };
+  $("scanSt").innerHTML = line("ig", "Instagram") + line("appstore", "App Store") + line("playstore", "Play Store") +
+    (st.ig_missing && st.ig_missing.length ? `<div class="msg" style="margin-top:8px;background:var(--warn2);color:var(--warn)">Akun Instagram ini belum pernah muncul di data Content Insight: <span translate="no">${esc(st.ig_missing.join(", "))}</span>. Cek ejaan akun di bawah, atau minta admin Content Insight memantaunya.</div>` : "");
+  const row = (c) => `<tr data-c="${esc(c.id || "")}"><td><input data-k="name" value="${esc(c.name || "")}" aria-label="Nama"></td><td><input data-k="play_id" value="${esc(c.play_id || "")}" aria-label="Id Play Store" placeholder="com.contoh.app"></td>
+    <td><input data-k="appstore_id" value="${esc(c.appstore_id || "")}" aria-label="Id App Store" placeholder="1234567890"></td><td><input data-k="ig_account" value="${esc(c.ig_account || "")}" aria-label="Akun Instagram" placeholder="akun"></td>
+    <td><input type="checkbox" data-k="enabled" style="width:auto;min-height:0"${c.enabled === 0 ? "" : " checked"} aria-label="Aktif"></td><td><button class="btn" data-save type="button">Simpan</button></td></tr>`;
+  $("compTbl").innerHTML = `<thead><tr><th>Nama</th><th>Id Play Store</th><th>Id App Store</th><th>Akun Instagram</th><th>Aktif</th><th></th></tr></thead><tbody>${competitors.map(row).join("")}</tbody>`;
+  const wire = (tr) => (tr.querySelector("[data-save]").onclick = (ev) => busy(ev.target, async () => {
+    const v = (k) => tr.querySelector(`[data-k="${k}"]`);
+    await api("/api/competitors", "POST", { id: tr.dataset.c || undefined, name: v("name").value, play_id: v("play_id").value, appstore_id: v("appstore_id").value, ig_account: v("ig_account").value, enabled: v("enabled").checked ? 1 : 0 });
+    flash("Kompetitor tersimpan."); await loadSettings();
+  }));
+  $("compTbl").querySelectorAll("tbody tr").forEach(wire);
+  $("addComp").onclick = () => { $("compTbl").querySelector("tbody").insertAdjacentHTML("beforeend", row({})); wire($("compTbl").querySelector("tbody tr:last-child")); };
+}
+$("scanNow").onclick = (ev) => busy(ev.target, async () => {
+  flash("Scan berjalan… bisa sampai 1 menit.");
+  const r = await api("/api/scan", "POST", {}), n = ["ig", "appstore", "playstore"].reduce((a, k) => a + ((r[k] && r[k].n) || 0), 0);
+  flash(n + " temuan baru. Lihat tab Temuan."); await loadSettings();
+});
+
+let first = "temuan"; try { first = localStorage.getItem("ft_tab") || first; } catch {}
+if ((first === "report" && !ED) || (first === "atur" && !ADM)) first = "temuan";
+show(first);
+</script>
+</body>
+</html>
