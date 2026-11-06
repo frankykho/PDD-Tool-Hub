@@ -6,7 +6,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
   "triggers": { "crons": [] },  // dijadwalkan oleh apps/cron (Minggu :00/:30 UTC)
-  // aset statis: logo report, template BRD, pengisi .docx (PizZip)
+  // aset statis (publik, tanpa login): logo report, template BRD, pengisi .docx
   "assets": { "directory": "./assets" },
   "d1_databases": [{ "binding": "DB", "database_name": "insight-db", "database_id": "auto" }],
   "ai": { "binding": "AI" }

@@ -40,7 +40,9 @@ export default {
   "Nama fitur": "Feature name", "Area": "Area", "Tanggal peluncuran": "Launch date", "Deskripsi": "Description",
   "Setujui": "Approve", "Tolak": "Reject", "Isi tanggal peluncuran.": "Enter the launch date.", "Temuan disetujui.": "Finding approved.", "Temuan ditolak.": "Finding rejected.",
   "Tambah fitur manual": "Add feature manually", "Kompetitor": "Competitor", "Link sumber": "Source link", "Screenshot (kalau tidak ada link)": "Screenshot (if there is no link)",
-  "Fitur tersimpan.": "Feature saved.", "Screenshot terlalu besar; potong dulu bagian yang penting.": "Screenshot too large; crop it to the important part first.",
+  "Fitur tersimpan.": "Feature saved.", "Fitur baru": "New feature",
+  "Tolak temuan ini? Temuan yang ditolak tidak bisa dikembalikan.": "Reject this finding? Rejected findings cannot be restored.",
+  "AI tidak memberi isi BRD yang bisa dibaca. Isi BRD tidak diubah; coba lagi, atau sunting langsung.": "AI returned no readable BRD content. The BRD was not changed; try again, or edit directly.", "Screenshot terlalu besar; potong dulu bagian yang penting.": "Screenshot too large; crop it to the important part first.",
   // Perbandingan
   "Perbandingan fitur": "Feature comparison", "Keputusan": "Decision", "Prioritas": "Priority",
   "✓ = kompetitor sudah punya (tanggal peluncuran paling awal). Klik baris untuk detail, keputusan, dan Buat BRD.": "✓ = competitor already has it (earliest launch date). Click a row for details, decision, and Create BRD.",

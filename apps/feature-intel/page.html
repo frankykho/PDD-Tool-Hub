@@ -230,7 +230,7 @@ function wireEv(el) {
     if (!b.launched_at) throw new Error("Isi tanggal peluncuran.");
     await api("/api/evidence/verify", "POST", b); flash("Temuan disetujui."); await loadEvidence();
   });
-  el.querySelector('[data-do="reject"]').onclick = (ev) => busy(ev.target, async () => { await api("/api/evidence/verify", "POST", { id: el.dataset.ev, action: "reject" }); flash("Temuan ditolak."); await loadEvidence(); });
+  el.querySelector('[data-do="reject"]').onclick = (ev) => busy(ev.target, async () => { if (!confirm(T("Tolak temuan ini? Temuan yang ditolak tidak bisa dikembalikan."))) return; await api("/api/evidence/verify", "POST", { id: el.dataset.ev, action: "reject" }); flash("Temuan ditolak."); await loadEvidence(); });
 }
 // screenshot dikompres di browser (maks. lebar 1400 px, WebP/JPEG) supaya di bawah 700 KB
 async function compress(file) {
@@ -244,16 +244,20 @@ $("addManual").onclick = async () => {
   const d = $("dlg");
   d.innerHTML = `<h2>Tambah fitur manual</h2><div class="grid">
     <div class="cols"><label>Kompetitor<select id="mC">${COMPS.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label>
-    <label>Area<select id="mA">${opt(C.AREAS, "Lainnya")}</select></label><label>Tanggal peluncuran<input type="date" id="mD" required></label></div>
-    <label>Nama fitur<input id="mN" maxlength="160" required></label>
-    <label>Deskripsi<textarea id="mDesc" maxlength="2000"></textarea></label>
+    <label>Fitur<select id="mF"><option value="">Fitur baru</option>${FEATURES.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join("")}</select></label>
+    <label>Tanggal peluncuran<input type="date" id="mD" required></label></div>
+    <div class="cols" id="mNew"><label>Nama fitur<input id="mN" maxlength="160" required></label><label>Area<select id="mA">${opt(C.AREAS, "Lainnya")}</select></label></div>
+    <label id="mDescL">Deskripsi<textarea id="mDesc" maxlength="2000"></textarea></label>
     <label>Link sumber<input id="mU" type="url" placeholder="https://…"></label>
     <label>Screenshot (kalau tidak ada link)<input id="mI" type="file" accept="image/*"></label>
     <div class="row"><button class="btn pri" id="mSave" type="button">Simpan</button><button class="btn" id="mX" type="button">Batal</button></div></div>`;
   d.showModal();
   $("mX").onclick = () => d.close();
+  // fitur yang sudah tercatat: cukup tambah bukti kompetitor ini, tidak membuat baris ganda di Perbandingan
+  $("mF").onchange = () => { $("mNew").hidden = $("mDescL").hidden = !!$("mF").value; };
   $("mSave").onclick = (ev) => busy(ev.target, async () => {
-    const f = $("mI").files[0], b = { competitor_id: $("mC").value, area: $("mA").value, launched_at: $("mD").value, name: $("mN").value, description: $("mDesc").value, url: $("mU").value.trim() };
+    const f = $("mI").files[0], b = { competitor_id: $("mC").value, launched_at: $("mD").value, url: $("mU").value.trim() };
+    if ($("mF").value) b.feature_id = $("mF").value; else Object.assign(b, { name: $("mN").value, area: $("mA").value, description: $("mDesc").value });
     if (f) b.image_data = await compress(f);
     await api("/api/evidence", "POST", b); d.close(); flash("Fitur tersimpan."); await refreshFeatures();
   });

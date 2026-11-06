@@ -151,6 +151,7 @@ env.AI = { run: async (model, { messages }) => {
   return { response: /Fitur/.test(u.split("Caption:")[1]) ? JSON.stringify({ feature: true, name: "Auto Invest", area: "Reksa Dana", description: "Investasi rutin otomatis dari caption" }) : JSON.stringify({ feature: false, reason: "promo atau edukasi, bukan fitur" }) };
 } };
 let ciN = 0;
+const daysAgo = (n, m = 0) => new Date(Date.now() - n * 864e5 + m * 6e4).toISOString();
 const seedContent = (rows) => { for (const r of rows) env.DB.db.prepare("INSERT INTO ci_content (id, url, platform, account, caption, posted_at, saved_at) VALUES (?, ?, 'Instagram', ?, ?, ?, ?)").run("c" + ++ciN, "https://instagram.com/p/" + ciN, r.account, r.caption, r.posted_at || "2026-10-30T10:00:00Z", r.saved_at); };
 let storeVersion = "5.2.0", storeNotes = "Fitur baru:\n[Baru] Auto Invest", playNotes = "Yang Baru:<br>[Baru] Pro Chart di Company Page<br>[Baru] Trade Summary";
 const fakeStores = async (url) => {
@@ -159,9 +160,9 @@ const fakeStores = async (url) => {
   return new Response("?", { status: 404 });
 };
 const pending = () => env.DB.db.prepare("SELECT competitor_id, source, text, launched_at, ai_json FROM ft_evidence WHERE status='Perlu verifikasi' ORDER BY source, competitor_id").all();
-seedContent([{ account: "Stockbit", caption: "Fitur baru Auto Invest sudah hadir!", saved_at: "2026-11-01T00:00:00Z" },
-             { account: "stockbit", caption: "Promo cashback akhir bulan", saved_at: "2026-11-01T00:01:00Z" },
-             { account: "akunlain", caption: "Fitur baru", saved_at: "2026-11-01T00:02:00Z" }]);
+seedContent([{ account: "Stockbit", caption: "Fitur baru Auto Invest sudah hadir!", saved_at: daysAgo(5) },
+             { account: "stockbit", caption: "Promo cashback akhir bulan", saved_at: daysAgo(5, 1) },
+             { account: "akunlain", caption: "Fitur baru", saved_at: daysAgo(5, 2) }]);
 const r1 = await ftScan(env, { fetcher: fakeStores });
 assert.equal(r1.ig.n, 1, "hanya akun kompetitor (huruf besar/kecil sama) dan hanya caption fitur");
 assert.equal(r1.appstore.n, 2, "Stockbit & IPOT masing-masing 1 fitur dari App Store");
@@ -181,7 +182,7 @@ const [, scanSt] = await j(call("GET", "/api/scan", null, "viewer"));
 assert.match(scanSt.playstore.error, /blocked/); assert.ok(scanSt.ig.at);
 // batas AI harian: tidak ada panggilan AI, penanda IG tidak maju (dicoba lagi nanti)
 env.FT_AI_DAILY = "0"; aiCalls = 0;
-seedContent([{ account: "stockbit", caption: "Fitur lain", saved_at: "2026-11-02T00:00:00Z" }]);
+seedContent([{ account: "stockbit", caption: "Fitur lain", saved_at: daysAgo(4) }]);
 assert.equal((await ftScan(env, { fetcher: fakeStores })).ig.n, 0);
 assert.equal(aiCalls, 0);
 delete env.FT_AI_DAILY;
@@ -307,5 +308,49 @@ env.AI = { run: async () => ({ response: "Dalam periode ini Stockbit dan IPOT me
 const [ss, sum] = await j(call("POST", "/api/report/summary", { from: "2026-08-01", to: "2026-10-31", feature_ids: [f.id] }, "editor"));
 assert.equal(ss, 200, JSON.stringify(sum)); assert.match(sum.text, /Auto Invest/);
 assert.equal((await call("POST", "/api/report/summary", { from: "2026-08-01", to: "2026-10-31", feature_ids: [f.id] }, "viewer")).status, 403);
+
+/* ---------- Review akhir: perbaikan ---------- */
+// (1) penanda IG per kompetitor: akun IPOT dibetulkan -> caption IPOT lama (sebelum penanda Stockbit) tetap terbaca
+// (2) scan pertama sebuah akun hanya membaca 90 hari terakhir
+env.AI = { run: async (model, { messages }) => /Catatan rilis/.test(messages[1].content)
+  ? { response: JSON.stringify({ features: [...messages[1].content.matchAll(/\[Baru\] ([^\n]+)/g)].map((x) => ({ name: x[1].trim(), area: "Saham", description: "Fitur " + x[1].trim() + " dari catatan rilis" })) }) }
+  : ({ response: /Fitur/.test(messages[1].content.split("Caption:")[1] || "") ? JSON.stringify({ feature: true, name: "Fitur IPOT", area: "Saham", description: "Fitur dari caption IPOT yang lama" }) : JSON.stringify({ feature: false, reason: "bukan fitur aplikasi" }) }) };
+seedContent([{ account: "ipotid", caption: "Fitur baru IPOT bulan lalu", saved_at: daysAgo(20) }, { account: "ipotid", caption: "Fitur sangat lama", saved_at: daysAgo(200) }]);
+assert.equal((await call("POST", "/api/competitors", { id: IP, name: "IPOT", ig_account: "ipotid", play_id: "com.indopremier.ipot", appstore_id: "1514387216", enabled: 1 }, "admin")).status, 200);
+const rFix = await ftScan(env, { fetcher: fakeStores });
+assert.equal(rFix.ig.n, 1, "caption IPOT 20 hari lalu terbaca; yang 200 hari lalu tidak");
+// (9) url dari data scan yang bukan http/https tidak disimpan
+env.DB.db.prepare("INSERT INTO ci_content (id, url, platform, account, caption, posted_at, saved_at) VALUES ('cx', 'javascript:alert(1)', 'Instagram', 'ipotid', 'Fitur berbahaya', ?, ?)").run(daysAgo(1), daysAgo(1));
+await ftScan(env, { fetcher: fakeStores });
+assert.equal(env.DB.db.prepare("SELECT url FROM ft_evidence WHERE text='Fitur berbahaya'").get().url, "");
+// (5) satu id toko yang salah tidak menghentikan kompetitor lain
+await call("POST", "/api/competitors", { id: "bad", name: "Bad", play_id: "x.bad", appstore_id: "", ig_account: "", enabled: 1 }, "admin");
+playNotes = "Yang Baru:<br>[Baru] Smart Order";
+const rBad = await ftScan(env, { fetcher: (u) => /x.bad/.test(u) ? Promise.resolve(new Response("?", { status: 404 })) : fakeStores(u) });
+assert.equal(rBad.playstore.n, 2, "Stockbit & IPOT tetap terbaca");
+assert.match(rBad.playstore.error, /Bad/);
+await call("POST", "/api/competitors", { id: "bad", name: "Bad", play_id: "x.bad", enabled: 0 }, "admin");
+// (3) panggilan Minggu 01:00 terlewat: 01:30 tetap memulai scan minggu itu
+const storeAt = () => JSON.parse(env.DB.db.prepare("SELECT v FROM ft_meta WHERE k='scan_appstore'").get().v).at;
+const sBefore = storeAt();
+await cron("2026-11-15T01:30:00Z");
+assert.notEqual(storeAt(), sBefore, "scan dikejar di 01:30");
+const sAfter = storeAt();
+await cron("2026-11-15T02:00:00Z");
+assert.equal(storeAt(), sAfter, "toko tidak dibaca ulang di minggu yang sama");
+// (4) isian manual ke fitur yang sudah ada
+const [mx, mm] = await j(call("POST", "/api/evidence", { feature_id: f.id, competitor_id: IP, launched_at: "2026-10-07", url: "https://ipot.test/auto" }, "editor"));
+assert.equal(mx, 200, JSON.stringify(mm)); assert.equal(mm.feature_id, f.id);
+assert.equal(env.DB.db.prepare("SELECT COUNT(*) n FROM ft_features WHERE name='Auto Invest'").get().n, 1, "tidak ada fitur ganda");
+assert.equal((await call("POST", "/api/evidence", { feature_id: "tidakada", competitor_id: IP, launched_at: "2026-10-07", url: "https://x.test" }, "editor")).status, 400);
+// (6) karakter kontrol tidak merusak file Word
+assert.equal(xmlEsc("ab cd"), "abcd");
+// (7) draf AI yang tidak terbaca tidak menimpa isi BRD
+const before7 = (await (await call("GET", "/api/brds/" + brd.id, null, "viewer")).json()).brd.sections;
+env.AI = { run: async () => ({ response: "Maaf, saya tidak dapat membantu menyusun dokumen tersebut saat ini." }) };
+const [s7, r7] = await j(call("POST", "/api/brds/draft", { id: brd.id }, "editor"));
+assert.equal(s7, 502, JSON.stringify(r7)); assert.match(r7.error, /AI/);
+assert.deepEqual((await (await call("GET", "/api/brds/" + brd.id, null, "viewer")).json()).brd.sections, before7, "isi BRD tidak berubah");
+assert.equal((await call("POST", "/api/brds/draft", { id: brd.id, key: "tujuan" }, "editor")).status, 502, "tulis ulang satu bagian juga");
 
 console.log("feature-intel: semua tes lolos");

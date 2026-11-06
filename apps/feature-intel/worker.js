@@ -167,12 +167,15 @@ async function listFeatures(env, q) {
   return { features: fs.results.map((f) => ({ ...f, has: has[f.id] || {} })), competitors: cs.results };
 }
 const EV_COLS = "e.id, e.feature_id, e.competitor_id, c.name AS competitor, e.source, e.url, e.text, e.image_data, e.launched_at, e.ai_json, e.status, e.created_by, e.created_at";
+/** Isian manual: bukti untuk fitur yang sudah ada (feature_id) atau fitur baru (name + area). */
 async function addManual(env, me, b) {
-  const f = pick(b, ["name", "area", "description", "launched_at", "url", "image_data"], ["name", "area", "launched_at"]);
+  const existing = s(b.feature_id, 60);
+  const f = pick(b, ["name", "area", "description", "launched_at", "url", "image_data"], existing ? ["launched_at"] : ["name", "area", "launched_at"]);
   if (f.error) return { error: f.error };
   if (!f.url && !f.image_data) return { error: "Isi link sumber, atau unggah screenshot sebagai bukti." };
   if (!(await competitorOk(env, b.competitor_id))) return { error: "Kompetitor tidak dikenal." };
-  const feature_id = await newFeature(env, me, f), id = uid();
+  if (existing && !(await env.DB.prepare("SELECT 1 FROM ft_features WHERE id=?").bind(existing).first())) return { error: "Fitur tujuan tidak ditemukan." };
+  const feature_id = existing || (await newFeature(env, me, f)), id = uid();
   await env.DB.prepare("INSERT INTO ft_evidence (id, feature_id, competitor_id, source, url, text, image_data, launched_at, status, hash, created_by, created_at) VALUES (?, ?, ?, 'manual', ?, ?, ?, ?, 'Terverifikasi', ?, ?, ?)")
     .bind(id, feature_id, s(b.competitor_id, 60), f.url || "", f.description || "", f.image_data || "", f.launched_at, "manual:" + id, me.name, now()).run();
   return { id, feature_id };
@@ -283,46 +286,53 @@ async function knownList(env) {
 }
 async function addPending(env, competitorId, source, key, row) {
   const r = await env.DB.prepare("INSERT OR IGNORE INTO ft_evidence (id, competitor_id, source, url, text, launched_at, ai_json, status, hash, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Perlu verifikasi', ?, 'Scan otomatis', ?)")
-    .bind(uid(), competitorId, source, row.url || "", s(row.text, 4000), row.launched_at || null, JSON.stringify(row.ai), ftHash(competitorId, source, key), now()).run();
+    .bind(uid(), competitorId, source, ftClean("url", row.url) || "", s(row.text, 4000), row.launched_at || null, JSON.stringify(row.ai), ftHash(competitorId, source, key), now()).run();
   return r.meta && r.meta.changes ? 1 : 0;
 }
-const IG_BATCH = 10;
+const IG_BATCH = 10, IG_FIRST_DAYS = 90;
+// Penanda per kompetitor & per akun: akun yang dibetulkan admin mulai lagi dari 90 hari terakhir (sama dengan periode bawaan report),
+// bukan dari seluruh riwayat Content Insight dan bukan dari penanda akun lain.
 async function scanIg(env, comps, known) {
-  const byAcc = Object.fromEntries(comps.filter((c) => c.ig_account).map((c) => [c.ig_account.toLowerCase(), c]));
-  const accs = Object.keys(byAcc);
-  if (!accs.length) return { n: 0, more: false };
-  const since = (await getMeta(env, "ig_since")) || "";
-  const rows = (await env.DB.prepare(`SELECT url, account, caption, posted_at, saved_at FROM ci_content WHERE platform='Instagram' AND lower(account) IN (${accs.map(() => "?").join(",")}) AND saved_at > ? ORDER BY saved_at LIMIT ${IG_BATCH}`)
-    .bind(...accs, since).all()).results;
-  let n = 0;
-  for (const r of rows) {
-    const c = byAcc[r.account.toLowerCase()];
-    if (!(await env.DB.prepare("SELECT 1 FROM ft_evidence WHERE hash=?").bind(ftHash(c.id, "ig", r.url)).first())) {
-      if (!(await aiTake(env))) return { n, more: true, error: "Batas AI harian tercapai; sisa caption diproses di scan berikutnya." };
-      const { text } = await ai(env, IG_RULES, `Kompetitor: ${c.name}\nTanggal posting: ${String(r.posted_at || "").slice(0, 10)}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCaption:\n${s(r.caption, 3000)}`, 600, undefined, { temperature: 0.2, json: true });
-      const v = ftAiVerdict(text);
-      if (v.feature) { const { feature, ...sug } = v; n += await addPending(env, c.id, "ig", r.url, { url: r.url, text: r.caption, launched_at: String(r.posted_at || r.saved_at).slice(0, 10), ai: sug }); }
+  let n = 0, left = IG_BATCH, more = false;
+  for (const c of comps.filter((x) => x.ig_account)) {
+    const mk = `ig_since_${c.id}_${c.ig_account.toLowerCase()}`;
+    const since = (await getMeta(env, mk)) || new Date(Date.now() - IG_FIRST_DAYS * 864e5).toISOString();
+    const rows = left > 0 ? (await env.DB.prepare(`SELECT url, account, caption, posted_at, saved_at FROM ci_content WHERE platform='Instagram' AND lower(account)=? AND saved_at > ? ORDER BY saved_at LIMIT ${left}`)
+      .bind(c.ig_account.toLowerCase(), since).all()).results : [];
+    if (rows.length === left) more = true;
+    for (const r of rows) {
+      left--;
+      if (!(await env.DB.prepare("SELECT 1 FROM ft_evidence WHERE hash=?").bind(ftHash(c.id, "ig", r.url)).first())) {
+        if (!(await aiTake(env))) return { n, more: true, error: "Batas AI harian tercapai; sisa caption diproses di scan berikutnya." };
+        const { text } = await ai(env, IG_RULES, `Kompetitor: ${c.name}\nTanggal posting: ${String(r.posted_at || "").slice(0, 10)}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCaption:\n${s(r.caption, 3000)}`, 600, undefined, { temperature: 0.2, json: true });
+        const v = ftAiVerdict(text);
+        if (v.feature) { const { feature, ...sug } = v; n += await addPending(env, c.id, "ig", r.url, { url: r.url, text: r.caption, launched_at: String(r.posted_at || r.saved_at).slice(0, 10), ai: sug }); }
+      }
+      await setMeta(env, mk, r.saved_at);
     }
-    await setMeta(env, "ig_since", r.saved_at);
   }
-  return { n, more: rows.length === IG_BATCH };
+  return { n, more };
 }
 /** Satu sumber toko aplikasi: get(c) -> { key, notes, date, url } | null. Versi yang sudah diproses dilewati (penanda di ft_meta). */
 async function scanStore(env, comps, known, source, get) {
   let n = 0;
+  const errs = [];
   for (const c of comps) {
-    const rel = await get(c);
-    if (!rel) continue;
-    const mk = `${source}_${c.id}`;
-    if ((await getMeta(env, mk)) === rel.key) continue;
-    if (!ftIsBugfixOnly(rel.notes)) {
-      if (!(await aiTake(env))) return { n, error: "Batas AI harian tercapai; dicoba lagi di scan berikutnya." };
-      const { text } = await ai(env, STORE_RULES, `Kompetitor: ${c.name}\nSumber: ${source === "appstore" ? "App Store" : "Play Store"}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCatatan rilis:\n${s(rel.notes, 4000)}`, 1500, undefined, { temperature: 0.2, json: true });
-      for (const f of ftAiFeatures(text)) n += await addPending(env, c.id, source, rel.key + ":" + f.name, { url: rel.url, text: rel.notes, launched_at: rel.date, ai: f });
-    }
-    await setMeta(env, mk, rel.key);
+    // satu kompetitor gagal (id salah, halaman berubah) tidak menghentikan kompetitor lain
+    try {
+      const rel = await get(c);
+      if (!rel) continue;
+      const mk = `${source}_${c.id}`;
+      if ((await getMeta(env, mk)) === rel.key) continue;
+      if (!ftIsBugfixOnly(rel.notes)) {
+        if (!(await aiTake(env))) { errs.push("Batas AI harian tercapai; dicoba lagi di scan berikutnya."); break; }
+        const { text } = await ai(env, STORE_RULES, `Kompetitor: ${c.name}\nSumber: ${source === "appstore" ? "App Store" : "Play Store"}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCatatan rilis:\n${s(rel.notes, 4000)}`, 1500, undefined, { temperature: 0.2, json: true });
+        for (const f of ftAiFeatures(text)) n += await addPending(env, c.id, source, rel.key + ":" + f.name, { url: rel.url, text: rel.notes, launched_at: rel.date, ai: f });
+      }
+      await setMeta(env, mk, rel.key);
+    } catch (e) { errs.push(`${c.name}: ${String((e && e.message) || e).slice(0, 200)}`); }
   }
-  return { n };
+  return errs.length ? { n, error: errs.join("; ") } : { n };
 }
 const wibToday = () => new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
 /** Scan semua sumber; satu sumber gagal tidak menggagalkan yang lain. stores:false = hanya lanjutkan IG yang tertunda. */
@@ -424,9 +434,10 @@ async function draftBrd(env, me, b) {
   if (!(await aiTake(env))) return { error: "Batas AI harian tercapai. Coba lagi besok, atau sunting bagian ini langsung.", status: 429 };
   const inp = await brdInput(env, r.feature_ids);
   const { text } = await ai(env, BRD_RULES, brdPrompt(inp, r.brief, key ? [key] : BRD_AI_KEYS, key ? r.sections : null), key ? 2500 : 6000, undefined, { temperature: 0.3, json: true });
-  let sec;
-  if (key) { const j = parseJ(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1), {}); sec = brdParse({ [key]: j[key] }, r.sections); }
-  else sec = brdParse(text, brdSkeleton({ title: r.title, ...inp, version: r.version }));
+  // jawaban AI tanpa isi yang terbaca tidak boleh menimpa suntingan tim
+  const j = aiJson(text) || {}, keys = key ? [key] : BRD_AI_KEYS;
+  if (!keys.some((k) => Array.isArray(j[k]) && j[k].length)) return { error: "AI tidak memberi isi BRD yang bisa dibaca. Isi BRD tidak diubah; coba lagi, atau sunting langsung.", status: 502 };
+  const sec = key ? brdParse({ [key]: j[key] }, r.sections) : brdParse(j, brdSkeleton({ title: r.title, ...inp, version: r.version }));
   await saveSections(env, me, r.id, sec);
   return { sections: sec };
 }
@@ -530,15 +541,17 @@ async function api(req, env, u, me, can) {
 }
 
 // apps/cron memanggil tiap :00/:30 hari Minggu (UTC). Scan minggu ini dimulai 01:00 UTC (08.00 WIB, setelah scan IG Content Insight 07.00 WIB);
-// panggilan berikutnya hanya melanjutkan caption IG yang belum terbaca (10 per panggilan, supaya tetap di bawah batas CPU).
+// kalau panggilan itu terlewat / gagal, panggilan berikutnya di hari itu yang memulai. Sesudahnya hanya melanjutkan caption IG
+// yang belum terbaca (10 per panggilan, supaya tetap di bawah batas CPU).
 async function scheduled(e, env) {
   const d = new Date(e.scheduledTime || Date.now());
-  if (d.getUTCDay() !== 0) return;
+  if (d.getUTCDay() !== 0 || d.getUTCHours() < 1) return;
   try {
     await ensure(env);
     const week = d.toISOString().slice(0, 10);
     let r;
-    if (d.getUTCHours() === 1 && d.getUTCMinutes() < 30 && (await getMeta(env, "week")) !== week) { await setMeta(env, "week", week); r = await ftScan(env); }
+    // penanda minggu ditulis SETELAH scan selesai: scan yang terputus diulang di panggilan berikutnya
+    if ((await getMeta(env, "week")) !== week) { r = await ftScan(env); await setMeta(env, "week", week); }
     else if ((await getMeta(env, "pending")) === "1") r = await ftScan(env, { stores: false });
     if (r) await setMeta(env, "pending", r.ig && r.ig.more ? "1" : "0");
   } catch (err) { console.error("FT scan:", (err && err.message) || err); }

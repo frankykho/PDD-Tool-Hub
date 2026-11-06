@@ -4,7 +4,8 @@
 // Gaya tabel isi disalin dari contoh BRD: garis 8EAADB, baris judul DEEAF6 tebal, Verdana 8 pt; paragraf isi Verdana 9 pt.
 
 const te = new TextEncoder(), td = new TextDecoder();
-export const xmlEsc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// karakter kontrol tidak sah di XML: satu saja membuat Word menolak membuka file
+export const xmlEsc = (s) => String(s ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /* ---------- zip ---------- */
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
