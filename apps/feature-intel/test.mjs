@@ -287,4 +287,24 @@ const order = ["Ringkasan Eksekutif", "Paragraf AI.", "Tujuan Proyek", "Ruang Li
 assert.deepEqual(order.map((k) => text.indexOf(k)), order.map((k) => text.indexOf(k)).slice().sort((a, b) => a - b), "isi masuk di bawah judul yang benar");
 assert.ok(order.every((k) => text.includes(k)), order.filter((k) => !text.includes(k)).join(","));
 
+/* ---------- Task 6: report management ---------- */
+// bukti 2026-07-15 di luar periode, 2026-10-01 & 2026-10-05 di dalam
+const old = await (await call("POST", "/api/evidence", { competitor_id: IP, name: "Fitur Lama", area: "Saham", launched_at: "2026-07-15", url: "https://ipot.test/lama" }, "editor")).json();
+assert.equal((await call("GET", "/api/report?from=2026-08-01&to=2026-10-31", null, "viewer")).status, 403);
+assert.equal((await call("GET", "/api/report?from=2026-11-01&to=2026-10-01", null, "editor")).status, 400, "from > to");
+assert.equal((await call("GET", "/api/report?from=2026-13-01&to=2026-10-01", null, "editor")).status, 400, "tanggal salah bentuk");
+const [rs, rep] = await j(call("GET", "/api/report?from=2026-08-01&to=2026-10-31", null, "editor"));
+assert.equal(rs, 200, JSON.stringify(rep));
+// "Y" = isian manual dengan screenshot dari tes Task 2
+assert.deepEqual(rep.launched.map((x) => [x.competitor, x.feature, x.launched_at]), [["IPOT", "Y", "2026-10-01"], ["Stockbit", "Auto Invest", "2026-10-01"], ["IPOT", "Auto Invest", "2026-10-05"]]);
+assert.ok(!rep.launched.some((x) => x.feature_id === old.feature_id));
+assert.ok(rep.features.some((x) => x.name === "Fitur Lama"), "tabel perbandingan memuat semua fitur");
+assert.deepEqual(rep.pursued.map((x) => [x.feature, x.priority, x.brd && x.brd.status]), [["Auto Invest", "H", "Diserahkan ke IT"]]);
+const [dfs, dflt] = await j(call("GET", "/api/report", null, "editor"));
+assert.equal(dfs, 200); assert.ok(dflt.from < dflt.to, "bawaan: 3 bulan terakhir");
+env.AI = { run: async () => ({ response: "Dalam periode ini Stockbit dan IPOT meluncurkan Auto Invest. Tim mengusulkan iKISI mengejar fitur ini dengan prioritas tinggi." }) };
+const [ss, sum] = await j(call("POST", "/api/report/summary", { from: "2026-08-01", to: "2026-10-31", feature_ids: [f.id] }, "editor"));
+assert.equal(ss, 200, JSON.stringify(sum)); assert.match(sum.text, /Auto Invest/);
+assert.equal((await call("POST", "/api/report/summary", { from: "2026-08-01", to: "2026-10-31", feature_ids: [f.id] }, "viewer")).status, 403);
+
 console.log("feature-intel: semua tes lolos");

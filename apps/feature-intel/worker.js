@@ -431,6 +431,45 @@ async function draftBrd(env, me, b) {
   return { sections: sec };
 }
 
+/* ---------- report management ---------- */
+/** Periode report: bawaan 3 bulan terakhir (WIB). { error } bila tanggal salah. */
+function period(from, to) {
+  const today = wibToday(), d = new Date(today + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() - 3);
+  const f = from ? ftClean("launched_at", from) : d.toISOString().slice(0, 10), t = to ? ftClean("launched_at", to) : today;
+  if (!f || !t) return { error: "Tanggal periode harus berbentuk YYYY-MM-DD." };
+  return f > t ? { error: "Tanggal mulai harus sebelum tanggal selesai." } : { from: f, to: t };
+}
+async function report(env, q) {
+  const p = period(s(q.get("from"), 10), s(q.get("to"), 10));
+  if (p.error) return p;
+  const [ev, bs] = await env.DB.batch([
+    env.DB.prepare("SELECT e.feature_id, f.name AS feature, f.area, c.name AS competitor, e.launched_at, e.url, e.source FROM ft_evidence e JOIN ft_features f ON f.id=e.feature_id LEFT JOIN ft_competitors c ON c.id=e.competitor_id WHERE e.status='Terverifikasi' AND e.launched_at BETWEEN ? AND ? ORDER BY e.launched_at, c.name").bind(p.from, p.to),
+    env.DB.prepare("SELECT id, title, feature_ids, status, version, updated_at FROM ft_brds WHERE status<>'Dibatalkan' ORDER BY updated_at DESC"),
+  ]);
+  const { features } = await listFeatures(env, new URLSearchParams());
+  const brdOf = (id) => { const b = bs.results.find((x) => parseJ(x.feature_ids, []).includes(id)); return b ? { id: b.id, title: b.title, status: b.status, version: b.version } : null; };
+  const rank = { H: 0, M: 1, L: 2 };
+  const pursued = features.filter((x) => x.decision === "Kejar").sort((a, b) => (rank[a.priority] ?? 3) - (rank[b.priority] ?? 3) || a.name.localeCompare(b.name))
+    .map((x) => ({ feature_id: x.id, feature: x.name, area: x.area, priority: x.priority, ikisi_status: x.ikisi_status, brd: brdOf(x.id) }));
+  return { ...p, launched: ev.results, features, pursued };
+}
+const SUMMARY_RULES = `Kamu analis produk di Divisi Digital Business KISI (aplikasi iKISI). Tulis ringkasan untuk management (maksimal 4 paragraf pendek, Bahasa Indonesia baku):
+apa yang diluncurkan kompetitor dalam periode, posisi iKISI, dan fitur yang diusulkan dikejar beserta prioritasnya. Pakai hanya data yang diberikan; jangan mengarang angka atau dampak bisnis. Tanpa judul, tanpa markdown.`;
+async function reportSummary(env, b) {
+  const r = await report(env, new URLSearchParams({ from: s(b.from, 10), to: s(b.to, 10) }));
+  if (r.error) return r;
+  const ids = new Set((Array.isArray(b.feature_ids) ? b.feature_ids : []).map((x) => s(x, 60)));
+  const pick_ = (x) => !ids.size || ids.has(x.feature_id ?? x.id);
+  if (!(await aiTake(env))) return { error: "Batas AI harian tercapai. Tulis ringkasan langsung di kotak, atau coba lagi besok.", status: 429 };
+  const user = [`Periode: ${r.from} s.d. ${r.to}`,
+    "Diluncurkan kompetitor:\n" + (r.launched.filter(pick_).map((x) => `- ${x.launched_at} ${x.competitor}: ${x.feature} (${x.area})`).join("\n") || "-"),
+    "Perbandingan (fitur: kompetitor yang punya; status iKISI; keputusan):\n" + r.features.filter(pick_).map((x) => `- ${x.name}: ${Object.keys(x.has).join(", ") || "-"}; ${x.ikisi_status}; ${x.decision || "-"}`).join("\n"),
+    "Diusulkan dikejar:\n" + (r.pursued.filter(pick_).map((x) => `- ${x.feature} prioritas ${x.priority || "-"}; BRD: ${x.brd ? x.brd.status : "belum ada"}`).join("\n") || "-")].join("\n\n");
+  const { text } = await ai(env, SUMMARY_RULES, user, 1200, undefined, { temperature: 0.3 });
+  return { text: text.replace(/\*\*|^#+\s*/gm, "").split(/\n{2,}/).slice(0, 5).join("\n\n").trim() };
+}
+
 /** Hasil fungsi -> respons JSON (status dari { status }, atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 async function api(req, env, u, me, can) {
@@ -451,6 +490,7 @@ async function api(req, env, u, me, can) {
       return json({ evidence: ev.results });
     }
     if (path === "/api/competitors") return json({ competitors: (await env.DB.prepare("SELECT * FROM ft_competitors ORDER BY name").all()).results });
+    if (path === "/api/report") return can("editor") ? out(await report(env, u.searchParams)) : json({ error: "Hanya editor atau admin yang bisa membuat report." }, 403);
     if (path === "/api/brds") {
       const [bs, fs] = await env.DB.batch([env.DB.prepare("SELECT id, title, feature_ids, version, status, updated_by, updated_at FROM ft_brds ORDER BY updated_at DESC"), env.DB.prepare("SELECT id, name FROM ft_features")]);
       const fname = Object.fromEntries(fs.results.map((f) => [f.id, f.name]));
@@ -482,8 +522,8 @@ async function api(req, env, u, me, can) {
   if (path === "/api/scan" && m === "POST") return can("admin") ? json(await ftScan(env)) : json({ error: "Hanya admin yang bisa menjalankan scan." }, 403);
   if (path === "/api/brds" && m === "POST") return out(await createBrd(env, me, b));
   if (path === "/api/brds" && m === "PATCH") return out(await patchBrd(env, me, b));
-  if (path === "/api/brds/draft" && m === "POST") {
-    try { return out(await draftBrd(env, me, b)); }
+  if ((path === "/api/brds/draft" || path === "/api/report/summary") && m === "POST") {
+    try { return out(path === "/api/brds/draft" ? await draftBrd(env, me, b) : await reportSummary(env, b)); }
     catch (e) { if (e instanceof AiError) return json({ error: e.message }, 502); throw e; }
   }
   return json({ error: "Tidak ditemukan" }, 404);
