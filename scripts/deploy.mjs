@@ -134,12 +134,15 @@ function resolve(app, profile, dry) {
   for (const db of c.d1_databases || []) if (!db.database_id || db.database_id === "auto") db.database_id = d1Id(db.database_name, dry);
   for (const kv of c.kv_namespaces || []) if (!kv.id || kv.id === "auto") kv.id = kvId(`${c.name}-${kv.binding.toLowerCase()}`, dry);
   // PROFILE ikut terkirim ke browser, jadi subdomain & email admin tidak dimasukkan (admin lewat ADMIN_EMAILS)
-  const { subdomain, admins, ...pub } = profile;
-  const PROFILE = JSON.stringify(pub);
+  // urls dipisah ke variabel URLS: batas Cloudflare 5.000 karakter berlaku per variabel; shared/profile.js menggabungkannya lagi
+  const { subdomain, admins, urls, ...pub } = profile;
+  const PROFILE = JSON.stringify(pub), URLS = JSON.stringify(urls);
   if (PROFILE.length > 5000) die(`profile.json terlalu besar (${PROFILE.length} karakter; batas variabel Cloudflare 5.000).`);
+  if (URLS.length > 5000) die(`alamat tool terlalu panjang (${URLS.length} karakter; batas variabel Cloudflare 5.000).`);
   c.vars = {
     ...(c.vars || {}),
     PROFILE,
+    URLS,
     HUB_URL: profile.urls.hub || "",
     ADMIN_EMAILS: (profile.admins || []).join(","),
     GITHUB_REPO: (profile.github && profile.github.repo) || "",

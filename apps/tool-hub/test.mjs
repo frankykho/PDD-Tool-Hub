@@ -510,4 +510,15 @@ assert.ok(fillAll[1].includes("fillBrand(d.brand)") && page.includes('"brandBody
 for (const [, fn] of fillAll[1].matchAll(/(\w+)\(/g)) assert.ok(page.includes("function " + fn + "("), `${fn} (dipanggil fillAll) terdefinisi di shell.html`);
 assert.equal(page.split('"__BOOT__"').length, 2, "penanda data ada tepat sekali di shell.html (bukan juga di komentar)");
 
+// alamat tool dari variabel URLS (dipisah dari PROFILE oleh deploy.mjs) digabung ke profile().urls; urls lama di PROFILE tetap terbaca
+{
+  const { profile, appUrl } = await import("../../shared/profile.js");
+  const e = { PROFILE: JSON.stringify({ brand: { short: "Acme" }, urls: { go: "https://old.test" } }), URLS: JSON.stringify({ hub: "https://hub.x.test/", feature: "https://f.x.test" }) };
+  assert.equal(appUrl(e, "hub"), "https://hub.x.test");
+  assert.equal(appUrl(e, "feature"), "https://f.x.test");
+  assert.equal(appUrl(e, "go"), "https://old.test");
+  assert.equal(profile(e).brand.short, "Acme");
+  assert.equal(appUrl({ ...e, URLS: JSON.stringify({ hub: "https://baru.test" }) }, "hub"), "https://baru.test", "URLS baru tidak terhalang cache");
+}
+
 console.log("semua cek lolos");

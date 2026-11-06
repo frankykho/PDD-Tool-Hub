@@ -41,14 +41,16 @@ function merge(base, over) {
   return out;
 }
 
-let cacheRaw, cacheVal;
+let cacheRaw, cacheUrls, cacheVal;
 /** Profil lengkap (default + PROFILE dari env). Hasil di-cache per isolate. */
 export function profile(env) {
-  const raw = (env && env.PROFILE) || "";
-  if (raw === cacheRaw && cacheVal) return cacheVal;
-  let p = {};
+  // alamat tool dikirim terpisah di URLS (deploy.mjs) karena PROFILE + urls melewati batas 5.000 karakter per variabel Cloudflare
+  const raw = (env && env.PROFILE) || "", rawUrls = (env && env.URLS) || "";
+  if (raw === cacheRaw && rawUrls === cacheUrls && cacheVal) return cacheVal;
+  let p = {}, u = {};
   try { p = typeof raw === "string" ? (raw ? JSON.parse(raw) : {}) : raw; } catch (e) { console.error("PROFILE bukan JSON yang sah"); }
-  cacheRaw = raw; cacheVal = merge(DEFAULTS, p);
+  try { u = rawUrls ? JSON.parse(rawUrls) : {}; } catch (e) { console.error("URLS bukan JSON yang sah"); }
+  cacheRaw = raw; cacheUrls = rawUrls; cacheVal = merge(DEFAULTS, merge(p, { urls: { ...(p.urls || {}), ...u } }));
   return cacheVal;
 }
 
