@@ -447,12 +447,12 @@ async function report(env, q) {
     env.DB.prepare("SELECT e.feature_id, f.name AS feature, f.area, c.name AS competitor, e.launched_at, e.url, e.source FROM ft_evidence e JOIN ft_features f ON f.id=e.feature_id LEFT JOIN ft_competitors c ON c.id=e.competitor_id WHERE e.status='Terverifikasi' AND e.launched_at BETWEEN ? AND ? ORDER BY e.launched_at, c.name").bind(p.from, p.to),
     env.DB.prepare("SELECT id, title, feature_ids, status, version, updated_at FROM ft_brds WHERE status<>'Dibatalkan' ORDER BY updated_at DESC"),
   ]);
-  const { features } = await listFeatures(env, new URLSearchParams());
+  const { features, competitors } = await listFeatures(env, new URLSearchParams());
   const brdOf = (id) => { const b = bs.results.find((x) => parseJ(x.feature_ids, []).includes(id)); return b ? { id: b.id, title: b.title, status: b.status, version: b.version } : null; };
   const rank = { H: 0, M: 1, L: 2 };
   const pursued = features.filter((x) => x.decision === "Kejar").sort((a, b) => (rank[a.priority] ?? 3) - (rank[b.priority] ?? 3) || a.name.localeCompare(b.name))
     .map((x) => ({ feature_id: x.id, feature: x.name, area: x.area, priority: x.priority, ikisi_status: x.ikisi_status, brd: brdOf(x.id) }));
-  return { ...p, launched: ev.results, features, pursued };
+  return { ...p, launched: ev.results, features, competitors, pursued };
 }
 const SUMMARY_RULES = `Kamu analis produk di Divisi Digital Business KISI (aplikasi iKISI). Tulis ringkasan untuk management (maksimal 4 paragraf pendek, Bahasa Indonesia baku):
 apa yang diluncurkan kompetitor dalam periode, posisi iKISI, dan fitur yang diusulkan dikejar beserta prioritasnya. Pakai hanya data yang diberikan; jangan mengarang angka atau dampak bisnis. Tanpa judul, tanpa markdown.`;

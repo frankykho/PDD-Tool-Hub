@@ -299,6 +299,7 @@ assert.equal(rs, 200, JSON.stringify(rep));
 assert.deepEqual(rep.launched.map((x) => [x.competitor, x.feature, x.launched_at]), [["IPOT", "Y", "2026-10-01"], ["Stockbit", "Auto Invest", "2026-10-01"], ["IPOT", "Auto Invest", "2026-10-05"]]);
 assert.ok(!rep.launched.some((x) => x.feature_id === old.feature_id));
 assert.ok(rep.features.some((x) => x.name === "Fitur Lama"), "tabel perbandingan memuat semua fitur");
+assert.deepEqual(rep.competitors.map((c) => c.id).sort(), [IP, SB], "kolom kompetitor ikut dikirim (tab Report bisa dibuka pertama)");
 assert.deepEqual(rep.pursued.map((x) => [x.feature, x.priority, x.brd && x.brd.status]), [["Auto Invest", "H", "Diserahkan ke IT"]]);
 const [dfs, dflt] = await j(call("GET", "/api/report", null, "editor"));
 assert.equal(dfs, 200); assert.ok(dflt.from < dflt.to, "bawaan: 3 bulan terakhir");
