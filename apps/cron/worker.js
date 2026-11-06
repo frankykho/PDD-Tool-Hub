@@ -12,6 +12,7 @@
 //   10:20 & 12:20    SATS, Senin–Jumat (dulu 10:17 & 12:17)
 //   10:00 & 12:00    Bond Insight, Senin–Jumat (17.00 & 19.00 WIB): kurva yield PHEI hari itu + data obligasi
 //   tiap 5 menit     Story Data, Senin–Jumat; memilih tugas sendiri menurut jam (dulu */5 * * * 1-5)
+//   :00/:30 Minggu   Feature Intelligence: scan mulai 01:00 UTC (08.00 WIB), sisanya melanjutkan caption IG yang tertunda
 //   tiap 5 menit     Content Insight: scan Instagram 07.00 WIB + lanjutkan scan yang berjalan (ringan bila tidak ada; tanpa APIFY_TOKEN langsung selesai)
 //
 // Hasil tiap jalan dicatat di D1 (tabel cron_runs) dan dibaca beranda Tool Hub lewat GET /__hub/today (shared/hubfeed.js).
@@ -29,6 +30,7 @@ export default {
     if (m === 20) jobs.push("NEWS");
     if (weekday && d.getUTCMinutes() === 20 && (h === 10 || h === 12)) jobs.push("SATS");
     if (weekday && d.getUTCMinutes() === 0 && (h === 10 || h === 12)) jobs.push("BOND");
+    if (d.getUTCDay() === 0 && m === 0) jobs.push("FEATURE");
 
     const ran = jobs.filter(Boolean);
     const res = await Promise.allSettled(ran.map(async (b) => {

@@ -8,6 +8,7 @@
 import { title, profileScript } from "../../shared/profile.js";
 import { withCron } from "../../shared/cron.js";
 import { themeHead } from "../../shared/theme.js";
+import { ai } from "../../shared/ai.js";
 import EN from "./i18n.js";
 import PAGE from "./page.html";
 
@@ -216,6 +217,141 @@ async function saveCompetitor(env, b) {
   return { id };
 }
 
+/* ---------- scan: Instagram (data Content Insight), App Store, Play Store ---------- */
+async function getMeta(env, k) { const r = await env.DB.prepare("SELECT v FROM ft_meta WHERE k=?").bind(k).first(); return r ? r.v : null; }
+const setMeta = (env, k, v) => env.DB.prepare("INSERT OR REPLACE INTO ft_meta (k, v) VALUES (?, ?)").bind(k, String(v)).run();
+export const ftHash = (competitorId, source, key) => competitorId + ":" + source + ":" +
+  Array.from(String(key)).reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261).toString(16);
+// kata yang tersisa setelah kata-kata "perbaikan bug / peningkatan performa" dibuang; kosong = catatan rilis tanpa fitur
+const BUGFIX_WORDS = new Set(("bug bugs fix fixes fixed fixing perbaikan memperbaiki diperbaiki beberapa berbagai dan and serta & peningkatan meningkatkan ditingkatkan " +
+  "performa kinerja stabilitas kestabilan aplikasi app performance improvement improvements improve stability minor kami we the our to of for with untuk dari pada " +
+  "pengalaman experience lebih better baik versi version ini this new terbaru pembaruan update updates yang di in umum general tweaks enhancements kecil small issues masalah").split(" "));
+export function ftIsBugfixOnly(text) {
+  return String(text || "").toLowerCase().split(/[^a-z0-9&]+/).filter((w) => w && !BUGFIX_WORDS.has(w)).length === 0;
+}
+export function ftAppStore(j) {
+  const r = j && Array.isArray(j.results) && j.results[0];
+  return r && r.version ? { version: String(r.version), notes: String(r.releaseNotes || ""), date: String(r.currentVersionReleaseDate || "").slice(0, 10) } : null;
+}
+const decode = (t) => t.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+/** Teks bagian "Yang baru" / "What's new" dari halaman aplikasi Play Store; "" bila tidak ketemu. */
+export function ftPlayNotes(html) {
+  const h = String(html || ""), i = h.search(/>\s*(Yang baru|What(?:&#39;|’|')s new)\s*</i);
+  if (i < 0) return "";
+  const m = h.slice(i).match(/itemprop="description"[^>]*>([\s\S]*?)<\/div>/);
+  return m ? decode(m[1].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")).replace(/[⁠​]/g, "").trim() : "";
+}
+function aiJson(raw) {
+  const t = String(raw || ""), a = t.indexOf("{"), b = t.lastIndexOf("}");
+  try { return a >= 0 && b > a ? JSON.parse(t.slice(a, b + 1)) : null; } catch { return null; }
+}
+const aiFeature = (x) => {
+  const name = s(x && x.name, 160);
+  if (!name) return null;
+  return { name, area: FT.AREAS.includes(x.area) ? x.area : "Lainnya", description: s(x.description, 600), merge_id: s(x.merge_id, 60) || null };
+};
+/** Jawaban AI untuk satu caption IG: { feature: false } atau { feature: true, name, area, description, merge_id }. */
+export function ftAiVerdict(raw) {
+  const j = aiJson(raw), f = j && j.feature === true ? aiFeature(j) : null;
+  return f ? { feature: true, ...f } : { feature: false };
+}
+/** Jawaban AI untuk catatan rilis: daftar fitur (bisa kosong). */
+export function ftAiFeatures(raw) {
+  const j = aiJson(raw);
+  return (j && Array.isArray(j.features) ? j.features : []).map(aiFeature).filter(Boolean).slice(0, 12);
+}
+const aiLimit = (env) => Number(env.FT_AI_DAILY ?? 30);
+async function aiTake(env) {
+  const day = new Date().toISOString().slice(0, 10);
+  let c = { d: day, n: 0 };
+  try { const x = JSON.parse(await getMeta(env, "ft_ai_day")); if (x.d === day) c = x; } catch {}
+  if (c.n >= aiLimit(env)) return false;
+  c.n++;
+  await setMeta(env, "ft_ai_day", JSON.stringify(c));
+  return true;
+}
+const NOT_FEATURE = "promo, hadiah, cashback, kompetisi, edukasi, berita/analisis pasar, webinar, event, rekrutmen, ucapan hari besar";
+const IG_RULES = `Kamu analis produk aplikasi investasi di Indonesia. Tentukan apakah caption Instagram ini mengumumkan FITUR APLIKASI (fungsi, menu, layar, atau produk yang baru/diperbarui di aplikasi), bukan ${NOT_FEATURE}.
+Jangan mengarang: pakai hanya isi caption. Kalau fitur yang sama sudah ada di daftar, isi merge_id dengan id-nya.
+Jawab JSON saja: {"feature":true,"name":"nama fitur singkat","area":"salah satu: ${FT.AREAS.join(" / ")}","description":"1-2 kalimat dari caption","merge_id":null} atau {"feature":false,"reason":"..."}`;
+const STORE_RULES = `Kamu analis produk aplikasi investasi di Indonesia. Dari catatan rilis aplikasi, daftar FITUR yang baru atau diperbarui. Lewati perbaikan bug, peningkatan performa, dan perubahan teknis yang tidak terlihat pengguna.
+Jangan mengarang: pakai hanya isi catatan rilis. Kalau fitur yang sama sudah ada di daftar, isi merge_id dengan id-nya.
+Jawab JSON saja: {"features":[{"name":"nama fitur singkat","area":"salah satu: ${FT.AREAS.join(" / ")}","description":"1 kalimat","merge_id":null}]} (boleh kosong).`;
+async function knownList(env) {
+  return (await env.DB.prepare("SELECT id, name FROM ft_features ORDER BY updated_at DESC LIMIT 150").all()).results.map((f) => `${f.id}: ${f.name}`).join("\n") || "(belum ada)";
+}
+async function addPending(env, competitorId, source, key, row) {
+  const r = await env.DB.prepare("INSERT OR IGNORE INTO ft_evidence (id, competitor_id, source, url, text, launched_at, ai_json, status, hash, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Perlu verifikasi', ?, 'Scan otomatis', ?)")
+    .bind(uid(), competitorId, source, row.url || "", s(row.text, 4000), row.launched_at || null, JSON.stringify(row.ai), ftHash(competitorId, source, key), now()).run();
+  return r.meta && r.meta.changes ? 1 : 0;
+}
+const IG_BATCH = 10;
+async function scanIg(env, comps, known) {
+  const byAcc = Object.fromEntries(comps.filter((c) => c.ig_account).map((c) => [c.ig_account.toLowerCase(), c]));
+  const accs = Object.keys(byAcc);
+  if (!accs.length) return { n: 0, more: false };
+  const since = (await getMeta(env, "ig_since")) || "";
+  const rows = (await env.DB.prepare(`SELECT url, account, caption, posted_at, saved_at FROM ci_content WHERE platform='Instagram' AND lower(account) IN (${accs.map(() => "?").join(",")}) AND saved_at > ? ORDER BY saved_at LIMIT ${IG_BATCH}`)
+    .bind(...accs, since).all()).results;
+  let n = 0;
+  for (const r of rows) {
+    const c = byAcc[r.account.toLowerCase()];
+    if (!(await env.DB.prepare("SELECT 1 FROM ft_evidence WHERE hash=?").bind(ftHash(c.id, "ig", r.url)).first())) {
+      if (!(await aiTake(env))) return { n, more: true, error: "Batas AI harian tercapai; sisa caption diproses di scan berikutnya." };
+      const { text } = await ai(env, IG_RULES, `Kompetitor: ${c.name}\nTanggal posting: ${String(r.posted_at || "").slice(0, 10)}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCaption:\n${s(r.caption, 3000)}`, 600, undefined, { temperature: 0.2, json: true });
+      const v = ftAiVerdict(text);
+      if (v.feature) { const { feature, ...sug } = v; n += await addPending(env, c.id, "ig", r.url, { url: r.url, text: r.caption, launched_at: String(r.posted_at || r.saved_at).slice(0, 10), ai: sug }); }
+    }
+    await setMeta(env, "ig_since", r.saved_at);
+  }
+  return { n, more: rows.length === IG_BATCH };
+}
+/** Satu sumber toko aplikasi: get(c) -> { key, notes, date, url } | null. Versi yang sudah diproses dilewati (penanda di ft_meta). */
+async function scanStore(env, comps, known, source, get) {
+  let n = 0;
+  for (const c of comps) {
+    const rel = await get(c);
+    if (!rel) continue;
+    const mk = `${source}_${c.id}`;
+    if ((await getMeta(env, mk)) === rel.key) continue;
+    if (!ftIsBugfixOnly(rel.notes)) {
+      if (!(await aiTake(env))) return { n, error: "Batas AI harian tercapai; dicoba lagi di scan berikutnya." };
+      const { text } = await ai(env, STORE_RULES, `Kompetitor: ${c.name}\nSumber: ${source === "appstore" ? "App Store" : "Play Store"}\nFitur yang sudah tercatat (id: nama):\n${known}\n\nCatatan rilis:\n${s(rel.notes, 4000)}`, 1500, undefined, { temperature: 0.2, json: true });
+      for (const f of ftAiFeatures(text)) n += await addPending(env, c.id, source, rel.key + ":" + f.name, { url: rel.url, text: rel.notes, launched_at: rel.date, ai: f });
+    }
+    await setMeta(env, mk, rel.key);
+  }
+  return { n };
+}
+const wibToday = () => new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
+/** Scan semua sumber; satu sumber gagal tidak menggagalkan yang lain. stores:false = hanya lanjutkan IG yang tertunda. */
+export async function ftScan(env, { fetcher = fetch, stores = true } = {}) {
+  const comps = (await env.DB.prepare("SELECT * FROM ft_competitors WHERE enabled=1").all()).results;
+  const known = await knownList(env), out = {};
+  const run = async (src, fn) => {
+    try { out[src] = await fn(); } catch (e) { out[src] = { n: 0, error: String((e && e.message) || e).slice(0, 300) }; }
+    await setMeta(env, "scan_" + src, JSON.stringify({ at: now(), n: out[src].n, ...(out[src].error ? { error: out[src].error } : {}) }));
+  };
+  await run("ig", () => scanIg(env, comps, known));
+  if (stores) {
+    await run("appstore", () => scanStore(env, comps.filter((c) => c.appstore_id), known, "appstore", async (c) => {
+      const r = await fetcher(`https://itunes.apple.com/lookup?id=${c.appstore_id}&country=id`);
+      if (!r.ok) throw new Error("App Store HTTP " + r.status);
+      const a = ftAppStore(await r.json());
+      return a && { key: a.version, notes: a.notes, date: a.date || wibToday(), url: `https://apps.apple.com/id/app/id${c.appstore_id}` };
+    }));
+    await run("playstore", () => scanStore(env, comps.filter((c) => c.play_id), known, "playstore", async (c) => {
+      const url = `https://play.google.com/store/apps/details?id=${encodeURIComponent(c.play_id)}&hl=id&gl=ID`;
+      const r = await fetcher(url, { headers: { "user-agent": "Mozilla/5.0 (compatible; FeatureIntel/1.0)", "accept-language": "id-ID,id;q=0.9" } });
+      if (!r.ok) throw new Error("Play Store HTTP " + r.status);
+      const notes = ftPlayNotes(await r.text());
+      if (!notes) throw new Error("Bagian 'Yang baru' tidak ditemukan di halaman Play Store");
+      return { key: ftHash(c.id, "play", notes), notes, date: wibToday(), url };
+    }));
+  }
+  return out;
+}
+
 /** Hasil fungsi -> respons JSON (status dari { status }, atau 400 kalau ada error). */
 const out = (r) => { const { status, ...rest } = r; return json(rest, status || (r.error ? 400 : 200)); };
 async function api(req, env, u, me, can) {
@@ -236,6 +372,13 @@ async function api(req, env, u, me, can) {
       return json({ evidence: ev.results });
     }
     if (path === "/api/competitors") return json({ competitors: (await env.DB.prepare("SELECT * FROM ft_competitors ORDER BY name").all()).results });
+    if (path === "/api/scan") {
+      const st = {};
+      for (const src of ["ig", "appstore", "playstore"]) { try { st[src] = JSON.parse(await getMeta(env, "scan_" + src)); } catch { st[src] = null; } }
+      // akun IG kompetitor yang tidak pernah muncul di data Content Insight (salah ketik / belum dipantau)
+      const accs = (await env.DB.prepare("SELECT c.name, c.ig_account, (SELECT COUNT(*) FROM ci_content WHERE platform='Instagram' AND lower(account)=c.ig_account) AS n FROM ft_competitors c WHERE c.enabled=1 AND c.ig_account<>''").all().catch(() => ({ results: [] }))).results;
+      return json({ ...st, ig_missing: accs.filter((a) => !a.n).map((a) => a.name + " (@" + a.ig_account + ")") });
+    }
     return json({ error: "Tidak ditemukan" }, 404);
   }
   if (!can("editor")) return json({ error: "Hanya editor atau admin yang bisa mengubah data." }, 403);
@@ -248,10 +391,24 @@ async function api(req, env, u, me, can) {
   }
   if (m === "PATCH" && path === "/api/features") return out(await patchFeature(env, me, b));
   if (path === "/api/competitors" && m === "POST") return can("admin") ? out(await saveCompetitor(env, b)) : json({ error: "Hanya admin yang bisa mengatur kompetitor." }, 403);
+  if (path === "/api/scan" && m === "POST") return can("admin") ? json(await ftScan(env)) : json({ error: "Hanya admin yang bisa menjalankan scan." }, 403);
   return json({ error: "Tidak ditemukan" }, 404);
 }
 
-async function scheduled() {}
+// apps/cron memanggil tiap :00/:30 hari Minggu (UTC). Scan minggu ini dimulai 01:00 UTC (08.00 WIB, setelah scan IG Content Insight 07.00 WIB);
+// panggilan berikutnya hanya melanjutkan caption IG yang belum terbaca (10 per panggilan, supaya tetap di bawah batas CPU).
+async function scheduled(e, env) {
+  const d = new Date(e.scheduledTime || Date.now());
+  if (d.getUTCDay() !== 0) return;
+  try {
+    await ensure(env);
+    const week = d.toISOString().slice(0, 10);
+    let r;
+    if (d.getUTCHours() === 1 && d.getUTCMinutes() < 30 && (await getMeta(env, "week")) !== week) { await setMeta(env, "week", week); r = await ftScan(env); }
+    else if ((await getMeta(env, "pending")) === "1") r = await ftScan(env, { stores: false });
+    if (r) await setMeta(env, "pending", r.ig && r.ig.more ? "1" : "0");
+  } catch (err) { console.error("FT scan:", (err && err.message) || err); }
+}
 
 export default withCron({
   scheduled,

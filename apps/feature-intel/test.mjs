@@ -121,4 +121,83 @@ assert.equal((await call("POST", "/api/competitors", { id: SB, name: "Stockbit",
 const [, comps] = await j(call("GET", "/api/competitors", null, "viewer"));
 assert.deepEqual(comps.competitors.map((c) => [c.name, c.enabled]).sort(), [["Ajaib", 0], ["IPOT", 1], ["Stockbit", 1]]);
 
+/* ---------- Task 3: scan IG (ci_content), App Store, Play Store ---------- */
+const { ftIsBugfixOnly, ftAppStore, ftPlayNotes, ftAiVerdict, ftAiFeatures, ftHash, ftScan } = await import("./worker.js");
+assert.equal(ftIsBugfixOnly("Perbaikan bug dan peningkatan performa."), true);
+assert.equal(ftIsBugfixOnly("Bug fixes and performance improvements"), true);
+assert.equal(ftIsBugfixOnly("Kami memperbaiki beberapa bug & meningkatkan stabilitas aplikasi"), true);
+assert.equal(ftIsBugfixOnly(""), true);
+assert.equal(ftIsBugfixOnly("Fitur baru: Auto Invest reksa dana. Perbaikan bug."), false);
+assert.deepEqual(ftAppStore({ results: [{ version: "5.2.0", releaseNotes: "Auto Invest", currentVersionReleaseDate: "2026-10-03T07:00:00Z" }] }), { version: "5.2.0", notes: "Auto Invest", date: "2026-10-03" });
+assert.equal(ftAppStore({ results: [] }), null);
+assert.equal(ftAppStore(null), null);
+const PLAY = (notes) => `<html><section><header><h2 class="XfZNbf">Yang baru</h2></header><div class="SfzRHd"><div itemprop="description">${notes}</div></div></section><div itemprop="description">Deskripsi aplikasi</div></html>`;
+assert.equal(ftPlayNotes(PLAY("Yang Baru di Versi ini:<br>•  [Baru] Pro Chart<br>•  Sector &amp; Industry")), "Yang Baru di Versi ini:\n•  [Baru] Pro Chart\n•  Sector & Industry");
+assert.equal(ftPlayNotes("<html>tidak ada</html>"), "");
+assert.deepEqual(ftAiVerdict("bukan json"), { feature: false });
+assert.deepEqual(ftAiVerdict('{"feature":false}'), { feature: false });
+assert.equal(ftAiVerdict('{"feature":true,"name":"X","area":"Kripto","description":"d"}').area, "Lainnya");
+assert.deepEqual(ftAiVerdict('{"feature":true,"area":"Saham"}'), { feature: false }, "tanpa nama bukan fitur");
+assert.deepEqual(ftAiFeatures('```json\n{"features":[{"name":"Pro Chart","area":"Saham","description":"d","merge_id":"f1"},{"name":""}]}\n```'), [{ name: "Pro Chart", area: "Saham", description: "d", merge_id: "f1" }]);
+assert.deepEqual(ftAiFeatures("{rusak"), []);
+assert.notEqual(ftHash("stockbit", "ig", "a"), ftHash("ipot", "ig", "a"));
+
+// AI palsu (Workers AI): IG -> fitur bila caption menyebut "Fitur"; catatan rilis -> satu fitur per baris "[Baru]"
+let aiCalls = 0;
+env.AI = { run: async (model, { messages }) => {
+  aiCalls++;
+  const u = messages[1].content;
+  if (/Catatan rilis/.test(u)) return { response: JSON.stringify({ features: [...u.matchAll(/\[Baru\] ([^\n]+)/g)].map((x) => ({ name: x[1].trim(), area: "Saham", description: "Fitur " + x[1].trim() + " dari catatan rilis" })) }) };
+  return { response: /Fitur/.test(u.split("Caption:")[1]) ? JSON.stringify({ feature: true, name: "Auto Invest", area: "Reksa Dana", description: "Investasi rutin otomatis dari caption" }) : JSON.stringify({ feature: false, reason: "promo atau edukasi, bukan fitur" }) };
+} };
+let ciN = 0;
+const seedContent = (rows) => { for (const r of rows) env.DB.db.prepare("INSERT INTO ci_content (id, url, platform, account, caption, posted_at, saved_at) VALUES (?, ?, 'Instagram', ?, ?, ?, ?)").run("c" + ++ciN, "https://instagram.com/p/" + ciN, r.account, r.caption, r.posted_at || "2026-10-30T10:00:00Z", r.saved_at); };
+let storeVersion = "5.2.0", storeNotes = "Fitur baru:\n[Baru] Auto Invest", playNotes = "Yang Baru:<br>[Baru] Pro Chart di Company Page<br>[Baru] Trade Summary";
+const fakeStores = async (url) => {
+  if (/itunes\.apple\.com\/lookup/.test(url)) return Response.json({ results: [{ version: storeVersion, releaseNotes: storeNotes, currentVersionReleaseDate: "2026-10-03T07:00:00Z" }] });
+  if (/play\.google\.com/.test(url)) return new Response(PLAY(playNotes));
+  return new Response("?", { status: 404 });
+};
+const pending = () => env.DB.db.prepare("SELECT competitor_id, source, text, launched_at, ai_json FROM ft_evidence WHERE status='Perlu verifikasi' ORDER BY source, competitor_id").all();
+seedContent([{ account: "Stockbit", caption: "Fitur baru Auto Invest sudah hadir!", saved_at: "2026-11-01T00:00:00Z" },
+             { account: "stockbit", caption: "Promo cashback akhir bulan", saved_at: "2026-11-01T00:01:00Z" },
+             { account: "akunlain", caption: "Fitur baru", saved_at: "2026-11-01T00:02:00Z" }]);
+const r1 = await ftScan(env, { fetcher: fakeStores });
+assert.equal(r1.ig.n, 1, "hanya akun kompetitor (huruf besar/kecil sama) dan hanya caption fitur");
+assert.equal(r1.appstore.n, 2, "Stockbit & IPOT masing-masing 1 fitur dari App Store");
+assert.equal(r1.playstore.n, 4, "2 kompetitor × 2 fitur Play Store");
+const igRow = pending().find((r) => r.source === "ig");
+assert.equal(igRow.competitor_id, "stockbit"); assert.equal(igRow.launched_at, "2026-10-30");
+assert.equal(JSON.parse(igRow.ai_json).name, "Auto Invest");
+const r2 = await ftScan(env, { fetcher: fakeStores });                  // jalan ulang
+assert.deepEqual([r2.ig.n, r2.appstore.n, r2.playstore.n], [0, 0, 0], "tidak ada duplikat");
+// versi baru yang isinya hanya perbaikan bug dilewati
+storeVersion = "5.2.1"; storeNotes = "Perbaikan bug dan peningkatan performa.";
+assert.equal((await ftScan(env, { fetcher: fakeStores })).appstore.n, 0);
+// Play Store gagal / diblokir tidak menggagalkan sumber lain; status tersimpan per sumber
+const r3 = await ftScan(env, { fetcher: (u) => /play\.google/.test(u) ? Promise.reject(new Error("blocked")) : fakeStores(u) });
+assert.match(r3.playstore.error, /blocked/); assert.ok(!r3.appstore.error); assert.ok(!r3.ig.error);
+const [, scanSt] = await j(call("GET", "/api/scan", null, "viewer"));
+assert.match(scanSt.playstore.error, /blocked/); assert.ok(scanSt.ig.at);
+// batas AI harian: tidak ada panggilan AI, penanda IG tidak maju (dicoba lagi nanti)
+env.FT_AI_DAILY = "0"; aiCalls = 0;
+seedContent([{ account: "stockbit", caption: "Fitur lain", saved_at: "2026-11-02T00:00:00Z" }]);
+assert.equal((await ftScan(env, { fetcher: fakeStores })).ig.n, 0);
+assert.equal(aiCalls, 0);
+delete env.FT_AI_DAILY;
+assert.equal((await ftScan(env, { fetcher: fakeStores })).ig.n, 1, "setelah kuota ada lagi, caption yang tertunda diproses");
+// tombol Scan sekarang: hanya admin
+assert.equal((await call("POST", "/api/scan", {}, "editor")).status, 403);
+
+// jadwal: hanya Minggu; mulai 01:00 UTC; :30 berikutnya hanya melanjutkan IG yang tertunda
+const cron = (iso) => worker.fetch(new Request(`${BASE}/__cron?t=${Date.parse(iso)}`, { method: "POST", headers: { "x-cron-key": SECRET } }), env, {});
+const igAt = () => JSON.parse(env.DB.db.prepare("SELECT v FROM ft_meta WHERE k='scan_ig'").get().v).at;
+const before = igAt();
+assert.equal((await cron("2026-11-09T01:00:00Z")).status, 200);        // Senin
+assert.equal(igAt(), before, "Senin tidak scan");
+await cron("2026-11-08T00:30:00Z");                                     // Minggu sebelum jam mulai
+assert.equal(igAt(), before);
+await cron("2026-11-08T01:00:00Z");                                     // Minggu 08.00 WIB
+assert.notEqual(igAt(), before, "Minggu 01:00 UTC scan");
+
 console.log("feature-intel: semua tes lolos");

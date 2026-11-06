@@ -17,6 +17,7 @@
     { "binding": "RECAP", "service": "market-recap" },
     { "binding": "NEWS", "service": "market-news" },
     { "binding": "CONTENT", "service": "content-insight" },
-    { "binding": "BOND", "service": "bond-insight" }
+    { "binding": "BOND", "service": "bond-insight" },
+    { "binding": "FEATURE", "service": "feature-intel" }
   ]
 }
