@@ -43,6 +43,8 @@ export const APPS = [
   { id: "brand", dir: "apps/brand-kit" },
   // setelah planner: konsep konten dikirim ke Content Planner lewat service binding
   { id: "content", dir: "apps/content-insight" },
+  // setelah content: membaca ci_content di insight-db; dipanggil tool-cron lewat service binding
+  { id: "feature", dir: "apps/feature-intel" },
   // setelah storydata: memakainya lewat service binding
   { id: "recap", dir: "apps/market-recap" },
   // membaca database Market Recap (recap-db) untuk ringkasan pasar
@@ -178,7 +180,7 @@ function putSecrets(app, profile, vals) {
 }
 // Key AI dari env (workflow "AI keys" mengisinya dari secret repo GitHub) ke semua tool yang memanggil shared/ai.js.
 // Key yang kosong tidak dikirim, jadi secret yang sudah ada di worker tidak tertimpa.
-const AI_APPS = ["edukasi", "recap", "content", "competitor", "news", "copy", "tutorial", "sats"];
+const AI_APPS = ["edukasi", "recap", "content", "competitor", "news", "copy", "tutorial", "sats", "feature"];
 function aiKeys() {
   const vals = Object.fromEntries(["GEMINI_API_KEY", "GROQ_API_KEY"].map((k) => [k, (process.env[k] || "").trim()]).filter(([, v]) => v));
   if (!Object.keys(vals).length) die("GEMINI_API_KEY dan GROQ_API_KEY kosong: isi minimal satu sebagai secret repo GitHub (Settings › Secrets and variables › Actions).");
