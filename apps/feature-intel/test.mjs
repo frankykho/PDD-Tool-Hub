@@ -255,4 +255,36 @@ assert.equal((await call("POST", "/api/brds/draft", { id: brd.id, key: "jadwal" 
 const [, blist] = await j(call("GET", "/api/brds", null, "viewer"));
 assert.deepEqual(blist.brds.map((x) => [x.title, x.status, x.feature_names]), [["Auto Invest", "Diserahkan ke IT", ["Auto Invest"]]]);
 
+/* ---------- Task 5: BRD Word dari template resmi (zip dibaca/ditulis sendiri, tanpa library) ---------- */
+const { brdDocx, unzip, zip, xmlEsc } = await import("./assets/brd-docx.js");
+assert.equal(xmlEsc(`a<b & "c"`), "a&lt;b &amp; &quot;c&quot;");
+const td = new TextDecoder(), te8 = new TextEncoder();
+const rt = await unzip(zip([{ name: "a.txt", data: te8.encode("halo") }, { name: "dir/b.xml", data: te8.encode("<x/>") }]));
+assert.deepEqual(rt.map((e) => [e.name, td.decode(e.data)]), [["a.txt", "halo"], ["dir/b.xml", "<x/>"]], "zip -> unzip bolak-balik");
+const tplRaw = new Uint8Array(fs.readFileSync(new URL("../../docs/superpowers/specs/assets/BRD Template.docx", import.meta.url)));
+const tpl = new Uint8Array(fs.readFileSync(new URL("./assets/brd-template.docx", import.meta.url)));
+const file = async (bytes, name) => td.decode((await unzip(bytes)).find((e) => e.name === name).data);
+assert.equal(await file(tpl, "word/header1.xml"), await file(tplRaw, "word/header1.xml"), "template bertanda: kepala halaman sama dengan template resmi");
+assert.match(await file(tpl, "word/document.xml"), /\{\{s:ringkasan\}\}[\s\S]*\{\{s:persetujuan\}\}[\s\S]*\{\{s:lampiran\}\}/);
+const docOut = await brdDocx(tpl, p);
+const doc = await file(docOut, "word/document.xml");
+// Word memecah teks ke beberapa run: cek teks yang terbaca, kecuali escape XML yang dicek di XML mentah
+const text = doc.match(/<w:t(?: [^>]*)?>[^<]*<\/w:t>/g).map((x) => x.replace(/<[^>]+>/g, "")).join("");
+assert.ok(!/\{\{[fs]:/.test(doc), "tidak ada penanda tersisa");
+assert.equal(await file(docOut, "word/header1.xml"), await file(tplRaw, "word/header1.xml"), "kepala halaman utuh");
+assert.equal(await file(docOut, "word/footer1.xml"), await file(tplRaw, "word/footer1.xml"), "kaki halaman utuh");
+assert.deepEqual((await unzip(docOut)).map((e) => e.name), (await unzip(tplRaw)).map((e) => e.name), "isi zip sama dengan template");
+assert.ok((doc.match(/<w:tbl>/g) || []).length > 13, "tabel template + tabel isi");
+assert.match(text, /IT-BRD-2026-___ \(akan ditetapkan\)/);
+assert.match(text, /Investasi Berkala Reksa Dana/, "nama proyek di kotak identitas");
+assert.match(doc, /Harus ada &lt;jadwal&gt; &amp; &quot;pause&quot;/);
+assert.match(text, /BR-1\.1/);
+assert.match(text, /Lampiran E – Referensi Kompetitor/);
+assert.match(text, /Associate Director/);
+for (const t of ["w:p", "w:tbl", "w:tr", "w:tc", "w:r"])                   // XML tetap seimbang
+  assert.equal((doc.match(new RegExp(`<${t}[ >]`, "g")) || []).length, (doc.match(new RegExp(`</${t}>`, "g")) || []).length, t);
+const order = ["Ringkasan Eksekutif", "Paragraf AI.", "Tujuan Proyek", "Ruang Lingkup", "Kebutuhan Bisnis", "BR-1.1", "Definisi Metrik", "Kebutuhan Keamanan", "TLS 1.2", "Pemangku Kepentingan", "Kendala Proyek", "Hal Tambahan", "Jadwal", "Open Items", "Persetujuan Untuk Dilaksanakan", "Lampiran E – Referensi Kompetitor:"];   // "Lampiran E" juga ada di kotak Referensi identitas
+assert.deepEqual(order.map((k) => text.indexOf(k)), order.map((k) => text.indexOf(k)).slice().sort((a, b) => a - b), "isi masuk di bawah judul yang benar");
+assert.ok(order.every((k) => text.includes(k)), order.filter((k) => !text.includes(k)).join(","));
+
 console.log("feature-intel: semua tes lolos");
