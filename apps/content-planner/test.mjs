@@ -760,4 +760,25 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual([await me(OPS), await me(ADM), await me(COPY)], [true, true, false]);
 }
 
+/* ---------- Pengembangan produk: hanya admin, riwayat update status ---------- */
+{
+  const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });
+  const p = { kind: "produk", title: "Filter reksa dana syariah", date: wib, channel: "Fitur baru", status: "ide", partner: "iKISI App", goal: "Saring RD syariah", end_date: "2000-01-01", d_need: true, program_id: "p1" };
+  assert.equal((await call("/api/items", { ck: COPY, body: p })).status, 400, "selain admin tidak bisa mencatat produk");
+  r = await call("/api/items", { ck: ADM, body: p });
+  assert.equal(r.status, 200);
+  let it = (await call("/api/items?id=" + r.j.id, { ck: ADM })).j;
+  assert.deepEqual([it.partner, it.goal, it.end_date, it.program_id, it.d_need], ["iKISI App", "Saring RD syariah", "", "", 0], "target rilis sebelum mulai dikosongkan");
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...it, title: "x", base: it.updated_at } })).status, 403, "non-admin tidak bisa mengubah");
+  assert.equal((await call("/api/items", { ck: ADM, body: { ...it, status: "uji", progress: "Siap UAT", base: it.updated_at } })).status, 200);
+  it = (await call("/api/items?id=" + r.j.id, { ck: ADM })).j;
+  assert.equal((await call("/api/items", { ck: ADM, body: { ...it, base: it.updated_at } })).status, 200, "simpan tanpa perubahan");
+  const log = (await call("/api/galeri?id=" + r.j.id, { ck: ADM })).j[0].log;
+  assert.deepEqual(log.map((l) => [l.st, l.text]), [["ide", ""], ["uji", "Siap UAT"]]);
+  const all = (await call("/api/galeri?kind=produk", { ck: ADM })).j;
+  assert.deepEqual(all.map((x) => [x.id, x.log.length]), [[r.j.id, 2]]);
+  const k = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "y", date: wib } })).j.id, ki = (await call("/api/items?id=" + k, { ck: COPY })).j;
+  assert.equal((await call("/api/items", { ck: COPY, body: { ...ki, kind: "produk", base: ki.updated_at } })).status, 400, "kegiatan lama tidak bisa dijadikan produk");
+}
+
 console.log("semua cek lolos");

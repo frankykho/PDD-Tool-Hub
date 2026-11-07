@@ -106,6 +106,8 @@ export const KINDS = {
   // rencana galeri investasi baru bersama mitra (pengelola galeri / sales): tahap demi tahap, tiap update progres tercatat di riwayat (comments, kind "progres:<tahap>")
   // pekerjaan tim ETF & Fund Ops (kolom ops, JSON); hanya role ops & admin yang mencatat
   ops: { label: "Ops ETF", channels: ["Rebalancing ETF", "Pekerjaan ETF lainnya"], statuses: ["rencana", "berjalan", "selesai", "kendala"] },
+  // fitur / fungsi produk (partner = produk / aplikasi, goal = deskripsi fungsi, end_date = target rilis); hanya admin; update status ke riwayat seperti galeri
+  produk: { label: "Pengembangan produk", channels: ["Fitur baru", "Fungsi / peningkatan", "Perbaikan", "Lainnya"], statuses: ["ide", "rencana", "pengembangan", "uji", "rilis", "batal"] },
   galeri: { label: "Kerja sama galeri baru", channels: ["Kampus / universitas", "Sekolah", "Komunitas", "Korporasi", "Pemerintah daerah", "Lainnya"], statuses: ["penjajakan", "proposal", "negosiasi", "mou", "resmi", "batal"] },
 };
 /** Jenis kegiatan yang dilihat & dicatat tim regional. */
@@ -262,6 +264,12 @@ export function cleanItem(b) {
     it.program_id = ""; it.d_need = 0;
   }
   if (kind === "ops") { it.ops = cleanOps(b.ops); it.program_id = ""; it.d_need = 0; }
+  if (kind === "produk") {
+    it.partner = s(b.partner, 120); it.goal = s(b.goal, 1000);
+    const end = s(b.end_date, 10);
+    it.end_date = ISO.test(end) && end >= it.date ? end : "";
+    it.program_id = ""; it.d_need = 0;
+  }
   if (kind === "aktivitas") {
     const end = s(b.end_date, 10);
     it.end_date = ISO.test(end) && end >= it.date ? end : "";
@@ -361,6 +369,7 @@ async function saveItem(env, me, b, opts = {}) {
   if (prev && b.base !== undefined && !b.force && (prev.updated_at || "") !== String(b.base || ""))
     return { conflict: true, by: prev.updated_by || "", at: prev.updated_at || "", error: `Kegiatan ini sudah diubah ${prev.updated_by || "orang lain"} setelah kamu membukanya.` };
   if ((it.kind === "ops" || (prev && prev.kind === "ops")) && !canOps(org, job, me.adm)) return { error: "Ops ETF hanya bisa dicatat dan diubah oleh ETF & Fund Ops atau admin." };
+  if ((it.kind === "produk" || (prev && prev.kind === "produk")) && !me.adm) return { error: "Pengembangan produk hanya bisa dicatat dan diubah oleh admin Tool Hub." };
   if ((it.kind === "program" || (prev && prev.kind === "program")) && !canAssign(org, job, me.adm)) return { error: "Program hanya bisa dibuat dan diubah oleh role yang punya hak Program & tugas (mis. Partnership, Head), atau admin." };
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
@@ -378,7 +387,7 @@ async function saveItem(env, me, b, opts = {}) {
   // rencana galeri: tiap pindah tahap atau ada update progres -> satu baris riwayat (tahap saat itu + catatannya)
   // dokumen yang berubah ikut ditulis di riwayat
   const upd = [String(b.progress ?? "").trim().slice(0, 1000), ...(it.kind === "galeri" ? docChanges(prev && prev.kind === "galeri" ? prev.docs : "", it.docs) : [])].filter(Boolean).join(" · ");
-  if (it.kind === "galeri" && (upd || !prev || prev.status !== it.status))
+  if ((it.kind === "galeri" || it.kind === "produk") && (upd || !prev || prev.status !== it.status))
     await env.DB.prepare("INSERT INTO comments (item_id, at, by_name, by_email, kind, text) VALUES (?, ?, ?, ?, ?, ?)").bind(id, opts.logAt || now, by, meE, "progres:" + it.status, upd).run();
   await notify(env, [...itemNotifs(prev, it, id, meE, by), ...ap.notifs.map((n) => ({ ...n, item_id: id }))]).catch((e) => console.error("notify:", e.message));
   return { id };
@@ -608,9 +617,10 @@ export async function seen(env, p) {
     .bind(email, String(p.n || p.u || email).slice(0, 60), job, new Date().toISOString(), member, String(p.c || "").slice(0, 60)).run();
 }
 /** Rencana galeri (semua tanggal, paling banyak 500) + riwayat progresnya [{ at, by, st, text }], urut regional lalu tanggal mulai. id = satu rencana saja. */
-async function galleries(env, id) {
+// kind = "produk" -> semua pengembangan produk; id -> satu rencana galeri / produk
+async function galleries(env, id, kind) {
   await ensure(env);
-  const L = (await env.DB.prepare(`SELECT * FROM items WHERE kind = 'galeri'${id ? " AND id = ?" : ""} ORDER BY region, date LIMIT 500`).bind(...(id ? [String(id)] : [])).all()).results;
+  const L = (await env.DB.prepare(`SELECT * FROM items WHERE ${id ? "kind IN ('galeri', 'produk') AND id = ?" : "kind = ?"} ORDER BY region, date LIMIT 500`).bind(id ? String(id) : kind === "produk" ? "produk" : "galeri").all()).results;
   if (!L.length) return [];
   const C = (await env.DB.prepare(`SELECT item_id, at, by_name, kind, text FROM comments WHERE kind LIKE 'progres:%' AND item_id IN (${L.map(() => "?").join(",")}) ORDER BY id`).bind(...L.map((i) => i.id)).all()).results;
   const by = {}; C.forEach((c) => (by[c.item_id] = by[c.item_id] || []).push({ at: c.at, by: c.by_name, st: c.kind.slice(8), text: c.text || "" }));
@@ -1284,7 +1294,7 @@ export default {
         }
         if (path === "/api/items") return json(await (url.searchParams.has("design") ? (reg ? [] : designItems(env, from, to)) : listItems(env, from, to, url.searchParams.has("overlap"), reg)));
         if (path === "/api/users") return json(await users(env));
-        if (path === "/api/galeri") return json(await galleries(env, url.searchParams.get("id") || ""));
+        if (path === "/api/galeri") return json(await galleries(env, url.searchParams.get("id") || "", url.searchParams.get("kind")));
         if (path === "/api/tasks") return json(await listTasks(env, me, { item: url.searchParams.get("item") || "", all: url.searchParams.has("all") }));
         if (path === "/api/programs") return json(await programs(env));
         if (path === "/api/program-report") return json(await programReport(env, from, to, url.searchParams.get("id") || ""));
