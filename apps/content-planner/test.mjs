@@ -760,6 +760,28 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual([await me(OPS), await me(ADM), await me(COPY)], [true, true, false]);
 }
 
+/* ---------- Terjemahan isian laporan (English) lewat AI: per kelompok, kelompok gagal dilewati ---------- */
+{
+  const { translateTexts } = await import("./worker.js"), { AiError } = await import("../../shared/ai.js");
+  const seenU = [];
+  const fake = async (env, sys, user, max, model, opts) => {
+    seenU.push(JSON.parse(user)); assert.equal(opts.json, true);
+    const o = JSON.parse(user);
+    if (Object.values(o).includes("rusak")) throw new AiError("Kuota AI gratis hari ini sudah habis.");
+    return { text: "```json\n" + JSON.stringify({ lang: "en", translations: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, "EN:" + v])) }) + "\n```" };
+  };
+  const long = "x".repeat(1400);
+  let r = await translateTexts({}, { texts: ["Rapat koordinasi", " Rapat koordinasi ", "12", "", null, "https://a.b/c", long + "1", long + "2", long + "3", long + "4", long + "5"] }, fake);
+  assert.equal(seenU.length, 2, "dibagi per ±6.000 karakter");
+  assert.equal(r.map["Rapat koordinasi"], "EN:Rapat koordinasi");
+  assert.ok(!("12" in r.map) && !("https://a.b/c" in r.map), "angka & link tidak dikirim");
+  assert.deepEqual([Object.keys(r.map).length, r.failed, r.note], [6, 0, ""]);
+  r = await translateTexts({}, { texts: ["Siap UAT", "rusak"] }, fake);
+  assert.deepEqual([r.map, r.failed, r.note], [{}, 2, "Kuota AI gratis hari ini sudah habis."], "AI gagal -> kosong + alasan");
+  assert.equal((await translateTexts({}, { texts: "bukan daftar" }, fake)).failed, 0);
+  assert.equal((await call("/api/translate", { ck: COPY, body: { texts: [] } })).status, 200);
+}
+
 /* ---------- Pengembangan produk: hanya admin, riwayat update status ---------- */
 {
   const ADM = await cookie({ e: "adm@acme.test", n: "Admin", adm: true });

@@ -183,7 +183,7 @@ function putSecrets(app, profile, vals) {
 }
 // Key AI dari env (workflow "AI keys" mengisinya dari secret repo GitHub) ke semua tool yang memanggil shared/ai.js.
 // Key yang kosong tidak dikirim, jadi secret yang sudah ada di worker tidak tertimpa.
-const AI_APPS = ["edukasi", "recap", "content", "competitor", "news", "copy", "tutorial", "sats", "feature"];
+const AI_APPS = ["edukasi", "recap", "content", "competitor", "news", "copy", "tutorial", "sats", "feature", "planner"];
 function aiKeys() {
   const vals = Object.fromEntries(["GEMINI_API_KEY", "GROQ_API_KEY"].map((k) => [k, (process.env[k] || "").trim()]).filter(([, v]) => v));
   if (!Object.keys(vals).length) die("GEMINI_API_KEY dan GROQ_API_KEY kosong: isi minimal satu sebagai secret repo GitHub (Settings › Secrets and variables › Actions).");

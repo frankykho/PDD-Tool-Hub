@@ -18,6 +18,7 @@
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
 // - "/api/picks"    -> stock pick + statusnya dari harga EOD Yahoo (GET ?from=&to=[&ihsg=1], POST simpan, POST /api/picks/delete); pembuat atau admin yang mengubah;
+// - "/api/translate" (POST) -> isian bebas laporan diterjemahkan ke English lewat AI (Gemini; shared/ai.js)
 // - "/api/wa"       -> jumlah posting WA Channel per hari/orang/jenis (GET ?from=&to=, POST {date, n: {jenis: jumlah}} milik sendiri)
 // Persetujuan: konten & artikel yang punya penyetuju harus disetujui sebelum berstatus Terbit; caption yang diubah setelah
 // disetujui kembali menunggu persetujuan. Cek kepatuhan caption memakai shared/compliance.js (glosarium dari Copy Studio).
@@ -40,6 +41,7 @@ import { HUB_FEED, hubFeedAllowed, hubPushAllowed } from "../../shared/hubfeed.j
 import { cleanOrg, jobsOf, roleIn, teamIn, canAssign, canImportGal, isRegional, branchType, opsAlert } from "../../shared/jobs.js";
 import { complianceScript } from "../../shared/compliance.js";
 import { momentsBetween, TYPES as MOMENT_TYPES } from "../../shared/moments.js";
+import { ai, AiError } from "../../shared/ai.js";
 import PAGE from "./page.html";
 
 /* =========================================================
@@ -625,6 +627,30 @@ async function galleries(env, id, kind) {
   const C = (await env.DB.prepare(`SELECT item_id, at, by_name, kind, text FROM comments WHERE kind LIKE 'progres:%' AND item_id IN (${L.map(() => "?").join(",")}) ORDER BY id`).bind(...L.map((i) => i.id)).all()).results;
   const by = {}; C.forEach((c) => (by[c.item_id] = by[c.item_id] || []).push({ at: c.at, by: c.by_name, st: c.kind.slice(8), text: c.text || "" }));
   return L.map((i) => ({ ...i, log: by[i.id] || [] }));
+}
+/* =========================================================
+   TERJEMAHAN LAPORAN (versi English): isian bebas (judul, catatan, update) lewat shared/ai.js (Gemini, cadangan Groq / Workers AI)
+   ========================================================= */
+const TR_RULES = `You translate Indonesian text from an internal company activity report into natural, concise English.
+Input: a JSON object { "<id>": "<Indonesian text>" }. Output ONLY JSON: { "lang": "en", "translations": { "<id>": "<English text>" } } with every id.
+Keep unchanged: names of people, companies, products, apps, places and events; stock / fund / ETF codes; numbers, amounts, dates, URLs, emails, hashtags.
+Use standard finance terms (reksa dana = mutual fund, obligasi = bond, saham = stock, NAB = NAV). Text already in English stays as is. Do not add explanations.`;
+/** POST /api/translate { texts: [...] } -> { map: { teks: terjemahan }, failed, note }. Dibagi per ±6.000 karakter dan dikirim bersamaan;
+ *  kelompok yang gagal / jawabannya tidak terbaca dilewati (teksnya tetap Bahasa Indonesia, note = alasan pertama). call = ai (tes: tiruan). */
+export async function translateTexts(env, b, call = ai) {
+  const T = [...new Set((Array.isArray(b.texts) ? b.texts : []).map((x) => String(x ?? "").trim().slice(0, 1500)).filter((x) => /\p{L}{2}/u.test(x) && !/^https?:\/\/\S+$/.test(x)))].slice(0, 600);
+  const groups = []; let g = [], n = 0;
+  for (const t of T) { if (g.length && (n + t.length > 6000 || g.length >= 80)) { groups.push(g); g = []; n = 0; } g.push(t); n += t.length; }
+  if (g.length) groups.push(g);
+  const map = {}, errs = [];
+  await Promise.all(groups.map(async (G) => {
+    try {
+      const { text } = await call(env, TR_RULES, JSON.stringify(Object.fromEntries(G.map((t, i) => [i, t]))), Math.ceil(G.join("").length / 2) + 600, undefined, { temperature: 0.2, json: true });
+      const o = (JSON.parse(String(text).replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "")) || {}).translations || {};
+      G.forEach((t, i) => { const v = o[i]; if (typeof v === "string" && v.trim()) map[t] = v.trim().slice(0, 3000); });
+    } catch (e) { errs.push(e instanceof AiError ? e.message : "Jawaban AI tidak terbaca."); }
+  }));
+  return { map, failed: T.length - Object.keys(map).length, note: errs[0] || "" };
 }
 /**
  * POST /api/galeri/import { rows: [...] } dari sheet laporan galeri (ditempel / file Excel, sudah dipetakan di browser).
@@ -1237,7 +1263,7 @@ async function page(env, me, mode) {
 }
 const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-control": "no-store" } });
 // API yang boleh dipakai tim regional; selebihnya kosong (GET) atau ditolak
-const REG_GET = ["/api/items", "/api/users", "/api/moments", "/api/galeri"], REG_POST = ["/api/items", "/api/items/delete", "/api/galeri/import"];
+const REG_GET = ["/api/items", "/api/users", "/api/moments", "/api/galeri"], REG_POST = ["/api/items", "/api/items/delete", "/api/galeri/import", "/api/translate"];
 
 export default {
   async fetch(request, env, ctx) {
@@ -1318,7 +1344,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
-          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b) }[path];
+          "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b), "/api/translate": () => translateTexts(env, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")
         if (path === "/api/items/bulk") {

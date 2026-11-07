@@ -63,6 +63,7 @@ const D = {
   "Tersimpan ke riwayat bersama status saat ini. Pindah status juga tercatat otomatis.": "Saved to the history with the current status. Status changes are also recorded automatically.",
   "Nama fitur / fungsi": "Feature / function name", "Tanggal mulai": "Start date", "Link dokumen (BRD, desain, tiket)": "Document link (BRD, design, ticket)", "mis. Filter reksa dana syariah di halaman produk": "e.g. Sharia mutual fund filter on the product page",
   "Fitur baru, fungsi, atau perbaikan produk. Ubah statusnya dari ide sampai rilis dan tulis update setiap ada kemajuan; semuanya masuk ke riwayat dan Laporan Kegiatan.": "New features, functions, or product fixes. Move the status from idea to release and write an update whenever there is progress; everything goes into the history and the Activity Report.",
+  "Menerjemahkan isi laporan…": "Translating report content…",
   "Fitur & fungsi": "Features & functions", "Dalam pengembangan": "In development", "{n} ide / rencana": "{n} idea / planned", "{n} pengembangan": "{n} in development", "{n} uji": "{n} testing",
   "{p} dari fitur": "{p} of features", "{n} fitur diperbarui": "{n} features updated",
   "Pengembangan produk hanya bisa dicatat dan diubah oleh admin Tool Hub.":"Only a Tool Hub admin can record and edit product development.",

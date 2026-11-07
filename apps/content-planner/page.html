@@ -1519,6 +1519,24 @@ const RAW=new Set(["No","Acara / materi","Judul","Konten","Program","Partner","N
 const RAWT=new Set(["Total","Belum ada update progres","Belum ada aktivitas yang dikaitkan","Rencana dicatat"]);
 const TR=s=>typeof s!=="string"?s:s.split(" · ").map(x=>/^\d{1,2} \p{L}{3,9} \d{4}$|^[\d.]+ (selesai|catatan|aktivitas)$|^(Regional|Pindah ke tahap) /u.test(x)||RAWT.has(x)?T(x):x).join(" · ");
 const trCell=(c,raw)=>c==null||typeof c!=="object"?(raw?TR:TP)(c):c.st?c:{...c,t:(raw?TR:TP)(c.t)};
+// isian bebas (judul, catatan, update) diterjemahkan AI lewat /api/translate sebelum laporan English disusun; nama orang, partner,
+// tempat & link tidak dikirim. Hasil disimpan selama halaman terbuka (PDF lalu PPT tidak meminta ulang).
+const TRX=new Set(["Acara / materi","Judul","Konten","Program","Kegiatan","Kegiatan terkait","Visual untuk","Remarks","Aktivitas","Kendala","Catatan / kendala","Catatan / progres terakhir","Progres terakhir (aktivitas)","Update","Tugas","Promo","Isi","Fitur / fungsi","Update terakhir","Pekerjaan"]);
+const TRMAP=new Map();
+const cellTxt=c=>typeof c==="string"?c:c&&typeof c==="object"&&!c.st&&typeof c.t==="string"?c.t:"";
+/** Terjemahkan isian bebas doc (hanya versi English). Hasil: catatan untuk pengguna kalau sebagian tetap Bahasa Indonesia ("" = semua beres). */
+async function prepTr(doc){
+  if(!isEn())return "";
+  const want=new Set();
+  doc.blocks.forEach(b=>{if(b.t==="table")b.rows.forEach(r=>{if(r.grp===undefined)r.forEach((c,i)=>{const s=cellTxt(c).trim();if(TRX.has((b.cols[i]||[])[0])&&/\p{L}{2}/u.test(s)&&!TRMAP.has(s))want.add(s)})})});
+  if(!want.size)return "";
+  $("repMsg").textContent="Menerjemahkan isi laporan…";
+  try{const r=await api("/api/translate",{texts:[...want]});Object.entries(r.map||{}).forEach(([k,v])=>TRMAP.set(k,v));
+    // hanya tampil di versi English, jadi langsung berbahasa Inggris
+    return r.failed?"Some entries stay in Indonesian"+(r.note?": "+r.note:"."):""}
+  catch(e){return "Entries stay in Indonesian: "+(e.message||e)}
+}
+const aiCell=(c,h)=>{const s=cellTxt(c).trim();return TRX.has(h)&&TRMAP.has(s)?(typeof c==="string"?TRMAP.get(s):{...c,t:TRMAP.get(s)}):undefined};
 function trDoc(doc){
   if(!isEn())return doc;
   // nilai KPI "3 dari 5": pola "{a} dari {b}" terlalu umum untuk kamus
@@ -1531,7 +1549,7 @@ function trDoc(doc){
     // "Isi" di Detail program: baris Jenis / Periode / Status berisi label, bukan data pengguna
     const raw=(r,i)=>{const h=(b.cols[i]||[])[0];return RAW.has(h)&&!(h==="Isi"&&/^(Jenis|Periode|Status)$/.test(r[0]))};
     return {...b,h3:TP(b.h3),empty:b.empty&&TP(b.empty),cols:b.cols.map(c=>[T(c[0]),...c.slice(1)]),
-      rows:b.rows.map(r=>r.grp!==undefined?{grp:TR(r.grp)}:r.map((c,i)=>trCell(c,raw(r,i))))};
+      rows:b.rows.map(r=>r.grp!==undefined?{grp:TR(r.grp)}:r.map((c,i)=>aiCell(c,(b.cols[i]||[])[0])??trCell(c,raw(r,i))))};
   })};
 }
 let pptLib=null;
@@ -1937,8 +1955,9 @@ $("rPdf").onclick=async()=>{
   $("rPdf").disabled=true;$("repMsg").textContent="Menyusun PDF…";
   try{
     const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
-    mrPrint(await pdfDoc(trDoc(X.doc(R))),repFile(X,R),tab);
-    $("repMsg").textContent=tab?"✓ PDF dibuka di tab baru.":"";
+    const doc=X.doc(R),tn=await prepTr(doc);$("repMsg").textContent="Menyusun PDF…";
+    mrPrint(await pdfDoc(trDoc(doc)),repFile(X,R),tab);
+    $("repMsg").textContent=tn||(tab?"✓ PDF dibuka di tab baru.":"");
   }catch(e){showErr("repErr",e);$("repMsg").textContent="";if(tab)tab.close()}
   finally{$("rPdf").disabled=false}
 };
@@ -1952,8 +1971,9 @@ $("rPpt").onclick=async()=>{
   $("rPpt").disabled=true;$("repMsg").textContent="Menyusun PPT…";
   try{
     const X=REP[RT],div=repDiv(),R=await X.data(div);R.div=div;showErr("repErr");
-    await pptDoc(trDoc(X.doc(R)),repFile(X,R));
-    $("repMsg").textContent="✓ PPT diunduh.";
+    const doc=X.doc(R),tn=await prepTr(doc);$("repMsg").textContent="Menyusun PPT…";
+    await pptDoc(trDoc(doc),repFile(X,R));
+    $("repMsg").textContent=tn||"✓ PPT diunduh.";
   }catch(e){showErr("repErr",e);$("repMsg").textContent=""}
   finally{$("rPpt").disabled=false}
 };
