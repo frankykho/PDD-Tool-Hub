@@ -498,7 +498,7 @@ export default {
   "disetujui": "approved", "menunggu persetujuan": "awaiting approval", "ditolak": "rejected", "dicabut": "revoked", "ditambahkan admin": "added by admin",
   "minta: {x}": "requested: {x}", "tidak memilih": "none selected", "semua tool (admin)": "all tools (admin)", "belum ada tool": "no tools yet",
   "impor dari tool lama": "imported from old tools", "ditambahkan admin": "added by an admin",
-  "admin utama": "main admin", "akun Anda": "your account", "Tinjau & setujui": "Review & approve", "Atur akses": "Manage access",
+  "admin utama": "main admin", "akun Anda": "your account", "Tinjau & setujui": "Review & approve", "Atur akses": "Manage access", "Atur role": "Set role",
   "Cabut akses": "Revoke access", "Jadikan admin": "Make admin", "Cabut admin": "Remove admin", "Reset password": "Reset password",
   "Hapus akun {e}?": "Delete account {e}?", "Tolak pendaftaran {e}?": "Reject registration {e}?", "Cabut akses {e}?": "Revoke access for {e}?",
   "Tidak ada pengajuan baru.": "No new requests.", "Belum ada.": "None yet.", "Tidak ada.": "None.",

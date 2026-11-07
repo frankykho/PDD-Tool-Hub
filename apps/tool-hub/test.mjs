@@ -422,6 +422,11 @@ assert.deepEqual(plannerEnv.DB.db.prepare("SELECT email FROM users WHERE active 
   r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: "user@acme.test", job: "digital_marketing_specia", a_fund: "viewer", a_planner: "1" } });
   assert.equal(r.status, 200);
   assert.equal(plannerEnv.DB.db.prepare("SELECT role FROM users WHERE email = 'user@acme.test'").get().role, "digital_marketing_specia");
+  // admin utama / akun sendiri: role pekerjaan bisa diatur (tombol Atur akses tampil, role ikut ke Planner)
+  assert.match(await (await call("/admin", { cookie: admin })).text(), new RegExp(`admin utama</small> <a class="sm" href="/admin/user\\?e=${encodeURIComponent(ADMIN)}">Atur role</a>`));
+  r = await call("/admin/access", { method: "POST", cookie: admin, origin: HUB, form: { email: ADMIN, job: "head_pd" } });
+  assert.equal(r.status, 200);
+  assert.equal(plannerEnv.DB.db.prepare("SELECT role FROM users WHERE email = ?").get(ADMIN).role, "head_pd");
   // menghapus tim: role-nya jadi tanpa tim; nama role dobel ditolak
   r = await call("/admin/role", { method: "POST", cookie: admin, origin: HUB, form: roleForm(org, { t_marketing_del: "1", r_sosmed_team: "marketing" }) });
   assert.equal(r.status, 200); assert.equal(JSON.parse(env.HUB_KV.m.get("cfg:org").v).roles.find((x) => x.k === "sosmed").team, "");

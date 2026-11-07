@@ -444,7 +444,9 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
   users.sort((a, b) => a.email < b.email ? -1 : 1);
   const btn = (x, act, cls = 'ghost') => `<form method="post" action="/admin/act"${{ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act] ? ` onsubmit="return confirm('${{ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act]} ${esc(x.email)}?')"` : ''}><input type="hidden" name="email" value="${esc(x.email)}"><input type="hidden" name="act" value="${act}"><button class="sm ${cls}">${ACTS[act][0]}</button></form>`;
   const akses = x => `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Atur akses</a>`;
-  const acts = x => x.main ? '<small>admin utama</small>' : x.email === sess.email ? '<small>akun Anda</small>'
+  // admin utama & akun sendiri: tidak bisa dicabut/diubah statusnya, tapi role pekerjaannya tetap bisa diatur (laporan Content Planner per role)
+  const own = x => `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Atur role</a>`;
+  const acts = x => x.main ? '<small>admin utama</small> ' + own(x) : x.email === sess.email ? '<small>akun Anda</small> ' + own(x)
     : x.status === 'pending' ? `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Tinjau &amp; setujui</a>` + btn(x, 'reject', 'del')
     : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'delete', 'del'))
     : btn(x, 'approve', '') + btn(x, 'delete', 'del');
