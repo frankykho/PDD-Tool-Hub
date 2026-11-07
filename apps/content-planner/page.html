@@ -1400,6 +1400,16 @@ const GCOLS=[["No",(i,n)=>String(n),3,1],["Mitra Kerjasama",i=>i.partner||"–",
 const galSt=i=>(GSL[i.status]||i.status)+(!GAL_END.includes(i.status)&&i.end_date&&i.end_date<todayIso()?" · lewat target":"");
 // filter regional / cabang: rencana galeri ikut regionalnya; "c:" = cabang pendampingnya; "t:" tidak menyaring
 const galBr=(i,f)=>!f||f.startsWith("t:")||(f.startsWith("r:")?i.region===f.slice(2):i.branch===f.slice(2));
+// pengembangan produk: yang belum rilis / batal, atau terakhir diperbarui di periode itu
+const prodIn=(i,from,to)=>i.date<=to&&(!["rilis","batal"].includes(i.status)||galLastDay(i)>=from);
+function prodKpis(L,from,to){
+  const c=s=>L.filter(i=>i.status===s).length,U=L.flatMap(i=>galLog(i,from,to)),late=L.filter(i=>!["rilis","batal"].includes(i.status)&&i.end_date&&i.end_date<todayIso()).length;
+  return {t:"kpis",h3:"Pengembangan produk",items:[["Fitur & fungsi",int(L.length),`${c("ide")+c("rencana")} ide / rencana${c("batal")?` · ${c("batal")} batal`:""}`],
+    ["Dalam pengembangan",int(c("pengembangan")+c("uji")),`${c("pengembangan")} pengembangan · ${c("uji")} uji`],["Rilis",int(c("rilis")),mrPct(c("rilis"),L.length)+" dari fitur"],
+    ["Update status",int(U.length),`${new Set(L.filter(i=>galLog(i,from,to).length).map(i=>i.id)).size} fitur diperbarui${late?` · ${late} lewat target`:""}`]]};
+}
+const prodTable=L=>({t:"table",h3:`Pengembangan produk (${L.length})`,cols:[["Produk",14],["Fitur / fungsi",24],["Jenis",13],["Status",11],["Target rilis",11],["Update terakhir",27]],
+  rows:L.map(i=>[i.partner||"–",`${ICON.produk} ${i.title}`,i.channel||"–",STL[i.status]||i.status,i.end_date?fmtShort(i.end_date):"–",galLast(i)])});
 function galKpis(L,from,to,h3){
   const open=L.filter(i=>!GAL_END.includes(i.status)),c=s=>L.filter(i=>i.status===s).length,U=L.flatMap(i=>galLog(i,from,to)),late=open.filter(i=>i.end_date&&i.end_date<todayIso()).length;
   return {t:"kpis",h3:h3||"Rencana galeri baru",items:[["Rencana galeri",int(L.length),`${new Set(L.map(i=>i.region)).size} regional${c("batal")?` · ${c("batal")} batal`:""}`],
@@ -1504,7 +1514,7 @@ const TP=s=>typeof s!=="string"?s:/\([^)]* · /.test(s)?T(s):s.split(" · ").map
 // judul kolom (bahasa Indonesia) yang isinya data pengguna
 const RAW=new Set(["No","Acara / materi","Judul","Konten","Program","Partner","Narasumber","PIC","Penulis","Diminta","Desainer","Cabang","Cabang / galeri","Penyelenggara / tempat","Link","Visual untuk","Kegiatan","Kegiatan terkait",
   "Mitra Kerjasama","Galeri Investasi","Cabang In Charge","Rank","PIC Coordinator","Remarks","Regional","Kota","PIC internal","Jenis mitra","Nama","Orang","Aktivitas","Kendala","Catatan / kendala","Catatan / progres terakhir","Progres terakhir (aktivitas)",
-  "Update","Oleh","Tugas","Kompetitor","Promo","Reward maks.","Masa tahan","Isi"]);
+  "Update","Oleh","Tugas","Produk","Fitur / fungsi","Update terakhir","Kompetitor","Promo","Reward maks.","Masa tahan","Isi"]);
 // di data pengguna hanya bagian berupa tanggal, angka rekap ("2 selesai"), atau label bawaan yang diterjemahkan
 const RAWT=new Set(["Total","Belum ada update progres","Belum ada aktivitas yang dikaitkan","Rencana dicatat"]);
 const TR=s=>typeof s!=="string"?s:s.split(" · ").map(x=>/^\d{1,2} \p{L}{3,9} \d{4}$|^[\d.]+ (selesai|catatan|aktivitas)$|^(Regional|Pindah ke tahap) /u.test(x)||RAWT.has(x)?T(x):x).join(" · ");
@@ -1567,10 +1577,11 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const [its0,logs,wa,gal]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]),api("/api/galeri").catch(()=>[])]);
+  const [its0,logs,wa,gal,prod]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`),api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]),api("/api/galeri").catch(()=>[]),api("/api/galeri?kind=produk").catch(()=>[])]);
   const pk=await api(`/api/picks?from=${from}&to=${to}&ihsg=1`).catch(()=>null),picks=pk&&Array.isArray(pk.picks)?pk.picks:[];
   // rencana galeri: yang masih berproses di periode ini (walau mulai lebih awal), lengkap dengan riwayat progresnya
-  const its=[...its0.filter(i=>kindOf(i)!=="galeri"),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to))];
+  // pengembangan produk: sama, yang belum rilis / batal atau diperbarui di periode ini
+  const its=[...its0.filter(i=>kindOf(i)!=="galeri"&&kindOf(i)!=="produk"),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to)),...(Array.isArray(prod)?prod:[]).filter(i=>prodIn(i,from,to))];
   // hanya role di tim laporan (tim = kumpulan role, diatur di Tool Hub); tiap role jadi satu bagian
   const tk=$("rTeam").value,inT=k=>teamKey(k)===tk,order=Object.keys(PL.roles),T={};
   const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[],picks:[]};
@@ -1623,6 +1634,7 @@ function monDoc(R0){
     ...(R.teams.some(t=>t.picks.length)?[pickKpis(R.teams.flatMap(t=>t.picks),R.ihsg)]:[]),
     ...(allItems.some(i=>kindOf(i)==="cabang")?[cabKpis(allItems.filter(i=>kindOf(i)==="cabang"))]:[]),
     ...(allItems.some(i=>kindOf(i)==="galeri")?[galKpis(allItems.filter(i=>kindOf(i)==="galeri"),R.from,R.to)]:[]),
+    ...(allItems.some(i=>kindOf(i)==="produk")?[prodKpis(allItems.filter(i=>kindOf(i)==="produk"),R.from,R.to)]:[]),
     {t:"table",h3:"Per role",cols:[["Role",30],["Anggota",9,1],["Kegiatan kalender",14,1],["Keg. selesai",12,1],["Keg. berjalan",13,1],["Aktivitas",11,1],["Kendala",11,1]],
       rows:R.teams.map(t=>{const g=s=>t.items.filter(i=>mrStage(i,t.key)===s).length;
         return [t.name,t.members.size,t.items.filter(i=>mrStage(i,t.key)!=="batal").length,g("selesai"),g("berjalan"),t.logs.length,t.logs.filter(l=>l.status==="kendala").length].map(String)})},
@@ -1642,7 +1654,10 @@ function monDoc(R0){
     const gal=t.items.filter(i=>kindOf(i)==="galeri"&&mrOwn(i,t.key));if(gal.length)Bk.push(galKpis(gal,R.from,R.to));
     const byDate=(a,b)=>a.date.localeCompare(b.date),progs=t.items.filter(i=>kindOf(i)==="program").sort(byDate);
     // yang masih berjalan dilaporkan tersendiri dengan progres terakhirnya; tabel kegiatan kalender memuat sisanya
-    const run=t.items.filter(i=>mrStage(i,t.key)==="berjalan"),others=t.items.filter(i=>kindOf(i)!=="program"&&mrStage(i,t.key)!=="berjalan").sort(byDate);
+    // pengembangan produk punya bagian sendiri (angka + tabel dengan update terakhir), tidak diulang di tabel kegiatan
+    const prod=t.items.filter(i=>kindOf(i)==="produk").sort(byDate),cal=t.items.filter(i=>kindOf(i)!=="produk");
+    const run=cal.filter(i=>mrStage(i,t.key)==="berjalan"),others=cal.filter(i=>kindOf(i)!=="program"&&mrStage(i,t.key)!=="berjalan").sort(byDate);
+    if(prod.length)Bk.push(prodKpis(prod,R.from,R.to),prodTable(prod));
     if(progs.length){
       const act=progs.filter(i=>i.status!=="batal"),n=f=>act.reduce((a,i)=>a+(+i[f]||0),0),bud=n("budget"),cost=n("cost"),going=act.filter(i=>stageOf(i)==="berjalan").length;
       Bk.push({t:"kpis",h3:"Hasil program partnership"+(going?" (sementara)":""),items:[["Peserta",int(n("result_num")),"jangkauan "+int(n("reach"))],["Leads",int(n("leads")),"akun baru "+int(n("accounts"))],
@@ -1651,7 +1666,7 @@ function monDoc(R0){
           rows:progs.map(i=>[per(i),`${ICON.program} ${i.title}`,i.partner||"–",stLate(i),int(i.result_num),int(i.leads),int(i.accounts),rp(i.aum)])});
     }
     if(run.length)Bk.push(runBlock(run,R.logs,i=>mrOwn(i,t.key)?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",i=>mrOwn(i,t.key)?stLate(i):"Visual: "+(DSL[i.d_status]||"–")));
-    if(others.length||!(progs.length||run.length))Bk.push({t:"table",h3:`${progs.length||run.length?"Kegiatan kalender lainnya":"Project & kegiatan kalender"} (${others.length})`,cols:[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
+    if(others.length||!(progs.length||run.length||prod.length))Bk.push({t:"table",h3:`${progs.length||run.length?"Kegiatan kalender lainnya":"Project & kegiatan kalender"} (${others.length})`,cols:[["Tanggal",10],["Kegiatan",32],["Jenis · kanal",18],["PIC",14],["Status",12],["Hasil",14,1]],
       rows:others.map(i=>{const own=mrOwn(i,t.key),res=own&&i.result_num!=null&&i.result_num!==""?int(i.result_num):"",href=own?i.link:i.d_link;
         return [fmtShort(i.date),`${ICON[kindOf(i)]||""} ${i.title}`,[(K[kindOf(i)]||{}).label,i.channel,whereOf(i)].filter(Boolean).join(" · "),own?i.owner||"–":i.d_name||nameOf(i.d_who)||"–",
           own?STL[i.status]||i.status||"–":"Visual: "+(DSL[i.d_status]||"–"),href?{t:res,href}:res||"–"]}),empty:"Tidak ada kegiatan kalender tim ini pada periode ini."});
