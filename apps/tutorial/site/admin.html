@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin — Review Tutorial</title>
+<script src="icons.js"></script>
 <style>
   :root{
     --brand-dark:#14432c; --brand-green:#1a5c3a; --brand-emerald:#2ecc71;
@@ -115,9 +116,11 @@
   .new-cat-box h3{ font-size:13.5px; margin:0 0 10px 0; color:var(--brand-green); }
   .new-cat-row{ display:flex; gap:8px; margin-bottom:8px; }
   .new-cat-icon-input{
-    width:52px; flex:0 0 auto; text-align:center; padding:8px; border:1px solid var(--line);
-    border-radius:8px; font-size:16px;
+    width:190px; flex:0 0 auto; padding:8px; border:1px solid var(--line);
+    border-radius:8px; font-size:12.5px; font-family:inherit; background:var(--paper); color:inherit;
   }
+  .manage-cat-icon{ display:inline-flex; }
+  .cat-icon-sel{ font-size:12px; padding:5px 6px; border:1px solid var(--line); border-radius:8px; max-width:170px; font-family:inherit; background:var(--paper); color:inherit; }
   .new-cat-title-input, .new-cat-desc-input{
     flex:1; width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
     font-size:12.5px; font-family:inherit; margin-bottom:8px;
@@ -304,7 +307,7 @@
     <div class="new-cat-box">
       <h3>+ Tambah Kategori Baru</h3>
       <div class="new-cat-row">
-        <input type="text" id="new-cat-icon" placeholder="📁" maxlength="4" class="new-cat-icon-input">
+        <select id="new-cat-icon" class="new-cat-icon-input" aria-label="Ikon kategori"></select>
         <input type="text" id="new-cat-title" placeholder="Nama kategori, contoh: Obligasi" class="new-cat-title-input">
       </div>
       <input type="text" id="new-cat-desc" placeholder="Deskripsi singkat (opsional)" class="new-cat-desc-input">
@@ -349,9 +352,11 @@ const APP_NAME = ((window.PROFILE || {}).app || {}).name || '';
    sama dengan versi online terbaru, bisa dibuka offline, tanpa Firebase & tanpa
    tombol "Usulkan Tutorial" / "Bagikan". */
 async function buildExportedHTML(categories){
-  const res = await fetch('index.html', { cache: 'no-store' });
-  if(!res.ok) throw new Error('Tidak bisa mengambil index.html');
-  const template = await res.text();
+  const [res, ico] = await Promise.all([fetch('index.html', { cache: 'no-store' }), fetch('icons.js', { cache: 'no-store' })]);
+  if(!res.ok || !ico.ok) throw new Error('Tidak bisa mengambil index.html / icons.js');
+  // file export dibuka offline: ikon ditanam langsung, bukan dimuat dari icons.js
+  const icoJs = await ico.text();
+  const template = (await res.text()).replace('<script src="icons.js"></script>', () => '<script>' + icoJs + '<\/script>');
   const json = JSON.stringify(categories)
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
@@ -362,6 +367,14 @@ async function buildExportedHTML(categories){
   if(idx === -1) throw new Error('Format index.html tidak dikenali');
   return template.slice(0, idx) + dataScript + template.slice(idx);
 }
+
+function iconOptions(cur){
+  const known = Object.prototype.hasOwnProperty.call(window.TUT_ICONS, cur);
+  return (cur && !known ? `<option value="${escapeHtml(cur)}" selected>Emoji lama: ${escapeHtml(cur)}</option>` : '') +
+    Object.entries(window.TUT_ICONS).map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${v[0]}</option>`).join('');
+}
+const iconView = (icon) => window.tutIcon(icon, 18) || escapeHtml(icon || '📁');
+document.getElementById('new-cat-icon').innerHTML = iconOptions('book');
 
 const loginBox = document.getElementById('login-box');
 const adminPanel = document.getElementById('admin-panel');
@@ -753,8 +766,9 @@ function renderManageCategory(catId, cat, index, allDocs){
 
   box.innerHTML = `
     <div class="manage-cat-head">
-      <button type="button" class="manage-cat-title manage-cat-toggle" aria-expanded="${openCats.has(catId)}" title="Buka / tutup daftar topik"><span class="manage-cat-caret" aria-hidden="true">▸</span><span class="manage-cat-icon">${escapeHtml(cat.icon || '📁')}</span><span${cat.title ? ' translate="no"' : ''}>${escapeHtml(cat.title || '(tanpa judul)')}</span> <span class="manage-cat-count">${items.length} topik</span></button>
+      <button type="button" class="manage-cat-title manage-cat-toggle" aria-expanded="${openCats.has(catId)}" title="Buka / tutup daftar topik"><span class="manage-cat-caret" aria-hidden="true">▸</span><span class="manage-cat-icon">${iconView(cat.icon)}</span><span${cat.title ? ' translate="no"' : ''}>${escapeHtml(cat.title || '(tanpa judul)')}</span> <span class="manage-cat-count">${items.length} topik</span></button>
       <div style="display:flex; gap:6px;">
+        <select class="cat-icon-sel" aria-label="Ikon kategori">${iconOptions(cat.icon || '📁')}</select>
         <button class="btn-move-cat" data-dir="-1" ${index === 0 ? 'disabled' : ''}>↑</button>
         <button class="btn-move-cat" data-dir="1" ${index === allDocs.length - 1 ? 'disabled' : ''}>↓</button>
         <button class="btn-delete-cat">Hapus Kategori</button>
@@ -779,6 +793,11 @@ function renderManageCategory(catId, cat, index, allDocs){
       console.error(err);
       alert('Gagal menghapus kategori.');
     }
+  };
+
+  box.querySelector('.cat-icon-sel').onchange = async (e) => {
+    try{ await updateDoc(doc(db, 'categories', catId), { icon: e.target.value }); }
+    catch(err){ console.error(err); alert('Gagal mengganti ikon kategori.'); }
   };
 
   box.querySelectorAll('.btn-move-cat').forEach(btn => {
@@ -1167,7 +1186,7 @@ btnAddCat.onclick = async () => {
   const titleInput = document.getElementById('new-cat-title');
   const descInput = document.getElementById('new-cat-desc');
 
-  const icon = iconInput.value.trim() || '📁';
+  const icon = iconInput.value || 'book';
   const title = titleInput.value.trim();
   const desc = descInput.value.trim();
 
@@ -1192,7 +1211,7 @@ btnAddCat.onclick = async () => {
       desc,
       items: []
     });
-    iconInput.value = '';
+    iconInput.value = 'book';
     titleInput.value = '';
     descInput.value = '';
     newCatStatus.className = 'import-status success';

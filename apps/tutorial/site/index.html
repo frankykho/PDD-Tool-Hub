@@ -91,9 +91,9 @@
     border-radius:18px 18px 0 0;
   }
   .menu-header{ padding:28px 22px 30px 22px; }
-  .menu-brand{ font-size:12px; font-weight:700; color:#a9e6c4; margin-bottom:6px; }
+  #menu-screen .menu-header{ background:linear-gradient(180deg, #070b09, #1b2a24); }
   .menu-title{ font-size:24px; font-weight:800; letter-spacing:-.2px; margin:0 0 6px 0; }
-  .menu-desc{ font-size:13px; color:#d6ecdf; line-height:1.5; margin:0 0 14px 0; max-width:300px; }
+  .menu-desc{ font-size:13px; color:#d9e3de; line-height:1.5; margin:0 0 14px 0; max-width:300px; }
 
   .search-box{ position:relative; }
   .search-box input{
@@ -123,6 +123,8 @@
   .row-body{ flex:1; min-width:0; }
   .row-title{ font-size:14.5px; font-weight:700; margin-bottom:2px; line-height:1.3; }
   .row-sub{ font-size:12px; color:var(--sub); line-height:1.4; }
+  .row-icon.line{ background:var(--bg); color:var(--ink); }
+  .menu-main .list-label{ font-size:13px; font-weight:700; color:var(--ink); }
   .row-chevron{ color:#b5c2bb; font-size:20px; flex:0 0 auto; }
 
   .skeleton{
@@ -315,12 +317,13 @@
   /* ============ PALING SERING DIBUKA ============ */
   .popular{ padding:16px 0 0; }
   .popular .list-label{ margin:0 20px 8px; font-weight:700; }
-  .pop-list{ display:flex; gap:8px; overflow-x:auto; padding:0 18px 2px; scroll-padding:0 18px; scroll-snap-type:x proximity; }
+  .pop-list{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; padding:0 18px 2px; }
   .pop{
-    flex:0 0 auto; width:200px; scroll-snap-align:start; text-align:left; cursor:pointer;
-    border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--paper); color:inherit; font:inherit;
+    text-align:left; cursor:pointer; min-width:0;
+    border:1px solid transparent; border-radius:14px; padding:12px; background:var(--bg); color:inherit; font:inherit;
   }
   .pop:hover{ border-color:#c7ddce; }
+  .pop-ico{ display:block; height:20px; margin-bottom:10px; color:var(--ink); font-size:18px; line-height:20px; }
   .pop b{ display:block; font-size:13px; line-height:1.35; }
   .pop small{ display:block; margin-top:3px; font-size:11.5px; color:var(--sub); }
   .popular[hidden]{ display:none; }
@@ -369,8 +372,7 @@
     .menu-body .list{ padding:16px 0 10px; }
     .menu-body .list .list-label, .menu-body .list .state-note{ grid-column:1 / -1; }
     .popular .list-label{ margin-left:2px; }
-    .pop-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); padding:0; overflow:visible; }
-    .pop{ width:auto; }
+    .pop-list{ grid-template-columns:repeat(4, minmax(0, 1fr)); padding:0; }
     .menu-side .help, .menu-side .btn-app, .menu-side .disclaimer{ margin-left:0; margin-right:0; }
     .submenu-topbar{ padding:24px 32px 34px; }
     .submenu-heading-title{ font-size:22px; }
@@ -432,13 +434,12 @@
     <!-- ============ LEVEL 1: KATEGORI ============ -->
     <section class="screen scroll" id="menu-screen" data-pos="current" aria-labelledby="menu-title">
       <header class="green-head menu-header">
-        <div class="menu-brand" id="menu-brand">Panduan Aplikasi</div>
-        <h1 class="menu-title" id="menu-title">Pusat Tutorial</h1>
-        <p class="menu-desc">Pilih topik untuk melihat panduan langkah demi langkah. Geser gambar ke kiri atau kanan untuk lanjut.</p>
+        <h1 class="menu-title" id="menu-title">Tutorial Center</h1>
+        <p class="menu-desc">Learn. Explore. Invest with Confidence.</p>
         <div class="search-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <label for="search-input" class="sr-only">Cari tutorial</label>
-          <input type="search" id="search-input" placeholder="Cari tutorial, misalnya: top up" autocomplete="off">
+          <input type="search" id="search-input" placeholder="Cari tutorial yang kamu butuhkan" autocomplete="off">
         </div>
       </header>
       <div class="menu-body">
@@ -530,6 +531,7 @@
   <div class="lightbox-body"><img id="lightbox-img" alt=""></div>
 </div>
 
+<script src="icons.js"></script>
 <script type="module">
 /* Nama aplikasi & perusahaan dari profil (disisipkan worker sebagai window.PROFILE). Kosong = teks netral. */
 const PROFILE = window.PROFILE || {};
@@ -542,7 +544,7 @@ const APP_LINK = (() => { const a = PROFILE.app || {}, ua = navigator.userAgent;
   const line = [strip(b.company), strip(b.license)].filter(Boolean).join('. ');
   if(APP_NAME){
     document.title = `Pusat Tutorial ${APP_NAME}`;
-    document.getElementById('menu-brand').textContent = `Panduan ${APP_NAME}`;
+    document.getElementById('menu-title').textContent = `${APP_NAME} Tutorial Center`;
   }
   if(line){ const el = document.getElementById('brand-license'); el.textContent = line + '.'; el.hidden = false; }
 }
@@ -696,10 +698,11 @@ function focusLater(el){
 
 /* ========================= LEVEL 1: KATEGORI + PENCARIAN ========================= */
 // sub = teks UI (jumlah topik/langkah); subData = isian admin (deskripsi / judul kategori), tidak diterjemahkan
+const lineIcon = (icon) => (window.tutIcon && window.tutIcon(icon)) || '';
 function rowHtml({ icon, tint, title, sub, subData }){
-  const bg = safeColor(tint);
+  const svg = lineIcon(icon), bg = svg ? '' : safeColor(tint);
   return `
-    <div class="row-icon"${bg ? ` style="background:${bg}"` : ''} aria-hidden="true">${esc(icon || '📄')}</div>
+    <div class="row-icon${svg ? ' line' : ''}"${bg ? ` style="background:${bg}"` : ''} aria-hidden="true">${svg || esc(icon || '📄')}</div>
     <div class="row-body">
       <div class="row-title" translate="no">${esc(title)}</div>
       ${sub || subData ? `<div class="row-sub">${subData ? `<span translate="no">${esc(subData)}</span>` : ''}${sub && subData ? ' · ' : ''}${esc(sub || '')}</div>` : ''}
@@ -707,13 +710,13 @@ function rowHtml({ icon, tint, title, sub, subData }){
     <div class="row-chevron" aria-hidden="true">›</div>`;
 }
 
-/** "Paling sering dibuka": maks. 6 topik yang masih ada; disembunyikan saat mencari atau bila datanya belum cukup. */
+/** "Paling sering dibuka": maks. 4 topik (kotak 2×2) yang masih ada; disembunyikan saat mencari atau bila datanya belum cukup. */
 function renderPopular(){
   const L = POP.map(k => {
     const [c, t] = k.split('/'), cat = CATEGORIES.find(x => x.id === c), tp = cat && cat.items.find(x => x.id === t);
     return tp ? { cat, tp } : null;
-  }).filter(Boolean).slice(0, 6);
-  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><b translate="no">${esc(tp.title)}</b><small><span translate="no">${esc(cat.title)}</span> · ${(tp.slides || []).length} langkah</small></button>`).join('');
+  }).filter(Boolean).slice(0, 4);
+  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><span class="pop-ico" aria-hidden="true">${lineIcon(cat.icon) || esc(cat.icon || '📄')}</span><b translate="no">${esc(tp.title)}</b><small translate="no">${esc(cat.title)}</small></button>`).join('');
   $('popular').hidden = L.length < 2 || !!searchInput.value.trim();
 }
 $('pop-list').addEventListener('click', (e) => {
@@ -731,6 +734,7 @@ function renderMenu(){
       menuList.innerHTML = '<div class="state-note">Belum ada tutorial yang tayang.</div>';
       return;
     }
+    menuList.insertAdjacentHTML('beforeend', '<div class="list-label">Kategori Tutorial</div>');
     CATEGORIES.forEach(cat => {
       const n = (cat.items || []).length;
       const btn = document.createElement('button');
