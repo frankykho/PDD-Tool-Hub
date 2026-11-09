@@ -386,9 +386,13 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
         <div class="fld"><label for="mComments">Komentar</label><input class="f" id="mComments" inputmode="numeric" maxlength="15"></div>
         <div class="fld"><label for="mSaves">Simpan</label><input class="f" id="mSaves" inputmode="numeric" maxlength="15"></div>
         <div class="fld"><label for="mShares">Bagikan</label><input class="f" id="mShares" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mReposts">Repost</label><input class="f" id="mReposts" inputmode="numeric" maxlength="15"></div>
         <div class="fld"><label for="mFollows">Pengikut baru</label><input class="f" id="mFollows" inputmode="numeric" maxlength="15"></div>
       </div>
       <p class="muted small" id="mInfo" style="margin:0 0 8px"></p>
+      <div id="mImgBox" hidden style="margin:0 0 10px"><span class="lbl">Gambar postingan (untuk Laporan IG)</span>
+        <div class="acts" style="margin:4px 0 0;align-items:center"><img id="mImg" alt="" hidden style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><label class="btn sm" style="cursor:pointer">🖼 Pilih gambar<input type="file" id="mImgF" accept="image/*" hidden></label><button type="button" class="btn sm" id="mImgDel" hidden>Hapus gambar</button><span class="muted small" id="mImgMsg" aria-live="polite"></span></div>
+        <p class="muted small" style="margin:4px 0 0">Otomatis dari tombol bookmark "Angka IG ke Planner". Bisa juga pilih file, atau tempel (Ctrl+V) screenshot saat dialog ini terbuka.</p></div>
       <span class="lbl">Link pelacak klik</span>
       <div id="lkList"></div>
       <div class="acts" id="lkAddRow" style="margin:6px 0 10px"><button type="button" class="btn sm" id="lkStudio" hidden>Buat di Link &amp; QR Studio</button><span class="muted small" id="lkAsk" hidden>Minta akses Link &amp; QR Studio ke admin untuk membuat link baru.</span></div>
@@ -695,9 +699,9 @@ $("momBox").addEventListener("submit",async e=>{
 });
 
 /* ---------- Performa konten ---------- */
-const MK=[["mViews","m_views","Views"],["mReach","m_reach","Jangkauan"],["mLikes","m_likes","Suka"],["mComments","m_comments","Komentar"],["mSaves","m_saves","Simpan"],["mShares","m_shares","Bagikan"],["mFollows","m_follows","Pengikut baru"]];
+const MK=[["mViews","m_views","Views"],["mReach","m_reach","Jangkauan"],["mLikes","m_likes","Suka"],["mComments","m_comments","Komentar"],["mSaves","m_saves","Simpan"],["mShares","m_shares","Bagikan"],["mReposts","m_reposts","Repost"],["mFollows","m_follows","Pengikut baru"]];
 const hasM=i=>MK.some(([,k])=>i[k]!=null);
-const inter=i=>(+i.m_likes||0)+(+i.m_comments||0)+(+i.m_saves||0)+(+i.m_shares||0);
+const inter=i=>(+i.m_likes||0)+(+i.m_comments||0)+(+i.m_saves||0)+(+i.m_shares||0)+(+i.m_reposts||0);
 // ER = interaksi ÷ jangkauan, hanya dari konten yang jangkauannya tercatat
 const erOf=L=>{const R=L.filter(i=>+i.m_reach>0),r=R.reduce((a,i)=>a+ +i.m_reach,0);return r?R.reduce((a,i)=>a+inter(i),0)/r*100:null};
 function renderPerf(month){
@@ -709,7 +713,7 @@ function renderPerf(month){
   const rows=[...L].sort((a,b)=>(+b.m_reach||+b.m_views||0)-(+a.m_reach||+a.m_views||0));
   $("calBox").innerHTML=`<div class="perf"><div class="kpis">${kpi("Konten terbit",int(L.length))}${kpi("Views",int(sum("m_views")))}${kpi("Jangkauan",int(sum("m_reach")))}${kpi("Interaksi",int(L.reduce((a,i)=>a+inter(i),0)))}${kpi("Engagement rate",pct2(erOf(L)))}${kpi("Klik link",int(sum("clicks")))}${kpi("Pengikut baru",int(sum("m_follows")))}</div>`+
     `<div class="card"><h2>Per kanal</h2><div class="scroll"><table class="t"><thead><tr><th>Kanal</th><th class="n">Konten</th><th class="n">Views</th><th class="n">Jangkauan</th><th class="n">Interaksi</th><th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${Object.keys(ch).sort((a,b)=>ch[b].length-ch[a].length).map(k=>{const C=ch[k],s=f=>C.reduce((a,i)=>a+(+f(i)||0),0);return `<tr><td>${esc(k)}</td><td class="n">${C.length}</td><td class="n">${int(s(i=>i.m_views))}</td><td class="n">${int(s(i=>i.m_reach))}</td><td class="n">${int(s(inter))}</td><td class="n">${pct2(erOf(C))}</td><td class="n">${int(s(i=>i.clicks))}</td></tr>`}).join("")||'<tr><td colspan="7" class="muted">Belum ada konten terbit bulan ini.</td></tr>'}</tbody></table></div></div>`+
-    `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,6).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td translate="no">${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,6).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="11" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan) ÷ jangkauan.</p></div>`+
+    `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,7).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td translate="no">${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,7).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="12" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan + repost) ÷ jangkauan.</p></div>`+
     `<div class="card"><h2>Impor angka dari Meta Business Suite</h2><p class="muted small" style="margin:0 0 8px">Di Meta Business Suite: Insights → Konten → Ekspor data (CSV). Baris dicocokkan dengan kegiatan lewat link postingan (kolom Permalink), jadi isi <b>Link postingan</b> di setiap konten.</p>`+
     `<div class="acts"><label class="btn sm" style="cursor:pointer">📄 Pilih file CSV<input type="file" id="csvF" accept=".csv,text/csv" hidden></label><span class="muted small" id="csvN"></span><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
     `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), gulir sampai postingan yang ingin diambil terlihat, lalu klik bookmark-nya. Suka, komentar, dan views tiap postingan (maks. 60) dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Bisa juga dari satu halaman postingan.</p>`+
@@ -765,7 +769,7 @@ function parseCsv(text){
 }
 // kolom ekspor Meta (Inggris / Indonesia) -> isian Planner
 const CSVMAP=[["link",/permalink|tautan permanen|^link|^url/i],["date",/publish time|waktu (publikasi|dipublikasikan)|tanggal (publikasi|dipublikasikan)/i],["title",/^description|deskripsi|keterangan|caption|^judul|^title/i],["type",/post type|jenis (postingan|konten)/i],
-  ["m_views",/^views$|^tayangan|^plays|diputar/i],["m_reach",/^reach|jangkauan/i],["m_likes",/^likes|^suka|^reactions|^reaksi/i],["m_comments",/^comments|^komentar/i],["m_saves",/^saves|^simpan|disimpan/i],["m_shares",/^shares|^bagikan|dibagikan/i],["m_follows",/^follows|^ikuti|mengikuti/i]];
+  ["m_views",/^views$|^tayangan|^plays|diputar/i],["m_reach",/^reach|jangkauan/i],["m_likes",/^likes|^suka|^reactions|^reaksi/i],["m_comments",/^comments|^komentar/i],["m_saves",/^saves|^simpan|disimpan/i],["m_reposts",/^reposts?|dibagikan ulang|posting ulang/i],["m_shares",/^shares|^bagikan|dibagikan/i],["m_follows",/^follows|^ikuti|mengikuti/i]];
 const csvDate=s=>{s=String(s||"").trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=s.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/);if(!m)return "";const a=+m[1],b=+m[2],[mo,da]=a>12?[b,a]:[a,b];return `${m[3]}-${String(mo).padStart(2,"0")}-${String(da).padStart(2,"0")}`};
 function metaRows(text){
   const R=parseCsv(text);if(R.length<2)return [];
@@ -1028,6 +1032,24 @@ function renderMInfo(){
 }
 $("iCopy").addEventListener("input",renderChk);$("iCh").addEventListener("change",renderChk);$("iAppr").addEventListener("input",renderAp);$("iSt").addEventListener("change",showMet);
 MK.forEach(([id])=>$(id).addEventListener("input",renderMInfo));
+/* gambar postingan (Laporan IG): otomatis dari bookmark IG, atau pilih file / tempel screenshot; dikecilkan ke 480px */
+function shrinkImg(f){return createImageBitmap(f).then(b=>{const s=Math.min(1,480/Math.max(b.width,b.height)),cv=document.createElement("canvas");cv.width=Math.round(b.width*s);cv.height=Math.round(b.height*s);cv.getContext("2d").drawImage(b,0,0,cv.width,cv.height);
+  let u=cv.toDataURL("image/webp",.75);if(!u.startsWith("data:image/webp"))u=cv.toDataURL("image/jpeg",.75);return u})}
+const showImg=u=>{$("mImg").hidden=!u;if(u)$("mImg").src=u;else $("mImg").removeAttribute("src");$("mImgDel").hidden=!u};
+async function loadImg(){
+  const it=editing;$("mImgBox").hidden=!it;showImg("");$("mImgMsg").textContent="";if(!it)return;
+  let m={};try{m=await api("/api/imgs?ids="+encodeURIComponent(it.id))}catch(e){}
+  if(editing===it)showImg(m[it.id]||"");
+}
+async function putImg(img){
+  const it=editing;if(!it)return;$("mImgMsg").textContent=img?"Menyimpan gambar…":"Menghapus gambar…";
+  try{await api("/api/img",{id:it.id,img});if(editing===it){showImg(img);$("mImgMsg").textContent=img?"✓ Gambar tersimpan.":"✓ Gambar dihapus."}}
+  catch(e){if(editing===it)$("mImgMsg").textContent="Gagal: "+(e.message||e)}
+}
+const pickImg=f=>f&&/^image\//.test(f.type)?shrinkImg(f).then(putImg,()=>{$("mImgMsg").textContent="Gambar tidak bisa dibaca."}):null;
+$("mImgF").onchange=e=>{pickImg(e.target.files[0]);e.target.value=""};
+$("mImgDel").onclick=()=>putImg("");
+$("gMet").closest("dialog").addEventListener("paste",e=>{if($("mImgBox").hidden||$("gMet").hidden)return;const f=[...((e.clipboardData||{}).files||[])].find(x=>/^image\//.test(x.type));if(f){e.preventDefault();pickImg(f)}});
 async function decideNow(action){
   if(!editing)return;
   if($("iCopy").value!==(editing.copy||"")||$("iTitle").value!==editing.title){$("iDecMsg").textContent="Simpan dulu perubahan sebelum memutuskan.";return}
@@ -1085,7 +1107,7 @@ function openForm(it,date,preset){
   MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
   $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
   if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
-  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadGalLog();
+  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadImg();loadGalLog();
   $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":locked?" · Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
