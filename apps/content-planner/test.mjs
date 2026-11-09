@@ -323,6 +323,13 @@ const sh = await sync.text();
 assert.match(sh, /Angka Instagram/); assert.equal(sync.headers.get("content-security-policy"), "frame-ancestors 'none'");
 for (const [, code] of sh.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
 assert.ok(/instagram\\\.com\$/.test(sh), "hanya menerima pesan dari instagram.com");
+assert.match(sh, /Repost/, "kolom repost di jendela sinkron");
+assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
+{ // bookmarklet: skripnya sah, ikut mengambil gambar (±480px) & repost
+  const bm = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8").match(/function plBookmark\(W\)\{[\s\S]*?\n\}\n/)[0];
+  new Function("return " + bm);
+  assert.match(bm, /image_versions2/); assert.match(bm, /repost_count/); assert.match(bm, /mx=480/);
+}
 
 /* ---------- kalender momen ---------- */
 r = await call("/api/moments?from=2026-12-20&to=2026-12-31", { ck: CI });

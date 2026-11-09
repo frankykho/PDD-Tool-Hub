@@ -1260,15 +1260,15 @@ const IG_SYNC = `<!doctype html><html lang="id"><head><meta charset="utf-8"><met
 table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden}th,td{padding:5px 7px;border-bottom:1px solid #dfe8e2;text-align:left}td.n,th.n{text-align:right}.box{max-height:46vh;overflow:auto;margin-bottom:12px}
 button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 14px;background:#1f7a4d;color:#fff;cursor:pointer}button:disabled{opacity:.5}label{display:flex;gap:8px;align-items:center;margin:0 0 12px;font-size:13px}.m{color:#5b6d62;font-size:12.5px}</style></head>
 <body><div class="w"><h1>📈 Angka Instagram → Content Planner</h1><p class="m" id="st">Menunggu data dari tab Instagram…</p><div class="prog"><i id="bar"></i></div>
-<div class="box"><table><thead><tr><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="box"><table><thead><tr><th style="width:40px"></th><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th><th class="n">Repost</th></tr></thead><tbody id="rows"></tbody></table></div>
 <label><input type="checkbox" id="cr"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button id="save" disabled>Simpan ke Planner</button><p class="m" id="msg"></p>
-<p class="m">Hanya angka publik (suka, komentar, views). Jangkauan dan simpan diisi dari CSV Meta Business Suite atau manual.</p></div>
+<p class="m">Angka publik (suka, komentar, views, repost) dan gambar postingan. Jangkauan, simpan, dan bagikan diisi dari CSV Meta Business Suite atau manual.</p></div>
 <script>(function(){var $=function(i){return document.getElementById(i)},rows=[],n=+new URLSearchParams(location.search).get("n")||0,got=0;
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 if(!window.opener){$("st").textContent="Buka jendela ini lewat tombol bookmark di halaman Instagram.";return}
 addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?instagram\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
-if(m.pl==="row"&&m.row){got++;if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
-$("rows").insertAdjacentHTML("beforeend","<tr><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td><td class=n>"+esc(m.row.m_likes)+"</td><td class=n>"+esc(m.row.m_comments)+"</td><td class=n>"+esc(m.row.m_views)+"</td></tr>")}
+if(m.pl==="row"&&m.row){got++;if(m.row.img&&!/^data:image\\/(jpeg|png|webp);base64,[A-Za-z0-9+\\/=]+$/.test(m.row.img))m.row.img="";if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
+$("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(m.row.img)+"' alt='' width='36' height='36' style='object-fit:cover;border-radius:6px;display:block'>":"")+"</td><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td><td class=n>"+esc(m.row.m_likes)+"</td><td class=n>"+esc(m.row.m_comments)+"</td><td class=n>"+esc(m.row.m_views)+"</td><td class=n>"+esc(m.row.m_reposts)+"</td></tr>")}
 if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca (login Instagram dulu)":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length}});
 window.opener.postMessage({pl:"ready"},"*");
 $("save").onclick=function(){$("save").disabled=true;$("msg").textContent="Menyimpan…";
