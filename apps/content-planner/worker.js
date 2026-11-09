@@ -171,7 +171,7 @@ const COLS = {
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
-  m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_reposts: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
+  m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_reposts: "INTEGER", m_follows: "INTEGER", m_clicks: "INTEGER", m_at: "TEXT", m_src: "TEXT",
   // event_id: tersambung ke event di Event & Lead (Peserta & Leads diisi otomatis dari sana dan tidak bisa diubah di sini)
   event_id: "TEXT",
   // email blast (kanal Email / Newsletter): nama template Email Studio yang dipakai
@@ -183,7 +183,7 @@ const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", 
 const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
 /** Kegiatan yang punya caption, persetujuan, dan angka performa. */
 export const COPY_KINDS = ["konten", "artikel"];
-export const METRICS = ["m_views", "m_reach", "m_likes", "m_comments", "m_saves", "m_shares", "m_reposts", "m_follows"];
+export const METRICS = ["m_views", "m_reach", "m_likes", "m_comments", "m_saves", "m_shares", "m_reposts", "m_follows", "m_clicks"];
 export const APPROVAL = { menunggu: "Menunggu persetujuan", disetujui: "Disetujui", revisi: "Perlu revisi" };
 let ready = false;
 async function ensure(env) {

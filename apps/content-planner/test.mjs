@@ -363,6 +363,10 @@ assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
   assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "ftp://x" })).status, 400);
   assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "https://content-planner.acme.test/go/abc123?utm_source=email" })).status, 400, "link pelacak tidak dirantai ke link pelacak lain");
   assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "https://kisi.test/" }, "")).status, 403, "tanpa x-hub-key");
+  // tanpa Email Studio / link pelacak: template & klik diisi manual dari form Planner
+  const mc = (await call("/api/items", { ck: CI, body: { kind: "artikel", channel: "Email / Newsletter", title: "Manual", date: plus(1), status: "terbit", email_tpl: "Weekly Investment Picks", m_clicks: "15" } })).j.id;
+  const mv = (await call("/api/items?id=" + mc, { ck: CI })).j;
+  assert.deepEqual([mv.m_clicks, mv.email_tpl], [15, "Weekly Investment Picks"]);
 }
 
 // jendela bookmarklet Instagram: perlu login, skripnya sah
@@ -392,6 +396,8 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   // Laporan Copywriter & gambar / angka otomatis setelah kegiatan disimpan
   assert.match(pg, /data-t="cw">Laporan Copywriter</); assert.match(pg, /cw:\{data:cwData,doc:cwDoc,name:"Laporan Copywriter"\}/);
   assert.match(pg, /api\("\/api\/yt\/refresh"/); assert.match(pg, /"\/api\/linkimg\?url="/); assert.match(pg, /id="mImgLink"/);
+  // isian manual bila otomatis tidak bisa: klik & template email; laporan memakai klik link pelacak, kalau kosong klik manual
+  assert.match(pg, /id="mClicks"/); assert.match(pg, /id="mTplI"/); assert.ok(pg.includes("const clk=i=>+i.clicks||i.m_clicks"));
 }
 
 /* ---------- kalender momen ---------- */

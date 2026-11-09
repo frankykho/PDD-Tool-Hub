@@ -388,9 +388,10 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
         <div class="fld"><label for="mShares">Bagikan</label><input class="f" id="mShares" inputmode="numeric" maxlength="15"></div>
         <div class="fld"><label for="mReposts">Repost</label><input class="f" id="mReposts" inputmode="numeric" maxlength="15"></div>
         <div class="fld"><label for="mFollows">Pengikut baru</label><input class="f" id="mFollows" inputmode="numeric" maxlength="15"></div>
+        <div class="fld"><label for="mClicks">Klik (manual)</label><input class="f" id="mClicks" inputmode="numeric" maxlength="15" title="Diisi kalau tidak memakai link pelacak. Kalau ada link pelacak, laporan memakai kliknya."></div>
       </div>
       <p class="muted small" id="mInfo" style="margin:0 0 8px"></p>
-      <p class="muted small" id="mTpl" hidden style="margin:0 0 8px"></p>
+      <div class="fld" id="mTplF" hidden style="margin:0 0 8px"><label for="mTplI">Template email (Email Studio)</label><input class="f" id="mTplI" maxlength="80"></div>
       <div id="mImgBox" hidden style="margin:0 0 10px"><span class="lbl">Gambar (untuk laporan)</span>
         <div class="acts" style="margin:4px 0 0;align-items:center"><img id="mImg" alt="" hidden style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><label class="btn sm" style="cursor:pointer">🖼 Pilih gambar<input type="file" id="mImgF" accept="image/*" hidden></label><button type="button" class="btn sm" id="mImgLink" hidden>↻ Ambil dari link</button><button type="button" class="btn sm" id="mImgDel" hidden>Hapus gambar</button><span class="muted small" id="mImgMsg" aria-live="polite"></span></div>
         <p class="muted small" style="margin:4px 0 0">Otomatis dari tombol bookmark "Angka IG ke Planner". Bisa juga pilih file, atau tempel (Ctrl+V) screenshot saat dialog ini terbuka.</p></div>
@@ -700,7 +701,7 @@ $("momBox").addEventListener("submit",async e=>{
 });
 
 /* ---------- Performa konten ---------- */
-const MK=[["mViews","m_views","Views"],["mReach","m_reach","Jangkauan"],["mLikes","m_likes","Suka"],["mComments","m_comments","Komentar"],["mSaves","m_saves","Simpan"],["mShares","m_shares","Bagikan"],["mReposts","m_reposts","Repost"],["mFollows","m_follows","Pengikut baru"]];
+const MK=[["mViews","m_views","Views"],["mReach","m_reach","Jangkauan"],["mLikes","m_likes","Suka"],["mComments","m_comments","Komentar"],["mSaves","m_saves","Simpan"],["mShares","m_shares","Bagikan"],["mReposts","m_reposts","Repost"],["mFollows","m_follows","Pengikut baru"],["mClicks","m_clicks","Klik (manual)"]];
 const hasM=i=>MK.some(([,k])=>i[k]!=null);
 const inter=i=>(+i.m_likes||0)+(+i.m_comments||0)+(+i.m_saves||0)+(+i.m_shares||0)+(+i.m_reposts||0);
 // ER = interaksi ÷ jangkauan, hanya dari konten yang jangkauannya tercatat
@@ -1008,7 +1009,10 @@ $("iCh").addEventListener("change",()=>{chOther();if(!$("iChO").hidden)$("iChO")
 // isian performa hanya untuk konten yang sudah terbit (atau yang angkanya sudah ada)
 const showMet=()=>{$("gMet").hidden=!(PL.copyKinds||[]).includes(fKind)||($("iSt").value!=="terbit"&&!MK.some(([id])=>$(id).value!==""));
   // artikel: views = jumlah pembaca (diketik dari laporan website / media)
-  document.querySelector('label[for="mViews"]').textContent=fKind==="artikel"?"Pembaca":"Views / tayangan"};
+  document.querySelector('label[for="mViews"]').textContent=fKind==="artikel"?"Pembaca":"Views / tayangan";
+  // email blast: nama template bisa diketik (tercatat otomatis kalau lewat Email Studio)
+  $("mTplF").hidden=fKind!=="artikel"||$("iCh").value!=="Email / Newsletter"};
+$("iCh").addEventListener("change",showMet);
 /* ---------- caption: cek kepatuhan & persetujuan ---------- */
 const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
 // kanal -> aturan panjang di shared/compliance.js
@@ -1055,7 +1059,7 @@ function shrinkImg(f){return createImageBitmap(f).then(b=>{const s=Math.min(1,48
 const showImg=u=>{$("mImg").hidden=!u;if(u)$("mImg").src=u;else $("mImg").removeAttribute("src");$("mImgDel").hidden=!u};
 async function loadImg(){
   const it=editing;$("mImgBox").hidden=!it;showImg("");$("mImgMsg").textContent="";$("mImgLink").hidden=!linkImgOk($("iLink").value);
-  $("mTpl").hidden=!(it&&it.email_tpl);$("mTpl").textContent=it&&it.email_tpl?"Template Email Studio: "+it.email_tpl:"";if(!it)return;
+  $("mTplI").value=(it&&it.email_tpl)||"";if(!it)return;
   let m={};try{m=await api("/api/imgs?ids="+encodeURIComponent(it.id))}catch(e){}
   if(editing===it)showImg(m[it.id]||"");
 }
@@ -1194,7 +1198,7 @@ const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
   program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
   reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
-  copy:$("iCopy").value,email_tpl:(editing&&editing.email_tpl)||"",approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
+  copy:$("iCopy").value,email_tpl:$("mTplI").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
   // rencana galeri: isian sendiri menggantikan partner / tempat / tanggal selesai / regional / cabang
   ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value,
     audience:$("iGPic").value,target:$("iGRank").value,result_num:$("iGStud").value,docs:docsVal()}:{}),
@@ -2096,12 +2100,14 @@ async function cwData(){
 function cwDoc(R){
   const L=R.items,A=L.filter(i=>kindOf(i)==="artikel"&&!isEmailBlast(i)),E=L.filter(i=>kindOf(i)==="artikel"&&isEmailBlast(i)),Y=L.filter(i=>kindOf(i)==="konten");
   const sum=(X,k)=>X.reduce((a,i)=>a+(+i[k]||0),0);
+  // klik: dari link pelacak; kalau tidak ada, klik yang diisi manual
+  const clk=i=>+i.clicks||i.m_clicks;
   const card=(i,ch,m)=>({img:i.img,date:fmtShort(i.date),title:i.title,ch,m:m.map(([l,v])=>[T(l),int(v)])});
-  const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",i.clicks]])],
-    ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",i.clicks]])],
-    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views],["Suka",i.m_likes],["Komentar",i.m_comments],["Klik",i.clicks]])]];
+  const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",clk(i)]])],
+    ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",clk(i)]])],
+    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views],["Suka",i.m_likes],["Komentar",i.m_comments],["Klik",clk(i)]])]];
   const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per},
-    {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(sum(L,"clicks")),"link pelacak"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
+    {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(L.reduce((a,i)=>a+(+clk(i)||0),0)),"link pelacak / manual"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
     ...S.filter(x=>!x[1].length).map(([h,,empty])=>({t:"table",h3:h,cols:[[h,100]],rows:[],empty}))];
   S.filter(x=>x[1].length).forEach(([h,X,,mk])=>Bk.push({t:"page",h2:h,sub:R.per},{t:"posts",cols:2,items:X.map(mk)}));
   return {div:R.div,per:R.per,blocks:Bk};
