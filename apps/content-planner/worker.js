@@ -15,6 +15,8 @@
 // - "/api/moments"  -> kalender momen (shared/moments.js) + momen tim (GET ?from=&to=, POST, POST /api/moments/delete)
 // - "/api/links"    -> link pelacak klik per konten (GET ?item=, POST); "/go/<kode>" (publik) -> hitung klik lalu alihkan
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
+// - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan IG;
+//   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
 // - "/api/picks"    -> stock pick + statusnya dari harga EOD Yahoo (GET ?from=&to=[&ihsg=1], POST simpan, POST /api/picks/delete); pembuat atau admin yang mengubah;
@@ -161,7 +163,7 @@ const COLS = {
   reach: "INTEGER", leads: "INTEGER", accounts: "INTEGER", aum: "INTEGER", budget: "INTEGER", cost: "INTEGER",
   // konten & artikel: caption/naskah final, penyetuju & status persetujuan, angka performa setelah terbit
   copy: "TEXT", approver: "TEXT", approver_email: "TEXT", approval: "TEXT", approval_note: "TEXT", approved_by: "TEXT", approved_at: "TEXT",
-  m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
+  m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_reposts: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
   // event_id: tersambung ke event di Event & Lead (Peserta & Leads diisi otomatis dari sana dan tidak bisa diubah di sini)
   event_id: "TEXT",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
@@ -171,7 +173,7 @@ const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", 
 const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
 /** Kegiatan yang punya caption, persetujuan, dan angka performa. */
 export const COPY_KINDS = ["konten", "artikel"];
-export const METRICS = ["m_views", "m_reach", "m_likes", "m_comments", "m_saves", "m_shares", "m_follows"];
+export const METRICS = ["m_views", "m_reach", "m_likes", "m_comments", "m_saves", "m_shares", "m_reposts", "m_follows"];
 export const APPROVAL = { menunggu: "Menunggu persetujuan", disetujui: "Disetujui", revisi: "Perlu revisi" };
 let ready = false;
 async function ensure(env) {
@@ -193,6 +195,8 @@ async function ensure(env) {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS wapost (date TEXT NOT NULL, email TEXT NOT NULL, name TEXT, job TEXT, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, updated_at TEXT, PRIMARY KEY (date, email, kind))"),
     // pengaturan dari Tool Hub, mis. branches = daftar regional & cabang [{ r, c }]
     env.DB.prepare("CREATE TABLE IF NOT EXISTS cfg (k TEXT PRIMARY KEY, v TEXT)"),
+    // gambar postingan (data URL ±480px dari bookmark IG atau unggahan manual), terpisah supaya kalender tidak ikut memuatnya
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS item_img (id TEXT PRIMARY KEY, img TEXT NOT NULL, at TEXT)"),
   ]);
   const have = new Set((await env.DB.prepare("PRAGMA table_info(items)").all()).results.map((c) => c.name));
   const uhave = new Set((await env.DB.prepare("PRAGMA table_info(users)").all()).results.map((c) => c.name));
@@ -543,6 +547,8 @@ export function postKey(url) {
 }
 /** Jenis postingan di CSV Meta -> kanal Planner. */
 export const channelOf = (type, link) => /tiktok\.com/i.test(link) ? "TikTok" : /youtu/i.test(link) ? "YouTube" : /reel/i.test(type) || /\/reels?\//i.test(link) ? "IG Reels" : /stor|cerita/i.test(type) ? "IG Story" : /instagram\.com/i.test(link) ? "IG Feed" : "Lainnya";
+/** Data URL gambar postingan yang boleh disimpan (JPG/PNG/WebP, ≤ ±700 KB), atau null. */
+export const imgOk = (v) => typeof v === "string" && v.length <= 950000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
 /** Satu baris CSV (sudah dipetakan di browser) -> baris yang sah, atau null. */
 export function cleanMetricRow(r) {
   if (!r || typeof r !== "object") return null;
@@ -551,6 +557,7 @@ export function cleanMetricRow(r) {
   const date = ISO.test(String(r.date || "").slice(0, 10)) ? String(r.date).slice(0, 10) : "";
   const out = { key, link, date, title: String(r.title ?? "").replace(/\s+/g, " ").trim().slice(0, 160), type: String(r.type ?? "").slice(0, 40) };
   for (const k of METRICS) out[k] = numOf(r[k]);
+  out.img = imgOk(r.img);
   return METRICS.some((k) => out[k] != null) ? out : null;
 }
 /** Impor angka performa: { rows: [{link, date, title, type, m_views, ...}], create }. Baris yang cocok (lewat link) diperbarui;
@@ -562,21 +569,27 @@ async function importMetrics(env, me, b) {
   if (!rows.size) return { error: "Tidak ada baris dengan link postingan dan angka performa." };
   const have = new Map();
   for (const i of (await env.DB.prepare("SELECT id, link FROM items WHERE kind = 'konten' AND COALESCE(link, '') <> ''").all()).results) have.set(postKey(i.link), i.id);
-  const now = new Date().toISOString(), by = who(me), meE = lower(me.e), st = [], unmatched = [];
+  const now = new Date().toISOString(), by = who(me), meE = lower(me.e), st = [], unmatched = [], imgs = [];
   let matched = 0, created = 0;
   for (const r of rows.values()) {
     const res = r.m_reach ?? r.m_views, id = have.get(r.key);
     if (id) {
       matched++;
+      if (r.img) imgs.push([id, r.img]);
       st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=?").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, by, now, id));
     } else if (b.create && r.date) {
       created++;
+      const nid = crypto.randomUUID();
+      if (r.img) imgs.push([nid, r.img]);
       const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
-      st.push(env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(crypto.randomUUID(), "konten", r.date, r.title || "Postingan " + tgl(r.date), channelOf(r.type, r.link), "terbit", by, meE, r.link, 0,
+      st.push(env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(nid, "konten", r.date, r.title || "Postingan " + tgl(r.date), channelOf(r.type, r.link), "terbit", by, meE, r.link, 0,
         ...METRICS.map((k) => r[k]), now, "csv", res, by, meE, now, by, now));
     } else unmatched.push(r.link);
   }
   for (let i = 0; i < st.length; i += 50) await env.DB.batch(st.slice(i, i + 50));
+  // gambar ±50 KB per baris: batch kecil supaya satu permintaan D1 tidak terlalu besar
+  const put = imgs.map(([id, img]) => env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, now));
+  for (let i = 0; i < put.length; i += 10) await env.DB.batch(put.slice(i, i + 10));
   return { matched, created, unmatched: unmatched.length, sample: unmatched.slice(0, 8) };
 }
 /** Notifikasi dari perubahan kegiatan: penanggung jawab baru, desainer baru, dan status visual yang berubah. Fungsi murni. */
@@ -603,7 +616,28 @@ async function deleteItem(env, me, id) {
     env.DB.prepare("DELETE FROM items WHERE id=?").bind(String(id)),
     env.DB.prepare("DELETE FROM tasks WHERE item_id=?").bind(String(id)),
     env.DB.prepare("UPDATE items SET program_id='' WHERE program_id=?").bind(String(id)),
+    env.DB.prepare("DELETE FROM item_img WHERE id=?").bind(String(id)),
   ]);
+  return { ok: true };
+}
+/** Gambar postingan beberapa kegiatan: { id: dataUrl } (maks. 100 id). */
+async function listImgs(env, ids) {
+  await ensure(env);
+  const L = [...new Set(String(ids || "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, 100);
+  if (!L.length) return {};
+  const rows = (await env.DB.prepare(`SELECT id, img FROM item_img WHERE id IN (${L.map(() => "?").join(",")})`).bind(...L).all()).results;
+  return Object.fromEntries(rows.map((r) => [r.id, r.img]));
+}
+/** Ganti gambar postingan satu kegiatan; img "" = hapus. Hak sama dengan mengubah kegiatannya. */
+async function saveImg(env, me, b) {
+  await ensure(env);
+  const id = String(b.id || ""), it = id ? await env.DB.prepare("SELECT created_email, owner_email, d_need, d_who FROM items WHERE id=?").bind(id).first() : null;
+  if (!it) return { error: "Kegiatan ini sudah dihapus." };
+  if (!canEditItem(me, it)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
+  if (b.img === "") { await env.DB.prepare("DELETE FROM item_img WHERE id=?").bind(id).run(); return { ok: true }; }
+  const img = imgOk(b.img);
+  if (!img) return { error: "Gambar harus JPG/PNG/WebP dan di bawah ±700 KB." };
+  await env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, new Date().toISOString()).run();
   return { ok: true };
 }
 /** Dicatat saat login: anggota tim untuk pilihan penanggung jawab, desainer, dan penerima tugas. Role ikut dari tiket Tool Hub (j).
@@ -1328,6 +1362,7 @@ export default {
         if (path === "/api/comments") return json(await listComments(env, url.searchParams.get("item")));
         if (path === "/api/moments") return json(await moments(env, from, to));
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
+        if (path === "/api/imgs") return json(await listImgs(env, url.searchParams.get("ids")));
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
@@ -1342,6 +1377,7 @@ export default {
         if (path === "/api/tasks") { const r = await saveTask(env, me, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
+        if (path === "/api/img") { const r = await saveImg(env, me, b); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
           "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b), "/api/translate": () => translateTexts(env, b) }[path];

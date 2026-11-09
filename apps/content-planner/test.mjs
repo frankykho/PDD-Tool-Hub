@@ -200,7 +200,7 @@ assert.deepEqual(itemNotifs(null, { kind: "konten", title: "X", date: "2026-10-2
 assert.equal(taskNotifs({ who: "d@a.test", status: "belum", due: "x", brief: "", title: "T" }, { who: "d@a.test", status: "belum", due: "y", brief: "", title: "T", item_id: "p", by_email: "p@a.test" }, { title: "P" }, "p@a.test", "Pia", true)[0].title, "Tugas diperbarui: T");
 
 /* ---------- persetujuan konten ---------- */
-const { approvalStep, postKey, cleanMetricRow, utmUrl, channelOf, BOT_UA } = await import("./worker.js");
+const { approvalStep, postKey, cleanMetricRow, imgOk, utmUrl, channelOf, BOT_UA } = await import("./worker.js");
 const K = { kind: "konten", title: "T", date: "2026-11-01", approver_email: "ap@a.test", approver: "Ap", copy: "c" };
 assert.deepEqual(approvalStep(null, { ...K, approver_email: "" }).cols.approval, "", "tanpa penyetuju = tanpa persetujuan");
 let s = approvalStep(null, { ...K, status: "draf" }, "me@a.test", "Me");
@@ -293,6 +293,28 @@ assert.equal((await call("/api/metrics/import", { ck: CI, body: { rows: [{ link:
 await call("/api/items", { ck: CI, body: { ...L, m_reach: "1000" } });
 const L2 = (await call("/api/items?id=" + L.id, { ck: CI })).j;
 assert.deepEqual([L2.m_reach, L2.m_src, L2.result_num], [1000, "manual", 1000]);
+// gambar postingan (item_img) & repost: ikut impor bookmarklet, unggah manual, terhapus bersama kegiatan
+const PNG = "data:image/png;base64,iVBORw0KGgo=";
+assert.equal(imgOk(PNG), PNG);
+assert.equal(imgOk("data:image/svg+xml;base64,AAAA"), null, "svg ditolak");
+assert.equal(imgOk("data:image/png;base64," + "A".repeat(950000)), null, "terlalu besar");
+r = await call("/api/metrics/import", { ck: CI, body: { rows: [
+  { link: "https://www.instagram.com/reel/RR1/", date: plus(3), m_likes: "250", m_reposts: "7", img: PNG },
+  { link: "https://www.instagram.com/p/NEW1/", date: plus(1), m_likes: "31", img: "bukan-gambar" },
+] } });
+assert.equal(r.j.matched, 2, "gambar rusak tidak menggagalkan angka");
+it = (await call("/api/items?id=" + cid, { ck: CI })).j;
+assert.equal(it.m_reposts, 7);
+let im = (await call(`/api/imgs?ids=${cid},${L.id}`, { ck: CI })).j;
+assert.deepEqual(Object.keys(im), [cid]); assert.equal(im[cid], PNG);
+assert.equal((await call("/api/img", { ck: CI, body: { id: L.id, img: "x" } })).status, 400);
+assert.equal((await call("/api/img", { ck: DES, body: { id: L.id, img: PNG } })).status, 403, "bukan pembuat/PIC");
+await call("/api/img", { ck: CI, body: { id: L.id, img: PNG } });
+await call("/api/img", { ck: CI, body: { id: cid, img: "" } });
+im = (await call(`/api/imgs?ids=${cid},${L.id}`, { ck: CI })).j;
+assert.deepEqual(Object.keys(im), [L.id], "img kosong = hapus");
+await call("/api/items/delete", { ck: CI, body: { id: L.id } });
+assert.deepEqual((await call(`/api/imgs?ids=${L.id}`, { ck: CI })).j, {}, "ikut terhapus bersama kegiatan");
 
 // jendela bookmarklet Instagram: perlu login, skripnya sah
 assert.equal((await planner.fetch(new Request(BASE + "/ig-sync?n=3"), env)).status, 303);
