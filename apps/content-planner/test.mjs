@@ -388,6 +388,9 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   assert.match(pg, /b\.t==="posts"\)\{/, "pdfDoc"); assert.match(pg, /b\.t==="posts"\)await posts\(b\)/, "pptDoc");
   // PPT: ukuran asli gambar dikirim ke addImage supaya sizing cover memotong, bukan menarik (gambar IG 4:5 / 9:16)
   assert.match(pg, /w:r\.w\*sc,h:r\.h\*sc,sizing:\{type:"cover",w:im,h:im\}/);
+  // Laporan Copywriter & gambar / angka otomatis setelah kegiatan disimpan
+  assert.match(pg, /data-t="cw">Laporan Copywriter</); assert.match(pg, /cw:\{data:cwData,doc:cwDoc,name:"Laporan Copywriter"\}/);
+  assert.match(pg, /api\("\/api\/yt\/refresh"/); assert.match(pg, /"\/api\/linkimg\?url="/); assert.match(pg, /id="mImgLink"/);
 }
 
 /* ---------- kalender momen ---------- */

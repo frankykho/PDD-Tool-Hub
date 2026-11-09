@@ -390,8 +390,9 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
         <div class="fld"><label for="mFollows">Pengikut baru</label><input class="f" id="mFollows" inputmode="numeric" maxlength="15"></div>
       </div>
       <p class="muted small" id="mInfo" style="margin:0 0 8px"></p>
-      <div id="mImgBox" hidden style="margin:0 0 10px"><span class="lbl">Gambar postingan (untuk Laporan IG)</span>
-        <div class="acts" style="margin:4px 0 0;align-items:center"><img id="mImg" alt="" hidden style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><label class="btn sm" style="cursor:pointer">🖼 Pilih gambar<input type="file" id="mImgF" accept="image/*" hidden></label><button type="button" class="btn sm" id="mImgDel" hidden>Hapus gambar</button><span class="muted small" id="mImgMsg" aria-live="polite"></span></div>
+      <p class="muted small" id="mTpl" hidden style="margin:0 0 8px"></p>
+      <div id="mImgBox" hidden style="margin:0 0 10px"><span class="lbl">Gambar (untuk laporan)</span>
+        <div class="acts" style="margin:4px 0 0;align-items:center"><img id="mImg" alt="" hidden style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><label class="btn sm" style="cursor:pointer">🖼 Pilih gambar<input type="file" id="mImgF" accept="image/*" hidden></label><button type="button" class="btn sm" id="mImgLink" hidden>↻ Ambil dari link</button><button type="button" class="btn sm" id="mImgDel" hidden>Hapus gambar</button><span class="muted small" id="mImgMsg" aria-live="polite"></span></div>
         <p class="muted small" style="margin:4px 0 0">Otomatis dari tombol bookmark "Angka IG ke Planner". Bisa juga pilih file, atau tempel (Ctrl+V) screenshot saat dialog ini terbuka.</p></div>
       <span class="lbl">Link pelacak klik</span>
       <div id="lkList"></div>
@@ -469,7 +470,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 <dialog id="rep">
   <div class="dlg">
     <h2>Laporan</h2>
-    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="ig">Laporan IG</button></div></div>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="ig">Laporan IG</button><button type="button" data-t="cw">Laporan Copywriter</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
@@ -1005,7 +1006,9 @@ function setOps(it){const o=opsOf(it),rp=x=>x!=null?Number(x).toLocaleString("id
 const chVal=()=>$("iCh").value==="Lainnya"&&$("iChO").value.trim()?$("iChO").value.trim():$("iCh").value;
 $("iCh").addEventListener("change",()=>{chOther();if(!$("iChO").hidden)$("iChO").focus()});
 // isian performa hanya untuk konten yang sudah terbit (atau yang angkanya sudah ada)
-const showMet=()=>{$("gMet").hidden=!(PL.copyKinds||[]).includes(fKind)||($("iSt").value!=="terbit"&&!MK.some(([id])=>$(id).value!==""))};
+const showMet=()=>{$("gMet").hidden=!(PL.copyKinds||[]).includes(fKind)||($("iSt").value!=="terbit"&&!MK.some(([id])=>$(id).value!==""));
+  // artikel: views = jumlah pembaca (diketik dari laporan website / media)
+  document.querySelector('label[for="mViews"]').textContent=fKind==="artikel"?"Pembaca":"Views / tayangan"};
 /* ---------- caption: cek kepatuhan & persetujuan ---------- */
 const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
 // kanal -> aturan panjang di shared/compliance.js
@@ -1051,7 +1054,8 @@ function shrinkImg(f){return createImageBitmap(f).then(b=>{const s=Math.min(1,48
   let u=cv.toDataURL("image/webp",.75);if(!u.startsWith("data:image/webp"))u=cv.toDataURL("image/jpeg",.75);return u})}
 const showImg=u=>{$("mImg").hidden=!u;if(u)$("mImg").src=u;else $("mImg").removeAttribute("src");$("mImgDel").hidden=!u};
 async function loadImg(){
-  const it=editing;$("mImgBox").hidden=!it;showImg("");$("mImgMsg").textContent="";if(!it)return;
+  const it=editing;$("mImgBox").hidden=!it;showImg("");$("mImgMsg").textContent="";$("mImgLink").hidden=!linkImgOk($("iLink").value);
+  $("mTpl").hidden=!(it&&it.email_tpl);$("mTpl").textContent=it&&it.email_tpl?"Template Email Studio: "+it.email_tpl:"";if(!it)return;
   let m={};try{m=await api("/api/imgs?ids="+encodeURIComponent(it.id))}catch(e){}
   if(editing===it)showImg(m[it.id]||"");
 }
@@ -1063,6 +1067,25 @@ async function putImg(img){
 const pickImg=f=>f&&/^image\//.test(f.type)?shrinkImg(f).then(putImg,()=>{$("mImgMsg").textContent="Gambar tidak bisa dibaca."}):null;
 $("mImgF").onchange=e=>{pickImg(e.target.files[0]);e.target.value=""};
 $("mImgDel").onclick=()=>putImg("");
+// gambar sampul dari link (artikel / YouTube / situs lain; Instagram diblokir dari server) & angka YouTube setelah disimpan
+const isYt=l=>/^https?:\/\/([a-z0-9-]+\.)*(youtube\.com|youtu\.be)\//i.test(String(l||"").trim());
+const linkImgOk=l=>/^https?:\/\//i.test(String(l||"").trim())&&!/instagram\.com/i.test(l);
+async function imgFromLink(id,link){
+  const r=await fetch("/api/linkimg?url="+encodeURIComponent(String(link).trim().replace(/^http:/i,"https:")));
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"Gambar tidak ditemukan di link ini.")}
+  const img=await shrinkImg(await r.blob());await api("/api/img",{id,img});return img;
+}
+// tanpa menahan dialog; gagal diam (tombol "Ambil dari link" untuk mencoba lagi)
+function afterSave(id,link){
+  if(!id||!linkImgOk(link))return;
+  if(isYt(link))api("/api/yt/refresh",{ids:[id]}).then(x=>{if(x&&x.updated)loadCal()}).catch(()=>{});
+  api("/api/imgs?ids="+encodeURIComponent(id)).then(m=>m[id]?null:imgFromLink(id,link)).catch(()=>{});
+}
+$("mImgLink").onclick=async()=>{
+  const it=editing;if(!it)return;$("mImgMsg").textContent="Mengambil gambar dari link…";
+  try{const img=await imgFromLink(it.id,$("iLink").value);if(editing===it){showImg(img);$("mImgMsg").textContent="✓ Gambar tersimpan."}}
+  catch(e){if(editing===it)$("mImgMsg").textContent=e.message||String(e)}
+};
 $("gMet").closest("dialog").addEventListener("paste",e=>{if($("mImgBox").hidden||$("gMet").hidden)return;const f=[...((e.clipboardData||{}).files||[])].find(x=>/^image\//.test(x.type));if(f){e.preventDefault();pickImg(f)}});
 async function decideNow(action){
   if(!editing)return;
@@ -1189,6 +1212,7 @@ async function saveForm(force){
   $("iSave").disabled=true;
   try{
     const wasNew=!editing,r=await api("/api/items",{...formData(),force});
+    if((PL.copyKinds||[]).includes(fKind))afterSave(r.id||(editing&&editing.id),$("iLink").value);
     if(fKind==="program")await loadProgs();
     // program baru: form tetap terbuka supaya tugas bisa langsung dibagi
     if(wasNew&&fKind==="program"&&PL.me.assign){editing=await api("/api/items?id="+encodeURIComponent(r.id));$("dlgTitle").textContent="Ubah kegiatan";$("iDel").hidden=false;await renderTaskBox();$("tTitle").focus();}
@@ -1255,18 +1279,22 @@ const KEG=["edukasi","artikel","konten","program","aktivitas","ops","produk","ca
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
+  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
-  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="ig";
+  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="ig"||t==="cw";
+  // Laporan Copywriter: pilihan Orang = anggota ber-role Copywriter (tidak mengikuti Tim)
+  if(t==="cw"){$("rWho").dataset.cw="1";$("rWho").innerHTML='<option value="">Semua copywriter</option>'+USERS.filter(u=>u.role==="copy").map(u=>`<option value="${esc(u.email)}">${esc(u.name)}</option>`).join("")}
+  else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
   $("rHelp").innerHTML=(t==="ig"?"Laporan bulanan Instagram KISI: semua postingan IG yang tayang di periode ini beserta gambar, suka, komentar, bagikan, views, simpan, dan repost. Gambar dan angka diambil lewat tombol bookmark Angka IG ke Planner di tab Performa."
+    :t==="cw"?"Laporan Copywriter: artikel (website KISI = internal, media partner = eksternal), email blast, dan video YouTube yang PIC-nya ber-role Copywriter, lengkap dengan gambar dan angkanya. Views YouTube diambil otomatis saat laporan dibuat, pembaca artikel dari isian manual, klik dari link pelacak."
     :t==="mon"?"Monthly Report satu tim: ringkasan, lalu per role hasil program, kegiatan kalender, dan aktivitas anggotanya."
     :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
     :"Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan."+(BR.length?" Memilih regional / cabang membuat laporan hanya berisi kegiatan cabang di sana.":""))+pdf;
 }
 // Laporan IG: bawaannya bulan lalu (laporan bulanan dibuat setelah bulannya selesai)
-$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="ig")$("rep").querySelector('[data-per="-1"]').click()});
+$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="ig"||b.dataset.t==="cw")$("rep").querySelector('[data-per="-1"]').click()});
 function openRep(){
   $("rFrom").value=cur;$("rTo").value=monthEnd(cur);
   $("rProg").innerHTML='<option value="">Semua program di periode ini</option>'+PROGS.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");
@@ -2046,7 +2074,39 @@ function igDoc(R){
     {t:"page",h2:"Semua postingan",sub:`${R.per} · ${L.length} postingan`},{t:"posts",cols:2,items:L.map(igCard)});
   return {div:R.div,per:R.per,blocks:Bk};
 }
-const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},ig:{data:igData,doc:igDoc,name:"Laporan Instagram"}};
+/* ---------- Laporan Copywriter: artikel, email blast, YouTube (PIC ber-role Copywriter) ---------- */
+const isEmailBlast=i=>i.channel==="Email / Newsletter";
+async function cwData(){
+  const from=$("rFrom").value,to=$("rTo").value;
+  if(!from||!to||from>to)throw new Error("Periode belum benar.");
+  const who=$("rWho").value,cw=new Set(USERS.filter(u=>u.role==="copy").map(u=>u.email)),mine=i=>who?i.owner_email===who:cw.has(i.owner_email);
+  const pick=L=>L.filter(i=>i.date>=from&&i.date<=to&&mine(i)&&(kindOf(i)==="artikel"||(kindOf(i)==="konten"&&isYt(i.link))))
+    .sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  let L=pick(await api(`/api/items?from=${from}&to=${to}`));
+  // angka YouTube terbaru (tanpa key: dilewati, angka manual tetap)
+  const yt=L.filter(i=>isYt(i.link)).map(i=>i.id);let n=0;
+  for(let k=0;k<yt.length;k+=50){const x=await api("/api/yt/refresh",{ids:yt.slice(k,k+50)}).catch(()=>null);n+=x&&x.updated||0}
+  if(n)L=pick(await api(`/api/items?from=${from}&to=${to}`));
+  const imgs={};
+  for(let k=0;k<L.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+L.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
+  const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
+  const u=USERS.find(x=>x.email===who);
+  return {from,to,per,tag:u?u.name:"",who:u?u.name:"Semua copywriter",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
+}
+function cwDoc(R){
+  const L=R.items,A=L.filter(i=>kindOf(i)==="artikel"&&!isEmailBlast(i)),E=L.filter(i=>kindOf(i)==="artikel"&&isEmailBlast(i)),Y=L.filter(i=>kindOf(i)==="konten");
+  const sum=(X,k)=>X.reduce((a,i)=>a+(+i[k]||0),0);
+  const card=(i,ch,m)=>({img:i.img,date:fmtShort(i.date),title:i.title,ch,m:m.map(([l,v])=>[T(l),int(v)])});
+  const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",i.clicks]])],
+    ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",i.clicks]])],
+    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views],["Suka",i.m_likes],["Komentar",i.m_comments],["Klik",i.clicks]])]];
+  const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per},
+    {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(sum(L,"clicks")),"link pelacak"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
+    ...S.filter(x=>!x[1].length).map(([h,,empty])=>({t:"table",h3:h,cols:[[h,100]],rows:[],empty}))];
+  S.filter(x=>x[1].length).forEach(([h,X,,mk])=>Bk.push({t:"page",h2:h,sub:R.per},{t:"posts",cols:2,items:X.map(mk)}));
+  return {div:R.div,per:R.per,blocks:Bk};
+}
+const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},ig:{data:igData,doc:igDoc,name:"Laporan Instagram"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
 const repDiv=()=>{const tk=$("rTeam").value,d=$("rDiv").value.trim()||teamName(tk)||"Product & Digital Development";if(d!==teamName(tk))store("pl_div:"+tk,d);else try{localStorage.removeItem("pl_div:"+tk)}catch(e){}return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
 // Monthly Report: "<divisi> Report - <periode>". Karakter yang tidak boleh di nama file dibuang.
