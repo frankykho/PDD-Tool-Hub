@@ -728,7 +728,9 @@ function plBookmark(W){
   if(!/(^|\.)instagram\.com$/.test(L.hostname)){alert("Buka profil Instagram akun sendiri dulu, lalu klik tombol ini.");return}
   var one=L.pathname.match(/\/(p|reels?|tv)\/([\w-]+)/);
   if(one)list.push({k:one[1]==="p"?"p":"reel",c:one[2]});
-  else [].forEach.call(d.querySelectorAll('main a[href*="/p/"],main a[href*="/reel/"]'),function(a){var m=a.getAttribute("href").match(/\/(p|reel)\/([\w-]+)/);if(m&&!seen[m[2]]){seen[m[2]]=1;list.push({k:m[1],c:m[2]})}});
+  else [].forEach.call(d.querySelectorAll('main a[href*="/p/"],main a[href*="/reel/"]'),function(a){var m=a.getAttribute("href").match(/\/(p|reel)\/([\w-]+)/),im=a.querySelector("img");if(m&&!seen[m[2]]){seen[m[2]]=1;list.push({k:m[1],c:m[2],img:im?(im.currentSrc||im.src||""):""})}});
+  // nama akun dari alamat profil (instagram.com/<akun>/ atau /<akun>/reels/); kosong di halaman satu postingan
+  var user=one?"":((L.pathname.match(/^\/([\w.]+)\/?/)||[])[1]||"");
   list=list.slice(0,60);
   if(!list.length){alert("Belum ada postingan yang tampil. Gulir sedikit sampai postingan terlihat, lalu klik tombol ini lagi.");return}
   var w=window.open(W+"/ig-sync?n="+list.length,"planner_ig","width=540,height=760");
@@ -741,18 +743,30 @@ function plBookmark(W){
   // kandidat terkecil yang lebarnya >= 480, kalau tidak ada yang terbesar
   function pick(c){var b=null;(c||[]).forEach(function(x){if(!x||!x.url)return;if(x.width>=480?(!b||b.width<480||x.width<b.width):(!b||(b.width<480&&x.width>b.width)))b=x});return b?b.url:""}
   window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source)});
-  function run(t){var i=0;(function next(){
+  // data postingan dari API web Instagram (sesi login di tab ini). Urutan: daftar postingan profil (sekali minta banyak),
+  // info per postingan (id dari kode link), lalu ?__a=1 lama. why = jawaban terakhir Instagram kalau semuanya gagal.
+  var why="",feed={},H={credentials:"include",headers:{"x-ig-app-id":"936619743392459","x-requested-with":"XMLHttpRequest"}};
+  function J(u){return fetch(u,H).then(function(r){why="HTTP "+r.status+" "+(r.headers.get("content-type")||"").split(";")[0];return r.ok?r.json():null}).catch(function(e){why=String(e&&e.message||e);return null})}
+  function loadFeed(max,pg){if(!user||pg>8)return Promise.resolve();
+    return J("/api/v1/feed/user/"+user+"/username/?count=33"+(max?"&max_id="+encodeURIComponent(max):"")).then(function(j){if(!j||!j.items)return;
+      j.items.forEach(function(it){if(it&&it.code)feed[it.code]=it});
+      if(j.more_available&&j.next_max_id&&list.some(function(x){return !feed[x.c]}))return loadFeed(j.next_max_id,pg+1)})}
+  function mid(c){var A="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",n=BigInt(0);c.slice(0,11).split("").forEach(function(ch){n=n*BigInt(64)+BigInt(A.indexOf(ch))});return n.toString()}
+  function info(x){if(feed[x.c])return Promise.resolve(feed[x.c]);
+    return J("/api/v1/media/"+mid(x.c)+"/info/").then(function(j){return j&&j.items&&j.items[0]||J("/p/"+x.c+"/?__a=1&__d=dis").then(function(j){return j&&j.items&&j.items[0]||null})})}
+  function run(t){var i=0;loadFeed("",0).then(function next(){
     if(i>=list.length){t.postMessage({pl:"done"},W);return}
-    var x=list[i++];
-    fetch("/p/"+x.c+"/?__a=1&__d=dis",{credentials:"include",headers:{"x-ig-app-id":"936619743392459"}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null}).then(function(j){
-      var it=j&&j.items&&j.items[0],o={link:"https://www.instagram.com/"+x.k+"/"+x.c+"/"},src="";
+    var x=list[i++],cached=!!feed[x.c];
+    info(x).then(function(it){
+      var o={link:"https://www.instagram.com/"+x.k+"/"+x.c+"/"},src=x.img||"";
+      if(!it)o.err=why;
       if(it){o.date=it.taken_at?new Date(it.taken_at*1000+7*3600e3).toISOString().slice(0,10):"";o.title=((it.caption&&it.caption.text)||"").split("\n")[0].slice(0,160);
         o.type=it.media_type===8?"carousel":(it.media_type===2||it.product_type==="clips")?"reel":"foto";
         o.m_likes=it.like_count>=0?it.like_count:"";o.m_comments=it.comment_count!=null?it.comment_count:"";var v=it.play_count||it.ig_play_count||it.view_count;o.m_views=v!=null?v:"";
         var rp=it.repost_count!=null?it.repost_count:it.reshare_count;o.m_reposts=typeof rp==="number"&&rp>=0?rp:"";
-        src=pick((it.image_versions2||(it.carousel_media&&it.carousel_media[0]&&it.carousel_media[0].image_versions2)||{}).candidates)}
-      return grab(src).then(function(img){o.img=img;t.postMessage({pl:"row",n:list.length,row:o,ok:!!it},W);setTimeout(next,it?600:200)});
-    })})()}
+        src=pick((it.image_versions2||(it.carousel_media&&it.carousel_media[0]&&it.carousel_media[0].image_versions2)||{}).candidates)||src}
+      return grab(src).then(function(img){o.img=img;t.postMessage({pl:"row",n:list.length,row:o,ok:!!it},W);setTimeout(next,cached?100:it?600:200)});
+    })})}
 }
 /** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
 function parseCsv(text){

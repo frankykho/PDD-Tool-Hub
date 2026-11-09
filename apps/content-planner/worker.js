@@ -1266,13 +1266,13 @@ button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 14px
 <div class="box"><table><thead><tr><th style="width:40px"></th><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th><th class="n">Repost</th></tr></thead><tbody id="rows"></tbody></table></div>
 <label><input type="checkbox" id="cr"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button id="save" disabled>Simpan ke Planner</button><p class="m" id="msg"></p>
 <p class="m">Angka publik (suka, komentar, views, repost) dan gambar postingan. Jangkauan, simpan, dan bagikan diisi dari CSV Meta Business Suite atau manual.</p></div>
-<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],n=+new URLSearchParams(location.search).get("n")||0,got=0;
+<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],why="",n=+new URLSearchParams(location.search).get("n")||0,got=0;
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 if(!window.opener){$("st").textContent="Buka jendela ini lewat tombol bookmark di halaman Instagram.";return}
 addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?instagram\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
-if(m.pl==="row"&&m.row){got++;if(m.row.img&&!/^data:image\\/(jpeg|png|webp);base64,[A-Za-z0-9+\\/=]+$/.test(m.row.img))m.row.img="";if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
+if(m.pl==="row"&&m.row){got++;if(!m.ok&&m.row.err)why=String(m.row.err).slice(0,80);if(m.row.img&&!/^data:image\\/(jpeg|png|webp);base64,[A-Za-z0-9+\\/=]+$/.test(m.row.img))m.row.img="";if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
 $("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(m.row.img)+"' alt='' width='36' height='36' style='object-fit:cover;border-radius:6px;display:block'>":"")+"</td><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td><td class=n>"+esc(m.row.m_likes)+"</td><td class=n>"+esc(m.row.m_comments)+"</td><td class=n>"+esc(m.row.m_views)+"</td><td class=n>"+esc(m.row.m_reposts)+"</td></tr>")}
-if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca (login Instagram dulu)":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length}});
+if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?"Instagram menjawab: "+why+"; pastikan sudah login Instagram":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length}});
 window.opener.postMessage({pl:"ready"},"*");
 $("save").onclick=function(){$("save").disabled=true;$("msg").textContent="Menyimpan…";
 fetch("/api/metrics/import",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({rows:rows,create:$("cr").checked})}).then(function(r){return r.json()}).then(function(j){

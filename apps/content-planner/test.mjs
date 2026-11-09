@@ -332,6 +332,9 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   const bm = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8").match(/function plBookmark\(W\)\{[\s\S]*?\n\}\n/)[0];
   new Function("return " + bm);
   assert.match(bm, /image_versions2/); assert.match(bm, /repost_count/); assert.match(bm, /mx=480/);
+  // ?__a=1 sudah tidak melayani data: daftar postingan profil & info per postingan dicoba lebih dulu
+  assert.match(bm, /\/api\/v1\/feed\/user\//); assert.match(bm, /\/api\/v1\/media\//);
+  assert.match(sh, /Instagram menjawab/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   assert.match(pg, /id="mReposts"/); assert.match(pg, /id="mImgF"/); assert.match(pg, /api\("\/api\/img",/);
   assert.ok(pg.indexOf('["m_reposts",/') > 0 && pg.indexOf('["m_reposts",/') < pg.indexOf('["m_shares",/'), "CSV: kolom Reposts tidak tertangkap Bagikan");
