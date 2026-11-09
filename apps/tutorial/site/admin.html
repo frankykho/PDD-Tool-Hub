@@ -356,7 +356,7 @@ async function buildExportedHTML(categories){
   if(!res.ok || !ico.ok) throw new Error('Tidak bisa mengambil index.html / icons.js');
   // file export dibuka offline: ikon ditanam langsung, bukan dimuat dari icons.js
   const icoJs = await ico.text();
-  const template = (await res.text()).replace('<script src="icons.js"></script>', () => '<script>' + icoJs + '<\/script>');
+  const template = (await res.text()).replace('<script src="icons.js"><\/script>', () => '<script>' + icoJs + '<\/script>');
   const json = JSON.stringify(categories)
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
