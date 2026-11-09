@@ -398,6 +398,8 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   assert.match(pg, /api\("\/api\/yt\/refresh"/); assert.match(pg, /"\/api\/linkimg\?url="/); assert.match(pg, /id="mImgLink"/);
   // isian manual bila otomatis tidak bisa: klik & template email; laporan memakai klik link pelacak, kalau kosong klik manual
   assert.match(pg, /id="mClicks"/); assert.match(pg, /id="mTplI"/); assert.ok(pg.includes("const clk=i=>+i.clicks||i.m_clicks"));
+  // YouTube = video media partner: dikenali dari link (jenis artikel atau konten), kartu cukup Views
+  assert.ok(pg.includes("Y=L.filter(i=>isYt(i.link))")); assert.ok(pg.includes(`card(i,"YouTube",[["Views",i.m_views]])`));
 }
 
 /* ---------- kalender momen ---------- */

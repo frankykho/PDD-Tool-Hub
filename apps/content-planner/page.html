@@ -2098,14 +2098,15 @@ async function cwData(){
   return {from,to,per,tag:u?u.name:"",who:u?u.name:"Semua copywriter",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
 }
 function cwDoc(R){
-  const L=R.items,A=L.filter(i=>kindOf(i)==="artikel"&&!isEmailBlast(i)),E=L.filter(i=>kindOf(i)==="artikel"&&isEmailBlast(i)),Y=L.filter(i=>kindOf(i)==="konten");
+  // YouTube = video kerja sama yang diposting media partner: dikenali dari link-nya, dicatat sebagai artikel atau konten
+  const L=R.items,Y=L.filter(i=>isYt(i.link)),A=L.filter(i=>kindOf(i)==="artikel"&&!isEmailBlast(i)&&!isYt(i.link)),E=L.filter(i=>kindOf(i)==="artikel"&&isEmailBlast(i)&&!isYt(i.link));
   const sum=(X,k)=>X.reduce((a,i)=>a+(+i[k]||0),0);
   // klik: dari link pelacak; kalau tidak ada, klik yang diisi manual
   const clk=i=>+i.clicks||i.m_clicks;
   const card=(i,ch,m)=>({img:i.img,date:fmtShort(i.date),title:i.title,ch,m:m.map(([l,v])=>[T(l),int(v)])});
   const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",clk(i)]])],
     ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",clk(i)]])],
-    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views],["Suka",i.m_likes],["Komentar",i.m_comments],["Klik",clk(i)]])]];
+    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views]])]];
   const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per},
     {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(L.reduce((a,i)=>a+(+clk(i)||0),0)),"link pelacak / manual"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
     ...S.filter(x=>!x[1].length).map(([h,,empty])=>({t:"table",h3:h,cols:[[h,100]],rows:[],empty}))];
