@@ -20,6 +20,7 @@ const TABS = {
   wrap:      ['pw-w1', 'pw-w2'],
   weekly:    ['pw-wk1', 'pw-wk2', 'pw-wk3', 'pw-wk4', 'pw-wk5'],
   rdh:       ['pw-rh1', 'pw-rh2', 'pw-rh3', 'pw-rh4', 'pw-rh5', 'pw-rh6'],
+  top3:      ['pw-t31'],
   bondpicks: ['pw-bp1', 'pw-bp2'],
 };
 // file di luar ./site memang tidak ikut tersaji; penjaga ini tetap dipasang untuk berjaga-jaga

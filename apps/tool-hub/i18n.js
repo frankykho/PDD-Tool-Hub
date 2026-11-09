@@ -84,7 +84,7 @@ export default {
   "Generator Instagram Story harian & mingguan": "Daily & weekly Instagram Story generator",
   "Buat Instagram Story harian dan mingguan dari data pasar terbaru: data diambil otomatis, gambar siap diunduh, caption siap dibagikan.": "Create daily and weekly Instagram Stories from the latest market data: data is fetched automatically, images are ready to download, captions are ready to share.",
   "Harian: Morning, Halftime, dan Wrap": "Daily: Morning, Halftime, and Wrap",
-  "Mingguan: Weekly Update, RD Highlights, dan Weekly Bond Picks": "Weekly: Weekly Update, RD Highlights, and Weekly Bond Picks",
+  "Mingguan: Weekly Update, RD Highlights, TOP 3, dan Weekly Bond Picks": "Weekly: Weekly Update, RD Highlights, TOP 3, and Weekly Bond Picks",
   "Data otomatis dari IDX, Story Data, dan Fund Insight (bisa diisi manual)": "Automatic data from IDX, Story Data, and Fund Insight (can be filled in manually)",
   "Unduh PNG per halaman atau sekaligus; halaman yang tidak dipakai bisa dimatikan": "Download PNGs per page or all at once; unused pages can be turned off",
   "Buat caption, lalu bagikan gambar + caption langsung dari HP": "Write a caption, then share image + caption straight from your phone",

@@ -59,6 +59,12 @@ select.fi.fi-auto:disabled{opacity:1;background-color:#eef2f7}
 .rh-v{text-align:right;flex-shrink:0}
 .rh-vl{font-size:calc(6.3px*var(--rhs));font-weight:700;color:#9CA3AF;letter-spacing:.4px}
 .rh-vv{font-size:calc(19px*var(--rhs));font-weight:900;color:#2F7D63;letter-spacing:-.4px;line-height:1.1}
+.rh-g{flex-direction:column;align-items:stretch;gap:calc(3px*var(--rhs));padding:calc(6px*var(--rhs)) 11px;max-height:none;flex:0 0 auto}
+.rh-r{display:flex;align-items:center;gap:7px}
+.rh-r b{width:13px;flex-shrink:0;font-size:calc(8px*var(--rhs));font-weight:900;color:#B7791F}
+.rh-g .rh-nm{font-size:calc(8.5px*var(--rhs));line-height:1.15;margin-top:0}
+.rh-g .rh-mt{font-size:calc(6px*var(--rhs));margin-top:0}
+.rh-g .rh-vv{font-size:calc(12px*var(--rhs))}
 .rh-empty{font-size:10px;color:#9CA3AF;text-align:center;margin-top:60px}
 .rh-cta{display:flex;align-items:center;gap:10px;background:#1F5E4B;border-radius:12px;padding:8px 12px;margin-top:8px;flex-shrink:0;color:#fff}
 .rh-cta-l{flex:1;min-width:0}.rh-cta-t{font-size:10px;font-weight:800;letter-spacing:.2px}
@@ -796,6 +802,7 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="tab-btn" data-tab="wrap" onclick="switchTab('wrap')" data-pname="Wrap">Wrap</button>
     <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')" data-pname="Weekly Update">Weekly Update</button>
     <button class="tab-btn" data-tab="rdh" onclick="switchTab('rdh')" data-pname="RD Highlights">RD Highlights</button>
+    <button class="tab-btn" data-tab="top3" onclick="switchTab('top3')">TOP 3</button>
     <button class="tab-btn" data-tab="bondpicks" onclick="switchTab('bondpicks')" data-pname="Weekly Bond Picks">Weekly Bond Picks</button>
   </div>
   <div class="tb-user"><span id="tb-email"></span><a id="tb-logout" href="/logout" style="display:none">Keluar</a></div>
@@ -1154,6 +1161,26 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
     <button class="btn-dl-sm" id="dlbtn-rh-6" onclick="dlPNG('rh',6)">⬇ P6 Syariah 1Y</button>
   </div>
   <button class="btn-sec" onclick="up('rdh')">↺ Muat ulang pratinjau</button>
+</div>
+<div class="gen-sec" id="form-top3">
+  <div class="fst">Tanggal & Data</div>
+  <div class="fg">
+    <div class="ff"><label class="fl">Tanggal Terbit</label><input type="date" class="fi" id="t3-date" oninput="up('top3')"></div>
+    <div class="ff"><label class="fl">AUM minimal (Rp miliar) — pilih atau ketik</label><input type="number" class="fi" id="t3-aum" list="t3-aum-opt" value="200" min="0" step="any" oninput="up('top3')">
+      <datalist id="t3-aum-opt"><option value="50"><option value="100"><option value="200"><option value="500"><option value="1000"></datalist></div>
+  </div>
+  <div class="ff"><label class="fl">Cadangan kalau gagal: workbook master reksa dana bulan ini (terbaru)</label>
+    <label class="btn-sec fi-pick">📄 Pilih file workbook<input type="file" accept=".xlsx,.xls" onchange="importRDH(this.files[0],'now','t3-status');this.parentNode.nextElementSibling.textContent=this.files[0]?this.files[0].name:''" hidden></label><span class="fi-name"></span></div>
+  <div id="t3-status" class="fetch-status"></div>
+  <div class="auto-note">Tiga produk dengan return 1 tahun tertinggi di tiap kategori (Pasar Uang, Pendapatan Tetap, Campuran, Saham, Indeks), hanya yang AUM-nya minimal angka di atas dan return-nya positif. Kategori tanpa produk disembunyikan.</div>
+  <div id="t3-result" style="margin-top:10px"></div>
+  <div class="fst">CTA ke aplikasi</div>
+  <div class="fg">
+    <div class="ff"><label class="fl">Teks ajakan</label><input class="fi" id="t3-cta-text" value="Cek detail produk & mulai investasi sekarang" maxlength="60" oninput="up('top3')"></div>
+    <div class="ff"><label class="fl">Link/URL (opsional)</label><input class="fi" id="t3-cta-link" placeholder="contoh: bit.ly/nama-link" maxlength="28" oninput="up('top3')"></div>
+  </div>
+  <div class="dl-grp"><button class="btn-dl-sm" id="dlbtn-t3-1" onclick="dlPNG('t3',1)">⬇ Unduh TOP 3</button></div>
+  <button class="btn-sec" onclick="up('top3')">↺ Muat ulang pratinjau</button>
 </div>
 <div class="gen-sec" id="form-bondpicks">
   <div class="fst">Tanggal & Info</div>
@@ -1904,6 +1931,26 @@ textarea.fi{min-height:76px;line-height:1.6;padding:10px 11px}
   </div>
   <div class="pw-sz">360×640</div>
 </div>
+<div class="pw" id="pw-t31" style="display:none">
+  <div class="pw-lbl-row"><div class="pw-lbl">TOP 3 · Return 1 Tahun per Kategori</div><button class="pw-toggle on" id="ptog-t31" onclick="togglePageActive('t3',1)">Aktif</button></div>
+  <div class="pw-frame">
+    <div class="rh-s" id="c-t3-p1" translate="no">
+      <div class="rh-glow"></div>
+      <div class="rh-head">
+        <img class="rh-logo" data-plogo="light" alt="">
+        <div><div class="rh-bn" data-pname="Reksa Dana Highlights">Reksa Dana Highlights</div><div class="rh-bs" data-pco></div></div>
+        <div class="rh-date" id="t3-p1-date">–</div>
+      </div>
+      <div class="rh-kick" id="t3-p1-kick">RETURN 1 TAHUN</div>
+      <div class="rh-title">Top 3 <span>Tiap Kategori</span></div>
+      <div class="rh-list" id="t3-p1-list"></div>
+      <div class="rh-cta"><div class="rh-cta-l"><div class="rh-cta-t" data-papp>Tersedia di aplikasi</div><div class="rh-cta-s" id="t3-p1-cta">–</div></div><div class="rh-cta-r" id="t3-p1-link"></div></div>
+      <div class="rh-note" id="t3-p1-note">–</div>
+      <div class="rh-foot"><span data-plegal></span>Investasi (termasuk reksa dana) mengandung risiko. Kinerja masa lalu tidak mencerminkan kinerja masa depan. Tingkat risiko sesuai fund fact sheet masing-masing produk. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Informasi ini bersifat edukasi, bukan ajakan untuk membeli atau menjual.</div>
+    </div>
+  </div>
+  <div class="pw-sz">360×640</div>
+</div>
 <div class="pw" id="pw-bp1" style="display:none">
   <div class="pw-lbl-row"><div class="pw-lbl">Bond Picks · P1 Gov</div><button class="pw-toggle on" id="ptog-bp1" onclick="togglePageActive('bp',1)">Aktif</button></div>
   <div class="pw-frame">
@@ -2015,11 +2062,11 @@ function switchTab(t){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.gen-sec').forEach(e=>e.classList.remove('on'));
   document.getElementById('form-'+t).classList.add('on');
-  const show={morning:['pw-m1','pw-m2','pw-m3','pw-m4'],halftime:['pw-h1','pw-h2'],wrap:['pw-w1','pw-w2'],weekly:['pw-wk1','pw-wk2','pw-wk3','pw-wk4','pw-wk5'],rdh:['pw-rh1','pw-rh2','pw-rh3','pw-rh4','pw-rh5','pw-rh6'],bondpicks:['pw-bp1','pw-bp2']};
+  const show={morning:['pw-m1','pw-m2','pw-m3','pw-m4'],halftime:['pw-h1','pw-h2'],wrap:['pw-w1','pw-w2'],weekly:['pw-wk1','pw-wk2','pw-wk3','pw-wk4','pw-wk5'],rdh:['pw-rh1','pw-rh2','pw-rh3','pw-rh4','pw-rh5','pw-rh6'],top3:['pw-t31'],bondpicks:['pw-bp1','pw-bp2']};
   document.querySelectorAll('.pw').forEach(e=>e.style.display='none');
   (show[t]||[]).forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='flex';});
   if(t==='bondpicks'&&!BP_BONDS&&!BP_MANUAL)fetchBonds();
-  if(t==='weekly'||t==='rdh')fetchFunds();
+  if(t==='weekly'||t==='rdh'||t==='top3')fetchFunds();
   up(t);
 }
 
@@ -2359,12 +2406,13 @@ function up(t){
   else if(t==='wrap')upWrap();
   else if(t==='weekly')upWeekly();
   else if(t==='rdh')upRDH();
+  else if(t==='top3')upTop3();
   else if(t==='bondpicks')upBondPicks();
   scheduleOverflowCheck(t);
 }
 
 // ---- Penjaga footer: deteksi konten yang terlalu panjang (footer terdorong / teks terpotong) ----
-const TAB_PFX={morning:'m',halftime:'h',wrap:'w',weekly:'wk',rdh:'rh',bondpicks:'bp'};
+const TAB_PFX={morning:'m',halftime:'h',wrap:'w',weekly:'wk',rdh:'rh',top3:'t3',bondpicks:'bp'};
 function pageOverflow(el){
   if(!el||!el.offsetParent)return 0;                      // halaman tersembunyi: tidak bisa diukur
   const r=el.getBoundingClientRect(),k=r.height/el.offsetHeight||1;
@@ -2386,7 +2434,7 @@ function scheduleOverflowCheck(t){clearTimeout(_ovT);_ovT=setTimeout(()=>{markOv
 let _rdT={};
 function scheduleReady(t){clearTimeout(_rdT[t]);_rdT[t]=setTimeout(()=>markReady(t),80);}
 document.addEventListener('DOMContentLoaded',()=>{
-  [['upMorning','morning'],['upHalftime','halftime'],['upWrap','wrap'],['upWeekly','weekly'],['upRDH','rdh'],['upBondPicks','bondpicks']].forEach(([fn,t])=>{
+  [['upMorning','morning'],['upHalftime','halftime'],['upWrap','wrap'],['upWeekly','weekly'],['upRDH','rdh'],['upTop3','top3'],['upBondPicks','bondpicks']].forEach(([fn,t])=>{
     const o=window[fn];if(typeof o!=='function')return;
     window[fn]=function(){const r=o.apply(this,arguments);scheduleReady(t);return r;};
   });
@@ -2435,7 +2483,7 @@ function markOverflow(t){
 }
 
 // ---- DOWNLOAD ----
-const canvasMap={rh:[['c-rh-p1','RD-Return1Y'],['c-rh-p2','RD-Return1M'],['c-rh-p3','RD-Return3M'],['c-rh-p4','RD-GrowthAUM'],['c-rh-p5','RD-TopAUM'],['c-rh-p6','RD-Syariah1Y']],m:[['c-m1','Morning-P1'],['c-m2','Morning-P2'],['c-m3','Morning-P3'],['c-m4','Morning-P4']],h:[['c-h1','Halftime-P1'],['c-h2','Halftime-P2']],w:[['c-w1','Wrap-P1'],['c-w2','Wrap-P2']],wk:[['c-wk-p1','Weekly-PasarUang'],['c-wk-p2','Weekly-PendTetap'],['c-wk-p3','Weekly-Campuran'],['c-wk-p4','Weekly-Saham'],['c-wk-p5','Weekly-Indeks']],bp:[['c-bp1','BondPicks-Gov'],['c-bp2','BondPicks-Corp']]};
+const canvasMap={t3:[['c-t3-p1','Top3-RD']],rh:[['c-rh-p1','RD-Return1Y'],['c-rh-p2','RD-Return1M'],['c-rh-p3','RD-Return3M'],['c-rh-p4','RD-GrowthAUM'],['c-rh-p5','RD-TopAUM'],['c-rh-p6','RD-Syariah1Y']],m:[['c-m1','Morning-P1'],['c-m2','Morning-P2'],['c-m3','Morning-P3'],['c-m4','Morning-P4']],h:[['c-h1','Halftime-P1'],['c-h2','Halftime-P2']],w:[['c-w1','Wrap-P1'],['c-w2','Wrap-P2']],wk:[['c-wk-p1','Weekly-PasarUang'],['c-wk-p2','Weekly-PendTetap'],['c-wk-p3','Weekly-Campuran'],['c-wk-p4','Weekly-Saham'],['c-wk-p5','Weekly-Indeks']],bp:[['c-bp1','BondPicks-Gov'],['c-bp2','BondPicks-Corp']]};
 
 // ---- PAGE ACTIVE / INACTIVE TOGGLE ----
 const pageActive={
@@ -2443,7 +2491,8 @@ const pageActive={
   h:{1:true,2:true},
   wk:{1:true,2:true,3:true,4:true,5:true},
   rh:{1:true,2:true,3:true,4:true,5:true,6:true},
-  bp:{1:true,2:true}
+  bp:{1:true,2:true},
+  t3:{1:true}
 };
 function isPageActive(pfx,page){
   return !(pageActive[pfx] && pageActive[pfx][page]===false);
@@ -2556,6 +2605,11 @@ function validatePage(pfx,page){
     else if(!rdhRows(d.key).length)p.push(page===4&&!RDH.prev?'Upload workbook bulan lalu untuk menghitung pertumbuhan AUM':'Tidak ada produk dengan nilai positif — nonaktifkan halaman ini');
     rdhRows(d.key).filter(x=>!x.risk).forEach(x=>p.push(`${x.name}: tingkat risiko belum diisi di RD_list.xlsx (kolom Risiko)`));
   }
+  if(pfx==='t3'){
+    if(!RDH.now)p.push('Data reksa dana belum ada (Fund Insight / upload workbook)');
+    else if(!top3Rows().length)p.push('Tidak ada produk yang lolos AUM minimal dengan return positif');
+    if(!v('t3-cta-text'))p.push('Teks ajakan CTA');
+  }
   if(pfx==='bp'){
     const type=page===1?'gov':'corp';
     const rows=BP_DEFAULTS[type].map((_,i)=>i).filter(i=>v(`bp-${type}-${i}-seri`));
@@ -2567,7 +2621,7 @@ function validatePage(pfx,page){
   }
   return p;
 }
-const DATE_FIELD={m:'m-date',h:'h-date',w:'w-date',wk:'wk-date',rh:'rh-date',bp:'bp-date'};
+const DATE_FIELD={m:'m-date',h:'h-date',w:'w-date',wk:'wk-date',rh:'rh-date',t3:'t3-date',bp:'bp-date'};
 function checkPages(pfx,pages){
   const probs=[];
   pages.forEach(pg=>{const x=validatePage(pfx,pg);
@@ -2796,8 +2850,8 @@ function rdhMonth(text){
 }
 const MON_ID={january:'Januari',february:'Februari',march:'Maret',april:'April',may:'Mei',june:'Juni',july:'Juli',august:'Agustus',september:'September',october:'Oktober',november:'November',december:'Desember'};
 function monthID(m){if(!m)return null;const [a,b]=m.split(' ');return (MON_ID[a.toLowerCase()]||a)+' '+b;}
-async function importRDH(file,which){
-  if(!file)return;const st=which==='now'?'rh-status':'rh-status-prev';
+async function importRDH(file,which,st){
+  if(!file)return;st=st||(which==='now'?'rh-status':'rh-status-prev');
   setStatus(st,'var(--t2)','Membaca '+file.name+'…');
   try{
     if(!window.XLSX)throw new Error('Library Excel gagal dimuat — cek koneksi internet lalu muat ulang halaman.');
@@ -2845,7 +2899,7 @@ async function importRDH(file,which){
     setStatus(st,(m.unmatched.length||miss.length||msg.includes('⚠'))?'var(--amber)':'var(--green)',msg);
     if(which==='now'&&navDate)document.getElementById('rh-nav').value='Data NAV '+fmtTgl(navDate);
   }catch(e){RDH[which]=null;setStatus(st,'var(--red)','✗ '+(e.message||e));}
-  rdhApply();
+  rdhApply();safe(()=>up('top3'));
 }
 function rdhRows(key){
   if(!RDH.now)return [];
@@ -2890,7 +2944,7 @@ const FUND_API=PU.fund?PU.fund.replace(/\/+$/,'')+'/api/funds':'';   // alamat F
 let FUNDS_TRIED=false;
 async function fetchFunds(force){
   if(FUNDS_TRIED&&!force)return;FUNDS_TRIED=true;
-  const say=(c,t,rh)=>{setStatus('wk-status',c,t);setStatus('rh-status',c,t+(rh||''));};
+  const say=(c,t,rh)=>{setStatus('wk-status',c,t);setStatus('rh-status',c,t+(rh||''));setStatus('t3-status',c,t);};
   say('var(--t2)','⏳ Mengambil data reksa dana dari Fund Insight…');
   try{
     if(!FUND_API)throw new Error('alamat Fund Insight belum diatur (profil urls.fund)');
@@ -2925,7 +2979,7 @@ async function fetchFunds(force){
     say('var(--red)',`✗ Gagal mengambil dari Fund Insight: ${e.message||e}. Buka ulang tab ini (atau muat ulang halaman) untuk coba lagi, atau upload workbook di bawah.`);
     return;
   }
-  safe(renderWKResult);safe(()=>up('weekly'));safe(rdhApply);
+  safe(renderWKResult);safe(()=>up('weekly'));safe(rdhApply);safe(()=>up('top3'));
 }
 // Bar risiko 5 segmen: Rendah=1 … Tinggi=5
 const RISK_LEVEL={'rendah':1,'rendah-sedang':2,'sedang':3,'sedang-tinggi':4,'tinggi':5};
@@ -2962,6 +3016,30 @@ function upRDH(){
   });
 }
 
+// ===== TOP 3: tiga return 1 tahun terbaik per kategori, AUM minimal diisi di form =====
+function top3MinAum(){const n=parseFloat(v('t3-aum'));return n>0?n*1e9:0;}
+function top3Rows(){
+  if(!RDH.now)return [];const min=top3MinAum();
+  return WK_CATS.flatMap(cat=>RDH.now.items.filter(x=>x.type===cat&&x.aum>=min&&x.y1>0)
+    .sort((a,b)=>b.y1-a.y1||y1Tie(a,b)).slice(0,3).map(x=>({...x,cat})));
+}
+function upTop3(){
+  const rows=top3Rows(),min=top3MinAum()/1e9,set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
+  const minTxt=min>=1000?'Rp'+(min/1000).toLocaleString('id-ID')+' triliun':'Rp'+min.toLocaleString('id-ID')+' miliar';
+  set('t3-p1-date',fmtD(v('t3-date'))||'–');
+  set('t3-p1-kick',min?'RETURN 1 TAHUN · AUM MIN. '+minTxt.toUpperCase():'RETURN 1 TAHUN');
+  set('t3-p1-cta',v('t3-cta-text')||'–');set('t3-p1-link',v('t3-cta-link'));
+  const n=RDH.now;set('t3-p1-note',n?`${min?'AUM ≥ '+minTxt+' per '+(monthID(n.aumMonth)||'–')+' · ':''}Return kumulatif (Data NAV ${n.navDate?fmtTgl(n.navDate):'–'})`:'–');
+  const le=document.getElementById('t3-p1-list');
+  if(le){
+    le.innerHTML=rows.length?WK_CATS.map(cat=>{const r=rows.filter(x=>x.cat===cat);return r.length?`<div class="rh-c rh-g"><div class="rh-cat">${esc(cat)}</div>${r.map((x,ri)=>
+      `<div class="rh-r"><b>#${ri+1}</b><div class="rh-mid"><div class="rh-nm">${esc(x.name)}</div><div class="rh-mt">AUM Rp${fmtRp(x.aum)}${x.risk?' · Risiko '+esc(x.risk):''}</div></div><div class="rh-vv">+${fmtRet(x.y1)}%</div></div>`).join('')}</div>`:'';}).join(''):'<div class="rh-empty">Belum ada data</div>';
+    fitRH(le);
+  }
+  const el=document.getElementById('t3-result');
+  if(el)el.innerHTML=rows.length?`<table class="wk-tbl"><tr><th>Kategori</th><th>#</th><th>Produk</th><th>AUM</th><th>1Y</th></tr>${rows.map(x=>`<tr><td>${x.cat}</td><td>${rows.filter(y=>y.cat===x.cat).indexOf(x)+1}</td><td>${esc(x.name)}</td><td class="num">Rp${fmtRp(x.aum)}</td><td class="num">${fmtRet(x.y1)}%</td></tr>`).join('')}</table>`
+    :`<div class="auto-note">${RDH.now?'Tidak ada produk yang lolos AUM minimal dengan return positif.':'Belum ada data.'}</div>`;
+}
 
 // ===== Caption & share WhatsApp Channel (Morning, Halftime, Wrap) =====
 const WA_DISC='_Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Informasi ini bersifat edukasi, bukan ajakan untuk membeli atau menjual._'+(LEGAL_TXT?`\n_${LEGAL_TXT}._`:'');
@@ -3856,7 +3934,7 @@ function removeItem(type,idx){
 function safe(fn){try{fn()}catch(e){}}
 document.addEventListener('DOMContentLoaded',()=>{
   ['m','h','wk','rh','bp'].forEach(p=>safe(()=>renderPagerDots(p)));
-  ['m-date','h-date','w-date','wk-date','rh-date','bp-date'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=TODAY;});
+  ['m-date','h-date','w-date','wk-date','rh-date','t3-date','bp-date'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=TODAY;});
   [buildMCatalystForm,buildMStockForm,buildMNewsForm,buildHForm,buildHSectorForm,buildWContribForm,renderCalForm,buildBPForms,renderWKResult].forEach(safe);
   const bm=document.getElementById('idx-bookmarklet');if(bm)bm.setAttribute('href','javascript:'+IDX_BOOKMARKLET);
   ['fl-bookmarklet','fl-bookmarklet-wrap'].forEach(id=>{const fl=document.getElementById(id);if(fl)fl.setAttribute('href','javascript:'+FL_BOOKMARKLET);});
@@ -3895,9 +3973,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 <section class="sf-home" id="sfHome" aria-label="Konten hari ini"><div class="sf-in" id="sfHomeIn"></div></section>
 <script>
 (function(){
-  const NAME={morning:brandName('Morning'),halftime:brandName('Halftime'),wrap:brandName('Wrap'),weekly:'Weekly Update',rdh:'RD Highlights',bondpicks:'Weekly Bond Picks'};
+  const NAME={morning:brandName('Morning'),halftime:brandName('Halftime'),wrap:brandName('Wrap'),weekly:'Weekly Update',rdh:'RD Highlights',top3:'TOP 3',bondpicks:'Weekly Bond Picks'};
   // jam data siap = jadwal Ritme hari ini di Tool Hub (Story Data pagi, jeda sesi 1, penutupan IDX)
-  const SLOT={morning:'Pagi · data siap dini hari',halftime:'Siang · data siap ±12.00 (Jumat 11.30)',wrap:'Sore · data siap ±16.50',weekly:'',rdh:'',bondpicks:''};
+  const SLOT={morning:'Pagi · data siap dini hari',halftime:'Siang · data siap ±12.00 (Jumat 11.30)',wrap:'Sore · data siap ±16.50',weekly:'',rdh:'',top3:'',bondpicks:''};
   const DAILY=['morning','halftime','wrap'],TABS=Object.keys(NAME).filter(t=>document.getElementById('form-'+t));
   const DKEY='story-draft-v1',LKEY='story-dl-v1',get=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}},put=(k,o)=>{try{localStorage.setItem(k,JSON.stringify(o))}catch(e){}};
   const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+'.'+String(d.getMinutes()).padStart(2,'0')};

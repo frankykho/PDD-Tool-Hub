@@ -17,7 +17,7 @@ Hanya isi `site/` yang tersaji. Secret: `SSO_SECRET` (sama dengan Tool Hub).
 
 ## Tab
 
-Kode tab (dipakai di hak akses Tool Hub): `morning`, `halftime`, `wrap`, `weekly`, `rdh`, `bondpicks`, atau `*` untuk semua.
+Kode tab (dipakai di hak akses Tool Hub): `morning`, `halftime`, `wrap`, `weekly`, `rdh`, `top3`, `bondpicks`, atau `*` untuk semua.
 Nama tab di gambar memakai awalan `brand.short` dari profil bila diisi ("<short> Morning").
 
 | Tab | Sumber data |
@@ -25,7 +25,7 @@ Nama tab di gambar memakai awalan `brand.short` dari profil bila diisi ("<short>
 | Morning | worker Story Data `?part=morning` (indeks global, kurs, komoditas), `public/lme.json`, kalender (`public/calendar.json` + `data/macro.js` + tempel dari bookmark Kalender IDX) |
 | Halftime | Story Data `?part=halftime` (IHSG sesi 1, breadth, sektor) + foreign flow |
 | Wrap | `public/wrap.json` (penutupan resmi IDX) + foreign flow |
-| Weekly Update, RD Highlights | Fund Insight `/api/funds` (alamat dari `urls.fund`); cadangan: upload workbook |
+| Weekly Update, RD Highlights, TOP 3 | Fund Insight `/api/funds` (alamat dari `urls.fund`); cadangan: upload workbook |
 | Weekly Bond Picks | Story Data `?part=bonds` (API obligasi di profil `sources.bondApi`), cadangan langsung ke API itu dari browser |
 
 ## Data harian
