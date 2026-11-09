@@ -578,7 +578,8 @@ async function importMetrics(env, me, b) {
     if (id) {
       matched++;
       if (r.img) imgs.push([id, r.img]);
-      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=?").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, by, now, id));
+      // angka yang tidak dibawa sumber ini (CSV Meta tanpa Reposts, bookmark tanpa jangkauan/simpan) tidak dihapus
+      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=COALESCE(?, " + k + ")").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, by, now, id));
     } else if (b.create && r.date) {
       created++;
       const nid = crypto.randomUUID();

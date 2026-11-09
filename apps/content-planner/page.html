@@ -1851,14 +1851,16 @@ async function pptDoc(doc,fileName){
       if(i<b.rows.length)slide();
     }
   };
-  const toJpg=u=>!/^data:image\/webp/.test(u)?Promise.resolve(u):new Promise(ok=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas");c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext("2d").drawImage(i,0,0);ok(c.toDataURL("image/jpeg",.85))};i.onerror=()=>ok("");i.src=u});
+  // ukuran asli dibutuhkan sizing "cover" pptxgenjs untuk memotong (tanpa itu gambar 4:5 / 9:16 ditarik jadi persegi)
+  const toJpg=u=>new Promise(ok=>{const i=new Image();i.onload=()=>{let d=u;if(/^data:image\/webp/.test(u)){const c=document.createElement("canvas");c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext("2d").drawImage(i,0,0);d=c.toDataURL("image/jpeg",.85)}ok(i.naturalWidth&&i.naturalHeight?{data:d,w:i.naturalWidth,h:i.naturalHeight}:null)};i.onerror=()=>ok(null);i.src=u});
   const posts=async b=>{
-    const n=b.cols||2,gap=.12,cw=(W-gap*(n-1))/n,ch=1.32,im=1.15,imgs=await Promise.all(b.items.map(c=>c.img?toJpg(c.img):""));
+    const n=b.cols||2,gap=.12,cw=(W-gap*(n-1))/n,ch=1.32,im=1.15,imgs=await Promise.all(b.items.map(c=>c.img?toJpg(c.img):null));
     b.items.forEach((c,i)=>{
       if(i%n===0){if(y+(i===0&&b.h3?.34:0)+ch>BOT)slide();if(i===0&&b.h3)h3(b.h3)}
       const x=X+(i%n)*(cw+gap),yy=y,tx=x+.2+im,tw=cw-im-.28;
       s.addShape(pp.ShapeType.roundRect,{x,y:yy,w:cw,h:ch,fill:{color:"FFFFFF"},line:{color:C.l,width:.75},rectRadius:.08});
-      if(imgs[i])s.addImage({data:imgs[i],x:x+.08,y:yy+.08,w:im,h:im,sizing:{type:"cover",w:im,h:im}});
+      const r=imgs[i],sc=r?Math.max(im/r.w,im/r.h):0;
+      if(r)s.addImage({data:r.data,x:x+.08,y:yy+.08,w:r.w*sc,h:r.h*sc,sizing:{type:"cover",w:im,h:im}});
       else{s.addShape(pp.ShapeType.rect,{x:x+.08,y:yy+.08,w:im,h:im,fill:{color:"EEF1F4"},line:{color:"EEF1F4",width:0}});s.addText(T("Tanpa gambar"),{x:x+.08,y:yy+.08,w:im,h:im,fontFace:F,fontSize:8,color:C.s,align:"center",valign:"middle",margin:0})}
       s.addText(c.date+(c.ch?" · "+c.ch:""),{x:tx,y:yy+.08,w:tw,h:.18,fontFace:F,fontSize:7.5,color:C.m,margin:0});
       s.addText(c.title||"–",{x:tx,y:yy+.27,w:tw,h:.36,fontFace:F,fontSize:9,bold:true,color:C.t,margin:0,valign:"top",fit:"shrink"});

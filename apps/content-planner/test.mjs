@@ -305,6 +305,9 @@ r = await call("/api/metrics/import", { ck: CI, body: { rows: [
 assert.equal(r.j.matched, 2, "gambar rusak tidak menggagalkan angka");
 it = (await call("/api/items?id=" + cid, { ck: CI })).j;
 assert.equal(it.m_reposts, 7);
+assert.deepEqual([it.m_reach, it.m_views], [3200, 5000], "impor bookmark tidak menghapus angka dari CSV/manual");
+await call("/api/metrics/import", { ck: CI, body: { rows: [{ link: "https://www.instagram.com/reel/RR1/", m_reach: "3300" }] } });
+assert.equal((await call("/api/items?id=" + cid, { ck: CI })).j.m_reposts, 7, "CSV tanpa kolom Reposts tidak menghapus repost");
 let im = (await call(`/api/imgs?ids=${cid},${L.id}`, { ck: CI })).j;
 assert.deepEqual(Object.keys(im), [cid]); assert.equal(im[cid], PNG);
 assert.equal((await call("/api/img", { ck: CI, body: { id: L.id, img: "x" } })).status, 400);
@@ -335,6 +338,8 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   // Laporan IG: jenis laporan sendiri, blok kartu "posts" dirender di PDF & PPT
   assert.match(pg, /data-t="ig">Laporan IG</); assert.match(pg, /ig:\{data:igData,doc:igDoc,name:"Laporan Instagram"\}/);
   assert.match(pg, /b\.t==="posts"\)\{/, "pdfDoc"); assert.match(pg, /b\.t==="posts"\)await posts\(b\)/, "pptDoc");
+  // PPT: ukuran asli gambar dikirim ke addImage supaya sizing cover memotong, bukan menarik (gambar IG 4:5 / 9:16)
+  assert.match(pg, /w:r\.w\*sc,h:r\.h\*sc,sizing:\{type:"cover",w:im,h:im\}/);
 }
 
 /* ---------- kalender momen ---------- */
