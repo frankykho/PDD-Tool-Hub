@@ -35,6 +35,9 @@ for (const bad of ["http://x.test/a.png", "https://127.0.0.1/a.png", "https://lo
 
 // halaman: tombol & dialog ada, skrip utuh (tanpa </script> di dalam string)
 const html = await (await studio.fetch(new Request(BASE + "/", { headers: { cookie: CK } }), env)).text();
-assert.match(html, /id="bPlan"/); assert.match(html, /id="plDlg"/);
+assert.match(html, /id="bPlan"/);
+// tujuan diambil dari catatan sebelumnya walau membuat kegiatan baru (tidak merantai /go/ lama); email yang tanggal kirimnya lewat = bawaan kegiatan baru
+assert.ok(html.includes("P0 = d._planner, P = $('plNew').checked ? null : P0, target = P0 && x.url === P0.url ? P0.target"));
+assert.ok(html.includes("$('plNew').checked = sent;")); assert.match(html, /id="plDlg"/);
 for (const [, code] of html.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(code);
 console.log("semua cek lolos");

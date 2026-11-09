@@ -361,6 +361,7 @@ assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
   assert.equal(e3.j.id, e1.j.id); assert.notEqual(e3.j.code, e1.j.code, "tujuan beda = link baru");
   assert.equal((await hub({ by: { email: "dodi@acme.test", name: "Dodi" }, id: e1.j.id, item: { title: "x", date: plus(1) }, target: "https://kisi.test/" })).status, 403);
   assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "ftp://x" })).status, 400);
+  assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "https://content-planner.acme.test/go/abc123?utm_source=email" })).status, 400, "link pelacak tidak dirantai ke link pelacak lain");
   assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "https://kisi.test/" }, "")).status, 403, "tanpa x-hub-key");
 }
 

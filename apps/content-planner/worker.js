@@ -538,7 +538,10 @@ async function hubEmail(env, b) {
   if (!EMAIL.test(e)) return { error: "Pembuat kegiatan tidak dikenal." };
   // dari Email Studio selalu link lengkap; awalan lain (ftp:, javascript:) ditolak, bukan diberi https:// seperti isian form
   const target = /^https?:\/\//i.test(String(b.target || "").trim()) ? cleanUrl(b.target) : "";
-  try { new URL(target); } catch { return { error: "Link tujuan tidak sah." }; }
+  let tu; try { tu = new URL(target); } catch { return { error: "Link tujuan tidak sah." }; }
+  // link pelacak Planner sebagai tujuan = klik email baru ikut menambah klik kegiatan lama
+  const pl = appUrl(env, "planner");
+  if (/^\/go\/[a-z0-9]{6}\/?$/.test(tu.pathname) && (!pl || tu.host === new URL(pl).host)) return { error: "Link tujuan sudah link pelacak Planner. Pilih link aslinya." };
   const me = { e, n: String(by.name || e).slice(0, 60), j: jobsOf(await orgOf(env))[by.job] ? by.job : "" }, i = b.item || {};
   const f = { title: String(i.title || "").trim().slice(0, 200) || "Email blast", date: i.date, email_tpl: String(i.email_tpl || "").trim().slice(0, 80) };
   let r;
