@@ -17,6 +17,10 @@
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
 // - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan IG;
 //   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
+// - "/api/linkimg" (GET ?url=) -> gambar sampul dari link (YouTube: thumbnail; lainnya: og:image) untuk dikecilkan browser
+// - "/api/yt/refresh" (POST {ids}) -> views, suka, komentar video YouTube dari YouTube Data API (secret opsional YOUTUBE_API_KEY:
+//   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
+//   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key angka YouTube diisi manual.
 //   Laporan IG (dialog Laporan, disusun di browser): postingan IG KISI per bulan, kartu bergambar + suka, komentar, bagikan,
 //   views, simpan, repost (kolom m_reposts). Gambar & angka masuk lewat tombol bookmark "Angka IG ke Planner" atau isian manual.
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
@@ -168,6 +172,8 @@ const COLS = {
   m_views: "INTEGER", m_reach: "INTEGER", m_likes: "INTEGER", m_comments: "INTEGER", m_saves: "INTEGER", m_shares: "INTEGER", m_reposts: "INTEGER", m_follows: "INTEGER", m_at: "TEXT", m_src: "TEXT",
   // event_id: tersambung ke event di Event & Lead (Peserta & Leads diisi otomatis dari sana dan tidak bisa diubah di sini)
   event_id: "TEXT",
+  // email blast (kanal Email / Newsletter): nama template Email Studio yang dipakai
+  email_tpl: "TEXT",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
 };
 // kolom persetujuan, asal angka & sambungan event hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
@@ -549,6 +555,71 @@ export function postKey(url) {
 }
 /** Jenis postingan di CSV Meta -> kanal Planner. */
 export const channelOf = (type, link) => /tiktok\.com/i.test(link) ? "TikTok" : /youtu/i.test(link) ? "YouTube" : /reel/i.test(type) || /\/reels?\//i.test(link) ? "IG Reels" : /stor|cerita/i.test(type) ? "IG Story" : /instagram\.com/i.test(link) ? "IG Feed" : "Lainnya";
+/** ID video YouTube dari link (watch?v=, youtu.be/, shorts/, embed/), "" kalau bukan YouTube. */
+export function ytId(link) {
+  let u; try { u = new URL(String(link || "")); } catch { return ""; }
+  if (!/(^|\.)(youtube\.com|youtu\.be)$/i.test(u.hostname)) return "";
+  const id = /youtu\.be$/i.test(u.hostname) ? u.pathname.slice(1) : u.searchParams.get("v") || (u.pathname.match(/^\/(?:shorts|embed|live)\/([^/?#]+)/) || [])[1] || "";
+  return /^[\w-]{11}$/.test(id) ? id : "";
+}
+/** Gambar sampul halaman (og:image / twitter:image) sebagai URL absolut, "" kalau tidak ada. */
+export function ogImage(html, base) {
+  for (const k of ["og:image:secure_url", "og:image", "twitter:image"]) {
+    const m = String(html).match(new RegExp(`<meta[^>]+(?:property|name)=["']${k}["'][^>]*content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${k}["']`, "i"));
+    if (m) try { return new URL((m[1] || m[2]).replace(/&amp;/g, "&"), base).href; } catch { /* lanjut */ }
+  }
+  return "";
+}
+/** URL dari luar yang boleh diambil server: https, nama host (bukan IP / localhost). */
+const safeHttps = (v) => { try { const u = new URL(String(v || "")); return u.protocol === "https:" && !/^(localhost|.*\.local|.*\.internal)$/i.test(u.hostname) && !/^[\d.]+$|:/.test(u.hostname) ? u : null; } catch { return null; } };
+/** Isi respons dipotong di max byte (null kalau lebih). */
+async function readCapped(res, max) {
+  const rd = res.body.getReader(), parts = []; let n = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; n += value.length; if (n > max) { rd.cancel().catch(() => {}); return null; } parts.push(value); }
+  const out = new Uint8Array(n); let o = 0; for (const x of parts) { out.set(x, o); o += x.length; } return out;
+}
+const UA_WEB = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
+/** GET /api/linkimg: gambar sampul link artikel / thumbnail YouTube, dikirim apa adanya (browser yang mengecilkan). */
+async function linkImg(link) {
+  const u = safeHttps(link);
+  if (!u) return json({ error: "Link harus https." }, 400);
+  const get = (x, accept) => fetch(x, { headers: { "User-Agent": UA_WEB, Accept: accept }, redirect: "follow", signal: AbortSignal.timeout(10000) });
+  try {
+    let src = ytId(u.href) ? `https://i.ytimg.com/vi/${ytId(u.href)}/hqdefault.jpg` : "";
+    if (!src) {
+      const r = await get(u.href, "text/html");
+      const body = r.ok ? await readCapped(r, 1.5e6) : null;
+      src = body ? ogImage(new TextDecoder().decode(body), r.url || u.href) : "";
+    }
+    if (!src || !safeHttps(src)) return json({ error: "Gambar tidak ditemukan di link ini." }, 404);
+    const r = await get(src, "image/*"), ct = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!r.ok) return json({ error: "Gambar tidak ditemukan di link ini." }, 404);
+    if (!/^image\/(jpeg|png|webp)$/.test(ct)) return json({ error: "Gambar di link ini bukan JPG/PNG/WebP." }, 415);
+    const img = await readCapped(r, 5e6);
+    return img ? new Response(img, { headers: { "content-type": ct, "cache-control": "no-store" } }) : json({ error: "Gambar terlalu besar." }, 415);
+  } catch { return json({ error: "Gambar tidak ditemukan di link ini." }, 404); }
+}
+/** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
+async function ytRefresh(env, ids) {
+  await ensure(env);
+  if (!env.YOUTUBE_API_KEY) return { updated: 0, skipped: "no-key" };
+  const L = [...new Set((Array.isArray(ids) ? ids : []).map(String))].slice(0, 50);
+  if (!L.length) return { updated: 0 };
+  const rows = (await env.DB.prepare(`SELECT id, link FROM items WHERE id IN (${L.map(() => "?").join(",")})`).bind(...L).all()).results
+    .map((r) => ({ id: r.id, v: ytId(r.link) })).filter((r) => r.v);
+  if (!rows.length) return { updated: 0 };
+  const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${[...new Set(rows.map((x) => x.v))].join(",")}&key=${encodeURIComponent(env.YOUTUBE_API_KEY)}`, { signal: AbortSignal.timeout(10000) }).catch(() => null);
+  const j = r && r.ok ? await r.json().catch(() => null) : null;
+  if (!j) return { updated: 0, error: "YouTube tidak menjawab (cek YOUTUBE_API_KEY / kuota)." };
+  const st = new Map((j.items || []).map((x) => [x.id, x.statistics || {}])), now = new Date().toISOString(), q = [];
+  for (const x of rows) {
+    const s = st.get(x.v); if (!s) continue;
+    q.push(env.DB.prepare("UPDATE items SET m_views=COALESCE(?, m_views), m_likes=COALESCE(?, m_likes), m_comments=COALESCE(?, m_comments), m_src='yt', m_at=? WHERE id=?")
+      .bind(numOf(s.viewCount), numOf(s.likeCount), numOf(s.commentCount), now, x.id));
+  }
+  if (q.length) await env.DB.batch(q);
+  return { updated: q.length };
+}
 /** Data URL gambar postingan yang boleh disimpan (JPG/PNG/WebP, ≤ ±700 KB), atau null. */
 export const imgOk = (v) => typeof v === "string" && v.length <= 950000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
 /** Satu baris CSV (sudah dipetakan di browser) -> baris yang sah, atau null. */
@@ -1366,6 +1437,7 @@ export default {
         if (path === "/api/moments") return json(await moments(env, from, to));
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
         if (path === "/api/imgs") return json(await listImgs(env, url.searchParams.get("ids")));
+        if (path === "/api/linkimg") return linkImg(url.searchParams.get("url"));
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
@@ -1382,7 +1454,7 @@ export default {
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/img") { const r = await saveImg(env, me, b); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
-          "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b),
+          "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b), "/api/yt/refresh": () => ytRefresh(env, b.ids),
           "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b), "/api/translate": () => translateTexts(env, b) }[path];
         if (R) { const r = await R(); return json(r, r.error ? 400 : 200); }
         // beberapa rencana sekaligus (dari Paket Mingguan -> "Masukkan ke kalender")

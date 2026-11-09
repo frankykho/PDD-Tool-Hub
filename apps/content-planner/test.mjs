@@ -200,7 +200,7 @@ assert.deepEqual(itemNotifs(null, { kind: "konten", title: "X", date: "2026-10-2
 assert.equal(taskNotifs({ who: "d@a.test", status: "belum", due: "x", brief: "", title: "T" }, { who: "d@a.test", status: "belum", due: "y", brief: "", title: "T", item_id: "p", by_email: "p@a.test" }, { title: "P" }, "p@a.test", "Pia", true)[0].title, "Tugas diperbarui: T");
 
 /* ---------- persetujuan konten ---------- */
-const { approvalStep, postKey, cleanMetricRow, imgOk, utmUrl, channelOf, BOT_UA } = await import("./worker.js");
+const { approvalStep, postKey, cleanMetricRow, imgOk, ytId, ogImage, utmUrl, channelOf, BOT_UA } = await import("./worker.js");
 const K = { kind: "konten", title: "T", date: "2026-11-01", approver_email: "ap@a.test", approver: "Ap", copy: "c" };
 assert.deepEqual(approvalStep(null, { ...K, approver_email: "" }).cols.approval, "", "tanpa penyetuju = tanpa persetujuan");
 let s = approvalStep(null, { ...K, status: "draf" }, "me@a.test", "Me");
@@ -318,6 +318,34 @@ im = (await call(`/api/imgs?ids=${cid},${L.id}`, { ck: CI })).j;
 assert.deepEqual(Object.keys(im), [L.id], "img kosong = hapus");
 await call("/api/items/delete", { ck: CI, body: { id: L.id } });
 assert.deepEqual((await call(`/api/imgs?ids=${L.id}`, { ck: CI })).j, {}, "ikut terhapus bersama kegiatan");
+// Laporan Copywriter: gambar dari link artikel / YouTube & statistik YouTube
+assert.equal(ytId("https://www.youtube.com/watch?v=abcDEF12345&t=3"), "abcDEF12345");
+assert.equal(ytId("https://youtu.be/abcDEF12345"), "abcDEF12345");
+assert.equal(ytId("https://youtube.com/shorts/abcDEF12345"), "abcDEF12345");
+assert.equal(ytId("https://example.com/v=abc"), "");
+assert.equal(ogImage('<meta property="og:image" content="/img/a.jpg">', "https://kisi.co.id/artikel/x"), "https://kisi.co.id/img/a.jpg");
+assert.equal(ogImage('<meta name="twitter:image" content="https://cdn.x/b.png">', "https://x"), "https://cdn.x/b.png");
+assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u) => String(u).includes("artikel")
+    ? new Response('<meta property="og:image" content="https://cdn.test/a.jpg">', { headers: { "content-type": "text/html" } })
+    : String(u).includes("googleapis.com/youtube")
+    ? Response.json({ items: [{ id: "abcDEF12345", statistics: { viewCount: "1200", likeCount: "45", commentCount: "6" } }] })
+    : new Response(new Uint8Array([255, 216, 255]), { headers: { "content-type": "image/jpeg" } });
+  try {
+    r = await planner.fetch(new Request(BASE + "/api/linkimg?url=" + encodeURIComponent("https://kisi.test/artikel/a"), { headers: { cookie: CI } }), env);
+    assert.equal(r.status, 200); assert.equal(r.headers.get("content-type"), "image/jpeg");
+    for (const bad of ["http://kisi.test/a", "https://127.0.0.1/a", "https://localhost/a", "javascript:alert(1)"])
+      assert.equal((await planner.fetch(new Request(BASE + "/api/linkimg?url=" + encodeURIComponent(bad), { headers: { cookie: CI } }), env)).status, 400, bad);
+    const yid = (await call("/api/items", { ck: CI, body: { kind: "konten", channel: "YouTube", title: "Video", date: plus(2), status: "terbit", link: "https://youtu.be/abcDEF12345", m_shares: "3" } })).j.id;
+    assert.deepEqual((await call("/api/yt/refresh", { ck: CI, body: { ids: [yid] } })).j, { updated: 0, skipped: "no-key" });
+    env.YOUTUBE_API_KEY = "k";
+    assert.equal((await call("/api/yt/refresh", { ck: CI, body: { ids: [yid] } })).j.updated, 1);
+    const yv = (await call("/api/items?id=" + yid, { ck: CI })).j;
+    assert.deepEqual([yv.m_views, yv.m_likes, yv.m_comments, yv.m_shares, yv.m_src], [1200, 45, 6, 3, "yt"]);
+  } finally { delete env.YOUTUBE_API_KEY; globalThis.fetch = realFetch; }
+}
 
 // jendela bookmarklet Instagram: perlu login, skripnya sah
 assert.equal((await planner.fetch(new Request(BASE + "/ig-sync?n=3"), env)).status, 303);
