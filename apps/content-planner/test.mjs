@@ -332,6 +332,9 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   assert.match(pg, /id="mReposts"/); assert.match(pg, /id="mImgF"/); assert.match(pg, /api\("\/api\/img",/);
   assert.ok(pg.indexOf('["m_reposts",/') > 0 && pg.indexOf('["m_reposts",/') < pg.indexOf('["m_shares",/'), "CSV: kolom Reposts tidak tertangkap Bagikan");
+  // Laporan IG: jenis laporan sendiri, blok kartu "posts" dirender di PDF & PPT
+  assert.match(pg, /data-t="ig">Laporan IG</); assert.match(pg, /ig:\{data:igData,doc:igDoc,name:"Laporan Instagram"\}/);
+  assert.match(pg, /b\.t==="posts"\)\{/, "pdfDoc"); assert.match(pg, /b\.t==="posts"\)await posts\(b\)/, "pptDoc");
 }
 
 /* ---------- kalender momen ---------- */
