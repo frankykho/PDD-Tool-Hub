@@ -17,6 +17,8 @@
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
 // - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan IG;
 //   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
+//   Laporan IG (dialog Laporan, disusun di browser): postingan IG KISI per bulan, kartu bergambar + suka, komentar, bagikan,
+//   views, simpan, repost (kolom m_reposts). Gambar & angka masuk lewat tombol bookmark "Angka IG ke Planner" atau isian manual.
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
 // - "/api/picks"    -> stock pick + statusnya dari harga EOD Yahoo (GET ?from=&to=[&ihsg=1], POST simpan, POST /api/picks/delete); pembuat atau admin yang mengubah;
