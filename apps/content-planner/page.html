@@ -1171,7 +1171,7 @@ const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
   program_id:$("iProg").value,partner:$("iPartner").value,end_date:$("iEnd").value,goal:$("iGoal").value,target:$("iTarget").value,
   reach:$("iReach").value,leads:$("iLeads").value,accounts:$("iAcc").value,aum:$("iAum").value,budget:$("iBudget").value,cost:$("iCost").value,
-  copy:$("iCopy").value,approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
+  copy:$("iCopy").value,email_tpl:(editing&&editing.email_tpl)||"",approver:$("iAppr").value,approver_email:emailOf($("iAppr").value),...Object.fromEntries(MK.map(([id,k])=>[k,$(id).value])),
   // rencana galeri: isian sendiri menggantikan partner / tempat / tanggal selesai / regional / cabang
   ...(fKind==="galeri"?{partner:$("iGPart").value,place:$("iGCity").value,end_date:$("iGEnd").value,region:REGS.length?$("iGReg").value:$("iGRegO").value.trim(),branch:$("iGBr").value,progress:$("iGUpd").value,
     audience:$("iGPic").value,target:$("iGRank").value,result_num:$("iGStud").value,docs:docsVal()}:{}),

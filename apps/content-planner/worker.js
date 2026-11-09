@@ -7,6 +7,8 @@
 //                     hanya Partnership & admin yang memberi tugas; penerima boleh mengubah status & link hasilnya
 // - "/api/programs", "/api/program-report" -> daftar program & data laporan program (PDF/PPT disusun di browser)
 // - "/__hub/users" (POST) -> daftar anggota dari Tool Hub; "/__hub/notif" (POST) -> tandai notifikasi sudah dibaca
+// - "/__hub/email" (POST) -> email blast dari Email Studio ("Catat ke Planner"): buat/perbarui kegiatan kanal Email / Newsletter,
+//   link pelacak ke tujuan banner (dipakai ulang kalau tujuannya sama), gambar email -> { id, code, url }
 // - "/__hub/item" (POST) -> kegiatan dari tool lain (Content Insight: konsep konten); "/__hub/members" (GET) -> daftar anggota
 // - "/api/weekly"  -> data paket mingguan (disusun saat diminta, cache 10 menit)
 // - "/__hub/today" -> ringkasan hari ini + tugas & notifikasi untuk beranda Tool Hub (service binding, lihat shared/hubfeed.js)
@@ -240,10 +242,11 @@ export function cleanItem(b) {
     note: s(b.note, 4000), link: url(b.link), time: "", place: "", role: "", audience: "", result_num: null, result_note: s(b.result_note, 300),
     d_need: b.d_need ? 1 : 0, d_who: "", d_name: "", d_due: "", d_status: "", d_link: "", d_brief: "",
     program_id: s(b.program_id, 40), partner: "", end_date: "", goal: "", target: "", region: "", branch: "", reach: null, leads: null, accounts: null, aum: null, budget: null, cost: null,
-    copy: "", approver: "", approver_email: "", docs: "", ops: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
+    copy: "", approver: "", approver_email: "", email_tpl: "", docs: "", ops: "", ...Object.fromEntries(METRICS.map((k) => [k, null])),
   };
   if (COPY_KINDS.includes(kind)) {
     it.copy = s(b.copy, 6000);
+    it.email_tpl = s(b.email_tpl, 80);
     it.approver_email = EMAIL.test(s(b.approver_email, 120)) ? s(b.approver_email, 120).toLowerCase() : "";
     it.approver = it.approver_email ? s(b.approver, 60) : "";
     for (const k of METRICS) it[k] = numOf(b[k]);
@@ -527,6 +530,31 @@ async function saveLink(env, me, b) {
     if (r.meta.changes) return { code, target: final };
   }
   return { error: "Gagal membuat kode link. Coba lagi." };
+}
+/** Email blast dari Email Studio atas nama by: kegiatan baru atau perbarui b.id, link pelacak ke b.target, gambar b.img. */
+async function hubEmail(env, b) {
+  await ensure(env);
+  const by = b.by || {}, e = lower(by.email);
+  if (!EMAIL.test(e)) return { error: "Pembuat kegiatan tidak dikenal." };
+  // dari Email Studio selalu link lengkap; awalan lain (ftp:, javascript:) ditolak, bukan diberi https:// seperti isian form
+  const target = /^https?:\/\//i.test(String(b.target || "").trim()) ? cleanUrl(b.target) : "";
+  try { new URL(target); } catch { return { error: "Link tujuan tidak sah." }; }
+  const me = { e, n: String(by.name || e).slice(0, 60), j: jobsOf(await orgOf(env))[by.job] ? by.job : "" }, i = b.item || {};
+  const f = { title: String(i.title || "").trim().slice(0, 200) || "Email blast", date: i.date, email_tpl: String(i.email_tpl || "").trim().slice(0, 80) };
+  let r;
+  if (b.id) {
+    const prev = await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(b.id)).first();
+    if (!prev || prev.channel !== "Email / Newsletter") return { error: "Kegiatan email ini sudah dihapus di Planner.", notFound: true };
+    if (!canEditItem(me, prev)) return { error: "Hanya pembuat, PIC, atau admin yang bisa memperbarui kegiatan email ini.", forbidden: true };
+    r = await saveItem(env, me, { ...prev, ...f, email_tpl: f.email_tpl || prev.email_tpl || "" });
+  } else r = await saveItem(env, me, { kind: "artikel", channel: "Email / Newsletter", status: "terbit", owner: me.n, owner_email: e, ...f });
+  if (r.error) return r;
+  const id = r.id || String(b.id), old = await env.DB.prepare("SELECT code FROM links WHERE item_id=? AND target=? ORDER BY created_at LIMIT 1").bind(id, target).first();
+  const lk = old ? { code: old.code } : await saveLink(env, me, { item_id: id, target });
+  if (lk.error) return lk;
+  const img = imgOk(b.img);
+  if (img) await env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, new Date().toISOString()).run();
+  return { id, code: lk.code, url: appUrl(env, "planner") + "/go/" + lk.code };
 }
 async function listLinks(env, item) {
   await ensure(env);
@@ -1392,6 +1420,11 @@ export default {
       if (!EMAIL.test(e)) return json({ error: "Pembuat kegiatan tidak dikenal." }, 400);
       const r = await saveItem(env, { e, n: String(by.name || e).slice(0, 60), j: jobsOf(await orgOf(env))[by.job] ? by.job : "" }, { ...(b.item || {}), id: undefined });
       return json(r, r.error ? 400 : 200);
+    }
+    if (path === "/__hub/email") {
+      if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });
+      const r = await hubEmail(env, await request.json().catch(() => ({})));
+      return json(r, r.forbidden ? 403 : r.notFound ? 404 : r.error ? 400 : 200);
     }
     if (path === "/__hub/users" || path === "/__hub/notif") {
       if (!hubPushAllowed(request, env)) return new Response("forbidden", { status: 403 });

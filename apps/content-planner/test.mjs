@@ -346,6 +346,23 @@ assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
     assert.deepEqual([yv.m_views, yv.m_likes, yv.m_comments, yv.m_shares, yv.m_src], [1200, 45, 6, 3, "yt"]);
   } finally { delete env.YOUTUBE_API_KEY; globalThis.fetch = realFetch; }
 }
+// email blast dari Email Studio (/__hub/email): buat / perbarui kegiatan, link pelacak dipakai ulang, gambar email
+{
+  const hub = (b, key = SECRET) => planner.fetch(new Request(BASE + "/__hub/email", { method: "POST", headers: { ...(key ? { "x-hub-key": key } : {}), "content-type": "application/json" }, body: JSON.stringify(b) }), env).then(async (x) => ({ status: x.status, j: await x.json().catch(() => null) }));
+  const by = { email: "cici@acme.test", name: "Cici", job: "copy" };
+  const e1 = await hub({ by, item: { title: "Promo RD Oktober", date: plus(1), email_tpl: "Promo Reksa Dana" }, target: "https://kisi.test/promo?utm_campaign=x", img: PNG });
+  assert.equal(e1.status, 200, JSON.stringify(e1.j)); assert.match(e1.j.url, /\/go\/[a-z0-9]{6}$/);
+  const e2 = await hub({ by, id: e1.j.id, item: { title: "Promo RD Oktober (rev)", date: plus(1), email_tpl: "Promo Reksa Dana" }, target: "https://kisi.test/promo?utm_campaign=x" });
+  assert.deepEqual([e2.j.id, e2.j.code], [e1.j.id, e1.j.code], "tekan ulang = perbarui, link dipakai ulang");
+  const ev = (await call("/api/items?id=" + e1.j.id, { ck: CI })).j;
+  assert.deepEqual([ev.kind, ev.channel, ev.title, ev.email_tpl, ev.owner_email], ["artikel", "Email / Newsletter", "Promo RD Oktober (rev)", "Promo Reksa Dana", "cici@acme.test"]);
+  assert.ok((await call("/api/imgs?ids=" + e1.j.id, { ck: CI })).j[e1.j.id], "gambar email tersimpan");
+  const e3 = await hub({ by, id: e1.j.id, item: { title: "Promo RD Oktober (rev)", date: plus(1) }, target: "https://kisi.test/lain" });
+  assert.equal(e3.j.id, e1.j.id); assert.notEqual(e3.j.code, e1.j.code, "tujuan beda = link baru");
+  assert.equal((await hub({ by: { email: "dodi@acme.test", name: "Dodi" }, id: e1.j.id, item: { title: "x", date: plus(1) }, target: "https://kisi.test/" })).status, 403);
+  assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "ftp://x" })).status, 400);
+  assert.equal((await hub({ by, item: { title: "x", date: plus(1) }, target: "https://kisi.test/" }, "")).status, 403, "tanpa x-hub-key");
+}
 
 // jendela bookmarklet Instagram: perlu login, skripnya sah
 assert.equal((await planner.fetch(new Request(BASE + "/ig-sync?n=3"), env)).status, 303);
