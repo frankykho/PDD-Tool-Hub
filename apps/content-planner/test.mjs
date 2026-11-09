@@ -400,6 +400,8 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   assert.match(pg, /id="mClicks"/); assert.match(pg, /id="mTplI"/); assert.ok(pg.includes("const clk=i=>+i.clicks||i.m_clicks"));
   // YouTube = video media partner: dikenali dari link (jenis artikel atau konten), kartu cukup Views
   assert.ok(pg.includes("Y=L.filter(i=>isYt(i.link))")); assert.ok(pg.includes(`card(i,"YouTube",[["Views",i.m_views]])`));
+  // Orang: copywriter + anggota lain (untuk mencoba / PIC bukan Copywriter); kegiatan yang dilewati disebut di Ringkasan
+  assert.ok(pg.includes('<optgroup label="Anggota lain">')); assert.ok(pg.includes("kegiatan dilewati (PIC bukan Copywriter)"));
 }
 
 /* ---------- kalender momen ---------- */

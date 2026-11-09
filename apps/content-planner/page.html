@@ -1287,8 +1287,10 @@ function setRT(t){
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
   $("rTeamF").hidden=t==="prog"||t==="gal"||t==="ig"||t==="cw";
-  // Laporan Copywriter: pilihan Orang = anggota ber-role Copywriter (tidak mengikuti Tim)
-  if(t==="cw"){$("rWho").dataset.cw="1";$("rWho").innerHTML='<option value="">Semua copywriter</option>'+USERS.filter(u=>u.role==="copy").map(u=>`<option value="${esc(u.email)}">${esc(u.name)}</option>`).join("")}
+  // Laporan Copywriter: pilihan Orang = anggota ber-role Copywriter (tidak mengikuti Tim); anggota lain bisa dipilih satu per satu
+  // (mencoba laporan, atau pekerjaan copywriting yang PIC-nya bukan Copywriter)
+  if(t==="cw"){const op=u=>`<option value="${esc(u.email)}">${esc(u.name)}</option>`,oth=USERS.filter(u=>u.role!=="copy");
+    $("rWho").dataset.cw="1";$("rWho").innerHTML='<option value="">Semua copywriter</option>'+USERS.filter(u=>u.role==="copy").map(op).join("")+(oth.length?'<optgroup label="Anggota lain">'+oth.map(op).join("")+"</optgroup>":"")}
   else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
   $("rHelp").innerHTML=(t==="ig"?"Laporan bulanan Instagram KISI: semua postingan IG yang tayang di periode ini beserta gambar, suka, komentar, bagikan, views, simpan, dan repost. Gambar dan angka diambil lewat tombol bookmark Angka IG ke Planner di tab Performa."
     :t==="cw"?"Laporan Copywriter: artikel (website KISI = internal, media partner = eksternal), email blast, dan video YouTube yang PIC-nya ber-role Copywriter, lengkap dengan gambar dan angkanya. Views YouTube diambil otomatis saat laporan dibuat, pembaca artikel dari isian manual, klik dari link pelacak."
@@ -2084,9 +2086,11 @@ async function cwData(){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
   const who=$("rWho").value,cw=new Set(USERS.filter(u=>u.role==="copy").map(u=>u.email)),mine=i=>who?i.owner_email===who:cw.has(i.owner_email);
-  const pick=L=>L.filter(i=>i.date>=from&&i.date<=to&&mine(i)&&(kindOf(i)==="artikel"||(kindOf(i)==="konten"&&isYt(i.link))))
-    .sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
-  let L=pick(await api(`/api/items?from=${from}&to=${to}`));
+  const cwKind=i=>i.date>=from&&i.date<=to&&(kindOf(i)==="artikel"||(kindOf(i)==="konten"&&isYt(i.link)));
+  const pick=L=>L.filter(i=>cwKind(i)&&mine(i)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const all=await api(`/api/items?from=${from}&to=${to}`);let L=pick(all);
+  // "Semua copywriter": artikel / video yang PIC-nya bukan Copywriter disebut di Ringkasan (bisa dipilih lewat Orang)
+  const skipped=who?0:all.filter(i=>cwKind(i)&&!mine(i)).length;
   // angka YouTube terbaru (tanpa key: dilewati, angka manual tetap)
   const yt=L.filter(i=>isYt(i.link)).map(i=>i.id);let n=0;
   for(let k=0;k<yt.length;k+=50){const x=await api("/api/yt/refresh",{ids:yt.slice(k,k+50)}).catch(()=>null);n+=x&&x.updated||0}
@@ -2095,7 +2099,7 @@ async function cwData(){
   for(let k=0;k<L.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+L.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
   const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
   const u=USERS.find(x=>x.email===who);
-  return {from,to,per,tag:u?u.name:"",who:u?u.name:"Semua copywriter",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
+  return {from,to,per,skipped,tag:u?u.name:"",who:u?u.name:"Semua copywriter",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
 }
 function cwDoc(R){
   // YouTube = video kerja sama yang diposting media partner: dikenali dari link-nya, dicatat sebagai artikel atau konten
@@ -2107,7 +2111,7 @@ function cwDoc(R){
   const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",clk(i)]])],
     ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",clk(i)]])],
     ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views]])]];
-  const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per},
+  const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per+(R.skipped?` · ${R.skipped} kegiatan dilewati (PIC bukan Copywriter)`:"")},
     {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(L.reduce((a,i)=>a+(+clk(i)||0),0)),"link pelacak / manual"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
     ...S.filter(x=>!x[1].length).map(([h,,empty])=>({t:"table",h3:h,cols:[[h,100]],rows:[],empty}))];
   S.filter(x=>x[1].length).forEach(([h,X,,mk])=>Bk.push({t:"page",h2:h,sub:R.per},{t:"posts",cols:2,items:X.map(mk)}));

@@ -546,6 +546,8 @@ const D = {
   "Gambar tidak ditemukan di link ini.": "No image found at this link.",
   "Laporan Copywriter": "Copywriter Report",
   "Semua copywriter": "All copywriters",
+  "Anggota lain": "Other members",
+  "{n} kegiatan dilewati (PIC bukan Copywriter)": "{n} activities skipped (PIC is not a Copywriter)",
   "Email blast": "Email blast",
   "Video YouTube": "YouTube videos",
   "Total klik": "Total clicks",
