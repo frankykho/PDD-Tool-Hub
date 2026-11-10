@@ -12,7 +12,7 @@ registerHooks({
     return next(url, ctx);
   },
 });
-const { default: planner, dueNotifs, itemNotifs, taskNotifs, seen } = await import("./worker.js");
+const { default: planner, dueNotifs, itemNotifs, taskNotifs, seen, mediaName, guessTopic, guessSell, pageMeta } = await import("./worker.js");
 
 function d1() {
   const db = new DatabaseSync(":memory:");
@@ -903,6 +903,33 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(all.map((x) => [x.id, x.log.length]), [[r.j.id, 2]]);
   const k = (await call("/api/items", { ck: COPY, body: { kind: "konten", title: "y", date: wib } })).j.id, ki = (await call("/api/items?id=" + k, { ck: COPY })).j;
   assert.equal((await call("/api/items", { ck: COPY, body: { ...ki, kind: "produk", base: ki.updated_at } })).status, 400, "kegiatan lama tidak bisa dijadikan produk");
+}
+
+/* ---------- Laporan Copywriter format Canva: kolom baru & tebakan ---------- */
+{
+  assert.equal(mediaName("https://pasardana.id/news/2026/10/1/x"), "Pasardana.id");
+  assert.equal(mediaName("https://www.idxchannel.com/market-news/x"), "IDX Channel");
+  assert.equal(mediaName("https://market.bisnis.com/read/x"), "Bisnis.com");
+  assert.equal(mediaName("https://kisi.co.id/blog/artikel/239"), "Company Website");
+  assert.equal(mediaName("https://contoh-baru.co.id/a", "Contoh Baru"), "Contoh Baru");
+  assert.equal(mediaName("https://contoh-baru.co.id/a"), "contoh-baru.co.id");
+  assert.equal(guessTopic({ title: "Laba MYOR Melonjak", tags: ["Behind The Candle"], internal: true, press: false }), "saham");
+  assert.equal(guessTopic({ title: "Transaksi Rp1,46T, KISI Challenge: Beyond Tomorrow Makin Sengit", internal: false, press: false }), "event");
+  assert.equal(guessTopic({ title: "ANALIS MARKET (01/10/2026): IHSG Mixed", internal: false, press: false }), "branding");
+  assert.equal(guessTopic({ title: "Jembatan Modal Korea-RI", internal: false, press: true }), "branding");
+  assert.equal(guessTopic({ title: "IHSG Dibuka Naik", internal: true, press: false }), "branding");
+  assert.equal(guessTopic({ title: "Saham BIHSGX naik", internal: true, press: false }), "saham");
+  assert.equal(guessSell({ internal: false, press: true, topic: "branding" }), "hard");
+  assert.equal(guessSell({ internal: false, press: false, topic: "event" }), "hard");
+  assert.equal(guessSell({ internal: true, press: false, topic: "event" }), "soft");
+  assert.equal(guessSell({ internal: false, press: false, topic: "branding" }), "soft");
+  assert.deepEqual(pageMeta('<meta property="og:title" content="Judul &amp; A"><meta property="og:site_name" content="Kontan"><meta property="article:published_time" content="2026-10-01T08:00:00+07:00">'), { title: "Judul & A", site: "Kontan", date: "2026-10-01" });
+  assert.deepEqual(pageMeta("<title> Hanya Title </title>"), { title: "Hanya Title", site: "", date: "" });
+  // isian baru tersimpan; nilai di luar daftar dibuang; tags/live dari form diabaikan
+  const ci = (await call("/api/items", { ck: COPY, body: { kind: "artikel", channel: "Push notification", title: "Push 1 Okt", date: "2026-10-01", topic: "event", sell: "x", media: "IDX Channel", press: 1, tags: '["a"]', live: 1 } })).j.id;
+  const cr = (await call("/api/items?id=" + ci, { ck: COPY })).j;
+  assert.equal(cr.topic, "event"); assert.equal(cr.sell, null); assert.equal(cr.media, "IDX Channel"); assert.equal(cr.press, 1); assert.equal(cr.tags, null); assert.equal(cr.live, null);
+  assert.equal(cr.channel, "Push notification");
 }
 
 console.log("semua cek lolos");

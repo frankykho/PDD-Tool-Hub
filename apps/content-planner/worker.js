@@ -107,7 +107,7 @@ const HUBSSO = (() => {
 // Tiga jenis kegiatan, masing-masing dengan kanal/format dan alur statusnya sendiri.
 export const KINDS = {
   konten: { label: "Konten sosmed", channels: ["IG Story", "IG Feed", "IG Reels", "TikTok", "YouTube", "WA Broadcast", "WA Channel", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
-  artikel: { label: "Artikel", channels: ["Website", "Blog", "Email / Newsletter", "Media partner", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
+  artikel: { label: "Artikel", channels: ["Website", "Blog", "Email / Newsletter", "Push notification", "Media partner", "Lainnya"], statuses: ["ide", "draf", "review", "terbit"] },
   edukasi: { label: "Edukasi / narasumber", channels: ["Webinar", "Seminar", "Talkshow", "Kelas / kunjungan", "Live IG / TikTok", "Lainnya"], statuses: ["rencana", "konfirmasi", "selesai", "batal"] },
   // dibuat Partnership: kerja sama dengan pihak luar; kegiatan lain bisa dikaitkan (program_id) dan tugas dibagi di dalamnya
   program: { label: "Program partnership", channels: ["Manajer investasi (AM)", "APERD / agen penjual", "Komunitas", "Kampus / sekolah", "Korporasi", "Media partner", "Event / pameran", "Lainnya"], statuses: ["rencana", "berjalan", "selesai", "batal"] },
@@ -176,10 +176,13 @@ const COLS = {
   event_id: "TEXT",
   // email blast (kanal Email / Newsletter): nama template Email Studio yang dipakai
   email_tpl: "TEXT",
+  // Laporan Copywriter: topik (branding|event|saham), kategori (hard|soft), nama media / mitra kolaborasi, liputan press release;
+  // tags = tag artikel kisi.co.id (JSON), live = video YouTube siaran langsung (keduanya hanya diisi server)
+  topic: "TEXT", sell: "TEXT", media: "TEXT", press: "INTEGER", tags: "TEXT", live: "INTEGER",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
 };
 // kolom persetujuan, asal angka & sambungan event hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
-const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src", "event_id"];
+const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src", "event_id", "tags", "live"];
 const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
 /** Kegiatan yang punya caption, persetujuan, dan angka performa. */
 export const COPY_KINDS = ["konten", "artikel"];
@@ -247,6 +250,10 @@ export function cleanItem(b) {
   if (COPY_KINDS.includes(kind)) {
     it.copy = s(b.copy, 6000);
     it.email_tpl = s(b.email_tpl, 80);
+    it.topic = TOPICS.includes(b.topic) ? b.topic : null;
+    it.sell = SELLS.includes(b.sell) ? b.sell : null;
+    it.media = s(b.media, 80) || null;
+    it.press = b.press ? 1 : 0;
     it.approver_email = EMAIL.test(s(b.approver_email, 120)) ? s(b.approver_email, 120).toLowerCase() : "";
     it.approver = it.approver_email ? s(b.approver, 60) : "";
     for (const k of METRICS) it[k] = numOf(b[k]);
@@ -391,7 +398,7 @@ async function saveItem(env, me, b, opts = {}) {
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
   const mChanged = METRICS.some((k) => (it[k] ?? null) !== ((prev && prev[k]) ?? null));
-  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null, event_id: (prev && prev.event_id) || null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
+  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null, event_id: (prev && prev.event_id) || null, tags: (prev && prev.tags) || null, live: (prev && prev.live) ?? null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
   let id = prev ? prev.id : "";
   if (prev) {
     const r = await env.DB.prepare(`UPDATE items SET ${[...EDIT, ...SERVER_COLS].map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, ...svals, by, now, id).run();
@@ -600,6 +607,45 @@ export function ogImage(html, base) {
     if (m) try { return new URL((m[1] || m[2]).replace(/&amp;/g, "&"), base).href; } catch { /* lanjut */ }
   }
   return "";
+}
+/* ---------- Laporan Copywriter: nama media & tebakan topik / kategori ---------- */
+export const TOPICS = ["branding", "event", "saham"];
+export const SELLS = ["hard", "soft"];
+const MEDIA = {
+  "pasardana.id": "Pasardana.id", "infobanknews.com": "Infobanknews.com", "idxchannel.com": "IDX Channel", "emitennews.com": "Emiten News",
+  "kontan.co.id": "Kontan.co.id", "investor.id": "Investor Daily", "investortrust.id": "Investortrust.id", "stockwatch.id": "Stockwatch",
+  "bisnis.com": "Bisnis.com", "iqplus.info": "IQ Plus", "kompas.com": "Kompas.com", "wartaekonomi.co.id": "Warta Ekonomi",
+  "swa.co.id": "SWA.co.id", "financialreview.id": "Financial Review", "antaranews.com": "Antara News", "voi.id": "VOI",
+  "economixbuzz.com": "Economix Buzz", "metrotvnews.com": "Metro TV News", "topbusiness.id": "Top Business", "emitentrust.com": "Emiten Trust",
+  "suara.com": "Suara.com", "tribunnews.com": "Tribun News", "katadata.co.id": "Katadata.co.id", "youtube.com": "YouTube", "youtu.be": "YouTube",
+  "kisi.co.id": "Company Website",
+};
+const hostOf = (link) => { try { return new URL(String(link || "")).hostname.toLowerCase().replace(/^www\./, ""); } catch { return ""; } };
+export const isInternal = (link) => hostOf(link) === "kisi.co.id";
+/** Nama media dari link: peta media yang sering muncul (subdomain ikut domain induk), lalu og:site_name, lalu nama host. */
+export function mediaName(link, site = "") {
+  const h = hostOf(link);
+  for (let x = h; x.includes("."); x = x.slice(x.indexOf(".") + 1)) if (MEDIA[x]) return MEDIA[x];
+  return String(site || "").trim() || h;
+}
+const has = (s, re) => re.test(String(s || ""));
+/** Tebakan topik artikel (spec 2026-11-10 §1); hanya dipakai untuk isian yang masih kosong. */
+export function guessTopic({ title = "", tags = [], internal = false, press = false }) {
+  const all = [title, ...(Array.isArray(tags) ? tags : [])].join(" | ");
+  if (has(all, /kisi challenge/i)) return "event";
+  if ((Array.isArray(tags) ? tags : []).some((t) => has(t, /^behind the candle$/i))) return "saham";
+  if (press || has(title, /analis market|\bihsg\b/i)) return "branding";
+  return internal ? "saham" : "branding";
+}
+/** Hard selling = liputan media atas press release atau event; tulisan di website sendiri selalu soft. */
+export const guessSell = ({ internal = false, press = false, topic = "" }) => !internal && (press || topic === "event") ? "hard" : "soft";
+const unent = (s) => String(s || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+const metaOf = (html, k) => { const m = String(html).match(new RegExp(`<meta[^>]+(?:property|name)=["']${k}["'][^>]*content=["']([^"']*)["']|<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${k}["']`, "i")); return m ? unent(m[1] ?? m[2]) : ""; };
+/** Judul, nama situs, dan tanggal terbit dari HTML halaman. */
+export function pageMeta(html) {
+  const t = metaOf(html, "og:title") || metaOf(html, "twitter:title") || unent((String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
+  const d = metaOf(html, "article:published_time").slice(0, 10);
+  return { title: t, site: metaOf(html, "og:site_name"), date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "" };
 }
 /** URL dari luar yang boleh diambil server: https, nama host (bukan IP / localhost). */
 const safeHttps = (v) => { try { const u = new URL(String(v || "")); return u.protocol === "https:" && !/^(localhost|.*\.local|.*\.internal)$/i.test(u.hostname) && !/^[\d.]+$|:/.test(u.hostname) ? u : null; } catch { return null; } };
