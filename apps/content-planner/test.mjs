@@ -981,6 +981,9 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
     assert.equal(L.length, 3, "tidak dobel");
     assert.deepEqual([myor.kind, myor.status, myor.owner_email, myor.media, myor.topic, myor.sell, myor.m_views, myor.m_src], ["artikel", "terbit", "cici@acme.test", "Company Website", "saham", "soft", 274, "kisi"]);
     assert.equal(emas.owner_email || null, null, "penulis tidak terdaftar -> tanpa PIC");
+    // yang menjalankan sinkron tercatat sebagai pembuat: copywriter bisa mengoreksi topik artikel penulis tak terdaftar
+    const ef = (await call("/api/items?id=" + emas.id, { ck: COPY })).j;
+    assert.equal((await call("/api/items", { ck: COPY, body: { ...ef, topic: "branding", base: ef.updated_at } })).status, 200);
     assert.deepEqual([m.m_views, m.tags, m.media, m.topic], [39, "[]", "Company Website", "event"]);
     assert.ok((await call("/api/imgs?ids=" + myor.id, { ck: COPY })).j[myor.id].startsWith("data:image/png;base64,"));
     // copywriter mengoreksi topik; sinkron berikutnya hanya memperbarui views
@@ -994,6 +997,22 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
     fail = true;
     assert.deepEqual((await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-11-01", to: "2026-11-30" } })).j, { created: 0, updated: 0, ytdInt: 0, error: "kisi.co.id tidak bisa diambil" });
     assert.equal((await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-10-31", to: "2026-10-01" } })).status, 400, "periode terbalik");
+  } finally { globalThis.fetch = realFetch; }
+  // banyak artikel sekaligus: tulis D1 dipecah, gambar paling banyak 10 per sinkron (sisanya di sinkron berikutnya), gambar gagal tidak menggagalkan
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    if (u.includes("kisiNews/list")) { const off = +new URL(u).searchParams.get("offset"); const all = Array.from({ length: 70 }, (_, k) => N(1000 + k, "Artikel Desember " + k, "2026-12-" + String(1 + (k % 28)).padStart(2, "0"), { news_content: `<img src="https://api-compro.kisi.co.id/storage/newsimg/${k}.png">` })); return Response.json({ data: all.slice(off, off + 60) }); }
+    if (u.includes("newsimg/3.png")) throw new Error("gambar mati");
+    return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
+  };
+  try {
+    const s = await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-12-01", to: "2026-12-31" } });
+    assert.equal(s.status, 200); assert.equal(s.j.created, 70);
+    const ids = (await call("/api/items?from=2026-12-01&to=2026-12-31", { ck: COPY })).j.filter((i) => /Artikel Desember/.test(i.title)).map((i) => i.id);
+    const n1 = Object.keys((await call("/api/imgs?ids=" + ids.join(","), { ck: COPY })).j).length;
+    assert.ok(n1 >= 9 && n1 <= 10, "gambar dibatasi per sinkron: " + n1);
+    await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-12-01", to: "2026-12-31" } });
+    assert.ok(Object.keys((await call("/api/imgs?ids=" + ids.join(","), { ck: COPY })).j).length > n1, "sinkron berikutnya melanjutkan gambar");
   } finally { globalThis.fetch = realFetch; }
   // angka laporan yang diketik
   assert.deepEqual((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_ytd:2026", v: { upto: "2026-09", ext: 496 } } })).j, { ok: true });
@@ -1047,6 +1066,8 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(r.media, [{ media: "IDX Channel", program: "TICKER TALK", n: 1 }]);
   assert.deepEqual(r.rows.map((i) => i.title), ["KISI Challenge dimulai", "Jembatan Modal", "Literasi Lampung"]);
   assert.equal(r.yt.length, 1);
+  // kolaborasi = postingan Instagram bermitra; konten lain bermedia tidak dihitung
+  assert.equal(calc([...L, { kind: "konten", channel: "TikTok", link: "https://www.tiktok.com/@x/video/1", date: "2026-10-03", title: "T", media: "tiktok.com" }], { from: "2026-10-01", to: "2026-10-31", camp: [], typed: {}, ytd: null }).copy.collab, 1);
   // video YouTube yang dicatat sebagai artikel tetap masuk narasumber, bukan tabel artikel
   const r2 = calc([...L, { kind: "artikel", channel: "Media partner", link: "https://www.youtube.com/watch?v=abcDEF12345", date: "2026-10-02", title: "Rupiah | TICKER TALK", media: "IDX Channel" }], { from: "2026-10-01", to: "2026-10-31", camp: [], typed: {}, ytd: null });
   assert.equal(r2.yt.length, 2); assert.equal(r2.rows.length, 3); assert.deepEqual(r2.media, [{ media: "IDX Channel", program: "TICKER TALK", n: 2 }]);
@@ -1105,6 +1126,10 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
       x = await get(id); assert.deepEqual([x.title, x.media, x.topic], ["T", null, null], link);
     }
     assert.equal((await call("/api/linkmeta", { ck: PART, body: { id: a } })).status, 403, "bukan pembuat / PIC");
+    // konten sosmed (TikTok, WA, dll.) tidak diisi media: media pada konten = mitra kolaborasi IG
+    const tk = (await call("/api/items", { ck: COPY, body: { kind: "konten", channel: "TikTok", title: "T", date: "2026-10-02", status: "terbit", link: "https://www.tiktok.com/@kisi/video/1" } })).j.id;
+    assert.equal((await call("/api/linkmeta", { ck: COPY, body: { id: tk } })).j.ok, false);
+    assert.equal((await get(tk)).media, null);
   } finally { globalThis.fetch = realFetch; }
 }
 

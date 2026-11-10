@@ -690,7 +690,8 @@ async function linkMeta(env, me, id) {
   if (!it) return { error: "Kegiatan ini sudah dihapus." };
   if (!canEditItem(me, it)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
   const u = safeHttps(it.link);
-  if (!u || /(^|\.)instagram\.com$/i.test(u.hostname) || ytId(u.href)) return { ok: false };
+  // hanya artikel: pada konten, kolom media berarti mitra kolaborasi IG (diisi bookmark / manual)
+  if (it.kind !== "artikel" || !u || /(^|\.)instagram\.com$/i.test(u.hostname) || ytId(u.href)) return { ok: false };
   let meta = null;
   try {
     const r = await fetch(u.href, { headers: { "User-Agent": UA_WEB, Accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(10000) });
@@ -751,8 +752,9 @@ async function kisiImg(src, get) {
 }
 /** POST /api/kisi/sync {from,to}: artikel website di periode dibuat / dilengkapi di Planner (views selalu terbaru; topik, kategori,
  *  judul, media yang sudah diisi tidak ditimpa). ytdInt = jumlah artikel website 1 Januari s.d. `to`. */
-export async function kisiSync(env, from, to, get = fetch) {
+export async function kisiSync(env, from, to, get = fetch, byEmail = null) {
   await ensure(env);
+  // byEmail = yang menjalankan sinkron, dicatat sebagai pembuat supaya bisa mengoreksi topik / kategori artikel penulis tak terdaftar
   const year = to.slice(0, 4) + "-01-01", all = [];
   try {
     for (let off = 0; off < 60 * 20; off += 60) {
@@ -785,15 +787,19 @@ export async function kisiSync(env, from, to, get = fetch) {
       created++; id = crypto.randomUUID();
       const pic = names.has(a.by) ? a.by : null;
       q.push(env.DB.prepare(`INSERT INTO items (id, date, title, kind, channel, status, owner, owner_email, link, media, topic, sell, press, tags, m_views, m_src, m_at,
-        created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, 'artikel', 'Website', 'terbit', ?, ?, ?, 'Company Website', ?, ?, 0, ?, ?, 'kisi', ?, 'kisi.co.id', ?, 'kisi.co.id', ?)`)
-        .bind(id, a.date, a.title, pic ? names.get(pic) : "", pic, a.link, topic, sell, JSON.stringify(a.tags), a.views, now, now, now));
+        created_by, created_email, created_at, updated_by, updated_at) VALUES (?, ?, ?, 'artikel', 'Website', 'terbit', ?, ?, ?, 'Company Website', ?, ?, 0, ?, ?, 'kisi', ?, 'kisi.co.id', ?, ?, 'kisi.co.id', ?)`)
+        .bind(id, a.date, a.title, pic ? names.get(pic) : "", pic, a.link, topic, sell, JSON.stringify(a.tags), a.views, now, byEmail, now, now));
     }
     if (a.img && !imgs.has(id)) want.push([id, a.img]);
   }
-  await env.DB.batch(q);
-  for (let k = 0; k < want.length; k += 5) await Promise.all(want.slice(k, k + 5).map(async ([id, src]) => {
-    const img = await kisiImg(src, get);
-    if (img) await env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, now).run();
+  for (let k = 0; k < q.length; k += 50) await env.DB.batch(q.slice(k, k + 50));
+  // gambar: paling banyak 10 per sinkron (batas subrequest Workers); sisanya diambil sinkron berikutnya; gagal = dilewati
+  const pics = want.slice(0, 10);
+  for (let k = 0; k < pics.length; k += 5) await Promise.all(pics.slice(k, k + 5).map(async ([id, src]) => {
+    try {
+      const img = await kisiImg(src, get);
+      if (img) await env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, now).run();
+    } catch { /* gambar menyusul */ }
   }));
   return { created, updated, ytdInt };
 }
@@ -1677,7 +1683,7 @@ export default {
         if (path === "/api/kisi/sync") {
           const f = String(b.from || ""), t = String(b.to || "");
           if (!ISO.test(f) || !ISO.test(t) || f > t) return json({ error: "Periode belum benar." }, 400);
-          return json(await kisiSync(env, f, t));
+          return json(await kisiSync(env, f, t, fetch, lower(me.e) || null));
         }
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, b.k, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }

@@ -1730,7 +1730,7 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 .mr-t.dark a{color:#1a56db;text-decoration:underline}
 .mr-t.dark.big{font-size:11pt}.mr-t.dark.big th{font-size:12pt}
 .mr-t tr.tot td{background:#136f4a;color:#fff;font-weight:700}
-.mr-t td.im{padding:.05in}.mr-t td.im img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.mr-t td.im{padding:.05in}.mr-t td.im img{width:100%;max-height:1.3in;aspect-ratio:16/9;object-fit:cover;display:block}
 .mr-live{color:#e02020;font-weight:500}
 .mr-sum{display:grid;grid-template-columns:1fr 1fr;gap:.6in;align-items:start}
 .mr-s1{margin:0 0 .3in}
@@ -1918,7 +1918,17 @@ async function pdfDoc(doc){
     // judul h2 ikut ke halaman lanjutan bila potongan tetap terlalu tinggi
     else if(b.t==="table"&&b.h2)chunkRows(b.rows,b.per||1e9).forEach(ch=>{page();table(`<h2>${esc(b.h2)}</h2>`,b.cols,ch.map(r=>tr(r,b.cols)),b.empty||"",(b.dark?" dark":"")+(b.big?" big":""))});
     else if(b.t==="table")table(`<h3>${esc(b.h3)}</h3>`,b.cols,b.rows.map(r=>tr(r,b.cols)),b.empty||"",b.dark?" dark":"");
-    else if(b.t==="sum"){page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum">${b.cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`)}
+    // tabel yang terpotong di bawah halaman pindah ke halaman berikutnya (kolom yang sama)
+    else if(b.t==="sum"){
+      let cols=b.cols;
+      while(cols.some(c=>c.length)){
+        page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum">${cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`);
+        const D=[...body.querySelector(".mr-sum").children],rest=cols.map(()=>[]);
+        const lim=body.getBoundingClientRect().bottom+1;
+        D.forEach((d,ci)=>{for(let k=cols[ci].length-1;k>0&&d.lastElementChild.getBoundingClientRect().bottom>lim;k--){d.lastElementChild.remove();rest[ci].unshift(cols[ci][k])}});
+        cols=rest;
+      }
+    }
     else if(b.t==="gallery"){
       const n=b.cols||3;page();put(`<h2>${esc(b.h2)}</h2>`);
       for(let i=0;i<b.items.length;i+=n)put(`<div class="mr-gal c${n}">${b.items.slice(i,i+n).map(fig).join("")}</div>`);
@@ -2010,18 +2020,21 @@ async function pptDoc(doc,fileName){
     }
   };
   // blok sum: satu slide, kolom kiri & kanan berisi tumpukan tabel ringkasan berbingkai dengan judul besar
+  // tabel yang tidak muat di bawah tabel sebelumnya pindah ke slide sum berikutnya (kolom yang sama)
   const sum=b=>{
-    slide();const gap=.6,cwid=(W-gap)/2;
+    slide();const gap=.6,cwid=(W-gap)/2,rest=b.cols.map(()=>[]);
     b.cols.forEach((st,ci)=>{let yy=y;const x=X+ci*(cwid+gap);
       st.forEach(t=>{
         const tw=cwid-.24,cw=t.cols.map(c=>+(c[1]/100*tw).toFixed(3)),cell=(c,k,bold)=>({text:txt(c).trim()||"–",options:{fontFace:F,fontSize:12,bold,color:C.t,align:(t.cols[k]||[])[2]?"right":"left",valign:"middle"}});
         const rows=[t.cols.map((c,k)=>cell(c[0],k,true)),...t.rows.map(r=>r.map((c,k)=>cell(c,k,!!r.tot)))];
-        const hs=[.42,...t.rows.map(r=>Math.max(...r.map((c,k)=>lines(txt(c),(cw[k]||1)-.1,12)))*.22+.2)],th=hs.reduce((a,v)=>a+v,0);
-        s.addText(t.h2,{x,y:yy,w:cwid,h:.6,fontFace:F,fontSize:26,bold:true,color:C.t,margin:0});
-        s.addShape(pp.ShapeType.roundRect,{x,y:yy+.7,w:cwid,h:th+.12,fill:{color:"FFFFFF"},line:{color:C.g,width:1.25},rectRadius:.12});
-        s.addTable(rows,{x:x+.12,y:yy+.76,w:tw,colW:cw,rowH:hs.map(v=>+v.toFixed(3)),border:{type:"solid",color:"A9CDB9",pt:.75},margin:.06,autoPage:false});
-        yy+=.7+th+.12+.4;
+        const hs=[.42,...t.rows.map(r=>Math.max(...r.map((c,k)=>lines(txt(c),(cw[k]||1)-.1,12)))*.22+.2)],th=hs.reduce((a,v)=>a+v,0),hh=lines(t.h2,cwid,26)*.45+.05;
+        if(yy>y&&yy+hh+.1+th+.12>BOT){rest[ci].push(t);return}
+        s.addText(t.h2,{x,y:yy,w:cwid,h:hh,fontFace:F,fontSize:26,bold:true,color:C.t,margin:0,valign:"top"});
+        s.addShape(pp.ShapeType.roundRect,{x,y:yy+hh+.1,w:cwid,h:th+.12,fill:{color:"FFFFFF"},line:{color:C.g,width:1.25},rectRadius:.12});
+        s.addTable(rows,{x:x+.12,y:yy+hh+.16,w:tw,colW:cw,rowH:hs.map(v=>+v.toFixed(3)),border:{type:"solid",color:"A9CDB9",pt:.75},margin:.06,autoPage:false});
+        yy+=hh+.1+th+.12+.4;
       })});
+    if(rest.some(r=>r.length))sum({cols:rest});
   };
   // blok gallery: kartu bergambar 16:9, judul kecil di atas (opsional), keterangan bernomor di bawah (link bila ada)
   const gallery=async b=>{
@@ -2228,7 +2241,7 @@ function cwCalc(L,o){
   const tags=i=>{try{const a=JSON.parse(i.tags||"[]");return Array.isArray(a)?a.map(String):[]}catch(e){return []}};
   const int=L.filter(i=>ch(i,["Website","Blog"])).sort(byDate),ext=L.filter(i=>ch(i,["Media partner"])).sort(byDate);
   const mail=L.filter(i=>ch(i,["Email / Newsletter"])).sort(byDate),push=L.filter(i=>ch(i,["Push notification"])).sort(byDate);
-  const collab=L.filter(i=>i.kind==="konten"&&!yt(i)&&i.media).sort(byDate),Y=L.filter(yt).sort(byDate),rows=[...int,...ext].sort(byDate);
+  const collab=L.filter(i=>i.kind==="konten"&&i.media&&(/^IG/i.test(i.channel||"")||/instagram\.com/i.test(i.link||""))).sort(byDate),Y=L.filter(yt).sort(byDate),rows=[...int,...ext].sort(byDate);
   const topic={branding:0,event:0,saham:0};rows.forEach(i=>{const k=topic[i.topic]!==undefined?i.topic:ext.includes(i)?"branding":"saham";topic[k]++});
   const tp=o.typed||{},n=k=>Math.max(0,Math.round(+tp[k]||0));
   // program YouTube = teks setelah "|" terakhir di judul (mis. "TICKER TALK"); tanpa "|" = nama media
@@ -2292,15 +2305,15 @@ function cwDoc(R){
       [{h2:"Copywriting for Publication",cols:[["Channel",80],["Total",20,1]],rows:[["Social Media (KISI Contents)",num(c.copy.sm)],[`Social Media (Media & Community${camp?" for "+camp:""})`,num(c.copy.collab)],
         ["Article Internal (kisi.co.id)",num(c.copy.int)],["Promo on Website",num(c.copy.promo)],["Press Release",num(c.copy.press)],["Push Notifications",num(c.copy.push)],tot(["Total",num(add(...Object.values(c.copy)))])]}]]},
     {t:"sum",cols:[
-      [{h2:"Design for Publication",cols:[["Type of Design",70],["Total",30,1]],rows:[["Article",num(c.design.art)],["IG Story",num(c.design.story)],["IG Feed",num(c.design.feed)],tot(["Total",num(add(...Object.values(c.design)))])]},
+      [{h2:"Design for Publication",cols:[["Type of Design",70],["Total",30,1]],rows:[["Article",num(c.design.art)],["IG Story",num(c.design.story)],["IG Feed",num(c.design.feed)],tot(["Total",num(add(...Object.values(c.design)))])]}],
+      [{h2:"Administration",cols:[["Task",75],["Total",25,1]],rows:[["Proposal\n(including Distribution, Reimbursement, Report/LPJ)",num(c.prop)],tot(["Total",num(c.prop)])]},
        ...(c.media.length?[{h2:"Supporting Investment Specialist Involves in Media",cols:[["Channel",75],["Total",25,1]],
-        rows:[...c.media.map(m=>[m.program===m.media?m.media:`${m.media} Program “${m.program.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase())}”`,num(m.n)]),tot(["Total",num(add(...c.media.map(m=>m.n)))])]}]:[])],
-      [{h2:"Administration",cols:[["Task",75],["Total",25,1]],rows:[["Proposal\n(including Distribution, Reimbursement, Report/LPJ)",num(c.prop)],tot(["Total",num(c.prop)])]}]]}];
+        rows:[...c.media.map(m=>[m.program===m.media?m.media:`${m.media} Program “${m.program.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase())}”`,num(m.n)]),tot(["Total",num(add(...c.media.map(m=>m.n)))])]}]:[])]]}];
   if(c.rows.length)B.push({t:"table",h2:"Details Articles/News",dark:1,per:20,cols:[["No.",5],["Topic",10],["Title & Link Article",37],["Published Date",11],["Category",11],["Channel",15],["Views",11]],
     rows:[...c.rows.map((i,k)=>{const tp=TOP[i.topic]||TOP[isInt(i)?"saham":"branding"],sl=SELL[i.sell]||SELL.soft;
       return [String(k+1),{t:tp[0],c:tp[1]},{t:(i.press?"[Press Release]\n":"")+i.title,href:i.link||"",a:i.link?1:0},cwDate(i.date),{t:sl[0],c:sl[1]},i.media||(isInt(i)?"Company Website":"-"),i.m_views!=null?num(i.m_views):"-"]}),
       tot(["","","","","","Total Views",num(views(c.rows))])]});
-  if(c.yt.length)B.push({t:"table",h2:"Details Speakers at Media",dark:1,big:1,per:3,imgH:1.5,cols:[["No.",5],["Content",22],["Title",24],["Program",12],["Media",11],["Date",10],["Link",6],["Views",10]],
+  if(c.yt.length)B.push({t:"table",h2:"Details Speakers at Media",dark:1,big:1,per:3,imgH:1.4,cols:[["No.",5],["Content",22],["Title",24],["Program",12],["Media",11],["Date",10],["Link",6],["Views",10]],
     rows:[...c.yt.map((i,k)=>[String(k+1),{img:i.img||""},i.title,{t:/\|/.test(i.title)?i.title.split("|").pop().trim().toUpperCase():"-",live:i.live?1:0},i.media||"YouTube",cwDate(i.date),{t:"Link",href:i.link,a:1},i.m_views!=null?num(i.m_views):"-"]),
       tot(["","","","","","","Total Views",num(views(c.yt))])]});
   const day=d=>`${+d.slice(8,10)} ${CW_MON[+d.slice(5,7)-1]}`;
