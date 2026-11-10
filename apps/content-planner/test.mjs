@@ -330,6 +330,8 @@ assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (u) => String(u).includes("artikel")
     ? new Response('<meta property="og:image" content="https://cdn.test/a.jpg">', { headers: { "content-type": "text/html" } })
+    : String(u).includes("youtube.com/watch")
+    ? new Response('<script>var x={"videoDetails":{"viewCount":"5512","isLiveContent":false},"microformat":{"publishDate":"2026-10-29T17:09:03-07:00","ownerChannelName":"IDX CHANNEL"}}</script>', { headers: { "content-type": "text/html" } })
     : String(u).includes("googleapis.com/youtube")
     ? Response.json({ items: [{ id: "abcDEF12345", statistics: { viewCount: "1200", likeCount: "45", commentCount: "6" } }] })
     : new Response(new Uint8Array([255, 216, 255]), { headers: { "content-type": "image/jpeg" } });
@@ -339,7 +341,10 @@ assert.equal(ogImage("<p>tanpa</p>", "https://x"), "");
     for (const bad of ["http://kisi.test/a", "https://127.0.0.1/a", "https://localhost/a", "javascript:alert(1)"])
       assert.equal((await planner.fetch(new Request(BASE + "/api/linkimg?url=" + encodeURIComponent(bad), { headers: { cookie: CI } }), env)).status, 400, bad);
     const yid = (await call("/api/items", { ck: CI, body: { kind: "konten", channel: "YouTube", title: "Video", date: plus(2), status: "terbit", link: "https://youtu.be/abcDEF12345", m_shares: "3" } })).j.id;
-    assert.deepEqual((await call("/api/yt/refresh", { ck: CI, body: { ids: [yid] } })).j, { updated: 0, skipped: "no-key" });
+    // tanpa key: angka dari halaman publik video
+    assert.deepEqual((await call("/api/yt/refresh", { ck: CI, body: { ids: [yid] } })).j, { updated: 1 });
+    const yp = (await call("/api/items?id=" + yid, { ck: CI })).j;
+    assert.deepEqual([yp.m_views, yp.m_src, yp.media, yp.live], [5512, "ytpage", "IDX Channel", 0]);
     env.YOUTUBE_API_KEY = "k";
     assert.equal((await call("/api/yt/refresh", { ck: CI, body: { ids: [yid] } })).j.updated, 1);
     const yv = (await call("/api/items?id=" + yid, { ck: CI })).j;
@@ -930,6 +935,19 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   const cr = (await call("/api/items?id=" + ci, { ck: COPY })).j;
   assert.equal(cr.topic, "event"); assert.equal(cr.sell, null); assert.equal(cr.media, "IDX Channel"); assert.equal(cr.press, 1); assert.equal(cr.tags, null); assert.equal(cr.live, null);
   assert.equal(cr.channel, "Push notification");
+}
+// YouTube tanpa API key: halaman publik; halaman tanpa angka (persetujuan / diblokir) tidak mengubah apa-apa
+{
+  const { ytPage } = await import("./worker.js");
+  assert.deepEqual(ytPage('"viewCount":"5512" ... "publishDate":"2026-10-29T17:09:03-07:00" ... "isLiveContent":true ... "ownerChannelName":"IDX CHANNEL"'), { views: 5512, date: "2026-10-29", live: true, channel: "IDX CHANNEL" });
+  assert.deepEqual(ytPage("<html>consent</html>"), { views: null, date: "", live: false, channel: "" });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("<html>Sebelum melanjutkan ke YouTube</html>", { headers: { "content-type": "text/html" } });
+  try {
+    const id = (await call("/api/items", { ck: COPY, body: { kind: "konten", channel: "YouTube", title: "Ticker", date: "2026-10-30", status: "terbit", link: "https://www.youtube.com/watch?v=SzA5WiqLaVk", m_views: "5127" } })).j.id;
+    assert.deepEqual((await call("/api/yt/refresh", { ck: COPY, body: { ids: [id] } })).j, { updated: 0 });
+    assert.equal((await call("/api/items?id=" + id, { ck: COPY })).j.m_views, 5127);
+  } finally { globalThis.fetch = realFetch; }
 }
 // /api/linkmeta: judul, media, topik & kategori dari link (hanya isian kosong)
 {

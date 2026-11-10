@@ -23,7 +23,8 @@
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
 // - "/api/yt/refresh" (POST {ids}) -> views, suka, komentar video YouTube dari YouTube Data API (secret opsional YOUTUBE_API_KEY:
 //   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
-//   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key angka YouTube diisi manual.
+//   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key: views, siaran langsung & nama channel dibaca dari
+//   halaman publik video (bila YouTube menolak server, angka manual tetap).
 //   Laporan IG (dialog Laporan, disusun di browser): postingan IG KISI per bulan, kartu bergambar + suka, komentar, bagikan,
 //   views, simpan, repost (kolom m_reposts). Gambar & angka masuk lewat tombol bookmark "Angka IG ke Planner" atau isian manual.
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
@@ -702,15 +703,38 @@ async function linkMeta(env, me, id) {
   await env.DB.prepare("UPDATE items SET title=?, media=?, topic=?, sell=? WHERE id=?").bind(out.title, out.media, out.topic, out.sell, it.id).run();
   return { ok: true, ...out };
 }
+/** Angka video dari HTML halaman watch YouTube (tanpa API key). Halaman persetujuan / diblokir -> views null. */
+export function ytPage(html) {
+  const s = String(html || ""), g = (re) => (s.match(re) || [])[1] || "";
+  const v = g(/"viewCount":"(\d+)"/);
+  return { views: v ? +v : null, date: g(/"publishDate":"(\d{4}-\d{2}-\d{2})/), live: /"isLiveContent":true/.test(s), channel: unent(g(/"ownerChannelName":"([^"]*)"/)) };
+}
+// nama channel YouTube -> nama media di laporan
+const YT_CHANNEL = { "idx channel": "IDX Channel", "cnbc indonesia": "CNBC Indonesia", "kontan tv": "Kontan TV" };
+/** Tanpa YOUTUBE_API_KEY: baca halaman publik tiap video (paling banyak 5 bersamaan); gagal / tanpa angka = dilewati diam-diam. */
+async function ytFromPages(env, rows) {
+  const now = new Date().toISOString(), q = [];
+  for (let k = 0; k < rows.length; k += 5) await Promise.all(rows.slice(k, k + 5).map(async (x) => {
+    try {
+      const r = await fetch(`https://www.youtube.com/watch?v=${x.v}`, { headers: { "User-Agent": UA_WEB, "Accept-Language": "id" }, signal: AbortSignal.timeout(10000) });
+      const body = r.ok ? await readCapped(r, 3e6) : null, p = body ? ytPage(new TextDecoder().decode(body)) : null;
+      if (!p || p.views == null) return;
+      const media = p.channel ? YT_CHANNEL[p.channel.toLowerCase()] || p.channel : null;
+      q.push(env.DB.prepare("UPDATE items SET m_views=?, m_src='ytpage', m_at=?, live=?, media=COALESCE(NULLIF(media, ''), ?) WHERE id=?").bind(p.views, now, p.live ? 1 : 0, media, x.id));
+    } catch { /* YouTube menolak server: angka manual tetap */ }
+  }));
+  if (q.length) await env.DB.batch(q);
+  return { updated: q.length };
+}
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
 async function ytRefresh(env, ids) {
   await ensure(env);
-  if (!env.YOUTUBE_API_KEY) return { updated: 0, skipped: "no-key" };
   const L = [...new Set((Array.isArray(ids) ? ids : []).map(String))].slice(0, 50);
   if (!L.length) return { updated: 0 };
   const rows = (await env.DB.prepare(`SELECT id, link FROM items WHERE id IN (${L.map(() => "?").join(",")})`).bind(...L).all()).results
     .map((r) => ({ id: r.id, v: ytId(r.link) })).filter((r) => r.v);
   if (!rows.length) return { updated: 0 };
+  if (!env.YOUTUBE_API_KEY) return ytFromPages(env, rows);
   const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${[...new Set(rows.map((x) => x.v))].join(",")}&key=${encodeURIComponent(env.YOUTUBE_API_KEY)}`, { signal: AbortSignal.timeout(10000) }).catch(() => null);
   const j = r && r.ok ? await r.json().catch(() => null) : null;
   if (!j) return { updated: 0, error: "YouTube tidak menjawab (cek YOUTUBE_API_KEY / kuota)." };
