@@ -215,4 +215,35 @@ assert.deepEqual((await r.json()).segments, [{ start: 0.2, end: 1.5, text: "Halo
 assert.equal((await call("/api/transcribe", { cookie: user, json: { audio: "UklGRg==" } })).status, 429, "batas COPY_STT_DAILY = 1");
 assert.ok(aiCalls.includes("@cf/openai/whisper-large-v3-turbo"));
 
+/* ---------- banner What's New (assets/banner.js) ---------- */
+const B = await import("./assets/banner.js");
+assert.equal(B.combos().length, 11);
+assert.deepEqual(B.combos(2).map((c) => c.side), ["kanan", "kiri"]);
+assert.equal(B.combos(3).length, 3, "kipas kanan/kiri + tengah");
+const kn = B.layoutFor("dua", "kanan"), kr = B.layoutFor("dua", "kiri");
+assert.deepEqual(kr.phones.map((p) => p.x), [1920 - 1060 - 440, 1920 - 1400 - 440], "dicerminkan, urutan gambar tetap");
+assert.deepEqual(kn.phones.map((p) => p.no), [1, 2]);
+assert.deepEqual(kr.phones.map((p) => p.no), [2, 1], "nomor = urutan kiri→kanan");
+assert.equal(B.layoutFor("miring", "kiri").phones[0].rot, 8);
+assert.equal(B.layoutFor("tengah", "tengah").desc, false);
+// teks tidak menabrak HP (bbox setelah diputar) dan tetap di dalam banner, semua kombinasi
+const bbox = (p) => { const r = Math.abs(p.rot) * Math.PI / 180, hw = (p.w * Math.cos(r) + p.h * Math.sin(r)) / 2, cx = p.x + p.w / 2; return [cx - hw, cx + hw]; };
+for (const c of B.combos()) {
+  const L = B.layoutFor(c.id, c.side);
+  assert.ok(L.text.x >= 0 && L.text.x + L.text.w <= 1920, c.id + c.side);
+  if (c.side === "kanan") assert.ok(L.text.x + L.text.w < Math.min(...L.phones.map((p) => bbox(p)[0])), "teks vs HP " + c.id);
+  if (c.side === "kiri") assert.ok(L.text.x > Math.max(...L.phones.map((p) => bbox(p)[1])), "teks vs HP " + c.id);
+}
+assert.deepEqual(B.coverTop(1080, 2340, 480, 1030), { sx: 0, sy: 0, sw: 1080, sh: 1080 * 1030 / 480 }, "screenshot lebih panjang: bawah dibuang");
+const wide = B.coverTop(2000, 1000, 480, 1030);
+assert.equal(wide.sy, 0); assert.equal(wide.sh, 1000); assert.ok(Math.abs(wide.sx - (2000 - wide.sw) / 2) < 1e-9, "landscape: dipotong rata kiri-kanan");
+const ms = (t, s) => t.length * s * 0.55;
+const f1 = B.fitText(ms, "Auto-invest Reksa Dana", { w: 1000, size: 88, minSize: 53, maxLines: 3, lh: 1.05 });
+assert.equal(f1.overflow, false); assert.equal(f1.size, 88);
+const f2 = B.fitText(ms, "x".repeat(150), { w: 1000, size: 36, minSize: 22, maxLines: 3, lh: 1.4 });
+assert.ok(f2.lines.every((l) => ms(l, f2.size) <= 1000), "kata panjang dipecah, tidak melebihi lebar");
+assert.equal(B.fitText(ms, "kata ".repeat(200), { w: 300, size: 36, minSize: 22, maxLines: 3, lh: 1.4 }).overflow, true);
+assert.equal(B.fileName("Auto-invest Reksa Dana!"), "whats-new-auto-invest-reksa-dana.png");
+assert.equal(B.fileName("  "), "whats-new-banner.png");
+
 console.log("semua cek lolos");

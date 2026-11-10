@@ -5,6 +5,8 @@
   "name": "copy-studio",
   "main": "worker.js",
   "compatibility_date": "2026-09-22",
+  // file publik tanpa login: banner.js (banner What's New) dan logo iKISI resmi di brand/
+  "assets": { "directory": "./assets" },
   "ai": { "binding": "AI" },
   "d1_databases": [{ "binding": "DB", "database_name": "copy-db", "database_id": "auto" }],
   // data produk untuk Paket Produk (hanya dibaca): Fund Insight /api/funds, Bond Insight /data/bonds.json, ETF Insight /api/etf
