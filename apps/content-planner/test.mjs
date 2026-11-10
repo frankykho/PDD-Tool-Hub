@@ -1004,6 +1004,15 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: "x" } } })).status, 400);
   assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: -1 } } })).status, 400);
 }
+// form kegiatan: isian Laporan Copywriter, push notification, judul/media otomatis setelah simpan
+{
+  const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8"), { default: EN } = await import("./i18n.js");
+  for (const id of ["gCw", "iTopic", "iSell", "iMedia", "iPress"]) assert.match(pg, new RegExp(`id="${id}"`), id);
+  assert.match(pg, /topic:\$\("iTopic"\)\.value,sell:\$\("iSell"\)\.value,media:\$\("iMedia"\)\.value,press:\$\("iPress"\)\.checked/);
+  assert.match(pg, /api\("\/api\/linkmeta",\{id\}\)/); assert.match(pg, /"Push notification "\+fmtShort/);
+  const dict = EN.dict || EN;
+  for (const k of ["Topik", "Kategori", "Investasi Saham", "Liputan press release", "Media / mitra", "Push notification"]) assert.ok(JSON.stringify(dict).includes(JSON.stringify(k) + ":"), "terjemahan " + k);
+}
 // mitra kolaborasi IG dari bookmark: mengisi media yang masih kosong
 {
   let r = await call("/api/metrics/import", { ck: COPY, body: { create: true, rows: [{ link: "https://www.instagram.com/reel/COLAB1/", date: "2026-10-19", title: "KISI Challenge resmi dimulai", type: "reel", m_likes: "152", media: "kuliahsaham" }] } });

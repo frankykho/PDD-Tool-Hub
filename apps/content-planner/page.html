@@ -289,6 +289,13 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
         <input class="f" id="iChO" maxlength="40" placeholder="Tulis sendiri, mis. Meeting" aria-label="Jenis lainnya (tulis sendiri)" style="margin-top:6px" hidden></div>
       <div class="fld"><label for="iSt" id="lSt">Status</label><select class="f" id="iSt"></select></div>
     </div>
+    <!-- Laporan Copywriter: kosong = ditebak otomatis dari judul / link setelah disimpan -->
+    <div class="grid2" id="gCw" hidden>
+      <div class="fld"><label for="iTopic">Topik</label><select class="f" id="iTopic"><option value="">Otomatis</option><option value="branding">Branding</option><option value="event">Event</option><option value="saham">Investasi Saham</option></select></div>
+      <div class="fld"><label for="iSell">Kategori</label><select class="f" id="iSell"><option value="">Otomatis</option><option value="hard">Hard Selling</option><option value="soft">Soft Selling</option></select></div>
+      <div class="fld"><label for="iMedia">Media / mitra</label><input class="f" id="iMedia" maxlength="80" placeholder="Otomatis dari link, mis. Pasardana.id"></div>
+      <div class="fld"><label class="chk" style="margin-top:22px"><input type="checkbox" id="iPress"> Liputan press release</label></div>
+    </div>
     <div class="fld" id="gCab"><label for="iBr">Cabang / galeri investasi</label><select class="f" id="iBr"></select>
       <input class="f" id="iBrO" maxlength="60" placeholder="Nama cabang / galeri" aria-label="Nama cabang / galeri" hidden></div>
     <div class="grp" id="gGal">
@@ -949,7 +956,7 @@ let editing=null,fKind="konten",HUBAPPS=[];
 function setKind(k){
   fKind=k;const L=LAB[k],cfg=K[k];
   [...$("iKind").children].forEach(b=>b.classList.toggle("on",b.dataset.k===k));
-  $("lTitle").textContent=L.title;$("iTitle").placeholder=L.ph;$("lDate").textContent=L.date;$("lCh").textContent=L.ch;$("lLink").textContent=L.link;$("lNote").textContent=L.note;$("lRes").textContent=L.res;
+  $("lTitle").textContent=L.title;$("iTitle").placeholder=L.ph;$("iTitle").required=true;$("lDate").textContent=L.date;$("lCh").textContent=L.ch;$("lLink").textContent=L.link;$("lNote").textContent=L.note;$("lRes").textContent=L.res;
   $("kHint").textContent=HINT[k]||"";
   const ch=$("iCh").value,st=$("iSt").value;
   $("iCh").innerHTML=opts(cfg.channels);$("iCh").value=cfg.channels.includes(ch)?ch:cfg.channels[0];chOther();
@@ -962,7 +969,7 @@ function setKind(k){
   // Ops ETF: tanpa kaitan program, permintaan visual, dan angka hasil (yang dilaporkan fee & nominal)
   const pr=k==="program",ak=k==="aktivitas",op=k==="ops",pd=k==="produk",rg=!!PL.me.reg||gl||op||pd;$("gProg").hidden=!pr&&!ak;$("gOps").hidden=!op;$("gProd").hidden=!pd;
   ["iPartner","iGoal","iTarget"].forEach(id=>$(id).closest(".fld").hidden=ak);$("gProg").querySelector(".lbl").textContent=ak?"Periode":"Detail program";$("gBiz").hidden=!pr&&!cb;$("gTask").hidden=!pr;$("gLink").hidden=pr||rg;$("lNeed").hidden=pr||ak||rg;$("gDes").hidden=pr||ak||rg||!$("iNeed").checked;
-  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gRes").hidden=k==="konten"||gl||ak||op||pd;
+  const cp=(PL.copyKinds||[]).includes(k);$("gCopy").hidden=!cp;$("gCw").hidden=!cp;$("gRes").hidden=k==="konten"||gl||ak||op||pd;
   showMet();renderChk();
 }
 // cabang: pilihan dari daftar Tool Hub; daftar belum diisi -> ketik sendiri. Cabang lama yang sudah dihapus dari daftar tetap terpilih.
@@ -1015,6 +1022,11 @@ const showMet=()=>{$("gMet").hidden=!(PL.copyKinds||[]).includes(fKind)||($("iSt
   // email blast: nama template bisa diketik (tercatat otomatis kalau lewat Email Studio)
   $("mTplF").hidden=fKind!=="artikel"||$("iCh").value!=="Email / Newsletter"};
 $("iCh").addEventListener("change",showMet);
+// push notification: cukup tanggal + gambar (judul otomatis, langsung Terbit supaya kotak gambar tampil)
+const isPush=()=>fKind==="artikel"&&$("iCh").value==="Push notification";
+const pushMode=()=>{const p=isPush();$("iTitle").required=!p;$("iTitle").placeholder=p?"Boleh kosong (otomatis: Push notification + tanggal)":LAB[fKind].ph;
+  if(p&&!editing&&$("iSt").value!=="terbit"){$("iSt").value="terbit";showMet()}};
+$("iCh").addEventListener("change",pushMode);
 /* ---------- caption: cek kepatuhan & persetujuan ---------- */
 const when=s=>s?new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"";
 // kanal -> aturan panjang di shared/compliance.js
@@ -1085,6 +1097,8 @@ async function imgFromLink(id,link){
 function afterSave(id,link){
   if(!id||!linkImgOk(link))return;
   if(isYt(link))api("/api/yt/refresh",{ids:[id]}).then(x=>{if(x&&x.updated)loadCal()}).catch(()=>{});
+  // judul, nama media, topik & kategori dari halaman link (hanya yang masih kosong)
+  else api("/api/linkmeta",{id}).then(x=>{if(x&&x.ok)loadCal()}).catch(()=>{});
   api("/api/imgs?ids="+encodeURIComponent(id)).then(m=>m[id]?null:imgFromLink(id,link)).catch(()=>{});
 }
 $("mImgLink").onclick=async()=>{
@@ -1146,11 +1160,12 @@ function openForm(it,date,preset){
   $("iProg").innerHTML='<option value="">Bukan bagian program</option>'+act.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");$("iProg").value=pid;
   const ro=kindOf(it||{kind:fKind})==="program"&&it&&!PL.me.assign,locked=!!it&&!canEditItem(it);
   $("iSave").hidden=!!(ro||locked);
+  $("iTopic").value=v("topic");$("iSell").value=v("sell");$("iMedia").value=v("media");$("iPress").checked=!!(it&&it.press);
   $("iCopy").value=v("copy");$("iAppr").value=it?(v("approver")||nameOf(it.approver_email||"")):"";
   MK.forEach(([id,k])=>$(id).value=it&&it[k]!=null?it[k]:"");
   $("iDecNote").value="";$("iDecChk").checked=false;$("iDecMsg").textContent="";$("iComTx").value="";$("lkNote").textContent="Simpan kegiatan dulu untuk membuat link pelacak.";
   if(preset&&!it){$("iTitle").value=preset.title||"";$("iNote").value=preset.note||""}
-  renderTaskBox();showMet();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadImg();loadGalLog();
+  renderTaskBox();showMet();pushMode();renderChk();renderAp();renderMInfo();loadComs();loadLinks();loadImg();loadGalLog();
   $("iMeta").textContent=(it?`Dibuat ${it.created_by||"?"} (${when(it.created_at)})${it.updated_by&&it.updated_at!==it.created_at?` · diubah ${it.updated_by} (${when(it.updated_at)})`:""}`:"")+(ro?" · Program hanya bisa diubah oleh Partnership atau admin.":locked?" · Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.":"");
   $("iDel").hidden=!(it&&(PL.me.adm||(it.created_email?it.created_email===PL.me.email:it.created_by===PL.me.name)));
   showErr("dlgErr");$("dlg").showModal();$("iTitle").focus();
@@ -1194,7 +1209,9 @@ $("tList").addEventListener("click",async e=>{
   try{await api("/api/tasks/delete",{id:t.id});await renderTaskBox()}catch(err){showErr("dlgErr",err)}
 });
 // base: versi yang dibuka (updated_at); server menolak (409) kalau kegiatan sudah diubah orang lain sejak itu
-const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":undefined,kind:fKind,title:$("iTitle").value,date:$("iDate").value,channel:chVal(),status:$("iSt").value,
+const formData=()=>({id:editing&&editing.id,base:editing?editing.updated_at||"":undefined,kind:fKind,
+  title:$("iTitle").value.trim()||(isPush()&&$("iDate").value?"Push notification "+fmtShort($("iDate").value):""),
+  topic:$("iTopic").value,sell:$("iSell").value,media:$("iMedia").value,press:$("iPress").checked,date:$("iDate").value,channel:chVal(),status:$("iSt").value,
   time:$("iTime").value,role:$("iRole").value,place:$("iPlace").value,audience:$("iAud").value,branch:fKind==="cabang"?brVal():"",
   owner:$("iOw").value,owner_email:emailOf($("iOw").value),link:$("iLink").value,note:$("iNote").value,result_num:$("iRes").value,result_note:$("iResN").value,
   d_need:$("iNeed").checked,d_name:$("iDes").value,d_who:emailOf($("iDes").value),d_due:$("iDue").value,d_status:$("iDst").value,d_brief:$("iBrief").value,d_link:$("iDlink").value,
@@ -1222,6 +1239,8 @@ async function saveForm(force){
     if(fKind==="program")await loadProgs();
     // program baru: form tetap terbuka supaya tugas bisa langsung dibagi
     if(wasNew&&fKind==="program"&&PL.me.assign){editing=await api("/api/items?id="+encodeURIComponent(r.id));$("dlgTitle").textContent="Ubah kegiatan";$("iDel").hidden=false;await renderTaskBox();$("tTitle").focus();}
+    // push notification baru: tetap terbuka supaya gambarnya langsung diunggah
+    else if(wasNew&&isPush()){editing=await api("/api/items?id="+encodeURIComponent(r.id));$("dlgTitle").textContent="Ubah kegiatan";$("iDel").hidden=false;$("iTitle").value=editing.title;showMet();await loadImg();$("mImgMsg").textContent="Tersimpan. Pilih atau tempel gambar push notification."}
     else $("dlg").close();
     const d=$("iDate").value;if(view!=="design"&&view!=="tasks"&&!(d>=range.from&&d<=range.to))cur=d.slice(0,8)+"01";
     await loadCal();
