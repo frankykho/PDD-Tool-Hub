@@ -246,4 +246,16 @@ assert.equal(B.fitText(ms, "kata ".repeat(200), { w: 300, size: 36, minSize: 22,
 assert.equal(B.fileName("Auto-invest Reksa Dana!"), "whats-new-auto-invest-reksa-dana.png");
 assert.equal(B.fileName("  "), "whats-new-banner.png");
 
+// draw(): ctx tiruan yang mencatat panggilan
+const fakeCtx = () => { const log = []; const c = new Proxy({ log, measureText: (t) => ({ width: t.length * 20 }), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, { get: (o, k) => k in o ? o[k] : (...a) => log.push([k, ...a]), set: (o, k, v) => (log.push(["set:" + k, v]), true) }); return c; };
+const shot = { naturalWidth: 1080, naturalHeight: 2340 }, logoImg = { naturalWidth: 1200, naturalHeight: 390 };
+let fcx = fakeCtx(), r1 = B.draw(fcx, { id: "kipas", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot, null], tag: "FITUR BARU", title: "Auto-invest", desc: "Investasi rutin." });
+assert.deepEqual(r1.overflow, []);
+assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 2, "dua screenshot digambar, slot kosong tidak");
+assert.equal(fcx.log.filter((l) => l[0] === "clip").length, 3, "tiap layar HP di-clip");
+assert.ok(fcx.log.some((l) => l[0] === "fillText" && l[1] === "Investasi rutin."));
+fcx = fakeCtx(); B.draw(fcx, { id: "tengah", side: "tengah", theme: "terang", logo: logoImg, shots: [], tag: "FITUR BARU", title: "Judul", desc: "Tidak tampil" });
+assert.ok(!fcx.log.some((l) => l[0] === "fillText" && l[1] === "Tidak tampil"), "susunan tengah tanpa penjelasan");
+assert.deepEqual(B.draw(fakeCtx(), { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [], tag: "FITUR BARU", title: "Judul ".repeat(40), desc: "" }).overflow, ["title"]);
+
 console.log("semua cek lolos");

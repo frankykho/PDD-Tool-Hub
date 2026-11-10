@@ -71,3 +71,81 @@ export function fileName(title) {
   const slug = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
   return "whats-new-" + (slug || "banner") + ".png";
 }
+
+export const THEMES = {
+  terang: { bg: "linear", stops: ["#ffffff", "#e8f4ee"], logo: "color", title: "#136F4A", desc: "#3a4a42", tagBg: "#136F4A", tagFg: "#ffffff", shadow: "rgba(0,0,0,.3)", rim: null },
+  gelap: { bg: "radial", stops: ["#1a6b48", "#0d3b28", "#08261a"], logo: "white", title: "#ffffff", desc: "rgba(255,255,255,.88)", tagBg: "#F5A623", tagFg: "#17251d", shadow: "rgba(0,0,0,.55)", rim: "rgba(255,255,255,.12)" },
+};
+const FONT = "Inter, Arial, sans-serif";
+const font = (w, s) => `${w} ${s}px ${FONT}`;
+
+function drawPhone(ctx, p, img, T) {
+  ctx.save();
+  ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+  ctx.rotate((p.rot * Math.PI) / 180);
+  const x = -p.w / 2, y = -p.h / 2;
+  ctx.shadowColor = T.shadow; ctx.shadowBlur = 80; ctx.shadowOffsetY = 40;
+  ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(x, y, p.w, p.h, 64); ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  if (T.rim) { ctx.strokeStyle = T.rim; ctx.lineWidth = 2; ctx.stroke(); }
+  const sx = x + 20, sy = y + 20, sw = p.w - 40, sh = p.h - 40;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(sx, sy, sw, sh, 46); ctx.clip();
+  if (img) { const c = coverTop(img.naturalWidth || img.width, img.naturalHeight || img.height, sw, sh); ctx.drawImage(img, c.sx, c.sy, c.sw, c.sh, sx, sy, sw, sh); }
+  else { ctx.fillStyle = "#d9dedb"; ctx.fillRect(sx, sy, sw, sh); }
+  ctx.restore();
+  ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(-55, sy + 12, 110, 30, 15); ctx.fill();
+  ctx.restore();
+}
+
+/** Gambar banner: latar -> logo -> label -> judul -> penjelasan -> HP. Hasil: kolom teks yang tidak muat. */
+export function draw(ctx, o) {
+  const L = layoutFor(o.id, o.side), T = THEMES[o.theme] || THEMES.terang, overflow = [], mid = L.text.align === "center";
+  const measureWith = (w) => (t, s) => { ctx.font = font(w, s); return ctx.measureText(t).width; };
+  ctx.save();
+  ctx.textBaseline = "top";
+  // latar
+  let g;
+  if (T.bg === "linear") { g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, T.stops[0]); g.addColorStop(1, T.stops[1]); }
+  else {
+    const cx = L.glow[0] * W, cy = L.glow[1] * H, r = Math.max(Math.hypot(cx, cy), Math.hypot(W - cx, cy), Math.hypot(cx, H - cy), Math.hypot(W - cx, H - cy));
+    g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, T.stops[0]); g.addColorStop(0.55, T.stops[1]); g.addColorStop(1, T.stops[2]);
+  }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // logo
+  if (o.logo) {
+    const lg = L.logo, w = (lg.h * (o.logo.naturalWidth || o.logo.width)) / (o.logo.naturalHeight || o.logo.height);
+    ctx.drawImage(o.logo, lg.align === "left" ? lg.x : lg.align === "right" ? lg.x - w : lg.x - w / 2, lg.y, w, lg.h);
+  }
+  const ax = mid ? L.text.x + L.text.w / 2 : L.text.x;
+  ctx.textAlign = mid ? "center" : "left";
+  let y = L.text.y;
+  // label (pil)
+  const tag = String(o.tag || "").trim();
+  if (tag) {
+    const f = fitText(measureWith(800), tag, { w: L.text.w - 60, size: 30, minSize: 18, maxLines: 1 });
+    if (f.overflow) overflow.push("tag");
+    ctx.font = font(800, f.size);
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "3px";
+    const tw = ctx.measureText(f.lines[0]).width + 60, th = 64, tx = mid ? ax - tw / 2 : ax;
+    ctx.fillStyle = T.tagBg; ctx.beginPath(); ctx.roundRect(tx, y, tw, th, th / 2); ctx.fill();
+    ctx.fillStyle = T.tagFg; ctx.fillText(f.lines[0], mid ? ax : ax + 30, y + (th - f.size) / 2);
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+    y += th + (mid ? 20 : 34);
+  }
+  // judul & penjelasan
+  const block = (text, key, weight, size, lh, maxLines, color) => {
+    const f = fitText(measureWith(weight), text, { w: L.text.w, size, minSize: Math.round(size * 0.6), maxLines });
+    if (f.overflow) overflow.push(key);
+    ctx.font = font(weight, f.size); ctx.fillStyle = color;
+    f.lines.forEach((l, i) => ctx.fillText(l, ax, y + i * f.size * lh));
+    y += f.lines.length * f.size * lh;
+  };
+  const title = String(o.title || "").trim(), desc = String(o.desc || "").trim();
+  if (title) block(title, "title", 800, mid ? 72 : 88, 1.05, mid ? 1 : 3, T.title);
+  if (L.desc && desc) { y += 28; block(desc, "desc", 400, 36, 1.4, 3, T.desc); }
+  // HP
+  for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
+  ctx.restore();
+  return { overflow };
+}
