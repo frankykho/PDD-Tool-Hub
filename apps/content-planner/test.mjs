@@ -386,7 +386,10 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
 { // bookmarklet: skripnya sah, ikut mengambil gambar (±480px) & repost
   const bm = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8").match(/function plBookmark\(W\)\{[\s\S]*?\n\}\n/)[0];
   new Function("return " + bm);
-  assert.match(bm, /image_versions2/); assert.match(bm, /repost_count/); assert.match(bm, /mx=480/);
+  assert.match(bm, /image_versions2/); assert.match(bm, /repost_count/); assert.match(bm, /mx=320/, "gambar ±320px (kuota D1)");
+  // Laporan SMS: followers dari profil, satu bulan penuh dari feed (berhenti setelah awal bulan), caption utuh
+  assert.match(bm, /web_profile_info/); assert.match(bm, /pl:"fol"/); assert.match(bm, /taken_at>=fromTs/); assert.match(bm, /o\.caption=/);
+  assert.match(sh, /m\.pl==="fol"/); assert.match(sh, /\/api\/sm\/followers/); assert.match(sh, /pl:"ready",from:/); assert.match(sh, /Bulan lalu/);
   // ?__a=1 sudah tidak melayani data: daftar postingan profil & info per postingan dicoba lebih dulu
   assert.match(bm, /\/api\/v1\/feed\/user\//); assert.match(bm, /\/api\/v1\/media\//);
   assert.match(sh, /Instagram menjawab/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");

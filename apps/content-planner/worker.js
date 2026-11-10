@@ -1606,20 +1606,28 @@ const IG_SYNC = `<!doctype html><html lang="id"><head><meta charset="utf-8"><met
 <style>body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#edf3ef;color:#17251d}.w{padding:18px}h1{font-size:17px;margin:0 0 6px}.prog{height:8px;border-radius:8px;background:#dfe8e2;overflow:hidden;margin:8px 0 12px}.prog i{display:block;height:100%;width:0;background:#1f7a4d}
 table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden}th,td{padding:5px 7px;border-bottom:1px solid #dfe8e2;text-align:left}td.n,th.n{text-align:right}.box{max-height:46vh;overflow:auto;margin-bottom:12px}
 button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 14px;background:#1f7a4d;color:#fff;cursor:pointer}button:disabled{opacity:.5}label{display:flex;gap:8px;align-items:center;margin:0 0 12px;font-size:13px}.m{color:#5b6d62;font-size:12.5px}</style></head>
-<body><div class="w"><h1>📈 Angka Instagram → Content Planner</h1><p class="m" id="st">Menunggu data dari tab Instagram…</p><div class="prog"><i id="bar"></i></div>
+<body><div class="w"><h1>📈 Angka Instagram → Content Planner</h1><p class="m" id="st">Menunggu data dari tab Instagram…</p>
+<div id="mon" hidden style="margin:4px 0 10px"><button type="button" data-m="-1">Bulan lalu</button> <button type="button" data-m="0">Bulan ini</button></div><p class="m" id="fol"></p><div class="prog"><i id="bar"></i></div>
 <div class="box"><table><thead><tr><th style="width:40px"></th><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th><th class="n">Repost</th></tr></thead><tbody id="rows"></tbody></table></div>
 <label><input type="checkbox" id="cr"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button id="save" disabled>Simpan ke Planner</button><p class="m" id="msg"></p>
 <p class="m">Angka publik (suka, komentar, views, repost) dan gambar postingan. Jangkauan, simpan, dan bagikan diisi dari CSV Meta Business Suite atau manual.</p></div>
-<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],why="",n=+new URLSearchParams(location.search).get("n")||0,got=0;
+<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],why="",n=+new URLSearchParams(location.search).get("n")||0,got=0,fol=null,mm=new URLSearchParams(location.search).get("m")==="1";
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 if(!window.opener){$("st").textContent="Buka jendela ini lewat tombol bookmark di halaman Instagram.";return}
 addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?instagram\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
 if(m.pl==="row"&&m.row){got++;if(!m.ok&&m.row.err)why=String(m.row.err).slice(0,80);if(m.row.img&&!/^data:image\\/(jpeg|png|webp);base64,[A-Za-z0-9+\\/=]+$/.test(m.row.img))m.row.img="";if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
 $("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(m.row.img)+"' alt='' width='36' height='36' style='object-fit:cover;border-radius:6px;display:block'>":"")+"</td><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td><td class=n>"+esc(m.row.m_likes)+"</td><td class=n>"+esc(m.row.m_comments)+"</td><td class=n>"+esc(m.row.m_views)+"</td><td class=n>"+esc(m.row.m_reposts)+"</td></tr>")}
-if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?"Instagram menjawab: "+why+"; pastikan sudah login Instagram":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length}});
-window.opener.postMessage({pl:"ready"},"*");
+if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?"Instagram menjawab: "+why+"; pastikan sudah login Instagram":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length&&fol===null}
+if(m.pl==="n")n=+m.n||0;
+if(m.pl==="fol"&&typeof m.ig==="number"&&m.ig>=0){fol=Math.round(m.ig);$("fol").textContent="Followers: "+fol.toLocaleString("en-US")+" (dicatat untuk bulan ini)"}});
+// dari profil (Laporan Social Media Specialist): pilih bulan dulu, lalu semua postingan bulan itu diambil
+if(mm){$("mon").hidden=false;$("st").textContent="Pilih bulan postingan yang diambil.";[].forEach.call($("mon").querySelectorAll("button"),function(b){b.onclick=function(){
+  var d=new Date(Date.now()+7*3600e3),y=d.getUTCFullYear(),k=d.getUTCMonth()+(+b.dataset.m),f=new Date(Date.UTC(y,k,1)),t=new Date(Date.UTC(y,k+1,0));
+  $("mon").hidden=true;$("st").textContent="Membaca postingan…";window.opener.postMessage({pl:"ready",from:f.toISOString().slice(0,10),to:t.toISOString().slice(0,10)},"*")}})}
+else window.opener.postMessage({pl:"ready"},"*");
+var post=function(u,b){return fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);return j})};
 $("save").onclick=function(){$("save").disabled=true;$("msg").textContent="Menyimpan…";
-fetch("/api/metrics/import",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({rows:rows,create:$("cr").checked})}).then(function(r){return r.json()}).then(function(j){
+(fol!==null?post("/api/sm/followers",{ig:fol}):Promise.resolve()).then(function(){return rows.length?post("/api/metrics/import",{rows:rows,create:$("cr").checked}):{matched:0,created:0,unmatched:0}}).then(function(j){
 if(j.error)throw new Error(j.error);$("msg").textContent="✓ "+j.matched+" konten diperbarui"+(j.created?", "+j.created+" kegiatan baru":"")+(j.unmatched?". "+j.unmatched+" postingan belum ada di kalender (centang kotak di atas untuk menambahkannya).":".")}).catch(function(e){$("msg").textContent="✗ "+e.message;$("save").disabled=false})}})();</script></body></html>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 /** Glosarium tim dari Copy Studio (service binding COPY) untuk cek caption; kosong kalau Copy Studio belum ada. */

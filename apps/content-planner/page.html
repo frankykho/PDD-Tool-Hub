@@ -783,35 +783,47 @@ function plBookmark(W){
   // nama akun dari alamat profil (instagram.com/<akun>/ atau /<akun>/reels/); kosong di halaman satu postingan
   var user=one?"":((L.pathname.match(/^\/([\w.]+)\/?/)||[])[1]||"");
   list=list.slice(0,60);
-  if(!list.length){alert("Belum ada postingan yang tampil. Gulir sedikit sampai postingan terlihat, lalu klik tombol ini lagi.");return}
-  var w=window.open(W+"/ig-sync?n="+list.length,"planner_ig","width=540,height=760");
+  // di profil: jendela meminta bulan (Laporan SMS), lalu semua postingan bulan itu diambil dari feed + followers akun
+  if(!list.length&&!user){alert("Belum ada postingan yang tampil. Gulir sedikit sampai postingan terlihat, lalu klik tombol ini lagi.");return}
+  var w=window.open(W+"/ig-sync?n="+list.length+(user?"&m=1":""),"planner_ig","width=540,height=760");
   if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk instagram.com, lalu klik tombol lagi.");return}
   var go=false;
-  // gambar postingan ±480px dijadikan data URL di tab Instagram (pola Content Insight; link CDN Instagram cepat kedaluwarsa)
-  function jpg(el,w0,h0){var mx=480,s=Math.min(1,mx/w0),cv=d.createElement("canvas");cv.width=Math.round(w0*s);cv.height=Math.round(h0*s);cv.getContext("2d").drawImage(el,0,0,cv.width,cv.height);
+  // gambar postingan ±320px (hemat kuota D1) dijadikan data URL di tab Instagram (pola Content Insight; link CDN Instagram cepat kedaluwarsa)
+  function jpg(el,w0,h0){var mx=320,s=Math.min(1,mx/w0),cv=d.createElement("canvas");cv.width=Math.round(w0*s);cv.height=Math.round(h0*s);cv.getContext("2d").drawImage(el,0,0,cv.width,cv.height);
     var u=cv.toDataURL("image/webp",0.75);if(u.indexOf("data:image/webp")!==0)u=cv.toDataURL("image/jpeg",0.75);return u.length<900000?u:""}
   function grab(url){if(!url)return Promise.resolve("");return fetch(url,{credentials:"omit"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap).then(function(b){return jpg(b,b.width,b.height)}).catch(function(){return ""})}
-  // kandidat terkecil yang lebarnya >= 480, kalau tidak ada yang terbesar
-  function pick(c){var b=null;(c||[]).forEach(function(x){if(!x||!x.url)return;if(x.width>=480?(!b||b.width<480||x.width<b.width):(!b||(b.width<480&&x.width>b.width)))b=x});return b?b.url:""}
-  window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source)});
+  // kandidat terkecil yang lebarnya >= 320, kalau tidak ada yang terbesar
+  function pick(c){var b=null;(c||[]).forEach(function(x){if(!x||!x.url)return;if(x.width>=320?(!b||b.width<320||x.width<b.width):(!b||(b.width<320&&x.width>b.width)))b=x});return b?b.url:""}
+  window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source,e.data.from||"",e.data.to||"")});
   // data postingan dari API web Instagram (sesi login di tab ini). Urutan: daftar postingan profil (sekali minta banyak),
   // info per postingan (id dari kode link), lalu ?__a=1 lama. why = jawaban terakhir Instagram kalau semuanya gagal.
   var why="",feed={},H={credentials:"include",headers:{"x-ig-app-id":"936619743392459","x-requested-with":"XMLHttpRequest"}};
   function J(u){return fetch(u,H).then(function(r){why="HTTP "+r.status+" "+(r.headers.get("content-type")||"").split(";")[0];return r.ok?r.json():null}).catch(function(e){why=String(e&&e.message||e);return null})}
-  function loadFeed(max,pg){if(!user||pg>8)return Promise.resolve();
+  // fromTs > 0: terus ke halaman berikutnya sampai melewati awal bulan (maks. 11 halaman x 33 postingan)
+  var order=[];
+  function loadFeed(max,pg,fromTs){if(!user||pg>10)return Promise.resolve();
     return J("/api/v1/feed/user/"+user+"/username/?count=33"+(max?"&max_id="+encodeURIComponent(max):"")).then(function(j){if(!j||!j.items)return;
-      j.items.forEach(function(it){if(it&&it.code)feed[it.code]=it});
-      if(j.more_available&&j.next_max_id&&list.some(function(x){return !feed[x.c]}))return loadFeed(j.next_max_id,pg+1)})}
+      j.items.forEach(function(it){if(it&&it.code&&!feed[it.code]){feed[it.code]=it;order.push(it.code)}});
+      var last=j.items[j.items.length-1],more=fromTs?!!(last&&last.taken_at>=fromTs):list.some(function(x){return !feed[x.c]});
+      if(j.more_available&&j.next_max_id&&more)return loadFeed(j.next_max_id,pg+1,fromTs)})}
+  // followers persis akun yang dibuka (bukan "37,8K" di layar)
+  function fol(){return J("/api/v1/users/web_profile_info/?username="+encodeURIComponent(user)).then(function(j){var u=j&&j.data&&j.data.user,n=u&&u.edge_followed_by&&u.edge_followed_by.count;return typeof n==="number"?n:null})}
   function mid(c){var A="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",n=BigInt(0);c.slice(0,11).split("").forEach(function(ch){n=n*BigInt(64)+BigInt(A.indexOf(ch))});return n.toString()}
   function info(x){if(feed[x.c])return Promise.resolve(feed[x.c]);
     return J("/api/v1/media/"+mid(x.c)+"/info/").then(function(j){return j&&j.items&&j.items[0]||J("/p/"+x.c+"/?__a=1&__d=dis").then(function(j){return j&&j.items&&j.items[0]||null})})}
-  function run(t){var i=0;loadFeed("",0).then(function next(){
+  function run(t,from,to){var i=0,fromTs=from?Date.parse(from+"T00:00:00+07:00")/1000:0,toTs=to?Date.parse(to+"T23:59:59+07:00")/1000:Infinity;
+    Promise.all([user&&from?fol():null,loadFeed("",0,fromTs)]).then(function(r){
+      if(r[0]!=null)t.postMessage({pl:"fol",ig:r[0]},W);
+      // pinned postingan lama bisa muncul paling atas: saring per tanggal, bukan berhenti di yang pertama
+      if(fromTs&&order.length)list=order.filter(function(c){var it=feed[c];return it.taken_at>=fromTs&&it.taken_at<=toTs}).map(function(c){var it=feed[c];return {k:it.product_type==="clips"?"reel":"p",c:c,img:""}}).slice(0,250);
+      t.postMessage({pl:"n",n:list.length},W);
+    }).then(function next(){
     if(i>=list.length){t.postMessage({pl:"done"},W);return}
     var x=list[i++],cached=!!feed[x.c];
     info(x).then(function(it){
       var o={link:"https://www.instagram.com/"+x.k+"/"+x.c+"/"},src=x.img||"";
       if(!it)o.err=why;
-      if(it){o.date=it.taken_at?new Date(it.taken_at*1000+7*3600e3).toISOString().slice(0,10):"";o.title=((it.caption&&it.caption.text)||"").split("\n")[0].slice(0,160);
+      if(it){o.date=it.taken_at?new Date(it.taken_at*1000+7*3600e3).toISOString().slice(0,10):"";o.caption=(it.caption&&it.caption.text)||"";o.title=o.caption.split("\n")[0].slice(0,160);
         o.type=it.media_type===8?"carousel":(it.media_type===2||it.product_type==="clips")?"reel":"foto";
         o.m_likes=it.like_count>=0?it.like_count:"";o.m_comments=it.comment_count!=null?it.comment_count:"";var v=it.play_count||it.ig_play_count||it.view_count;o.m_views=v!=null?v:"";
         var rp=it.repost_count!=null?it.repost_count:it.reshare_count;o.m_reposts=typeof rp==="number"&&rp>=0?rp:"";
