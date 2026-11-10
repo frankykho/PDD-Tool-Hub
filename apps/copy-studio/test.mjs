@@ -258,4 +258,10 @@ fcx = fakeCtx(); B.draw(fcx, { id: "tengah", side: "tengah", theme: "terang", lo
 assert.ok(!fcx.log.some((l) => l[0] === "fillText" && l[1] === "Tidak tampil"), "susunan tengah tanpa penjelasan");
 assert.deepEqual(B.draw(fakeCtx(), { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [], tag: "FITUR BARU", title: "Judul ".repeat(40), desc: "" }).overflow, ["title"]);
 
+// kontrol banner di tab What's New
+for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl"]) assert.ok(page.includes(`id="${id}"`), id);
+assert.ok(page.includes('import("/banner.js")'));
+assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
+assert.ok(page.includes('"cs_wnb"'));
+
 console.log("semua cek lolos");

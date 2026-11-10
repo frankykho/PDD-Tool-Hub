@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Copy Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;800&display=swap">
 <style>
 :root{
   --bg:#edf3ef;--card:#fff;--line:#dfe8e2;--t:#17251d;--t2:#5b6d62;--g:#1f7a4d;--g2:#e3f2e9;
@@ -210,6 +211,26 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       <div class="row"><button class="btn pri" id="wnGo" type="button">Buat What's New</button><span class="muted small">AI hanya memakai fakta dari isian; nama menu yang tidak disebut ditandai [ … ].</span></div>
     </div>
     <div class="card stack" id="wnOut"><div class="empty">Deskripsi singkat, deskripsi lengkap, dan manual muncul di sini. Semuanya bisa diedit sebelum disalin.</div></div>
+    <div class="card stack" style="grid-column:1/-1">
+      <div><h2>Banner What's New</h2><p class="muted small" style="margin:0">Banner 1920×1080 dengan mockup HP: upload screenshot fitur, isi teks, lalu unduh PNG. Screenshot hanya diproses di browser ini, tidak dikirim ke server.</p></div>
+      <div class="row">
+        <label>Jumlah HP<select id="wbN"><option value="1">1 HP</option><option value="2">2 HP</option><option value="3">3 HP</option></select></label>
+        <label class="grow">Susunan<select id="wbLay"></select></label>
+        <label>Latar<select id="wbTheme"><option value="terang">Terang</option><option value="gelap">Gelap</option></select></label>
+      </div>
+      <div class="row" id="wbShots">
+        <label class="grow">Screenshot HP 1<span class="fpick"><input type="file" id="wbS1" accept="image/*" class="fin"><span class="btn" aria-hidden="true">Pilih gambar</span><span class="muted small fname">Belum ada berkas dipilih</span></span></label>
+        <label class="grow">Screenshot HP 2<span class="fpick"><input type="file" id="wbS2" accept="image/*" class="fin"><span class="btn" aria-hidden="true">Pilih gambar</span><span class="muted small fname">Belum ada berkas dipilih</span></span></label>
+        <label class="grow">Screenshot HP 3<span class="fpick"><input type="file" id="wbS3" accept="image/*" class="fin"><span class="btn" aria-hidden="true">Pilih gambar</span><span class="muted small fname">Belum ada berkas dipilih</span></span></label>
+      </div>
+      <div class="row">
+        <label>Label<input type="text" id="wbTag" maxlength="24" value="FITUR BARU" translate="no" style="width:170px"></label>
+        <label class="grow">Judul fitur <span id="wbTitleB"></span><input type="text" id="wbTitle" maxlength="40" translate="no" placeholder="Mis. Auto-invest reksa dana"></label>
+      </div>
+      <label class="small muted" style="font-weight:600">Kalimat penjelasan (tidak tampil di susunan 3 HP tengah) <span id="wbDescB"></span><textarea id="wbDesc" maxlength="150" style="min-height:60px" translate="no"></textarea></label>
+      <div class="row"><button class="btn" id="wbFill" type="button">Ambil dari hasil What's New</button><button class="btn pri" id="wbDl" type="button">Unduh PNG</button><span class="small" id="wbWarn" role="status" style="color:var(--warn);font-weight:600"></span></div>
+      <canvas id="wbCanvas" width="1920" height="1080" role="img" aria-label="Pratinjau banner" style="width:100%;max-width:960px;height:auto;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.2)"></canvas>
+    </div>
   </section>
 
   <!-- ============ PAKET PRODUK ============ -->
@@ -366,8 +387,8 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       ["Tulis <b>Brief</b>: promo, produk, atau berita yang mau diumumkan (sertakan tanggal, angka, dan syaratnya).", "Isi <b>Tujuan</b> bila ada (mis. orang membuka halaman produk).", "Klik <b>Buat teks</b>: keluar 3 push notif dan 3 banner.", "Periksa label panjang tiap judul & isi, lalu <b>Salin</b> yang dipakai dan serahkan ke tim aplikasi."],
       ["Judul push maks. ±40 karakter supaya tidak terpotong di layar kunci.", "Promo wajib menyebut “S&K berlaku”.", "Hindari kata mendesak berlebihan (buruan, kesempatan terakhir)."]],
     wn: ["Menulis What's New untuk fitur baru di aplikasi: judul fitur, deskripsi singkat, deskripsi lengkap, manual langkah demi langkah, dan FAQ, lengkap dengan cek panjang & kepatuhan.",
-      ["Isi <b>Nama fitur</b> dan tempel <b>Catatan rilis / poin fitur</b> dari tim produk atau IT apa adanya.", "Bila ada, isi <b>Letak di aplikasi</b>, <b>Siapa yang bisa memakai</b>, dan <b>Langkah pemakaian</b> (satu langkah per baris) supaya manualnya tepat.", "Pilih <b>Gaya</b>: <b>Informasi + sentuhan marketing</b> (informasi fitur yang jelas dengan sedikit sentuhan marketing supaya nasabah tertarik mencoba) atau <b>Informasi produk saja</b> (lugas, tanpa gaya promosi).", "Klik <b>Buat What's New</b>.", "Edit langsung di kolom hasil; label panjang dan hasil cek ikut berubah. Ganti penanda <b>[ … ]</b> dengan nama menu/tombol yang benar.", "Konfirmasi poin di kotak kuning ke tim produk, lalu <b>Salin</b> per bagian atau <b>Salin semua</b> untuk diserahkan ke tim aplikasi."],
-      ["AI hanya memakai fakta dari isian: semakin lengkap catatan rilisnya, semakin sedikit penanda yang perlu diisi.", "Isian tersimpan di browser ini, jadi aman kalau pindah tab dulu.", "Batas panjang yang dipakai masih batas wajar (singkat ±120, lengkap ±800 karakter) sampai ada ketentuan dari tim aplikasi."]],
+      ["Isi <b>Nama fitur</b> dan tempel <b>Catatan rilis / poin fitur</b> dari tim produk atau IT apa adanya.", "Bila ada, isi <b>Letak di aplikasi</b>, <b>Siapa yang bisa memakai</b>, dan <b>Langkah pemakaian</b> (satu langkah per baris) supaya manualnya tepat.", "Pilih <b>Gaya</b>: <b>Informasi + sentuhan marketing</b> (informasi fitur yang jelas dengan sedikit sentuhan marketing supaya nasabah tertarik mencoba) atau <b>Informasi produk saja</b> (lugas, tanpa gaya promosi).", "Klik <b>Buat What's New</b>.", "Edit langsung di kolom hasil; label panjang dan hasil cek ikut berubah. Ganti penanda <b>[ … ]</b> dengan nama menu/tombol yang benar.", "Konfirmasi poin di kotak kuning ke tim produk, lalu <b>Salin</b> per bagian atau <b>Salin semua</b> untuk diserahkan ke tim aplikasi.", "Untuk banner: di kartu <b>Banner What's New</b> pilih <b>Jumlah HP</b>, <b>Susunan</b>, dan <b>Latar</b>, upload screenshot tiap HP, cek judul & kalimat penjelasan (terisi dari hasil What's New), lalu <b>Unduh PNG</b> 1920×1080."],
+      ["AI hanya memakai fakta dari isian: semakin lengkap catatan rilisnya, semakin sedikit penanda yang perlu diisi.", "Isian tersimpan di browser ini, jadi aman kalau pindah tab dulu.", "Batas panjang yang dipakai masih batas wajar (singkat ±120, lengkap ±800 karakter) sampai ada ketentuan dari tim aplikasi.", "Screenshot banner diproses di browser saja (tidak dikirim ke server). Kalau rasionya beda dari layar HP, gambar dipotong dari bawah, jadi taruh bagian penting fitur di atas."]],
     kit: ["Satu produk (reksa dana, obligasi/sukuk, atau ETF) langsung jadi paket konten: caption feed, frame story, WhatsApp, email, push notif, FAQ untuk CS/sales, brief visual untuk desainer, dan catatan compliance. Angka diambil otomatis dari Fund, Bond, dan ETF Insight.",
       ["Pilih <b>Jenis</b> produk, cari namanya, lalu klik produk di daftar. Fakta produk tampil di bawahnya; cek angkanya.", "Pilih <b>Mode</b>: <b>Peluncuran / promosi</b>, atau <b>Co-marketing</b> bila kampanye bersama manajer investasi/mitra (nama mitra terisi otomatis dari MI produk).", "Isi <b>Target pembaca</b> dan <b>Tujuan</b> (opsional, tapi membuat hasil lebih tepat).", "Klik <b>Buat paket</b>.", "Tiap bagian punya <b>Salin</b> dan <b>Cek</b>. <b>Salin semua</b> / <b>Unduh .txt</b> untuk dibagikan ke tim, desainer, dan CS."],
       ["AI hanya memakai angka dari fakta produk; tetap cocokkan tanggal data dengan fund fact sheet sebelum terbit.", "Brief visual bisa langsung ditempel ke permintaan desain di Content Planner.", "Untuk co-marketing, konfirmasi materi ke MI sebelum tayang."]],
@@ -563,6 +584,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
       }).join("") +
         ((j.result.check || []).length ? '<div class="note small"><b>Konfirmasi ke tim produk sebelum terbit:</b><ul style="margin:4px 0 0;padding-left:18px" translate="no">' + j.result.check.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + "</ul></div>" : "") +
         '<div class="row"><button class="btn" id="wnAll" type="button">Salin semua</button><span class="muted small">Model: ' + esc(j.model) + "</span></div>";
+      wbFromWn(false);
     }).catch(function (e) { toast(e.message); }).then(function () { busy(btn, false); });
   };
   var wnVal = function (k) { var el = $("wnOut").querySelector('[data-wf="' + k + '"]'); return el ? el.value.trim() : ""; };
@@ -572,6 +594,71 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     if (b.dataset.wc) return copy(wnVal(b.dataset.wc));
     if (b.id === "wnAll") copy(Object.keys(WN_F).filter(function (k) { return wnVal(k); }).map(function (k) { return WN_F[k][0].replace(" (opsional)", "").toUpperCase() + "\n" + wnVal(k); }).join("\n\n"));
   };
+
+  /* ---------- BANNER WHAT'S NEW: digambar di browser oleh assets/banner.js; screenshot tidak dikirim ke server & tidak disimpan ---------- */
+  var WB_IN = ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc"], wbShot = [null, null, null], wbLogo = {}, BN = null, wbFont = null, wbOver = [], wbQ = 0, wbStarted = false, wbSaved = {};
+  try { wbSaved = JSON.parse(localStorage.getItem("cs_wnb") || "{}"); } catch (e) {}
+  ["wbN", "wbTheme", "wbTag", "wbTitle", "wbDesc"].forEach(function (id) { if (wbSaved[id] != null) $(id).value = wbSaved[id]; });
+  function wbSave() { var o = {}; WB_IN.forEach(function (k) { o[k] = $(k).value; }); try { localStorage.setItem("cs_wnb", JSON.stringify(o)); } catch (e) {} }
+  function wbLays() {
+    if (!BN) return;
+    var cur = $("wbLay").value || wbSaved.wbLay, L = BN.combos(+$("wbN").value);
+    $("wbLay").innerHTML = L.map(function (c) { return '<option value="' + c.id + ":" + c.side + '">' + esc(c.name) + "</option>"; }).join("");
+    if (L.some(function (c) { return c.id + ":" + c.side === cur; })) $("wbLay").value = cur;
+  }
+  function wbSlots() { var n = +$("wbN").value; [1, 2, 3].forEach(function (k) { $("wbS" + k).closest("label").hidden = k > n; }); }
+  function wbStatus() {
+    $("wbTitleB").innerHTML = $("wbTitle").value.trim() ? badge($("wbTitle").value, "wn_title") : "";
+    $("wbDescB").innerHTML = $("wbDesc").value.trim() ? badge($("wbDesc").value, "wn_short") : "";
+    $("wbWarn").textContent = wbFont === false ? "Font Inter gagal dimuat; unduh dinonaktifkan" : wbOver.length ? "Teks terlalu panjang, pendekkan judul/penjelasan" : "";
+  }
+  function wbDraw() {
+    wbStatus();
+    if (!BN || wbQ) return;
+    wbQ = requestAnimationFrame(function () {
+      wbQ = 0;
+      var lay = $("wbLay").value.split(":"), th = $("wbTheme").value;
+      wbOver = BN.draw($("wbCanvas").getContext("2d"), { id: lay[0], side: lay[1], theme: th, logo: wbLogo[th], shots: wbShot.slice(0, +$("wbN").value), tag: $("wbTag").value, title: $("wbTitle").value, desc: $("wbDesc").value }).overflow;
+      wbStatus();
+    });
+  }
+  function wbInit() {
+    if (wbStarted) return; wbStarted = true;
+    var img = function (src) { return new Promise(function (ok) { var i = new Image(); i.onload = function () { ok(i); }; i.onerror = function () { ok(null); }; i.src = src; }); };
+    // font Google gagal/terblokir -> pratinjau tetap tampil, unduh ditolak (hasil beda font di tiap PC)
+    var font = document.fonts ? Promise.race([
+      Promise.all([document.fonts.load("800 88px Inter"), document.fonts.load("400 36px Inter")]).then(function (f) { return f[0].length > 0 && f[1].length > 0; }),
+      new Promise(function (ok) { setTimeout(function () { ok(false); }, 5000); })]).catch(function () { return false; }) : Promise.resolve(false);
+    Promise.all([import("/banner.js"), img("/brand/ikisi-color.png"), img("/brand/ikisi-white.png"), font]).then(function (a) {
+      BN = a[0]; wbLogo = { terang: a[1], gelap: a[2] }; wbFont = a[3]; wbLays(); wbSlots(); wbDraw();
+    }).catch(function () { wbStarted = false; $("wbWarn").textContent = "Banner tidak bisa dimuat. Muat ulang halaman."; });
+  }
+  function wbFromWn(force) {
+    [["wbTitle", "title"], ["wbDesc", "short"]].forEach(function (p) { var v = wnVal(p[1]); if (v && (force || !$(p[0]).value.trim())) $(p[0]).value = v.slice(0, $(p[0]).maxLength); });
+    wbSave(); wbDraw();
+  }
+  WB_IN.forEach(function (id) { $(id).addEventListener("input", function () { if (id === "wbN") { wbLays(); wbSlots(); } wbSave(); wbDraw(); }); });
+  [1, 2, 3].forEach(function (k) {
+    $("wbS" + k).addEventListener("change", function () {
+      var f = this.files[0]; if (!f) return;
+      var im = new Image();
+      im.onload = function () { if (wbShot[k - 1]) URL.revokeObjectURL(wbShot[k - 1].src); wbShot[k - 1] = im; wbDraw(); };
+      im.onerror = function () { toast("Gambar tidak bisa dibaca"); };
+      im.src = URL.createObjectURL(f);
+    });
+  });
+  $("wbFill").onclick = function () { if (!$("wnOut").querySelector("[data-wf]")) return toast("Buat What's New dulu"); wbFromWn(true); };
+  $("wbDl").onclick = function () {
+    if (!BN) return toast("Banner masih dimuat");
+    if (wbFont === false) return toast("Font Inter gagal dimuat; unduh dinonaktifkan");
+    if (wbOver.length) return toast("Teks terlalu panjang, pendekkan judul/penjelasan");
+    if (!$("wbTitle").value.trim()) return toast("Isi judul fitur dulu");
+    if (wbShot.slice(0, +$("wbN").value).some(function (s) { return !s; }) && !confirm("Ada HP tanpa screenshot. Tetap unduh?")) return;
+    $("wbCanvas").toBlob(function (b) { download(b, BN.fileName($("wbTitle").value)); }, "image/png");
+  };
+  nav.addEventListener("click", function (e) { var b = e.target.closest(".tab"); if (b && b.dataset.t === "wn") wbInit(); });
+  if (first === "wn") wbInit();
+  wbSlots(); wbStatus();
 
   /* ---------- PAKET PRODUK ---------- */
   var PR = null, kSel = null, kRes = null;
