@@ -264,4 +264,17 @@ assert.ok(page.includes('import("/banner.js")'));
 assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
 assert.ok(page.includes('"cs_wnb"'));
 
+// "Ambil dari hasil What's New" tidak memotong teks diam-diam: teks panjang masuk utuh, lalu badge & overflow yang menandai
+{
+  const src = page.match(/function wbFromWn\(force\) \{[\s\S]*?\n  \}\n/)[0];
+  const el = { wbTitle: { value: "", maxLength: 40 }, wbDesc: { value: "lama", maxLength: 150 } };
+  const fill = new Function("$", "wnVal", "wbSave", "wbDraw", src + "return wbFromWn")((id) => el[id], (k) => ({ title: "Auto-invest: investasi rutin otomatis tiap bulan", short: "baru" })[k], () => {}, () => {});
+  fill(false);
+  assert.equal(el.wbTitle.value, "Auto-invest: investasi rutin otomatis tiap bulan", "judul 48 huruf tidak dipotong");
+  assert.equal(el.wbDesc.value, "lama", "kolom yang sudah terisi tidak ditimpa");
+  fill(true);
+  assert.equal(el.wbDesc.value, "baru");
+}
+assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengunduh"), "pesan font menyebut muat ulang");
+
 console.log("semua cek lolos");

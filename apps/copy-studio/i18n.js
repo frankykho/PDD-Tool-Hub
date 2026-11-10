@@ -262,7 +262,7 @@ export default {
   "{n} HP kipas — kanan": "{n} phones fanned — right", "{n} HP kipas — kiri": "{n} phones fanned — left", "{n} HP tengah": "{n} phones centered",
   "Kalimat penjelasan (tidak tampil di susunan 3 HP tengah)": "Description line (hidden in the 3-phone centered layout)",
   "Ambil dari hasil What's New": "Use What's New result", "Unduh PNG": "Download PNG", "Pratinjau banner": "Banner preview",
-  "Font Inter gagal dimuat; unduh dinonaktifkan": "Inter font failed to load; download disabled",
+  "Font Inter gagal dimuat; muat ulang halaman untuk mengunduh": "Inter font failed to load; reload the page to download",
   "Teks terlalu panjang, pendekkan judul/penjelasan": "Text too long, shorten the title/description",
   "Banner tidak bisa dimuat. Muat ulang halaman.": "Banner could not load. Reload the page.",
   "Buat What's New dulu": "Create the What's New first", "Banner masih dimuat": "Banner is still loading", "Isi judul fitur dulu": "Fill in the feature title first",

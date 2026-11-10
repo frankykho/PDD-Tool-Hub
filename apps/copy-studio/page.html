@@ -610,7 +610,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   function wbStatus() {
     $("wbTitleB").innerHTML = $("wbTitle").value.trim() ? badge($("wbTitle").value, "wn_title") : "";
     $("wbDescB").innerHTML = $("wbDesc").value.trim() ? badge($("wbDesc").value, "wn_short") : "";
-    $("wbWarn").textContent = wbFont === false ? "Font Inter gagal dimuat; unduh dinonaktifkan" : wbOver.length ? "Teks terlalu panjang, pendekkan judul/penjelasan" : "";
+    $("wbWarn").textContent = wbFont === false ? "Font Inter gagal dimuat; muat ulang halaman untuk mengunduh" : wbOver.length ? "Teks terlalu panjang, pendekkan judul/penjelasan" : "";
   }
   function wbDraw() {
     wbStatus();
@@ -634,7 +634,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     }).catch(function () { wbStarted = false; $("wbWarn").textContent = "Banner tidak bisa dimuat. Muat ulang halaman."; });
   }
   function wbFromWn(force) {
-    [["wbTitle", "title"], ["wbDesc", "short"]].forEach(function (p) { var v = wnVal(p[1]); if (v && (force || !$(p[0]).value.trim())) $(p[0]).value = v.slice(0, $(p[0]).maxLength); });
+    [["wbTitle", "title"], ["wbDesc", "short"]].forEach(function (p) { var v = wnVal(p[1]); if (v && (force || !$(p[0]).value.trim())) $(p[0]).value = v; }); // utuh: kelebihan panjang ditandai badge, bukan dipotong
     wbSave(); wbDraw();
   }
   WB_IN.forEach(function (id) { $(id).addEventListener("input", function () { if (id === "wbN") { wbLays(); wbSlots(); } wbSave(); wbDraw(); }); });
@@ -650,7 +650,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   $("wbFill").onclick = function () { if (!$("wnOut").querySelector("[data-wf]")) return toast("Buat What's New dulu"); wbFromWn(true); };
   $("wbDl").onclick = function () {
     if (!BN) return toast("Banner masih dimuat");
-    if (wbFont === false) return toast("Font Inter gagal dimuat; unduh dinonaktifkan");
+    if (wbFont === false) return toast("Font Inter gagal dimuat; muat ulang halaman untuk mengunduh");
     if (wbOver.length) return toast("Teks terlalu panjang, pendekkan judul/penjelasan");
     if (!$("wbTitle").value.trim()) return toast("Isi judul fitur dulu");
     if (wbShot.slice(0, +$("wbN").value).some(function (s) { return !s; }) && !confirm("Ada HP tanpa screenshot. Tetap unduh?")) return;
