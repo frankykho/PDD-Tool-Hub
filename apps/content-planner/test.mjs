@@ -401,10 +401,9 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   // Laporan Copywriter & gambar / angka otomatis setelah kegiatan disimpan
   assert.match(pg, /data-t="cw">Laporan Copywriter</); assert.match(pg, /cw:\{data:cwData,doc:cwDoc,name:"Laporan Copywriter"\}/);
   assert.match(pg, /api\("\/api\/yt\/refresh"/); assert.match(pg, /"\/api\/linkimg\?url="/); assert.match(pg, /id="mImgLink"/);
-  // isian manual bila otomatis tidak bisa: klik & template email; laporan memakai klik link pelacak, kalau kosong klik manual
-  assert.match(pg, /id="mClicks"/); assert.match(pg, /id="mTplI"/); assert.ok(pg.includes("const clk=i=>+i.clicks||i.m_clicks"));
-  // YouTube = video media partner: dikenali dari link (jenis artikel atau konten), kartu cukup Views
-  assert.ok(pg.includes("Y=L.filter(i=>isYt(i.link))")); assert.ok(pg.includes(`card(i,"YouTube",[["Views",i.m_views]])`));
+  // isian manual bila otomatis tidak bisa: klik & template email (Laporan Copywriter format Canva tidak memuat klik, sesuai deck copywriter)
+  assert.match(pg, /id="mClicks"/); assert.match(pg, /id="mTplI"/);
+  // YouTube = video media partner dikenali dari link (jenis artikel atau konten): dites lewat cwCalc di bawah
   // Orang: copywriter + anggota lain (untuk mencoba / PIC bukan Copywriter); kegiatan yang dilewati disebut di Ringkasan
   assert.ok(pg.includes('<optgroup label="Anggota lain">')); assert.ok(pg.includes("kegiatan dilewati (PIC bukan Copywriter)"));
 }
@@ -1027,6 +1026,40 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(chunk(R, 2).map((c) => c.length), [2, 2]);
   assert.deepEqual(chunk(R, 3).map((c) => c.length), [4]);
   assert.deepEqual(chunk([], 3), [[]]);
+}
+// Laporan Copywriter: hitungan ringkasan (cwCalc murni) & dialog
+{
+  const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
+  const calc = new Function(pg.match(/function cwCalc\(L,o\)\{[\s\S]*?\n\}\n/)[0] + "return cwCalc")();
+  const L = [
+    { kind: "artikel", channel: "Website", date: "2026-10-01", title: "KISI Challenge dimulai", topic: "event", sell: "soft", media: "Company Website", m_views: 39, tags: '["KISI Challenge"]', m_src: "kisi" },
+    { kind: "artikel", channel: "Media partner", date: "2026-10-01", title: "Jembatan Modal", topic: "branding", sell: "hard", media: "Emiten News", press: 1 },
+    { kind: "artikel", channel: "Media partner", date: "2026-10-21", title: "Literasi Lampung", topic: "branding", sell: "soft", media: "Pasardana.id", press: 1 },
+    { kind: "artikel", channel: "Push notification", date: "2026-10-08", title: "Push notification 8 Okt" },
+    { kind: "konten", channel: "IG Reels", date: "2026-10-19", title: "Kuliah Saham x KISI Challenge", media: "kuliahsaham" },
+    { kind: "konten", channel: "YouTube", link: "https://youtu.be/SzA5WiqLaVk", date: "2026-10-30", title: "Pasar Tak Menentu | TICKER TALK", media: "IDX Channel", m_views: 5127 },
+  ];
+  const r = calc(L, { from: "2026-10-01", to: "2026-10-31", camp: ["KISI Challenge"], typed: { sm: 19, promo: 0, dArt: 2, dStory: 2, dFeed: 7, prop: 7 }, ytd: { upto: "2026-09", ext: 494 }, ytdInt: 153, yearExt: 3, extAfter: 2 });
+  assert.deepEqual(r.art, { int: 1, ext: 2, ytdInt: 153, ytdExt: 496 });
+  assert.deepEqual(r.topic, { branding: 2, event: 1, saham: 0 });
+  assert.deepEqual(r.copy, { sm: 19, collab: 1, int: 1, promo: 0, press: 2, push: 1 });
+  assert.deepEqual(r.design, { art: 2, story: 2, feed: 7 }); assert.equal(r.prop, 7);
+  assert.deepEqual(r.media, [{ media: "IDX Channel", program: "TICKER TALK", n: 1 }]);
+  assert.deepEqual(r.rows.map((i) => i.title), ["KISI Challenge dimulai", "Jembatan Modal", "Literasi Lampung"]);
+  assert.equal(r.yt.length, 1);
+  // video YouTube yang dicatat sebagai artikel tetap masuk narasumber, bukan tabel artikel
+  const r2 = calc([...L, { kind: "artikel", channel: "Media partner", link: "https://www.youtube.com/watch?v=abcDEF12345", date: "2026-10-02", title: "Rupiah | TICKER TALK", media: "IDX Channel" }], { from: "2026-10-01", to: "2026-10-31", camp: [], typed: {}, ytd: null });
+  assert.equal(r2.yt.length, 2); assert.equal(r2.rows.length, 3); assert.deepEqual(r2.media, [{ media: "IDX Channel", program: "TICKER TALK", n: 2 }]);
+  assert.equal(r.camps.length, 1); assert.equal(r.camps[0].name, "KISI Challenge");
+  assert.deepEqual([r.camps[0].int.length, r.camps[0].ext.length, r.camps[0].ig.length, r.camps[0].mail.length, r.camps[0].push.length], [1, 0, 1, 0, 0]);
+  // angka awal YTD dengan upto >= bulan periode diabaikan
+  assert.equal(calc(L, { from: "2026-10-01", to: "2026-10-31", camp: [], typed: {}, ytd: { upto: "2026-10", ext: 999 }, ytdInt: 0, yearExt: 3, extAfter: 0 }).art.ytdExt, 3);
+  // periode kosong: angka 0, tanpa baris & isi kampanye
+  const e = calc([], { from: "2026-10-01", to: "2026-10-31", camp: ["KISI Challenge"], typed: {}, ytd: null, ytdInt: 0, yearExt: 0, extAfter: 0 });
+  assert.deepEqual(e.art, { int: 0, ext: 0, ytdInt: 0, ytdExt: 0 }); assert.deepEqual(e.copy, { sm: 0, collab: 0, int: 0, promo: 0, press: 0, push: 0 });
+  assert.equal(e.rows.length, 0); assert.ok(e.camps.every((c) => !c.int.length && !c.ext.length && !c.ig.length));
+  for (const id of ["rCwF", "rCamp", "rSm", "rPromo", "rDArt", "rDStory", "rDFeed", "rProp", "rYtdUpto", "rYtdExt"]) assert.match(pg, new RegExp(`id="${id}"`), id);
+  assert.match(pg, /api\("\/api\/kisi\/sync"/); assert.match(pg, /"\/api\/cw\/cfg"/);
 }
 // mitra kolaborasi IG dari bookmark: mengisi media yang masih kosong
 {

@@ -487,6 +487,21 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
     <div class="fld" id="rWhoF"><label for="rWho">Orang</label><select class="f" id="rWho"></select></div>
     <div class="fld" id="rBrF"><label for="rBr">Regional / cabang</label><select class="f" id="rBr"></select></div>
     <div class="fld" id="rKindsF"><span class="lbl">Isi laporan</span><div class="acts" id="rKinds" style="margin:0"></div></div>
+    <div class="fld" id="rCwF" hidden>
+      <label for="rCamp">Kampanye untuk galeri (pisahkan dengan koma)</label><input class="f" id="rCamp" maxlength="160" placeholder="mis. KISI Challenge">
+      <span class="lbl" style="margin-top:8px">Angka yang diketik (tersimpan per bulan)</span>
+      <div class="grid3">
+        <div class="fld"><label for="rSm">Social Media (KISI Contents)</label><input class="f" id="rSm" inputmode="numeric" maxlength="6"></div>
+        <div class="fld"><label for="rPromo">Promo on Website</label><input class="f" id="rPromo" inputmode="numeric" maxlength="6"></div>
+        <div class="fld"><label for="rProp">Proposal</label><input class="f" id="rProp" inputmode="numeric" maxlength="6"></div>
+        <div class="fld"><label for="rDArt">Desain Article</label><input class="f" id="rDArt" inputmode="numeric" maxlength="6"></div>
+        <div class="fld"><label for="rDStory">Desain IG Story</label><input class="f" id="rDStory" inputmode="numeric" maxlength="6"></div>
+        <div class="fld"><label for="rDFeed">Desain IG Feed</label><input class="f" id="rDFeed" inputmode="numeric" maxlength="6"></div>
+      </div>
+      <span class="lbl">Angka awal YTD artikel media (sekali per tahun)</span>
+      <div class="grid2"><input class="f" type="month" id="rYtdUpto" aria-label="Sampai akhir bulan"><input class="f" id="rYtdExt" inputmode="numeric" maxlength="7" placeholder="Jumlah artikel media s.d. bulan itu" aria-label="Jumlah artikel media"></div>
+      <p class="muted small" id="rCwNote" style="margin:6px 0 0"></p>
+    </div>
     <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
     <div class="acts"><span class="muted small" id="repMsg"></span><span class="sp"></span><button type="button" class="btn" id="rClose">Tutup</button><button type="button" class="btn" id="rXls" hidden>Unduh Excel</button><button type="button" class="btn" id="rPdf">Simpan PDF</button><button type="button" class="btn pri" id="rPpt">Unduh PPT</button></div>
@@ -1304,7 +1319,7 @@ const KEG=["edukasi","artikel","konten","program","aktivitas","ops","produk","ca
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
+  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rCwF").hidden=t!=="cw";$("rCwNote").textContent="";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
   $("rTeamF").hidden=t==="prog"||t==="gal"||t==="ig"||t==="cw";
@@ -1314,7 +1329,7 @@ function setRT(t){
     $("rWho").dataset.cw="1";$("rWho").innerHTML='<option value="">Semua copywriter</option>'+USERS.filter(u=>u.role==="copy").map(op).join("")+(oth.length?'<optgroup label="Anggota lain">'+oth.map(op).join("")+"</optgroup>":"")}
   else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
   $("rHelp").innerHTML=(t==="ig"?"Laporan bulanan Instagram KISI: semua postingan IG yang tayang di periode ini beserta gambar, suka, komentar, bagikan, views, simpan, dan repost. Gambar dan angka diambil lewat tombol bookmark Angka IG ke Planner di tab Performa."
-    :t==="cw"?"Laporan Copywriter: artikel (website KISI = internal, media partner = eksternal), email blast, dan video YouTube yang PIC-nya ber-role Copywriter, lengkap dengan gambar dan angkanya. Views YouTube diambil otomatis saat laporan dibuat, pembaca artikel dari isian manual, klik dari link pelacak."
+    :t==="cw"?"Laporan Copywriter bergaya deck Canva (English): ringkasan, detail artikel, narasumber di media, dan galeri kampanye. Artikel kisi.co.id beserta views-nya diambil otomatis saat laporan dibuat; views YouTube dari halaman videonya. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
     :t==="mon"?"Monthly Report satu tim: ringkasan, lalu per role hasil program, kegiatan kalender, dan aktivitas anggotanya."
     :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
@@ -1355,7 +1370,9 @@ $("repBtn").onclick=openRep;$("rClose").onclick=()=>$("rep").close();
 $("rep").addEventListener("click",e=>{const b=e.target.closest("[data-per]");if(!b)return;
   const t=todayIso().slice(0,8)+"01",p=b.dataset.per;
   if(p==="q"){const d=D(t);d.setUTCMonth(d.getUTCMonth()-2);$("rFrom").value=iso(d);$("rTo").value=monthEnd(t)}
-  else{const d=D(t);d.setUTCMonth(d.getUTCMonth()+(+p));$("rFrom").value=iso(d);$("rTo").value=monthEnd(iso(d))}});
+  else{const d=D(t);d.setUTCMonth(d.getUTCMonth()+(+p));$("rFrom").value=iso(d);$("rTo").value=monthEnd(iso(d))}
+  cwLoad().catch(()=>{})});
+["rFrom","rTo"].forEach(id=>$(id).addEventListener("change",()=>cwLoad().catch(()=>{})));
 async function repData(){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
@@ -1627,7 +1644,7 @@ const TRMAP=new Map();
 const cellTxt=c=>typeof c==="string"?c:c&&typeof c==="object"&&!c.st&&typeof c.t==="string"?c.t:"";
 /** Terjemahkan isian bebas doc (hanya versi English). Hasil: catatan untuk pengguna kalau sebagian tetap Bahasa Indonesia ("" = semua beres). */
 async function prepTr(doc){
-  if(!isEn())return "";
+  if(!isEn()||doc.raw)return "";
   const want=new Set();
   doc.blocks.forEach(b=>{if(b.t==="table")b.rows.forEach(r=>{if(r.grp===undefined)r.forEach((c,i)=>{const s=cellTxt(c).trim();if(TRX.has((b.cols[i]||[])[0])&&/\p{L}{2}/u.test(s)&&!TRMAP.has(s))want.add(s)})})});
   if(!want.size)return "";
@@ -1639,7 +1656,8 @@ async function prepTr(doc){
 }
 const aiCell=(c,h)=>{const s=cellTxt(c).trim();return TRX.has(h)&&TRMAP.has(s)?(typeof c==="string"?TRMAP.get(s):{...c,t:TRMAP.get(s)}):undefined};
 function trDoc(doc){
-  if(!isEn())return doc;
+  // doc.raw: laporan yang sudah berbahasa Inggris (Laporan Copywriter mengikuti deck English copywriter)
+  if(!isEn()||doc.raw)return doc;
   // nilai KPI "3 dari 5": pola "{a} dari {b}" terlalu umum untuk kamus
   const val=v=>typeof v==="string"&&/^[\d.]+ dari [\d.]+$/.test(v)?v.replace(" dari "," of "):TP(v);
   return {...doc,per:T(doc.per),blocks:doc.blocks.map(b=>{
@@ -1706,10 +1724,11 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 .mr-pm i{display:block;font-style:normal;font-weight:500;font-size:7pt;color:#5f6b7a}
 .mr-plain{background:#fff}.mr-plain .mr-foot{display:none}
 .mr-plain .mr-body h2{font-size:30pt;font-weight:700;letter-spacing:-.01em;margin:0 0 .18in}
-.mr-t.dark{font-size:8.5pt;border:1px solid #2b2b2b}
-.mr-t.dark th{background:#136f4a;color:#fff;text-align:center;border:1px solid #2b2b2b}
-.mr-t.dark td{border:1px solid #2b2b2b;text-align:center;vertical-align:middle}
+.mr-t.dark{font-size:7pt;line-height:1.25;border:1px solid #2b2b2b}
+.mr-t.dark th{background:#136f4a;color:#fff;text-align:center;border:1px solid #2b2b2b;padding:.035in .05in}
+.mr-t.dark td{border:1px solid #2b2b2b;text-align:center;vertical-align:middle;padding:.022in .05in}
 .mr-t.dark a{color:#1a56db;text-decoration:underline}
+.mr-t.dark.big{font-size:11pt}.mr-t.dark.big th{font-size:12pt}
 .mr-t tr.tot td{background:#136f4a;color:#fff;font-weight:700}
 .mr-t td.im{padding:.05in}.mr-t td.im img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
 .mr-live{color:#e02020;font-weight:500}
@@ -1874,7 +1893,7 @@ async function pdfDoc(doc){
   };
   // sel: {t, href} = teks + link "buka"; {t, href, a:1} = teks itu sendiri link; {t, c} = warna teks; {img} = gambar; {t, live:1} = "LIVE" merah di atas
   const td=(c,num)=>{
-    if(c===null||typeof c!=="object")return `<td${num?' class="n"':""}>${esc(c)}</td>`;
+    if(c===null||typeof c!=="object")return `<td${num?' class="n"':""}>${esc(c).replace(/\n/g,"<br>")}</td>`;
     if(c.img!==undefined)return `<td class="im">${c.img?`<img src="${esc(c.img)}" alt="">`:""}</td>`;
     const tx=esc(c.t||"").replace(/\n/g,"<br>");
     let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(T(WS[c.st]||c.st))}</span>`:tx;
@@ -1896,7 +1915,8 @@ async function pdfDoc(doc){
       for(let i=0;i<b.items.length;i+=n)put((i===0&&b.h3?`<h3>${esc(b.h3)}</h3>`:"")+`<div class="mr-posts c${n}">${b.items.slice(i,i+n).map(card).join("")}</div>`);
     }
     // b.h2: setiap potongan (b.per baris) di halaman sendiri dengan judul besar yang sama; b.dark: kepala hijau tua
-    else if(b.t==="table"&&b.h2)chunkRows(b.rows,b.per||1e9).forEach(ch=>{page();put(`<h2>${esc(b.h2)}</h2>`);table("",b.cols,ch.map(r=>tr(r,b.cols)),b.empty||"",b.dark?" dark":"")});
+    // judul h2 ikut ke halaman lanjutan bila potongan tetap terlalu tinggi
+    else if(b.t==="table"&&b.h2)chunkRows(b.rows,b.per||1e9).forEach(ch=>{page();table(`<h2>${esc(b.h2)}</h2>`,b.cols,ch.map(r=>tr(r,b.cols)),b.empty||"",(b.dark?" dark":"")+(b.big?" big":""))});
     else if(b.t==="table")table(`<h3>${esc(b.h3)}</h3>`,b.cols,b.rows.map(r=>tr(r,b.cols)),b.empty||"",b.dark?" dark":"");
     else if(b.t==="sum"){page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum">${b.cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`)}
     else if(b.t==="gallery"){
@@ -1945,8 +1965,8 @@ async function pptDoc(doc,fileName){
   // pt: ukuran huruf (perkiraan ±14 karakter per inci di 9 pt)
   const lines=(t,w,pt=9)=>String(t).split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/Math.max(4,w*14*9/pt))),0);
   // sel: {t,href} = teks + "buka"; {t,href,a:1} = teks itu link; {t,c} = warna; {img} = gambar (ditaruh di atas tabel); {t,live:1} = "LIVE" merah
-  const pcell=(c,num,dk)=>{
-    const o={fontFace:F,fontSize:9,color:C.t,align:dk?"center":num?"right":"left",valign:dk?"middle":"top"};
+  const pcell=(c,num,dk,pt)=>{
+    const o={fontFace:F,fontSize:pt||(dk?7:9),color:C.t,align:dk?"center":num?"right":"left",valign:dk?"middle":"top"};
     if(c===null||typeof c!=="object")return {text:String(c??"–"),options:o};
     if(c.img!==undefined)return {text:"",options:o};
     if(c.st){const z=ST[c.st]||[C.h,C.t];return {text:T(WS[c.st]||c.st),options:{...o,bold:true,color:z[1],fill:{color:z[0]}}}}
@@ -1959,10 +1979,11 @@ async function pptDoc(doc,fileName){
   const IMG=new Map(),imgOf=async u=>{if(!IMG.has(u))IMG.set(u,await toJpg(u));return IMG.get(u)};
   // b.h2: setiap potongan di slide sendiri dengan judul besar yang sama; b.per: maks. baris data per slide; b.dark: kepala hijau tua; r.tot: baris total
   const table=async b=>{
-    const dk=!!b.dark,cw=b.cols.map(c=>+(c[1]/100*W).toFixed(3));
-    const hdr=b.cols.map(c=>({text:c[0],options:{fontFace:F,fontSize:dk?10:9,bold:true,color:dk?"FFFFFF":C.th,fill:{color:dk?DK:C.h},align:dk?"center":c[2]?"right":"left",valign:"middle"}}));
+    // b.big: huruf besar (tabel narasumber, sedikit baris)
+    const dk=!!b.dark,pt=dk?(b.big?11:7):9,cw=b.cols.map(c=>+(c[1]/100*W).toFixed(3));
+    const hdr=b.cols.map(c=>({text:c[0],options:{fontFace:F,fontSize:dk?pt+1:9,bold:true,color:dk?"FFFFFF":C.th,fill:{color:dk?DK:C.h},align:dk?"center":c[2]?"right":"left",valign:"middle"}}));
     const hasImg=r=>Array.isArray(r)&&r.some(c=>c&&typeof c==="object"&&c.img!==undefined);
-    const rh=r=>r.grp!==undefined?.26:hasImg(r)?(b.imgH||1.5):Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1)))*.16+(dk?.14:.1);
+    const rh=r=>r.grp!==undefined?.26:hasImg(r)?(b.imgH||1.5):dk?Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1,pt)))*pt*.0175+.08:Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1)))*.16+.1;
     const head=cont=>{if(b.h2){slide();h2(b.h2)}else h3(b.h3+(cont?" "+T("(lanjutan)"):""))};
     if(!b.rows.length){if(b.h2)head(false);else{if(y+.7>BOT)slide();h3(b.h3)}s.addText(b.empty||"",{x:X,y,w:W,h:.26,fontFace:F,fontSize:10,color:C.m,margin:0});y+=.38;return}
     let i=0,cont=false;
@@ -1977,7 +1998,7 @@ async function pptDoc(doc,fileName){
         if(r.grp!==undefined&&b.rows[i+1]&&yy+h+rh(b.rows[i+1])>BOT&&rows.length>1)break;   // nama orang tidak tertinggal di akhir slide
         if(hasImg(r))r.forEach((c,j)=>{if(c&&c.img)pics.push({u:c.img,x:X+cw.slice(0,j).reduce((a,v)=>a+v,0),y:yy,w:cw[j],h})});
         rows.push(r.grp!==undefined?[{text:r.grp,options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.grp},colspan:b.cols.length}}]
-          :r.map((c,j)=>{const p=pcell(c,(b.cols[j]||[])[2],dk);return r.tot?{text:p.text,options:{...p.options,bold:true,color:"FFFFFF",fill:{color:DK}}}:p}));
+          :r.map((c,j)=>{const p=pcell(c,(b.cols[j]||[])[2],dk,pt);return r.tot?{text:p.text,options:{...p.options,bold:true,color:"FFFFFF",fill:{color:DK}}}:p}));
         hs.push(+h.toFixed(3));yy+=h;i++;if(!r.tot)k++;
       }
       s.addTable(rows,{x:X,y,w:W,colW:cw,rowH:hs,fill:{color:"FFFFFF"},border:{type:"solid",color:dk?"2B2B2B":"E8ECE9",pt:.75},margin:.05,autoPage:false});
@@ -2199,42 +2220,99 @@ function igDoc(R){
     {t:"page",h2:"Semua postingan",sub:`${R.per} · ${L.length} postingan`},{t:"posts",cols:2,items:L.map(igCard)});
   return {div:R.div,per:R.per,blocks:Bk};
 }
-/* ---------- Laporan Copywriter: artikel, email blast, YouTube (PIC ber-role Copywriter) ---------- */
-const isEmailBlast=i=>i.channel==="Email / Newsletter";
+/* ---------- Laporan Copywriter (gaya deck Canva copywriter, label English seperti deck-nya) ---------- */
+// hitungan murni (dites di test.mjs): L = kegiatan periode yang sudah difilter orang; o = periode, kampanye, angka diketik, YTD
+function cwCalc(L,o){
+  const low=s=>String(s||"").toLowerCase(),yt=i=>/^https?:\/\/([a-z0-9-]+\.)*(youtube\.com|youtu\.be)\//i.test(String(i.link||"").trim());
+  const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0,art=i=>i.kind==="artikel"&&!yt(i),ch=(i,c)=>art(i)&&c.includes(i.channel);
+  const tags=i=>{try{const a=JSON.parse(i.tags||"[]");return Array.isArray(a)?a.map(String):[]}catch(e){return []}};
+  const int=L.filter(i=>ch(i,["Website","Blog"])).sort(byDate),ext=L.filter(i=>ch(i,["Media partner"])).sort(byDate);
+  const mail=L.filter(i=>ch(i,["Email / Newsletter"])).sort(byDate),push=L.filter(i=>ch(i,["Push notification"])).sort(byDate);
+  const collab=L.filter(i=>i.kind==="konten"&&!yt(i)&&i.media).sort(byDate),Y=L.filter(yt).sort(byDate),rows=[...int,...ext].sort(byDate);
+  const topic={branding:0,event:0,saham:0};rows.forEach(i=>{const k=topic[i.topic]!==undefined?i.topic:ext.includes(i)?"branding":"saham";topic[k]++});
+  const tp=o.typed||{},n=k=>Math.max(0,Math.round(+tp[k]||0));
+  // program YouTube = teks setelah "|" terakhir di judul (mis. "TICKER TALK"); tanpa "|" = nama media
+  const media=[];Y.forEach(i=>{const m=i.media||"YouTube",p=/\|/.test(i.title||"")?String(i.title).split("|").pop().trim().toUpperCase():m;
+    const x=media.find(z=>z.media===m&&z.program===p);if(x)x.n++;else media.push({media:m,program:p,n:1})});
+  const camps=(o.camp||[]).map(s=>String(s).trim()).filter(Boolean).map(name=>{const q=low(name),hit=i=>low(i.title).includes(q)||low(i.prog).includes(q)||tags(i).some(t=>low(t).includes(q));
+    return {name,int:int.filter(hit),ext:ext.filter(hit),ig:collab.filter(hit),mail:mail.filter(hit),push:push.filter(hit)}});
+  const ytdExt=o.ytd&&o.ytd.upto<o.to.slice(0,7)?(+o.ytd.ext||0)+(o.extAfter||0):(o.yearExt||0);
+  return {art:{int:int.length,ext:ext.length,ytdInt:o.ytdInt||0,ytdExt},topic,
+    copy:{sm:n("sm"),collab:collab.length,int:int.length,promo:n("promo"),press:new Set(ext.filter(i=>i.press).map(i=>i.date)).size,push:push.length},
+    design:{art:n("dArt"),story:n("dStory"),feed:n("dFeed")},prop:n("prop"),media,rows,yt:Y,camps};
+}
+const CW_N=[["sm","rSm"],["promo","rPromo"],["dArt","rDArt"],["dStory","rDStory"],["dFeed","rDFeed"],["prop","rProp"]];
+// angka yang diketik tersimpan per bulan (cw_n) & angka awal YTD per tahun (cw_ytd); diisi ulang saat periode berubah
+async function cwLoad(){
+  const from=$("rFrom").value,to=$("rTo").value;if(RT!=="cw"||!from||!to)return;
+  const [a,b]=await Promise.all([api("/api/cw/cfg?k=cw_n:"+from.slice(0,7)).catch(()=>({})),api("/api/cw/cfg?k=cw_ytd:"+to.slice(0,4)).catch(()=>({}))]);
+  const v=a.v||{},y=b.v||{};CW_N.forEach(([k,id])=>$(id).value=v[k]??"");$("rYtdUpto").value=y.upto||"";$("rYtdExt").value=y.ext??"";
+}
 async function cwData(){
-  const from=$("rFrom").value,to=$("rTo").value;
+  const from=$("rFrom").value,to=$("rTo").value,yr=to.slice(0,4);
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const who=$("rWho").value,cw=new Set(USERS.filter(u=>u.role==="copy").map(u=>u.email)),mine=i=>who?i.owner_email===who:cw.has(i.owner_email);
-  const cwKind=i=>i.date>=from&&i.date<=to&&(kindOf(i)==="artikel"||(kindOf(i)==="konten"&&isYt(i.link)));
-  const pick=L=>L.filter(i=>cwKind(i)&&mine(i)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
-  const all=await api(`/api/items?from=${from}&to=${to}`);let L=pick(all);
-  // "Semua copywriter": artikel / video yang PIC-nya bukan Copywriter disebut di Ringkasan (bisa dipilih lewat Orang)
-  const skipped=who?0:all.filter(i=>cwKind(i)&&!mine(i)).length;
-  // angka YouTube terbaru (tanpa key: dilewati, angka manual tetap)
-  const yt=L.filter(i=>isYt(i.link)).map(i=>i.id);let n=0;
+  const who=$("rWho").value,cw=new Set(USERS.filter(u=>u.role==="copy").map(u=>u.email));
+  // artikel website (impor kisi.co.id) selalu ikut di "Semua copywriter"
+  const mine=i=>who?i.owner_email===who:cw.has(i.owner_email)||i.m_src==="kisi";
+  const cwKind=i=>kindOf(i)==="artikel"||(kindOf(i)==="konten"&&(isYt(i.link)||!!i.media));
+  const typed=Object.fromEntries(CW_N.map(([k,id])=>[k,Math.max(0,parseInt($(id).value,10)||0)]));
+  const ytd=$("rYtdUpto").value&&$("rYtdExt").value!==""?{upto:$("rYtdUpto").value,ext:Math.max(0,parseInt($("rYtdExt").value,10)||0)}:null;
+  await Promise.all([api("/api/cw/cfg",{k:"cw_n:"+from.slice(0,7),v:typed}),ytd?api("/api/cw/cfg",{k:"cw_ytd:"+yr,v:ytd}):null]).catch(()=>{});
+  $("repMsg").textContent="Mengambil artikel kisi.co.id…";
+  const ks=await api("/api/kisi/sync",{from,to}).catch(()=>({error:"x"}));
+  const load=async()=>(await api(`/api/items?from=${yr}-01-01&to=${to}`)).filter(i=>cwKind(i));
+  let all=await load();
+  // angka YouTube terbaru (halaman publik / API key); gagal = angka manual tetap
+  const yt=all.filter(i=>i.date>=from&&isYt(i.link)&&mine(i)).map(i=>i.id);let n=0;
   for(let k=0;k<yt.length;k+=50){const x=await api("/api/yt/refresh",{ids:yt.slice(k,k+50)}).catch(()=>null);n+=x&&x.updated||0}
-  if(n)L=pick(await api(`/api/items?from=${from}&to=${to}`));
+  if(n)all=await load();
+  const per=all.filter(i=>i.date>=from&&i.date<=to),L=per.filter(mine),PN=new Map(PROGS.map(p=>[p.id,p.title]));
+  const skipped=who?0:per.length-L.length,extY=all.filter(i=>mine(i)&&kindOf(i)==="artikel"&&i.channel==="Media partner"&&!isYt(i.link));
   const imgs={};
   for(let k=0;k<L.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+L.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
-  const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
+  const c=cwCalc(L.map(i=>({...i,img:imgs[i.id]||"",prog:PN.get(i.program_id)||""})),{from,to,camp:$("rCamp").value.split(","),typed,ytd,ytdInt:ks.ytdInt||0,
+    yearExt:extY.length,extAfter:ytd?extY.filter(i=>i.date.slice(0,7)>ytd.upto).length:0});
+  const full=from.endsWith("-01")&&to===monthEnd(from)&&from.slice(0,7)===to.slice(0,7),mon=CW_MON[+from.slice(5,7)-1];
   const u=USERS.find(x=>x.email===who);
-  return {from,to,per,skipped,tag:u?u.name:"",who:u?u.name:"Semua copywriter",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
+  $("rCwNote").innerHTML=[ks.error?"Artikel kisi.co.id tidak bisa diambil; laporan memakai data Planner.":ks.created?`${ks.created} artikel kisi.co.id baru masuk Planner.`:"",
+    skipped?`${skipped} kegiatan dilewati (PIC bukan Copywriter).`:""].filter(Boolean).map(s=>`<span>${esc(s)}</span>`).join(" ");
+  return {from,to,per:full?`${mon} ${yr}`:`${cwDate(from)} – ${cwDate(to)}`,mon:full?mon:"Period",yr,tag:u?u.name:"",c};
 }
+const CW_MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const cwDate=d=>`${CW_MON[+d.slice(5,7)-1].slice(0,3)} ${+d.slice(8,10)}, ${d.slice(0,4)}`;
 function cwDoc(R){
-  // YouTube = video kerja sama yang diposting media partner: dikenali dari link-nya, dicatat sebagai artikel atau konten
-  const L=R.items,Y=L.filter(i=>isYt(i.link)),A=L.filter(i=>kindOf(i)==="artikel"&&!isEmailBlast(i)&&!isYt(i.link)),E=L.filter(i=>kindOf(i)==="artikel"&&isEmailBlast(i)&&!isYt(i.link));
-  const sum=(X,k)=>X.reduce((a,i)=>a+(+i[k]||0),0);
-  // klik: dari link pelacak; kalau tidak ada, klik yang diisi manual
-  const clk=i=>+i.clicks||i.m_clicks;
-  const card=(i,ch,m)=>({img:i.img,date:fmtShort(i.date),title:i.title,ch,m:m.map(([l,v])=>[T(l),int(v)])});
-  const S=[["Artikel",A,"Belum ada artikel di periode ini.",i=>card(i,(i.channel==="Media partner"?T("Eksternal"):T("Internal"))+" · "+(i.channel||""),[["Pembaca",i.m_views],["Klik",clk(i)]])],
-    ["Email blast",E,"Belum ada email blast di periode ini.",i=>card(i,i.email_tpl||T("Email blast"),[["Klik",clk(i)]])],
-    ["Video YouTube",Y,"Belum ada video YouTube di periode ini.",i=>card(i,"YouTube",[["Views",i.m_views]])]];
-  const Bk=[{t:"cover",lines:["Laporan Copywriter",R.per],sub:R.who},{t:"page",h2:"Ringkasan",sub:R.per+(R.skipped?` · ${R.skipped} kegiatan dilewati (PIC bukan Copywriter)`:"")},
-    {t:"kpis",items:[["Artikel",int(A.length),""],["Email blast",int(E.length),""],["Video YouTube",int(Y.length),""],["Total klik",int(L.reduce((a,i)=>a+(+clk(i)||0),0)),"link pelacak / manual"],["Pembaca artikel",int(sum(A,"m_views")),"diisi manual"],["Views YouTube",int(sum(Y,"m_views")),""]]},
-    ...S.filter(x=>!x[1].length).map(([h,,empty])=>({t:"table",h3:h,cols:[[h,100]],rows:[],empty}))];
-  S.filter(x=>x[1].length).forEach(([h,X,,mk])=>Bk.push({t:"page",h2:h,sub:R.per},{t:"posts",cols:2,items:X.map(mk)}));
-  return {div:R.div,per:R.per,blocks:Bk};
+  const c=R.c,num=x=>x?Number(x).toLocaleString("en-US"):"-",tot=a=>Object.assign(a,{tot:1}),add=(...x)=>x.reduce((a,v)=>a+(+v||0),0);
+  const TOP={branding:["Branding","C0392B"],event:["Event","555555"],saham:["Investasi Saham","2155C4"]},SELL={hard:["Hard Selling","B35C00"],soft:["Soft Selling","2E7BD6"]};
+  const isInt=i=>i.channel!=="Media partner",views=L=>L.reduce((a,i)=>a+(+i.m_views||0),0),camp=c.camps.map(x=>x.name).join(", ");
+  const B=[
+    {t:"sum",cols:[
+      [{h2:"Articles/News",cols:[["Channel",50],[R.mon,24,1],["YTD "+R.yr,26,1]],rows:[["Internal (kisi.co.id)",num(c.art.int),num(c.art.ytdInt)],["External (Media)",num(c.art.ext),num(c.art.ytdExt)],
+        tot(["Total",num(c.art.int+c.art.ext),num(c.art.ytdInt+c.art.ytdExt)])]},
+       {h2:"Topic in "+R.mon,cols:[["Topic",70],["Total",30,1]],rows:[["Branding",num(c.topic.branding)],["Event",num(c.topic.event)],["Stock Investment",num(c.topic.saham)],tot(["Total",num(add(...Object.values(c.topic)))])]}],
+      [{h2:"Copywriting for Publication",cols:[["Channel",80],["Total",20,1]],rows:[["Social Media (KISI Contents)",num(c.copy.sm)],[`Social Media (Media & Community${camp?" for "+camp:""})`,num(c.copy.collab)],
+        ["Article Internal (kisi.co.id)",num(c.copy.int)],["Promo on Website",num(c.copy.promo)],["Press Release",num(c.copy.press)],["Push Notifications",num(c.copy.push)],tot(["Total",num(add(...Object.values(c.copy)))])]}]]},
+    {t:"sum",cols:[
+      [{h2:"Design for Publication",cols:[["Type of Design",70],["Total",30,1]],rows:[["Article",num(c.design.art)],["IG Story",num(c.design.story)],["IG Feed",num(c.design.feed)],tot(["Total",num(add(...Object.values(c.design)))])]},
+       ...(c.media.length?[{h2:"Supporting Investment Specialist Involves in Media",cols:[["Channel",75],["Total",25,1]],
+        rows:[...c.media.map(m=>[m.program===m.media?m.media:`${m.media} Program “${m.program.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase())}”`,num(m.n)]),tot(["Total",num(add(...c.media.map(m=>m.n)))])]}]:[])],
+      [{h2:"Administration",cols:[["Task",75],["Total",25,1]],rows:[["Proposal\n(including Distribution, Reimbursement, Report/LPJ)",num(c.prop)],tot(["Total",num(c.prop)])]}]]}];
+  if(c.rows.length)B.push({t:"table",h2:"Details Articles/News",dark:1,per:20,cols:[["No.",5],["Topic",10],["Title & Link Article",37],["Published Date",11],["Category",11],["Channel",15],["Views",11]],
+    rows:[...c.rows.map((i,k)=>{const tp=TOP[i.topic]||TOP[isInt(i)?"saham":"branding"],sl=SELL[i.sell]||SELL.soft;
+      return [String(k+1),{t:tp[0],c:tp[1]},{t:(i.press?"[Press Release]\n":"")+i.title,href:i.link||"",a:i.link?1:0},cwDate(i.date),{t:sl[0],c:sl[1]},i.media||(isInt(i)?"Company Website":"-"),i.m_views!=null?num(i.m_views):"-"]}),
+      tot(["","","","","","Total Views",num(views(c.rows))])]});
+  if(c.yt.length)B.push({t:"table",h2:"Details Speakers at Media",dark:1,big:1,per:3,imgH:1.5,cols:[["No.",5],["Content",22],["Title",24],["Program",12],["Media",11],["Date",10],["Link",6],["Views",10]],
+    rows:[...c.yt.map((i,k)=>[String(k+1),{img:i.img||""},i.title,{t:/\|/.test(i.title)?i.title.split("|").pop().trim().toUpperCase():"-",live:i.live?1:0},i.media||"YouTube",cwDate(i.date),{t:"Link",href:i.link,a:1},i.m_views!=null?num(i.m_views):"-"]),
+      tot(["","","","","","","Total Views",num(views(c.yt))])]});
+  const day=d=>`${+d.slice(8,10)} ${CW_MON[+d.slice(5,7)-1]}`;
+  c.camps.forEach(x=>{
+    const g=(h2,L,cols,cap,title)=>{if(L.length)B.push({t:"gallery",h2,cols,items:L.map((i,k)=>({title:title?i.title:"",img:i.img,cap:`${k+1}) ${cap(i)}`,href:i.link||""}))})};
+    g(`Article for ${x.name} (www.kisi.co.id)`,x.int,3,()=>"Article Internal www.kisi.co.id",1);
+    g(`Article for ${x.name} (Media)`,x.ext,3,i=>"Article in "+(i.media||"Media"),0);
+    g(`Social Media Content for ${x.name}`,x.ig,4,i=>`Instagram ${/reel/i.test(i.channel||"")||/\/reels?\//i.test(i.link||"")?"Reels":"Post"} Collaboration with ${i.media}`,0);
+    g(`Email Blast for ${x.name}`,x.mail,4,i=>"Email Blast "+day(i.date),0);
+    g(`Push Notification for ${x.name}`,x.push,3,i=>"Push Notification "+day(i.date),0);
+  });
+  return {div:R.div,per:R.per,head:`${R.div} | ${R.per}`,plain:true,raw:true,blocks:B};
 }
 const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},ig:{data:igData,doc:igDoc,name:"Laporan Instagram"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
 const repDiv=()=>{const tk=$("rTeam").value,d=$("rDiv").value.trim()||teamName(tk)||"Product & Digital Development";if(d!==teamName(tk))store("pl_div:"+tk,d);else try{localStorage.removeItem("pl_div:"+tk)}catch(e){}return d};
