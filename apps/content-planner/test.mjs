@@ -390,6 +390,10 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   // Laporan SMS: followers dari profil, satu bulan penuh dari feed (berhenti setelah awal bulan), caption utuh
   assert.match(bm, /web_profile_info/); assert.match(bm, /pl:"fol"/); assert.match(bm, /taken_at>=fromTs/); assert.match(bm, /o\.caption=/);
   assert.match(sh, /m\.pl==="fol"/); assert.match(sh, /\/api\/sm\/followers/); assert.match(sh, /pl:"ready",from:/); assert.match(sh, /Bulan lalu/);
+  // Content insights: permintaan halaman diputar ulang untuk Views, Viewers (reach) & Shares; Story dilewati; tanpa membuat kegiatan
+  assert.match(bm, /\/accounts\\\/insights/); assert.match(bm, /CONTENT_META_VIEWERS_COUNT/); assert.match(bm, /RESHARES_COUNT/); assert.match(bm, /CONTENT_VIEWS_COUNT/);
+  assert.match(bm, /instagram_media_product_type==="STORY"/); assert.match(bm, /m_reach/);
+  assert.match(sh, /ins=/); assert.match(sh, /m\.pl==="err"/); assert.match(sh, /Reach/);
   // ?__a=1 sudah tidak melayani data: daftar postingan profil & info per postingan dicoba lebih dulu
   assert.match(bm, /\/api\/v1\/feed\/user\//); assert.match(bm, /\/api\/v1\/media\//);
   assert.match(sh, /Instagram menjawab/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");

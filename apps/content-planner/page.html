@@ -777,6 +777,7 @@ function renderPerf(month){
 function plBookmark(W){
   var L=location,d=document,seen={},list=[];
   if(!/(^|\.)instagram\.com$/.test(L.hostname)){alert("Buka profil Instagram akun sendiri dulu, lalu klik tombol ini.");return}
+  if(/^\/accounts\/insights/.test(L.pathname))return insights();
   var one=L.pathname.match(/\/(p|reels?|tv)\/([\w-]+)/);
   if(one)list.push({k:one[1]==="p"?"p":"reel",c:one[2]});
   else [].forEach.call(d.querySelectorAll('main a[href*="/p/"],main a[href*="/reel/"]'),function(a){var m=a.getAttribute("href").match(/\/(p|reel)\/([\w-]+)/),im=a.querySelector("img");if(m&&!seen[m[2]]){seen[m[2]]=1;list.push({k:m[1],c:m[2],img:im?(im.currentSrc||im.src||""):""})}});
@@ -832,6 +833,39 @@ function plBookmark(W){
         src=pick((it.image_versions2||(it.carousel_media&&it.carousel_media[0]&&it.carousel_media[0].image_versions2)||{}).candidates)||src}
       return grab(src).then(function(img){o.img=img;t.postMessage({pl:"row",n:list.length,row:o,ok:!!it},W);setTimeout(next,cached?100:it?600:200)});
     })})}
+  // Content insights (Professional dashboard): angka per postingan yang tidak publik. Bookmark menangkap permintaan data halaman ini
+  // (sekali, saat user mengganti pilihan angka), lalu memutarnya ulang untuk Views, Viewers (= reach) & Shares. Permintaan & token
+  // halaman hanya dikirim ke Instagram sendiri; ke Planner hanya link + angka. Tanpa tanggal -> hanya memperbarui kegiatan yang cocok.
+  function insights(){
+    if(window.__plIns){alert("Ganti pilihan angka di halaman ini (mis. Views → Viewers) satu kali.");return}
+    window.__plIns=1;
+    var X=XMLHttpRequest.prototype,O=X.open,S=X.send,H=X.setRequestHeader,cap=null;
+    X.open=function(m,u){this.__u=String(u);this.__h={};return O.apply(this,arguments)};
+    X.setRequestHeader=function(k,v){if(this.__h)this.__h[k]=v;return H.apply(this,arguments)};
+    X.send=function(b){try{if(!cap&&/\/api\/graphql/.test(this.__u||"")&&typeof b==="string"&&/MediaGridCardView/.test(b)){cap={u:this.__u,h:this.__h,b:b};X.open=O;X.send=S;X.setRequestHeader=H;setTimeout(go,0)}}catch(e){}return S.apply(this,arguments)};
+    alert("Bookmark siap. Sekarang ganti pilihan angka di halaman ini (mis. Views → Viewers) satu kali.");
+    function q(metric,tf){var p=new URLSearchParams(cap.b),v=JSON.parse(p.get("variables")||"{}");v.metric=metric;v.order_by_options=Object.assign({},v.order_by_options,{metric:metric});v.initialCount=200;if(tf)v.timeframe=tf;p.set("variables",JSON.stringify(v));
+      return fetch(cap.u,{method:"POST",credentials:"include",headers:cap.h,body:p.toString()}).then(function(r){return r.text()}).then(function(t){
+        var j=JSON.parse(t.split("\n")[0]),u=j&&j.data&&j.data.user,e=u&&u.business_manager&&u.business_manager.medias&&u.business_manager.medias.edges;
+        if(!e)throw new Error((j&&j.errors&&j.errors[0]&&j.errors[0].message)||"tanpa data");return e})}
+    function go(){
+      var w=window.open(W+"/ig-sync?ins=1","planner_ig","width=540,height=760");
+      if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk instagram.com, lalu klik tombol lagi.");return}
+      window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready")return;window.removeEventListener("message",h);var t=e.source,tf="";
+        // rentang terpanjang yang diterima Instagram (halaman ini memakai ONE_MONTH): postingan awal bulan lalu ikut terbaca
+        var TF=["THREE_MONTHS","NINETY_DAYS",""];
+        (function tryTf(i){return q("CONTENT_VIEWS_COUNT",TF[i]).then(function(x){tf=TF[i];return x},function(err){if(i+1>=TF.length)throw err;return tryTf(i+1)})})(0)
+        .then(function(views){return Promise.all([views,q("CONTENT_META_VIEWERS_COUNT",tf),q("RESHARES_COUNT",tf)])})
+        .then(function(r){var M={};
+          [["m_views",r[0]],["m_reach",r[1]],["m_shares",r[2]]].forEach(function(x){x[1].forEach(function(ed){var n=ed&&ed.node;
+            if(!n||!n.shortcode||n.instagram_media_product_type==="STORY")return;
+            var o=M[n.shortcode]=M[n.shortcode]||{link:"https://www.instagram.com/p/"+n.shortcode+"/"},s=n.inline_insights_node&&n.inline_insights_node.metric_single_value_query,v=s&&s.results&&s.results[0];
+            if(v&&typeof v.total_value==="number")o[x[0]]=v.total_value})});
+          var L=Object.keys(M).map(function(k){return M[k]}).filter(function(o){return o.m_views!=null||o.m_reach!=null||o.m_shares!=null});
+          t.postMessage({pl:"n",n:L.length},W);L.forEach(function(o){t.postMessage({pl:"row",row:o,ok:true},W)});t.postMessage({pl:"done",tf:tf||"ONE_MONTH"},W)})
+        .catch(function(err){t.postMessage({pl:"err",msg:String(err&&err.message||err).slice(0,120)},W)})});
+    }
+  }
 }
 /** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
 function parseCsv(text){
