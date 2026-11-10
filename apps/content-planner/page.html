@@ -2233,6 +2233,32 @@ function igDoc(R){
     {t:"page",h2:"Semua postingan",sub:`${R.per} · ${L.length} postingan`},{t:"posts",cols:2,items:L.map(igCard)});
   return {div:R.div,per:R.per,blocks:Bk};
 }
+/* ---------- Laporan Social Media Specialist (deck Canva SMS, label English) ---------- */
+// hitungan murni (dites di test.mjs): L = kegiatan bulan itu; o = {month:"YYYY-MM", fol:{"YYYY-MM":{ig,tt}}, v: isian form (sm_n)}.
+// Angka tidak diketahui = null ("-" di laporan); isian form (bukan null) menimpa hitungan. Views Rate diketik dalam seperseratus persen (5357 = 53.57%).
+function smCalc(L,o){
+  const v=o.v||{},num=x=>typeof x==="number"&&isFinite(x)?x:null,pick=(t,c)=>num(t)!==null?t:c,low=s=>String(s||"").toLowerCase();
+  const sum=(A,k)=>A.some(i=>num(i[k])!==null)?A.reduce((a,i)=>a+(num(i[k])||0),0):null,g=k=>v[k]||{};
+  const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0,link=i=>String(i.link||"");
+  const igP=L.filter(i=>i.kind==="konten"&&(/^IG/i.test(i.channel||"")||/instagram\.com/i.test(link(i)))&&!/story/i.test(i.channel||"")&&!/\/stories\//i.test(link(i))).sort(byDate);
+  const tt=L.filter(i=>i.kind==="konten"&&(i.channel==="TikTok"||/tiktok\.com/i.test(link(i)))),yt=L.filter(i=>/youtube\.com\/shorts\//i.test(link(i)));
+  // seri: nama seri (huruf kecil) di judul + caption; nama terpanjang yang cocok menang, satu postingan satu seri
+  const S=(v.ser||[]).map(x=>({n:String(x.n||""),s:String(x.s||""),t:num(x.c),k:low(x.n).trim(),c:0}));
+  const order=S.filter(x=>x.k).sort((a,b)=>b.k.length-a.k.length),reg=[];
+  igP.forEach(i=>{const t=low(i.title)+"\n"+low(i.copy),x=order.find(x=>t.includes(x.k));if(x)x.c++;else reg.push(i)});
+  const ser=S.map(x=>({n:x.n,s:x.s,c:pick(x.t,x.c),auto:x.t===null}));
+  const [y,m]=o.month.split("-").map(Number),MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const months=Array.from({length:18},(_,k)=>{const d=new Date(Date.UTC(y,m-18+k,1)),ym=d.toISOString().slice(0,7),f=(o.fol||{})[ym]||{};
+    return {m:ym,label:MN[d.getUTCMonth()]+" "+String(d.getUTCFullYear()).slice(2),ig:num(f.ig),tt:num(f.tt)}});
+  const R=g("reg"),Y=g("yt"),T=g("tt"),A=g("ads"),TA=g("ttAds"),rows=a=>(a||[]).map(x=>({n:String(x.n||""),c:num(x.c)})),tot=a=>a.some(x=>x.c!==null)?a.reduce((s,x)=>s+(x.c||0),0):null;
+  const yv=num(Y.views),yi=num(Y.impr),ve=rows(v.ve),de=rows(v.de);
+  return {months,ser,serTotal:tot(ser),
+    reg:{post:pick(R.post,reg.length),reach:num(R.reach),views:pick(R.views,sum(reg,"m_views")),likes:pick(R.likes,sum(reg,"m_likes"))},
+    ads:{cost:num(A.cost),posts:num(A.posts),reach:num(A.reach)},
+    yt:{post:pick(Y.post,yt.length),adPosts:num(Y.adPosts),cost:num(Y.cost),impr:yi,inter:num(Y.inter),views:yv,rate:num(Y.rate)!==null?Y.rate/100:yv!==null&&yi?Math.round(yv/yi*10000)/100:null},
+    tt:{post:pick(T.post,tt.length),prof:num(T.prof),views:pick(T.views,sum(tt,"m_views")),likes:pick(T.likes,sum(tt,"m_likes"))},
+    ttAds:{cost:num(TA.cost),posts:num(TA.posts),reach:num(TA.reach)},ttNote:String(v.ttNote||""),ve,veTotal:tot(ve),de,deTotal:tot(de),igPosts:igP};
+}
 /* ---------- Laporan Copywriter (gaya deck Canva copywriter, label English seperti deck-nya) ---------- */
 // hitungan murni (dites di test.mjs): L = kegiatan periode yang sudah difilter orang; o = periode, kampanye, angka diketik, YTD
 function cwCalc(L,o){

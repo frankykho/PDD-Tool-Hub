@@ -1180,4 +1180,44 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await call("/api/sm/cfg", { ck, body: { m: "bad", v: {} } })).status, 400);
 }
 
+// Laporan Social Media Specialist: hitungan murni smCalc
+{
+  const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
+  const calc = new Function(pg.match(/function smCalc\(L,o\)\{[\s\S]*?\n\}\n/)[0] + "return smCalc")();
+  const ig = (title, extra = {}) => ({ kind: "konten", channel: "IG Feed", date: "2026-10-07", title, link: "https://www.instagram.com/p/" + title.replace(/\W/g, "") + "/", ...extra });
+  const L = [
+    ig("BreakVest KISI 1"), ig("BreakVest KISI 2"), ig("breakvest kisi 3"),
+    ig("Update pasar", { copy: "Weekly BreakVest KISI\nisi", channel: "IG Reels" }),
+    ig("Tips DCA", { m_views: 100, m_likes: 5, m_reach: 80 }), ig("Promo", { m_views: 50, m_likes: 7 }),
+    ig("Story", { channel: "IG Story", m_views: 999 }),
+    { kind: "konten", channel: "YouTube", date: "2026-10-09", title: "Short", link: "https://www.youtube.com/shorts/abcDEF12345" },
+    { kind: "konten", channel: "YouTube", date: "2026-10-09", title: "Panjang", link: "https://www.youtube.com/watch?v=abcDEF12346" },
+    { kind: "konten", channel: "TikTok", date: "2026-10-10", title: "T1", link: "https://www.tiktok.com/@kisi/video/1", m_views: 10, m_likes: 1 },
+    { kind: "konten", channel: "Lainnya", date: "2026-10-11", title: "T2", link: "https://www.tiktok.com/@kisi/video/2", m_views: 20, m_likes: 2 },
+    { kind: "artikel", channel: "Website", date: "2026-10-12", title: "BreakVest KISI artikel" },
+  ];
+  const ser = [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }, { n: "Weekly BreakVest KISI", s: "Every Monday" }, { n: "Weekly Update Reksa Dana", s: "Every Monday" }, { n: "Weekly Update Bonds", s: "Every Monday" }];
+  let r = calc(L, { month: "2026-10", fol: { "2026-10": { ig: 37790, tt: 63762 }, "2025-05": { ig: 16841 } }, v: { ser } });
+  assert.deepEqual(r.ser.map((x) => x.c), [3, 1, 0, 0], "nama seri terpanjang menang; huruf besar/kecil diabaikan");
+  assert.equal(r.serTotal, 4);
+  assert.deepEqual(r.reg, { post: 2, reach: null, views: 150, likes: 12 }, "Regular = postingan IG di luar seri, tanpa Story");
+  assert.equal(r.yt.post, 1, "hanya YouTube Shorts"); assert.equal(r.yt.rate, null);
+  assert.deepEqual(r.tt, { post: 2, prof: null, views: 30, likes: 3 });
+  assert.equal(r.months.length, 18);
+  assert.deepEqual(r.months[0], { m: "2025-05", label: "May 25", ig: 16841, tt: null });
+  assert.deepEqual(r.months[17], { m: "2026-10", label: "Oct 26", ig: 37790, tt: 63762 });
+  assert.equal(r.months[1].ig, null, "bulan tanpa followers = null, bukan 0");
+  assert.equal(r.igPosts.length, 6, "kartu IG: semua postingan IG bulan itu tanpa Story");
+  // isian menimpa hitungan; 0 yang diketik tetap 0
+  r = calc(L, { month: "2026-10", fol: {}, v: { ser: [{ n: "BreakVest KISI", s: "x", c: 14 }], reg: { post: 66, reach: 3415684, views: 0 }, yt: { views: 9752, impr: 419374 },
+    tt: { prof: 318 }, ads: { cost: 12031980, posts: 15, reach: 3204770 }, ttNote: "No TikTok Ads in October", ve: [{ n: "BreakVest KISI", c: 14 }, { n: "Reels", c: null }], de: [{ n: "Monthly Outlook", c: 1 }, { n: "Regular Education", c: 13 }] } });
+  assert.equal(r.ser[0].c, 14); assert.equal(r.serTotal, 14);
+  assert.deepEqual(r.reg, { post: 66, reach: 3415684, views: 0, likes: 12 });
+  assert.equal(r.yt.rate, 2.33);
+  assert.equal(calc(L, { month: "2026-10", fol: {}, v: { yt: { views: 9752, impr: 419374, rate: 5357 } } }).yt.rate, 53.57, "Views Rate diketik menimpa hitungan"); assert.equal(r.tt.prof, 318); assert.deepEqual(r.ads, { cost: 12031980, posts: 15, reach: 3204770 });
+  assert.deepEqual(r.ttAds, { cost: null, posts: null, reach: null }); assert.equal(r.ttNote, "No TikTok Ads in October");
+  assert.equal(r.veTotal, 14); assert.equal(r.deTotal, 14); assert.equal(r.ve[1].c, null);
+  assert.deepEqual(calc([], { month: "2026-01", fol: {}, v: null }).months[0].m, "2024-08", "lintas tahun");
+}
+
 console.log("semua cek lolos");
