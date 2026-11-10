@@ -931,5 +931,37 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal(cr.topic, "event"); assert.equal(cr.sell, null); assert.equal(cr.media, "IDX Channel"); assert.equal(cr.press, 1); assert.equal(cr.tags, null); assert.equal(cr.live, null);
   assert.equal(cr.channel, "Push notification");
 }
+// /api/linkmeta: judul, media, topik & kategori dari link (hanya isian kosong)
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    if (u.includes("/besar")) return new Response("<p>" + "x".repeat(1.6e6) + "</p>", { headers: { "content-type": "text/html" } });
+    if (u.includes("/gambar")) return new Response(new Uint8Array([137, 80]), { headers: { "content-type": "image/png" } });
+    return new Response('<meta property="og:title" content="ANALIS MARKET (01/10/2026): IHSG Mixed"><meta property="og:site_name" content="Pasardana Online">', { headers: { "content-type": "text/html; charset=utf-8" } });
+  };
+  try {
+    const mk = async (b) => (await call("/api/items", { ck: COPY, body: { kind: "artikel", channel: "Media partner", date: "2026-10-01", status: "terbit", ...b } })).j.id;
+    const get = async (id) => (await call("/api/items?id=" + id, { ck: COPY })).j;
+    const a = await mk({ title: "https://pasardana.id/news/2026/10/1/analis", link: "https://pasardana.id/news/2026/10/1/analis" });
+    let m = await call("/api/linkmeta", { ck: COPY, body: { id: a } });
+    assert.equal(m.status, 200); assert.equal(m.j.ok, true);
+    let x = await get(a);
+    assert.deepEqual([x.title, x.media, x.topic, x.sell], ["ANALIS MARKET (01/10/2026): IHSG Mixed", "Pasardana.id", "branding", "soft"]);
+    // pilihan copywriter tidak ditimpa
+    const b = await mk({ title: "Judul sendiri", link: "https://pasardana.id/news/b", topic: "saham", media: "Pasardana" });
+    await call("/api/linkmeta", { ck: COPY, body: { id: b } });
+    x = await get(b);
+    assert.deepEqual([x.title, x.media, x.topic, x.sell], ["Judul sendiri", "Pasardana", "saham", "soft"]);
+    // instagram, bukan HTML, terlalu besar: kegiatan tidak berubah
+    for (const link of ["https://www.instagram.com/p/abc/", "https://pasardana.id/gambar.png", "https://pasardana.id/besar"]) {
+      const id = await mk({ title: "T", link });
+      m = await call("/api/linkmeta", { ck: COPY, body: { id } });
+      assert.equal(m.status, 200, link); assert.equal(m.j.ok, false, link);
+      x = await get(id); assert.deepEqual([x.title, x.media, x.topic], ["T", null, null], link);
+    }
+    assert.equal((await call("/api/linkmeta", { ck: PART, body: { id: a } })).status, 403, "bukan pembuat / PIC");
+  } finally { globalThis.fetch = realFetch; }
+}
 
 console.log("semua cek lolos");

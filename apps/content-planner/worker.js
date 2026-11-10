@@ -20,6 +20,7 @@
 // - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan IG;
 //   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
 // - "/api/linkimg" (GET ?url=) -> gambar sampul dari link (YouTube: thumbnail; lainnya: og:image) untuk dikecilkan browser
+// - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
 // - "/api/yt/refresh" (POST {ids}) -> views, suka, komentar video YouTube dari YouTube Data API (secret opsional YOUTUBE_API_KEY:
 //   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
 //   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key angka YouTube diisi manual.
@@ -639,6 +640,8 @@ export function guessTopic({ title = "", tags = [], internal = false, press = fa
 }
 /** Hard selling = liputan media atas press release atau event; tulisan di website sendiri selalu soft. */
 export const guessSell = ({ internal = false, press = false, topic = "" }) => !internal && (press || topic === "event") ? "hard" : "soft";
+/** Tag tersimpan (JSON array) / dari API kisi.co.id -> array string; isi rusak -> []. */
+export const tagsOf = (v) => { try { const a = Array.isArray(v) ? v : JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(String) : []; } catch { return []; } };
 const unent = (s) => String(s || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
 const metaOf = (html, k) => { const m = String(html).match(new RegExp(`<meta[^>]+(?:property|name)=["']${k}["'][^>]*content=["']([^"']*)["']|<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${k}["']`, "i")); return m ? unent(m[1] ?? m[2]) : ""; };
 /** Judul, nama situs, dan tanggal terbit dari HTML halaman. */
@@ -675,6 +678,29 @@ async function linkImg(link) {
     const img = await readCapped(r, 5e6);
     return img ? new Response(img, { headers: { "content-type": ct, "cache-control": "no-store" } }) : json({ error: "Gambar terlalu besar." }, 415);
   } catch { return json({ error: "Gambar tidak ditemukan di link ini." }, 404); }
+}
+/** POST /api/linkmeta {id}: judul, nama media, topik & kategori dari halaman link kegiatan; hanya isian yang masih kosong.
+ *  Instagram (diblokir dari server) & YouTube (lewat /api/yt/refresh) dilewati. */
+async function linkMeta(env, me, id) {
+  await ensure(env);
+  const it = id ? await env.DB.prepare("SELECT * FROM items WHERE id=?").bind(String(id)).first() : null;
+  if (!it) return { error: "Kegiatan ini sudah dihapus." };
+  if (!canEditItem(me, it)) return { error: "Hanya pembuat, PIC, desainer, atau admin yang bisa mengubah kegiatan ini.", forbidden: true };
+  const u = safeHttps(it.link);
+  if (!u || /(^|\.)instagram\.com$/i.test(u.hostname) || ytId(u.href)) return { ok: false };
+  let meta = null;
+  try {
+    const r = await fetch(u.href, { headers: { "User-Agent": UA_WEB, Accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(10000) });
+    const body = r.ok && /text\/html/i.test(r.headers.get("content-type") || "") ? await readCapped(r, 1.5e6) : null;
+    if (body) meta = pageMeta(new TextDecoder().decode(body));
+  } catch { /* gagal = tidak mengisi apa-apa */ }
+  if (!meta) return { ok: false };
+  const blank = (v) => v == null || String(v).trim() === "" || String(v).trim() === it.link;
+  const internal = isInternal(u.href), title = blank(it.title) && meta.title ? meta.title : it.title;
+  const topic = it.topic || guessTopic({ title, tags: tagsOf(it.tags), internal, press: !!it.press });
+  const out = { title, media: blank(it.media) ? mediaName(u.href, meta.site) : it.media, topic, sell: it.sell || guessSell({ internal, press: !!it.press, topic }) };
+  await env.DB.prepare("UPDATE items SET title=?, media=?, topic=?, sell=? WHERE id=?").bind(out.title, out.media, out.topic, out.sell, it.id).run();
+  return { ok: true, ...out };
 }
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
 async function ytRefresh(env, ids) {
@@ -1535,6 +1561,7 @@ export default {
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/img") { const r = await saveImg(env, me, b); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
+        if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b), "/api/yt/refresh": () => ytRefresh(env, b.ids),
           "/api/logs": () => saveLog(env, me, b), "/api/logs/delete": () => deleteLog(env, me, b.id), "/api/wa": () => saveWa(env, me, b), "/api/picks": () => savePick(env, me, b), "/api/picks/delete": () => deletePick(env, me, b.id), "/api/galeri/import": () => importGalleries(env, me, b), "/api/translate": () => translateTexts(env, b) }[path];
