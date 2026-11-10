@@ -844,6 +844,8 @@ export function cleanMetricRow(r) {
   const out = { key, link, date, title: String(r.title ?? "").replace(/\s+/g, " ").trim().slice(0, 160), type: String(r.type ?? "").slice(0, 40) };
   for (const k of METRICS) out[k] = numOf(r[k]);
   out.img = imgOk(r.img);
+  // akun mitra kolaborasi (bookmark IG: coauthor selain akun KISI) -> kolom media, hanya bila masih kosong
+  out.media = String(r.media ?? "").trim().slice(0, 80) || null;
   return METRICS.some((k) => out[k] != null) ? out : null;
 }
 /** Impor angka performa: { rows: [{link, date, title, type, m_views, ...}], create }. Baris yang cocok (lewat link) diperbarui;
@@ -863,14 +865,14 @@ async function importMetrics(env, me, b) {
       matched++;
       if (r.img) imgs.push([id, r.img]);
       // angka yang tidak dibawa sumber ini (CSV Meta tanpa Reposts, bookmark tanpa jangkauan/simpan) tidak dihapus
-      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=COALESCE(?, " + k + ")").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, by, now, id));
+      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=COALESCE(?, " + k + ")").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), media=COALESCE(NULLIF(media, ''), ?), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, r.media, by, now, id));
     } else if (b.create && r.date) {
       created++;
       const nid = crypto.randomUUID();
       if (r.img) imgs.push([nid, r.img]);
-      const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
+      const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "media", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
       st.push(env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(nid, "konten", r.date, r.title || "Postingan " + tgl(r.date), channelOf(r.type, r.link), "terbit", by, meE, r.link, 0,
-        ...METRICS.map((k) => r[k]), now, "csv", res, by, meE, now, by, now));
+        ...METRICS.map((k) => r[k]), now, "csv", res, r.media, by, meE, now, by, now));
     } else unmatched.push(r.link);
   }
   for (let i = 0; i < st.length; i += 50) await env.DB.batch(st.slice(i, i + 50));

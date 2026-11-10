@@ -1004,6 +1004,20 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: "x" } } })).status, 400);
   assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: -1 } } })).status, 400);
 }
+// mitra kolaborasi IG dari bookmark: mengisi media yang masih kosong
+{
+  let r = await call("/api/metrics/import", { ck: COPY, body: { create: true, rows: [{ link: "https://www.instagram.com/reel/COLAB1/", date: "2026-10-19", title: "KISI Challenge resmi dimulai", type: "reel", m_likes: "152", media: "kuliahsaham" }] } });
+  assert.equal(r.status, 200);
+  const find = async () => (await call("/api/items?from=2026-10-19&to=2026-10-19", { ck: COPY })).j.find((i) => /COLAB1/.test(i.link));
+  assert.equal((await find()).media, "kuliahsaham");
+  await call("/api/metrics/import", { ck: COPY, body: { rows: [{ link: "https://www.instagram.com/reel/COLAB1/", m_likes: "160", media: "lain" }] } });
+  const x = await find();
+  assert.deepEqual([x.media, x.m_likes], ["kuliahsaham", 160]);
+  // kegiatan tanpa media lalu dicocokkan: media terisi
+  await call("/api/metrics/import", { ck: COPY, body: { create: true, rows: [{ link: "https://www.instagram.com/p/COLAB2/", date: "2026-10-01", title: "Kendaraan Keren", type: "foto", m_likes: "57" }] } });
+  await call("/api/metrics/import", { ck: COPY, body: { rows: [{ link: "https://www.instagram.com/p/COLAB2/", m_likes: "57", media: "sahamology" }] } });
+  assert.equal((await call("/api/items?from=2026-10-01&to=2026-10-01", { ck: COPY })).j.find((i) => /COLAB2/.test(i.link)).media, "sahamology");
+}
 // /api/linkmeta: judul, media, topik & kategori dari link (hanya isian kosong)
 {
   const realFetch = globalThis.fetch;

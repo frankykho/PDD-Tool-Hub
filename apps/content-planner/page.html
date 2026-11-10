@@ -766,6 +766,8 @@ function plBookmark(W){
         o.type=it.media_type===8?"carousel":(it.media_type===2||it.product_type==="clips")?"reel":"foto";
         o.m_likes=it.like_count>=0?it.like_count:"";o.m_comments=it.comment_count!=null?it.comment_count:"";var v=it.play_count||it.ig_play_count||it.view_count;o.m_views=v!=null?v:"";
         var rp=it.repost_count!=null?it.repost_count:it.reshare_count;o.m_reposts=typeof rp==="number"&&rp>=0?rp:"";
+        // postingan kolaborasi: akun mitra (coauthor selain akun KISI) untuk Laporan Copywriter
+        var co=(it.coauthor_producers||[]).concat(it.invited_coauthor_producers||[]).map(function(p){return p&&p.username||""}).filter(function(u){return u&&!/^kisi_sekuritas$/i.test(u)});o.media=co[0]||"";
         src=pick((it.image_versions2||(it.carousel_media&&it.carousel_media[0]&&it.carousel_media[0].image_versions2)||{}).candidates)||src}
       return grab(src).then(function(img){o.img=img;t.postMessage({pl:"row",n:list.length,row:o,ok:!!it},W);setTimeout(next,cached?100:it?600:200)});
     })})}
