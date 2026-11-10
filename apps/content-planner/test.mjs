@@ -1013,6 +1013,21 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   const dict = EN.dict || EN;
   for (const k of ["Topik", "Kategori", "Investasi Saham", "Liputan press release", "Media / mitra", "Push notification"]) assert.ok(JSON.stringify(dict).includes(JSON.stringify(k) + ":"), "terjemahan " + k);
 }
+// pembuat PDF & PPT: blok gaya deck Canva (ringkasan, tabel detail, galeri) ada di keduanya
+{
+  const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
+  const pdf = pg.slice(pg.indexOf("async function pdfDoc("), pg.indexOf("async function pptDoc(")), ppt = pg.slice(pg.indexOf("async function pptDoc("), pg.indexOf("const mobileFramed"));
+  for (const [n, s] of [["pdf", pdf], ["ppt", ppt]]) {
+    assert.match(s, /b\.t==="sum"/, n); assert.match(s, /b\.t==="gallery"/, n); assert.match(s, /doc\.head/, n); assert.match(s, /doc\.plain|plain=/, n);
+    assert.match(s, /\.tot\b/, n); assert.match(s, /\.img!==undefined/, n); assert.match(s, /\.live/, n); assert.match(s, /b\.per/, n);
+  }
+  // potong baris per halaman: baris total tidak dihitung dan ikut potongan terakhir
+  const chunk = new Function(pg.match(/function chunkRows\(R,n\)\{[\s\S]*?\n\}\n/)[0] + "return chunkRows")();
+  const R = [[1], [2], [3], Object.assign([0], { tot: 1 })];
+  assert.deepEqual(chunk(R, 2).map((c) => c.length), [2, 2]);
+  assert.deepEqual(chunk(R, 3).map((c) => c.length), [4]);
+  assert.deepEqual(chunk([], 3), [[]]);
+}
 // mitra kolaborasi IG dari bookmark: mengisi media yang masih kosong
 {
   let r = await call("/api/metrics/import", { ck: COPY, body: { create: true, rows: [{ link: "https://www.instagram.com/reel/COLAB1/", date: "2026-10-19", title: "KISI Challenge resmi dimulai", type: "reel", m_likes: "152", media: "kuliahsaham" }] } });

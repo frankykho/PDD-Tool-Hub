@@ -1703,7 +1703,32 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 .mr-pb b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:9pt;line-height:1.25;margin:.02in 0 .06in;overflow-wrap:anywhere}
 .mr-pm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.03in .08in}
 .mr-pm span{font-size:10pt;font-weight:800;color:#2f7a55;white-space:nowrap}
-.mr-pm i{display:block;font-style:normal;font-weight:500;font-size:7pt;color:#5f6b7a}`;
+.mr-pm i{display:block;font-style:normal;font-weight:500;font-size:7pt;color:#5f6b7a}
+.mr-plain{background:#fff}.mr-plain .mr-foot{display:none}
+.mr-plain .mr-body h2{font-size:30pt;font-weight:700;letter-spacing:-.01em;margin:0 0 .18in}
+.mr-t.dark{font-size:8.5pt;border:1px solid #2b2b2b}
+.mr-t.dark th{background:#136f4a;color:#fff;text-align:center;border:1px solid #2b2b2b}
+.mr-t.dark td{border:1px solid #2b2b2b;text-align:center;vertical-align:middle}
+.mr-t.dark a{color:#1a56db;text-decoration:underline}
+.mr-t tr.tot td{background:#136f4a;color:#fff;font-weight:700}
+.mr-t td.im{padding:.05in}.mr-t td.im img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.mr-live{color:#e02020;font-weight:500}
+.mr-sum{display:grid;grid-template-columns:1fr 1fr;gap:.6in;align-items:start}
+.mr-s1{margin:0 0 .3in}
+.mr-plain .mr-body .mr-s1 h2{font-size:26pt;margin:0 0 .14in}
+.mr-box{border:1.5px solid #3f8a66;border-radius:12px;padding:.03in .12in;background:#fff}
+.mr-t.sum{font-size:12pt;background:transparent}
+.mr-t.sum th{background:none;color:#2b2b2b;font-size:12.5pt;border-bottom:1px solid #3f8a66;padding:.08in .07in}
+.mr-t.sum td{border-bottom:1px solid #3f8a66;padding:.08in .07in;vertical-align:middle}
+.mr-t.sum tr:last-child td{border-bottom:0}
+.mr-t.sum tr.tot td{background:none;color:#2b2b2b}
+.mr-gal{display:grid;gap:.35in;margin:0 0 .25in}
+.mr-gal.c3{grid-template-columns:repeat(3,minmax(0,1fr))}.mr-gal.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.mr-gal figure{margin:0;min-width:0}
+.mr-gal small{display:block;font-size:9pt;font-weight:700;line-height:1.3;color:#1a6fb5;margin:0 0 .05in;min-height:2.6em}
+.mr-gal img,.mr-gal .mr-noimg{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;display:flex;flex:none}
+.mr-gal figcaption{font-size:12pt;font-weight:700;color:#0f5e48;margin-top:.08in}
+.mr-gal figcaption a{color:inherit;text-decoration:underline}`;
 async function monData(div){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
@@ -1807,23 +1832,30 @@ function monDoc(R0){
   return {div:R.div,per:R.per,blocks:Bk};
 }
 /** PDF: halaman 16:9 disusun di luar layar; isi yang tidak muat pindah ke halaman berikutnya (tabel berlanjut dengan kepala tabelnya). */
+// potong baris tabel per n baris data; baris total (r.tot) tidak dihitung dan ikut potongan terakhir; tanpa baris -> satu potongan kosong
+function chunkRows(R,n){
+  const out=[];let cur=[],k=0;
+  for(const r of R){if(!r.tot&&k===n){out.push(cur);cur=[];k=0}cur.push(r);if(!r.tot)k++}
+  out.push(cur);return out;
+}
 async function pdfDoc(doc){
   await mrFonts();
   const logo=new URL(MR_LOGO,location.href).href,hasLogo=await mrImg(logo);
   if(!$("mrCss")){const s=document.createElement("style");s.id="mrCss";s.textContent=MR_CSS;document.head.appendChild(s)}
   const host=document.createElement("div");host.className="mr-host";host.setAttribute("translate","no");document.body.appendChild(host);
-  const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(doc.div)} Report | ${esc(doc.per)}</span></div>`;
+  const head=`<div class="mr-head">${hasLogo?`<img src="${esc(logo)}" alt="${esc(B.company||"Logo")}">`:`<b>${esc(B.company||"")}</b>`}<span>${esc(doc.head||`${doc.div} Report | ${doc.per}`)}</span></div>`;
   const foot=TP(`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`);
   let body=null;
-  const page=cls=>{const p=document.createElement("section");p.className="mr-page"+(cls?" "+cls:"");p.innerHTML=head+`<div class="mr-body"></div><div class="mr-foot"><span>${esc(foot)}</span><span class="pn"></span></div>`;host.appendChild(p);body=p.querySelector(".mr-body")};
+  // doc.plain: gaya deck Canva (latar putih, judul besar, tanpa kaki halaman)
+  const page=cls=>{const p=document.createElement("section");p.className="mr-page"+(doc.plain?" mr-plain":"")+(cls?" "+cls:"");p.innerHTML=head+`<div class="mr-body"></div><div class="mr-foot"><span>${esc(foot)}</span><span class="pn"></span></div>`;host.appendChild(p);body=p.querySelector(".mr-body")};
   const over=()=>body.scrollHeight>body.clientHeight+1;
   const frag=html=>{const t=document.createElement("template");t.innerHTML=html;return [...t.content.children]};
   const put=html=>{const els=frag(html);els.forEach(e=>body.appendChild(e));if(over()&&body.children.length>els.length){els.forEach(e=>e.remove());page();els.forEach(e=>body.appendChild(e))}};
   // rows: <tr> siap pakai (baris tr.grp = nama orang, ikut pindah bersama baris sesudahnya)
-  const table=(title,cols,rows,empty)=>{
+  const table=(title,cols,rows,empty,cls)=>{
     if(!rows.length)return put(`${title}<p class="mr-note">${esc(empty)}</p>`);
     const thead=`<thead><tr>${cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead>`;
-    const start=cont=>{const els=frag((cont?title.replace(/<\/h3>$/,` <span class="mr-cont">${esc(T("(lanjutan)"))}</span></h3>`):title)+`<table class="mr-t">${thead}<tbody></tbody></table>`);els.forEach(e=>body.appendChild(e));return els};
+    const start=cont=>{const els=frag((cont?title.replace(/<\/h3>$/,` <span class="mr-cont">${esc(T("(lanjutan)"))}</span></h3>`):title)+`<table class="mr-t${cls||""}">${thead}<tbody></tbody></table>`);els.forEach(e=>body.appendChild(e));return els};
     let els=start(false),tb=els[els.length-1].tBodies[0],n=0;
     for(const r of rows){
       tb.insertAdjacentHTML("beforeend",r);
@@ -1840,12 +1872,21 @@ async function pdfDoc(doc){
       tb.insertAdjacentHTML("beforeend",r);n++;   // baris yang lebih tinggi dari satu halaman tetap ditaruh
     }
   };
+  // sel: {t, href} = teks + link "buka"; {t, href, a:1} = teks itu sendiri link; {t, c} = warna teks; {img} = gambar; {t, live:1} = "LIVE" merah di atas
   const td=(c,num)=>{
     if(c===null||typeof c!=="object")return `<td${num?' class="n"':""}>${esc(c)}</td>`;
-    let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(T(WS[c.st]||c.st))}</span>`:esc(c.t||"");
-    if(c.href)h+=`${h?" ":""}<a href="${esc(c.href)}">${esc(T("buka"))}</a>`;
-    return `<td${num?' class="n"':""}>${h||"–"}</td>`;
+    if(c.img!==undefined)return `<td class="im">${c.img?`<img src="${esc(c.img)}" alt="">`:""}</td>`;
+    const tx=esc(c.t||"").replace(/\n/g,"<br>");
+    let h=c.st?`<span class="mr-st ${esc(c.st)}">${esc(T(WS[c.st]||c.st))}</span>`:tx;
+    if(c.a&&c.href)h=`<a href="${esc(c.href)}">${tx||esc(c.href)}</a>`;
+    else if(c.href)h+=`${h?" ":""}<a href="${esc(c.href)}">${esc(T("buka"))}</a>`;
+    if(c.live)h=`<b class="mr-live">LIVE</b><br>${h}`;
+    return `<td${num?' class="n"':""}${c.c?` style="color:#${esc(c.c)}"`:""}>${h||"–"}</td>`;
   };
+  const tr=(r,cols)=>r.grp!==undefined?`<tr class="grp"><td colspan="${cols.length}">${esc(r.grp)}</td></tr>`:`<tr${r.tot?' class="tot"':""}>${r.map((c,i)=>td(c,(cols[i]||[])[2])).join("")}</tr>`;
+  // tabel ringkasan berbingkai (blok sum): kolom kiri & kanan, masing-masing tumpukan tabel berjudul besar
+  const sumT=t=>`<div class="mr-s1"><h2>${esc(t.h2)}</h2><div class="mr-box"><table class="mr-t sum"><thead><tr>${t.cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>tr(r,t.cols)).join("")}</tbody></table></div></div>`;
+  const fig=c=>`<figure>${c.title?`<small>${esc(c.title)}</small>`:""}${c.img?`<img src="${esc(c.img)}" alt="">`:`<div class="mr-noimg">${esc(T("Tanpa gambar"))}</div>`}<figcaption>${c.href?`<a href="${esc(c.href)}">${esc(c.cap)}</a>`:esc(c.cap)}</figcaption></figure>`;
   for(const b of doc.blocks){
     if(b.t==="cover"){page("mr-cover");body.innerHTML=`<h1>${b.lines.map(esc).join("<br>")}</h1><p>${esc(b.sub||"")}</p>`}
     else if(b.t==="page"){page();put(`<h2>${esc(b.h2)}</h2>${b.sub?`<p class="sub">${esc(b.sub)}</p>`:""}`)}
@@ -1854,7 +1895,14 @@ async function pdfDoc(doc){
       const n=b.cols||2,card=c=>`<div class="mr-post">${c.img?`<img src="${esc(c.img)}" alt="">`:`<div class="mr-noimg">${esc(T("Tanpa gambar"))}</div>`}<div class="mr-pb"><small>${esc(c.date)}${c.ch?" · "+esc(c.ch):""}</small><b>${esc(c.title||"–")}</b><div class="mr-pm">${c.m.map(m=>`<span><i>${esc(m[0])}</i>${esc(m[1])}</span>`).join("")}</div></div></div>`;
       for(let i=0;i<b.items.length;i+=n)put((i===0&&b.h3?`<h3>${esc(b.h3)}</h3>`:"")+`<div class="mr-posts c${n}">${b.items.slice(i,i+n).map(card).join("")}</div>`);
     }
-    else if(b.t==="table")table(`<h3>${esc(b.h3)}</h3>`,b.cols,b.rows.map(r=>r.grp!==undefined?`<tr class="grp"><td colspan="${b.cols.length}">${esc(r.grp)}</td></tr>`:`<tr>${r.map((c,i)=>td(c,(b.cols[i]||[])[2])).join("")}</tr>`),b.empty||"");
+    // b.h2: setiap potongan (b.per baris) di halaman sendiri dengan judul besar yang sama; b.dark: kepala hijau tua
+    else if(b.t==="table"&&b.h2)chunkRows(b.rows,b.per||1e9).forEach(ch=>{page();put(`<h2>${esc(b.h2)}</h2>`);table("",b.cols,ch.map(r=>tr(r,b.cols)),b.empty||"",b.dark?" dark":"")});
+    else if(b.t==="table")table(`<h3>${esc(b.h3)}</h3>`,b.cols,b.rows.map(r=>tr(r,b.cols)),b.empty||"",b.dark?" dark":"");
+    else if(b.t==="sum"){page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum">${b.cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`)}
+    else if(b.t==="gallery"){
+      const n=b.cols||3;page();put(`<h2>${esc(b.h2)}</h2>`);
+      for(let i=0;i<b.items.length;i+=n)put(`<div class="mr-gal c${n}">${b.items.slice(i,i+n).map(fig).join("")}</div>`);
+    }
   }
   const P=[...host.children];P.forEach((p,i)=>{p.querySelector(".pn").textContent=`${i+1} / ${P.length}`});
   const html=host.innerHTML;host.remove();return html;
@@ -1870,15 +1918,17 @@ async function pptDoc(doc,fileName){
   const ST={selesai:["E1F5E9","1D6B41"],berjalan:["FFF4DC","8A5A00"],kendala:["FDE8E6","A5352A"],rencana:["EEF1F4","4A5563"]};
   const foot=TP(`Dibuat dari Content Planner · ${new Date().toLocaleDateString("id-ID",{dateStyle:"long"})}`);
   let s=null,y=0;
+  // doc.plain: gaya deck Canva (latar putih, judul besar, tanpa kaki & nomor halaman supaya bisa langsung digabung)
+  const plain=!!doc.plain,DK="136F4A";
   const slide=cover=>{
-    s=pp.addSlide();s.background={color:C.bg};
+    s=pp.addSlide();s.background={color:plain?"FFFFFF":C.bg};
     if(logo)s.addImage({data:logo.data,x:X,y:.4,h:.36,w:+(.36*logo.r).toFixed(3)});else s.addText(B.company||"",{x:X,y:.4,w:6,h:.36,fontFace:F,fontSize:13,bold:true,color:C.t,margin:0});
-    s.addText(`${doc.div} Report | ${doc.per}`,{x:X+W/2,y:.42,w:W/2,h:.36,fontFace:F,fontSize:11,color:C.m,align:"right",valign:"bottom",margin:0});
+    s.addText(doc.head||`${doc.div} Report | ${doc.per}`,{x:X+W/2,y:.42,w:W/2,h:.36,fontFace:F,fontSize:11,color:C.m,align:"right",valign:"bottom",margin:0});
     s.addShape(pp.ShapeType.rect,{x:X,y:.88,w:W,h:.035,fill:{color:C.g},line:{color:C.g,width:0}});
-    if(!cover){s.addText(foot,{x:X,y:7.12,w:W/2,h:.22,fontFace:F,fontSize:8,color:C.s,margin:0});s.slideNumber={x:X+W-1,y:7.12,w:1,h:.22,fontFace:F,fontSize:8,color:C.s,align:"right"}}
+    if(!cover&&!plain){s.addText(foot,{x:X,y:7.12,w:W/2,h:.22,fontFace:F,fontSize:8,color:C.s,margin:0});s.slideNumber={x:X+W-1,y:7.12,w:1,h:.22,fontFace:F,fontSize:8,color:C.s,align:"right"}}
     y=1.12;
   };
-  const h2=(t,sub)=>{s.addText(t,{x:X,y,w:W,h:.5,fontFace:F,fontSize:24,bold:true,color:C.t,margin:0});y+=.52;if(sub){s.addText(sub,{x:X,y,w:W,h:.28,fontFace:F,fontSize:11,color:C.m,margin:0});y+=.38}else y+=.1};
+  const h2=(t,sub)=>{const hh=plain?.62:.5;s.addText(t,{x:X,y,w:W,h:hh,fontFace:F,fontSize:plain?30:24,bold:true,color:C.t,margin:0});y+=hh+.02;if(sub){s.addText(sub,{x:X,y,w:W,h:.28,fontFace:F,fontSize:11,color:C.m,margin:0});y+=.38}else y+=plain?.2:.1};
   const h3=t=>{s.addText(t,{x:X,y,w:W,h:.3,fontFace:F,fontSize:13,bold:true,color:C.a,margin:0});y+=.34};
   const kpis=(items,title)=>{
     const rows=Math.ceil(items.length/4);if(y+(title?.34:0)+rows*.98>BOT)slide();
@@ -1891,34 +1941,80 @@ async function pptDoc(doc,fileName){
     y+=rows*.98+.1;
   };
   // perkiraan tinggi baris: ±14 karakter per inci di 9 pt
-  const txt=c=>c===null||typeof c!=="object"?String(c??"–"):c.st?T(WS[c.st]||c.st):(c.t?c.t+" ":"")+(c.href?T("buka"):"");
-  const lines=(t,w)=>String(t).split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/Math.max(4,w*14))),0);
-  const pcell=(c,num)=>{
-    const o={fontFace:F,fontSize:9,color:C.t,align:num?"right":"left",valign:"top"};
+  const txt=c=>c===null||typeof c!=="object"?String(c??"–"):c.img!==undefined?"":c.st?T(WS[c.st]||c.st):(c.live?"LIVE\n":"")+(c.a?String(c.t||""):(c.t?c.t+" ":"")+(c.href?T("buka"):""));
+  // pt: ukuran huruf (perkiraan ±14 karakter per inci di 9 pt)
+  const lines=(t,w,pt=9)=>String(t).split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/Math.max(4,w*14*9/pt))),0);
+  // sel: {t,href} = teks + "buka"; {t,href,a:1} = teks itu link; {t,c} = warna; {img} = gambar (ditaruh di atas tabel); {t,live:1} = "LIVE" merah
+  const pcell=(c,num,dk)=>{
+    const o={fontFace:F,fontSize:9,color:C.t,align:dk?"center":num?"right":"left",valign:dk?"middle":"top"};
     if(c===null||typeof c!=="object")return {text:String(c??"–"),options:o};
+    if(c.img!==undefined)return {text:"",options:o};
     if(c.st){const z=ST[c.st]||[C.h,C.t];return {text:T(WS[c.st]||c.st),options:{...o,bold:true,color:z[1],fill:{color:z[0]}}}}
-    if(c.href)return {text:txt(c),options:{...o,color:C.a,hyperlink:{url:c.href}}};
-    return {text:String(c.t||"–"),options:o};
+    const oo={...o,...(c.c?{color:c.c}:{})};
+    if(c.a&&c.href)return {text:String(c.t||c.href),options:{...oo,color:"1A56DB",underline:{style:"sng"},hyperlink:{url:c.href}}};
+    if(c.href)return {text:txt(c),options:{...oo,color:C.a,hyperlink:{url:c.href}}};
+    if(c.live)return {text:[{text:"LIVE",options:{color:"E02020",breakLine:true}},{text:String(c.t||"")}],options:oo};
+    return {text:String(c.t||"–"),options:oo};
   };
-  const table=b=>{
-    const cw=b.cols.map(c=>+(c[1]/100*W).toFixed(3)),hdr=b.cols.map(c=>({text:c[0],options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.h},align:c[2]?"right":"left"}}));
-    const rh=r=>r.grp!==undefined?.26:Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1)))*.16+.1;
-    if(!b.rows.length){if(y+.7>BOT)slide();h3(b.h3);s.addText(b.empty||"",{x:X,y,w:W,h:.26,fontFace:F,fontSize:10,color:C.m,margin:0});y+=.38;return}
+  const IMG=new Map(),imgOf=async u=>{if(!IMG.has(u))IMG.set(u,await toJpg(u));return IMG.get(u)};
+  // b.h2: setiap potongan di slide sendiri dengan judul besar yang sama; b.per: maks. baris data per slide; b.dark: kepala hijau tua; r.tot: baris total
+  const table=async b=>{
+    const dk=!!b.dark,cw=b.cols.map(c=>+(c[1]/100*W).toFixed(3));
+    const hdr=b.cols.map(c=>({text:c[0],options:{fontFace:F,fontSize:dk?10:9,bold:true,color:dk?"FFFFFF":C.th,fill:{color:dk?DK:C.h},align:dk?"center":c[2]?"right":"left",valign:"middle"}}));
+    const hasImg=r=>Array.isArray(r)&&r.some(c=>c&&typeof c==="object"&&c.img!==undefined);
+    const rh=r=>r.grp!==undefined?.26:hasImg(r)?(b.imgH||1.5):Math.max(...r.map((c,i)=>lines(txt(c),(cw[i]||1)-.1)))*.16+(dk?.14:.1);
+    const head=cont=>{if(b.h2){slide();h2(b.h2)}else h3(b.h3+(cont?" "+T("(lanjutan)"):""))};
+    if(!b.rows.length){if(b.h2)head(false);else{if(y+.7>BOT)slide();h3(b.h3)}s.addText(b.empty||"",{x:X,y,w:W,h:.26,fontFace:F,fontSize:10,color:C.m,margin:0});y+=.38;return}
     let i=0,cont=false;
     while(i<b.rows.length){
-      if(y+.34+.3+rh(b.rows[i])+(b.rows[i].grp!==undefined&&b.rows[i+1]?rh(b.rows[i+1]):0)>BOT)slide();
-      h3(b.h3+(cont?" "+T("(lanjutan)"):""));
-      const rows=[hdr],hs=[.3];let yy=y+.3;
+      if(!b.h2&&y+.34+.3+rh(b.rows[i])+(b.rows[i].grp!==undefined&&b.rows[i+1]?rh(b.rows[i+1]):0)>BOT)slide();
+      head(cont);
+      const rows=[hdr],hs=[.3],pics=[];let yy=y+.3,k=0;
       while(i<b.rows.length){
-        const r=b.rows[i],h=rh(r);if(yy+h>BOT&&rows.length>1)break;
+        const r=b.rows[i],h=rh(r);
+        if(b.per&&!r.tot&&k>=b.per)break;
+        if(yy+h>BOT&&rows.length>1)break;
         if(r.grp!==undefined&&b.rows[i+1]&&yy+h+rh(b.rows[i+1])>BOT&&rows.length>1)break;   // nama orang tidak tertinggal di akhir slide
-        rows.push(r.grp!==undefined?[{text:r.grp,options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.grp},colspan:b.cols.length}}]:r.map((c,j)=>pcell(c,(b.cols[j]||[])[2])));
-        hs.push(+h.toFixed(3));yy+=h;i++;
+        if(hasImg(r))r.forEach((c,j)=>{if(c&&c.img)pics.push({u:c.img,x:X+cw.slice(0,j).reduce((a,v)=>a+v,0),y:yy,w:cw[j],h})});
+        rows.push(r.grp!==undefined?[{text:r.grp,options:{fontFace:F,fontSize:9,bold:true,color:C.th,fill:{color:C.grp},colspan:b.cols.length}}]
+          :r.map((c,j)=>{const p=pcell(c,(b.cols[j]||[])[2],dk);return r.tot?{text:p.text,options:{...p.options,bold:true,color:"FFFFFF",fill:{color:DK}}}:p}));
+        hs.push(+h.toFixed(3));yy+=h;i++;if(!r.tot)k++;
       }
-      s.addTable(rows,{x:X,y,w:W,colW:cw,rowH:hs,fill:{color:"FFFFFF"},border:{type:"solid",color:"E8ECE9",pt:.75},margin:.05,autoPage:false});
+      s.addTable(rows,{x:X,y,w:W,colW:cw,rowH:hs,fill:{color:"FFFFFF"},border:{type:"solid",color:dk?"2B2B2B":"E8ECE9",pt:.75},margin:.05,autoPage:false});
+      // gambar sel: 16:9 di tengah sel, dipotong "cover"
+      for(const p of pics){const r=await imgOf(p.u);if(!r)continue;const w=Math.min(p.w-.14,(p.h-.14)*16/9),h=w*9/16,sc=Math.max(w/r.w,h/r.h);
+        s.addImage({data:r.data,x:p.x+(p.w-w)/2,y:p.y+(p.h-h)/2,w:r.w*sc,h:r.h*sc,sizing:{type:"cover",w,h}})}
       y=yy+.14;cont=true;
-      if(i<b.rows.length)slide();
+      if(i<b.rows.length&&!b.h2)slide();
     }
+  };
+  // blok sum: satu slide, kolom kiri & kanan berisi tumpukan tabel ringkasan berbingkai dengan judul besar
+  const sum=b=>{
+    slide();const gap=.6,cwid=(W-gap)/2;
+    b.cols.forEach((st,ci)=>{let yy=y;const x=X+ci*(cwid+gap);
+      st.forEach(t=>{
+        const tw=cwid-.24,cw=t.cols.map(c=>+(c[1]/100*tw).toFixed(3)),cell=(c,k,bold)=>({text:txt(c).trim()||"–",options:{fontFace:F,fontSize:12,bold,color:C.t,align:(t.cols[k]||[])[2]?"right":"left",valign:"middle"}});
+        const rows=[t.cols.map((c,k)=>cell(c[0],k,true)),...t.rows.map(r=>r.map((c,k)=>cell(c,k,!!r.tot)))];
+        const hs=[.42,...t.rows.map(r=>Math.max(...r.map((c,k)=>lines(txt(c),(cw[k]||1)-.1,12)))*.22+.2)],th=hs.reduce((a,v)=>a+v,0);
+        s.addText(t.h2,{x,y:yy,w:cwid,h:.6,fontFace:F,fontSize:26,bold:true,color:C.t,margin:0});
+        s.addShape(pp.ShapeType.roundRect,{x,y:yy+.7,w:cwid,h:th+.12,fill:{color:"FFFFFF"},line:{color:C.g,width:1.25},rectRadius:.12});
+        s.addTable(rows,{x:x+.12,y:yy+.76,w:tw,colW:cw,rowH:hs.map(v=>+v.toFixed(3)),border:{type:"solid",color:"A9CDB9",pt:.75},margin:.06,autoPage:false});
+        yy+=.7+th+.12+.4;
+      })});
+  };
+  // blok gallery: kartu bergambar 16:9, judul kecil di atas (opsional), keterangan bernomor di bawah (link bila ada)
+  const gallery=async b=>{
+    const n=b.cols||3,gap=.35,cw=(W-gap*(n-1))/n,ih=cw*9/16,hasT=b.items.some(c=>c.title),rowH=(hasT?.5:0)+ih+.6,imgs=await Promise.all(b.items.map(c=>c.img?imgOf(c.img):null));
+    slide();h2(b.h2);
+    b.items.forEach((c,i)=>{
+      if(i%n===0&&i>0){y+=rowH;if(y+rowH>BOT){slide();h2(b.h2)}}
+      const x=X+(i%n)*(cw+gap),iy=y+(hasT?.5:0),r=imgs[i];
+      if(c.title)s.addText(c.title,{x,y,w:cw,h:.45,fontFace:F,fontSize:10,bold:true,color:"1A6FB5",valign:"bottom",margin:0,fit:"shrink"});
+      if(r){const sc=Math.max(cw/r.w,ih/r.h);s.addImage({data:r.data,x,y:iy,w:r.w*sc,h:r.h*sc,sizing:{type:"cover",w:cw,h:ih}})}
+      else{s.addShape(pp.ShapeType.rect,{x,y:iy,w:cw,h:ih,fill:{color:"EEF1F4"},line:{color:"EEF1F4",width:0}});s.addText(T("Tanpa gambar"),{x,y:iy,w:cw,h:ih,fontFace:F,fontSize:9,color:C.s,align:"center",valign:"middle",margin:0})}
+      s.addText(c.cap,{x,y:iy+ih+.08,w:cw,h:.45,fontFace:F,fontSize:13,bold:true,color:"0F5E48",valign:"top",margin:0,fit:"shrink",...(c.href?{hyperlink:{url:c.href},underline:{style:"sng"}}:{})});
+    });
+    y+=rowH;
   };
   // ukuran asli dibutuhkan sizing "cover" pptxgenjs untuk memotong (tanpa itu gambar 4:5 / 9:16 ditarik jadi persegi)
   const toJpg=u=>new Promise(ok=>{const i=new Image();i.onload=()=>{let d=u;if(/^data:image\/webp/.test(u)){const c=document.createElement("canvas");c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext("2d").drawImage(i,0,0);d=c.toDataURL("image/jpeg",.85)}ok(i.naturalWidth&&i.naturalHeight?{data:d,w:i.naturalWidth,h:i.naturalHeight}:null)};i.onerror=()=>ok(null);i.src=u});
@@ -1947,8 +2043,10 @@ async function pptDoc(doc,fileName){
     }
     else if(b.t==="page"){slide();h2(b.h2,b.sub)}
     else if(b.t==="kpis")kpis(b.items,b.h3);
-    else if(b.t==="table")table(b);
+    else if(b.t==="table")await table(b);
     else if(b.t==="posts")await posts(b);
+    else if(b.t==="sum")sum(b);
+    else if(b.t==="gallery")await gallery(b);
   }
   await pp.writeFile({fileName:fileName+".pptx"});
 }
