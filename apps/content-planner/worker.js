@@ -23,6 +23,9 @@
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
 // - "/api/kisi/sync" (POST {from,to}) -> artikel kisi.co.id (API publik api-compro.kisi.co.id) dibuat / dilengkapi di Planner + YTD website;
 //   dipanggil saat Laporan Copywriter disusun. "/api/cw/cfg" (GET ?k= / POST {k,v}) -> angka laporan yang diketik (tabel cfg)
+// - "/api/sm/followers" (GET ?to=YYYY-MM 18 bulan / POST {month?, ig?, tt?}) & "/api/sm/cfg" (GET ?m= / POST {m, v}) ->
+//   Laporan Social Media Specialist: followers per bulan dan isian form per bulan (tabel cfg).
+//   Postingan yang dibuat impor (bookmark / CSV) bertanda auto = 1 dan tidak ikut Laporan Kegiatan & Monthly Report.
 // - "/api/yt/refresh" (POST {ids}) -> views, suka, komentar video YouTube dari YouTube Data API (secret opsional YOUTUBE_API_KEY:
 //   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
 //   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key: views, siaran langsung & nama channel dibaca dari
@@ -183,10 +186,12 @@ const COLS = {
   // Laporan Copywriter: topik (branding|event|saham), kategori (hard|soft), nama media / mitra kolaborasi, liputan press release;
   // tags = tag artikel kisi.co.id (JSON), live = video YouTube siaran langsung (keduanya hanya diisi server)
   topic: "TEXT", sell: "TEXT", media: "TEXT", press: "INTEGER", tags: "TEXT", live: "INTEGER",
+  // auto = 1: postingan dibuat impor (bookmark IG/TikTok, CSV Meta) -> hanya di Laporan Social Media Specialist, bukan Laporan Kegiatan / Monthly
+  auto: "INTEGER",
   created_by: "TEXT", created_email: "TEXT", created_at: "TEXT", updated_by: "TEXT", updated_at: "TEXT",
 };
 // kolom persetujuan, asal angka & sambungan event hanya diisi server (approvalStep, /api/approval, impor CSV), bukan dari form
-const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src", "event_id", "tags", "live"];
+const SERVER_COLS = ["approval", "approval_note", "approved_by", "approved_at", "m_at", "m_src", "event_id", "tags", "live", "auto"];
 const EDIT = ["date", "title", ...Object.keys(COLS).filter((k) => !/^(created_|updated_)/.test(k) && !SERVER_COLS.includes(k))];
 /** Kegiatan yang punya caption, persetujuan, dan angka performa. */
 export const COPY_KINDS = ["konten", "artikel"];
@@ -402,7 +407,7 @@ async function saveItem(env, me, b, opts = {}) {
   const ap = approvalStep(prev, it, meE, by);
   if (ap.error) return ap;
   const mChanged = METRICS.some((k) => (it[k] ?? null) !== ((prev && prev[k]) ?? null));
-  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null, event_id: (prev && prev.event_id) || null, tags: (prev && prev.tags) || null, live: (prev && prev.live) ?? null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
+  const srv = { ...ap.cols, m_at: mChanged ? now : (prev && prev.m_at) || null, m_src: mChanged ? "manual" : (prev && prev.m_src) || null, event_id: (prev && prev.event_id) || null, tags: (prev && prev.tags) || null, live: (prev && prev.live) ?? null, auto: (prev && prev.auto) ?? null }, svals = SERVER_COLS.map((k) => srv[k] ?? null);
   let id = prev ? prev.id : "";
   if (prev) {
     const r = await env.DB.prepare(`UPDATE items SET ${[...EDIT, ...SERVER_COLS].map((k) => k + "=?").join(", ")}, updated_by=?, updated_at=? WHERE id=?`).bind(...vals, ...svals, by, now, id).run();
@@ -818,6 +823,51 @@ async function cwCfg(env, k, v) {
   await env.DB.prepare("INSERT INTO cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v)).run();
   return { ok: true };
 }
+/* ---------- Laporan Social Media Specialist: followers per bulan (sm_fol:YYYY-MM {ig, tt}) & isian form (sm_n:YYYY-MM) ---------- */
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
+const ymWib = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 7);
+/** 18 bulan s.d. "YYYY-MM" (lama -> baru). */
+export const months18 = (to) => { const [y, m] = to.split("-").map(Number); return Array.from({ length: 18 }, (_, k) => { const d = new Date(Date.UTC(y, m - 1 - 17 + k, 1)); return d.toISOString().slice(0, 7); }); };
+const cfgGet = async (env, k) => { const r = await env.DB.prepare("SELECT v FROM cfg WHERE k=?").bind(k).first(); try { return r ? JSON.parse(r.v) : null; } catch { return null; } };
+const cfgPut = (env, k, v) => env.DB.prepare("INSERT INTO cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v)).run();
+const okNum = (n) => n === null || (Number.isInteger(n) && n >= 0 && n < 1e13);
+async function smFollowers(env, b, to) {
+  await ensure(env);
+  if (to !== undefined) {
+    if (!YM.test(String(to))) return { error: "Bulan belum benar." };
+    const L = months18(to), months = {};
+    for (const r of (await env.DB.prepare(`SELECT k, v FROM cfg WHERE k IN (${L.map(() => "?").join(",")})`).bind(...L.map((m) => "sm_fol:" + m)).all()).results) {
+      try { const v = JSON.parse(r.v); if (v && Object.keys(v).length) months[r.k.slice(7)] = v; } catch {}
+    }
+    return { months };
+  }
+  const m = b.month === undefined ? ymWib() : String(b.month);
+  if (!YM.test(m)) return { error: "Bulan belum benar." };
+  const set = ["ig", "tt"].filter((k) => k in b);
+  if (!set.length || !set.every((k) => okNum(b[k]))) return { error: "Followers harus bilangan bulat 0 atau lebih." };
+  const v = (await cfgGet(env, "sm_fol:" + m)) || {};
+  for (const k of set) { if (b[k] === null) delete v[k]; else v[k] = b[k]; }
+  await cfgPut(env, "sm_fol:" + m, v);
+  return { ok: true };
+}
+/** Isian form: objek bertingkat berisi angka bulat >= 0 / null, teks <= 120 karakter, larik <= 20 baris; JSON <= 8000 karakter. */
+export function smValid(v) {
+  const ok = (x, d) => d > 4 ? false : x === null || typeof x === "boolean" ? true : typeof x === "number" ? okNum(x) : typeof x === "string" ? x.length <= 120
+    : Array.isArray(x) ? x.length <= 20 && x.every((y) => ok(y, d + 1)) : typeof x === "object" ? Object.keys(x).every((k) => /^\w{1,20}$/.test(k) && ok(x[k], d + 1)) : false;
+  return !!v && typeof v === "object" && !Array.isArray(v) && JSON.stringify(v).length <= 8000 && ok(v, 0);
+}
+async function smCfg(env, m, v) {
+  await ensure(env);
+  if (!YM.test(String(m || ""))) return { error: "Bulan belum benar." };
+  if (v === undefined) {
+    const p = await env.DB.prepare("SELECT v FROM cfg WHERE k LIKE 'sm_n:%' AND k < ? ORDER BY k DESC LIMIT 1").bind("sm_n:" + m).first();
+    let prev = null; try { prev = p ? JSON.parse(p.v) : null; } catch {}
+    return { v: await cfgGet(env, "sm_n:" + m), prev };
+  }
+  if (!smValid(v)) return { error: "Isian tidak sah: angka harus bilangan bulat 0 atau lebih, teks maks. 120 karakter." };
+  await cfgPut(env, "sm_n:" + m, v);
+  return { ok: true };
+}
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
 async function ytRefresh(env, ids) {
   await ensure(env);
@@ -852,6 +902,8 @@ export function cleanMetricRow(r) {
   out.img = imgOk(r.img);
   // akun mitra kolaborasi (bookmark IG: coauthor selain akun KISI) -> kolom media, hanya bila masih kosong
   out.media = String(r.media ?? "").trim().slice(0, 80) || null;
+  // caption utuh (bookmark) -> kolom copy, untuk menebak seri di Laporan Social Media Specialist
+  out.caption = String(r.caption ?? "").split(/\r?\n/).map((l) => l.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 2200) || null;
   return METRICS.some((k) => out[k] != null) ? out : null;
 }
 /** Impor angka performa: { rows: [{link, date, title, type, m_views, ...}], create }. Baris yang cocok (lewat link) diperbarui;
@@ -871,14 +923,14 @@ async function importMetrics(env, me, b) {
       matched++;
       if (r.img) imgs.push([id, r.img]);
       // angka yang tidak dibawa sumber ini (CSV Meta tanpa Reposts, bookmark tanpa jangkauan/simpan) tidak dihapus
-      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=COALESCE(?, " + k + ")").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), media=COALESCE(NULLIF(media, ''), ?), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, r.media, by, now, id));
-    } else if (b.create && r.date) {
+      st.push(env.DB.prepare(`UPDATE items SET ${METRICS.map((k) => k + "=COALESCE(?, " + k + ")").join(", ")}, m_at=?, m_src='csv', result_num=COALESCE(?, result_num), media=COALESCE(NULLIF(media, ''), ?), copy=COALESCE(NULLIF(copy, ''), ?), updated_by=?, updated_at=? WHERE id=?`).bind(...METRICS.map((k) => r[k]), now, res, r.media, r.caption, by, now, id));
+    } else if (b.create && r.date && channelOf(r.type, r.link) !== "IG Story") {
       created++;
       const nid = crypto.randomUUID();
       if (r.img) imgs.push([nid, r.img]);
-      const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "media", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
+      const cols = ["id", "kind", "date", "title", "channel", "status", "owner", "owner_email", "link", "d_need", ...METRICS, "m_at", "m_src", "result_num", "media", "copy", "auto", "created_by", "created_email", "created_at", "updated_by", "updated_at"];
       st.push(env.DB.prepare(`INSERT INTO items (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(",")})`).bind(nid, "konten", r.date, r.title || "Postingan " + tgl(r.date), channelOf(r.type, r.link), "terbit", by, meE, r.link, 0,
-        ...METRICS.map((k) => r[k]), now, "csv", res, r.media, by, meE, now, by, now));
+        ...METRICS.map((k) => r[k]), now, "csv", res, r.media, r.caption, 1, by, meE, now, by, now));
     } else unmatched.push(r.link);
   }
   for (let i = 0; i < st.length; i += 50) await env.DB.batch(st.slice(i, i + 50));
@@ -1665,6 +1717,8 @@ export default {
         if (path === "/api/imgs") return json(await listImgs(env, url.searchParams.get("ids")));
         if (path === "/api/linkimg") return linkImg(url.searchParams.get("url"));
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, url.searchParams.get("k")); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/followers") { const r = await smFollowers(env, {}, url.searchParams.get("to") || ""); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/cfg") { const r = await smCfg(env, url.searchParams.get("m")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
@@ -1686,6 +1740,8 @@ export default {
           return json(await kisiSync(env, f, t, fetch, lower(me.e) || null));
         }
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, b.k, b.v ?? null); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/followers") { const r = await smFollowers(env, b); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/cfg") { const r = await smCfg(env, b.m, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b), "/api/yt/refresh": () => ytRefresh(env, b.ids),

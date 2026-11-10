@@ -1133,4 +1133,51 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   } finally { globalThis.fetch = realFetch; }
 }
 
+// Laporan Social Media Specialist: penanda kegiatan otomatis, caption, followers & isian per bulan
+{
+  const ck = COPY, Q = "/api/items?from=2027-03-01&to=2027-03-31";
+  const own = (await call("/api/items", { ck, body: { kind: "konten", date: "2027-03-02", title: "Postingan tim", channel: "IG Feed", status: "terbit", link: "https://www.instagram.com/p/SMOLD/", copy: "caption tim" } })).j;
+  const rows = [
+    { link: "https://www.instagram.com/p/SMNEW/", date: "2027-03-03", title: "Weekly BreakVest KISI", type: "IG carousel", m_likes: "9", caption: "Weekly BreakVest KISI\n\nisi   panjang" },
+    { link: "https://www.instagram.com/p/SMOLD/", date: "2027-03-02", m_likes: "4", caption: "caption dari IG" },
+    { link: "https://www.instagram.com/stories/kisi/123/", date: "2027-03-03", type: "IG Story", m_views: "50" },
+  ];
+  let r = await call("/api/metrics/import", { ck, body: { create: true, rows } });
+  assert.equal(r.j.created, 1, "Story tidak dibuat sebagai kegiatan");
+  let L = (await call(Q, { ck })).j;
+  const nw = L.find((i) => i.link === "https://www.instagram.com/p/SMNEW/"), od = L.find((i) => i.id === own.id);
+  assert.equal(nw.auto, 1); assert.equal(nw.copy, "Weekly BreakVest KISI\n\nisi panjang");
+  assert.ok(!od.auto, "kegiatan tim bukan otomatis"); assert.equal(od.copy, "caption tim", "caption tim tidak ditimpa");
+  assert.equal((await call("/api/items", { ck, body: { ...od, copy: "" } })).status, 200);
+  await call("/api/metrics/import", { ck, body: { create: true, rows } });
+  L = (await call(Q, { ck })).j;
+  assert.equal(L.length, 2, "impor ulang tidak membuat dobel");
+  assert.equal(L.find((i) => i.id === own.id).copy, "caption dari IG", "caption kosong diisi dari IG");
+  await call("/api/items", { ck, body: { ...nw, title: "Weekly BreakVest KISI #1" } });
+  assert.equal((await call("/api/items?id=" + nw.id, { ck })).j.auto, 1, "simpan lewat form tetap otomatis");
+  // followers per bulan (cfg sm_fol:YYYY-MM)
+  const ym = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 7);
+  assert.deepEqual((await call("/api/sm/followers", { ck, body: { ig: 37792 } })).j, { ok: true });
+  await call("/api/sm/followers", { ck, body: { tt: 63762 } });
+  await call("/api/sm/followers", { ck, body: { month: "2025-05", ig: 16841 } });
+  await call("/api/sm/followers", { ck, body: { month: "2025-04", ig: 1 } });
+  let f = (await call("/api/sm/followers?to=" + ym, { ck })).j.months;
+  assert.deepEqual(f[ym], { ig: 37792, tt: 63762 });
+  f = (await call("/api/sm/followers?to=2026-10", { ck })).j.months;
+  assert.deepEqual(f["2025-05"], { ig: 16841 }); assert.equal(f["2025-04"], undefined, "hanya 18 bulan");
+  await call("/api/sm/followers", { ck, body: { month: "2025-05", ig: null } });
+  assert.equal((await call("/api/sm/followers?to=2026-10", { ck })).j.months["2025-05"], undefined, "null menghapus angka");
+  assert.equal((await call("/api/sm/followers", { ck, body: { month: "2025-13", ig: 1 } })).status, 400);
+  assert.equal((await call("/api/sm/followers", { ck, body: { ig: -5 } })).status, 400);
+  // isian form per bulan (cfg sm_n:YYYY-MM); prev = bulan terakhir sebelumnya untuk daftar baris
+  const v = { ser: [{ n: "BreakVest KISI", s: "Every Tuesday - Friday", c: 14 }], reg: { reach: 3415684, post: null }, ttNote: "No TikTok Ads in October" };
+  assert.deepEqual((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v } })).j, { ok: true });
+  assert.deepEqual((await call("/api/sm/cfg?m=2026-10", { ck })).j.v, v);
+  const nov = (await call("/api/sm/cfg?m=2026-11", { ck })).j;
+  assert.equal(nov.v, null); assert.deepEqual(nov.prev, v);
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { ttNote: "x".repeat(200) } } })).status, 400);
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { reg: { reach: -1 } } } })).status, 400);
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "bad", v: {} } })).status, 400);
+}
+
 console.log("semua cek lolos");
