@@ -393,8 +393,9 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   assert.match(pg, /id="mReposts"/); assert.match(pg, /id="mImgF"/); assert.match(pg, /api\("\/api\/img",/);
   assert.ok(pg.indexOf('["m_reposts",/') > 0 && pg.indexOf('["m_reposts",/') < pg.indexOf('["m_shares",/'), "CSV: kolom Reposts tidak tertangkap Bagikan");
-  // Laporan IG: jenis laporan sendiri, blok kartu "posts" dirender di PDF & PPT
-  assert.match(pg, /data-t="ig">Laporan IG</); assert.match(pg, /ig:\{data:igData,doc:igDoc,name:"Laporan Instagram"\}/);
+  // Laporan IG digabung ke Laporan Social Media Specialist; blok kartu "posts" tetap dirender di PDF & PPT
+  assert.doesNotMatch(pg, /data-t="ig"/); assert.match(pg, /data-t="sm">Laporan Social Media Specialist</);
+  assert.match(pg, /sm:\{data:smData,doc:smDoc,name:"Laporan Social Media Specialist"\}/);
   assert.match(pg, /b\.t==="posts"\)\{/, "pdfDoc"); assert.match(pg, /b\.t==="posts"\)await posts\(b\)/, "pptDoc");
   // PPT: ukuran asli gambar dikirim ke addImage supaya sizing cover memotong, bukan menarik (gambar IG 4:5 / 9:16)
   assert.match(pg, /w:r\.w\*sc,h:r\.h\*sc,sizing:\{type:"cover",w:im,h:im\}/);
@@ -1184,16 +1185,16 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
 {
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   const calc = new Function(pg.match(/function smCalc\(L,o\)\{[\s\S]*?\n\}\n/)[0] + "return smCalc")();
-  const ig = (title, extra = {}) => ({ kind: "konten", channel: "IG Feed", date: "2026-10-07", title, link: "https://www.instagram.com/p/" + title.replace(/\W/g, "") + "/", ...extra });
+  const ig = (title, extra = {}) => ({ kind: "konten", channel: "IG Feed", date: "2026-10-07", title, status: "terbit", link: "https://www.instagram.com/p/" + title.replace(/\W/g, "") + "/", ...extra });
   const L = [
     ig("BreakVest KISI 1"), ig("BreakVest KISI 2"), ig("breakvest kisi 3"),
     ig("Update pasar", { copy: "Weekly BreakVest KISI\nisi", channel: "IG Reels" }),
     ig("Tips DCA", { m_views: 100, m_likes: 5, m_reach: 80 }), ig("Promo", { m_views: 50, m_likes: 7 }),
     ig("Story", { channel: "IG Story", m_views: 999 }),
-    { kind: "konten", channel: "YouTube", date: "2026-10-09", title: "Short", link: "https://www.youtube.com/shorts/abcDEF12345" },
-    { kind: "konten", channel: "YouTube", date: "2026-10-09", title: "Panjang", link: "https://www.youtube.com/watch?v=abcDEF12346" },
-    { kind: "konten", channel: "TikTok", date: "2026-10-10", title: "T1", link: "https://www.tiktok.com/@kisi/video/1", m_views: 10, m_likes: 1 },
-    { kind: "konten", channel: "Lainnya", date: "2026-10-11", title: "T2", link: "https://www.tiktok.com/@kisi/video/2", m_views: 20, m_likes: 2 },
+    { kind: "konten", status: "terbit", channel: "YouTube", date: "2026-10-09", title: "Short", link: "https://www.youtube.com/shorts/abcDEF12345" },
+    { kind: "konten", status: "terbit", channel: "YouTube", date: "2026-10-09", title: "Panjang", link: "https://www.youtube.com/watch?v=abcDEF12346" },
+    { kind: "konten", status: "terbit", channel: "TikTok", date: "2026-10-10", title: "T1", link: "https://www.tiktok.com/@kisi/video/1", m_views: 10, m_likes: 1 },
+    { kind: "konten", status: "terbit", channel: "Lainnya", date: "2026-10-11", title: "T2", link: "https://www.tiktok.com/@kisi/video/2", m_views: 20, m_likes: 2 },
     { kind: "artikel", channel: "Website", date: "2026-10-12", title: "BreakVest KISI artikel" },
   ];
   const ser = [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }, { n: "Weekly BreakVest KISI", s: "Every Monday" }, { n: "Weekly Update Reksa Dana", s: "Every Monday" }, { n: "Weekly Update Bonds", s: "Every Monday" }];
@@ -1218,6 +1219,24 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(r.ttAds, { cost: null, posts: null, reach: null }); assert.equal(r.ttNote, "No TikTok Ads in October");
   assert.equal(r.veTotal, 14); assert.equal(r.deTotal, 14); assert.equal(r.ve[1].c, null);
   assert.deepEqual(calc([], { month: "2026-01", fol: {}, v: null }).months[0].m, "2024-08", "lintas tahun");
+  { const z = calc([], { month: "2026-10", fol: {}, v: null }); assert.deepEqual([z.reg.post, z.yt.post, z.tt.post], [null, null, null], "tanpa postingan = \"-\", bukan 0"); }
+  assert.equal(calc([ig("Ide konten", { status: "ide" }), ig("Draf", { status: "draf" }), ig("Terbit", { status: "terbit" })], { month: "2026-10", fol: {}, v: null }).reg.post, 1, "ide & draf belum tayang tidak dihitung");
+  // laporan: 4 halaman contoh + kartu postingan IG, English, koma ribuan, kosong = "-"
+  const doc = new Function(pg.match(/function smDoc\(R\)\{[\s\S]*?\n\}\n/)[0] + "return smDoc")();
+  const c = calc(L, { month: "2026-10", fol: { "2026-10": { ig: 37790 } }, v: { ser, reg: { reach: 3415684 }, ttNote: "No TikTok Ads in October", de: [{ n: "Monthly Outlook", c: 1 }] } });
+  const D = doc({ div: "Digital Marketing", mon: "October", yr: "2026", c, imgs: {} });
+  assert.equal(D.head, "Digital Marketing | October 2026"); assert.ok(D.plain && D.raw);
+  const S = D.blocks.filter((b) => b.t === "sum"), all = JSON.stringify(D.blocks);
+  assert.equal(S.length, 4, "4 halaman seperti contoh");
+  assert.equal(S[0].cols.length, 1, "followers selebar halaman"); assert.deepEqual(S[2].cols.map((x) => x.map((y) => y.sub || "ads")), [["Short Video"], ["Content", "ads"]], "TikTok di kolom kanan supaya muat satu halaman"); assert.equal(S[0].cols[0][0].cols.length, 18);
+  assert.deepEqual([S[0].cols[0][0].h2, S[0].cols[0][0].sub], ["Instagram", "Followers"]);
+  assert.equal(S[0].cols[0][0].rows[0][17], "37,790"); assert.equal(S[0].cols[0][0].rows[0][0], "-");
+  assert.match(all, /3,415,684/); assert.match(all, /No TikTok Ads in October/); assert.match(all, /Summary of Design/); assert.match(all, /Every Tuesday - Friday/);
+  const P = D.blocks.filter((b) => b.t === "posts");
+  assert.ok(P.length >= 1, "kartu postingan IG ikut"); assert.deepEqual(P[P.length - 1].items[0].m.map((x) => x[0]), ["Likes", "Comments", "Shares", "Views", "Saves", "Reposts"]);
+  // postingan otomatis tidak ikut Laporan Kegiatan & Monthly Report
+  assert.match(pg.match(/async function repData\(\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
+  assert.match(pg.match(/async function monData\(div\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
 }
 
 console.log("semua cek lolos");

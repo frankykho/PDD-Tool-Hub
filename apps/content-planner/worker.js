@@ -17,7 +17,7 @@
 // - "/api/moments"  -> kalender momen (shared/moments.js) + momen tim (GET ?from=&to=, POST, POST /api/moments/delete)
 // - "/api/links"    -> link pelacak klik per konten (GET ?item=, POST); "/go/<kode>" (publik) -> hitung klik lalu alihkan
 // - "/api/metrics/import" (POST) -> angka performa dari CSV Meta Business Suite, dicocokkan lewat link postingan
-// - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan IG;
+// - "/api/imgs" (GET ?ids=a,b) -> gambar postingan (tabel item_img, data URL) untuk Performa & Laporan Social Media Specialist;
 //   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
 // - "/api/linkimg" (GET ?url=) -> gambar sampul dari link (YouTube: thumbnail; lainnya: og:image) untuk dikecilkan browser
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
@@ -30,8 +30,8 @@
 //   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
 //   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key: views, siaran langsung & nama channel dibaca dari
 //   halaman publik video (bila YouTube menolak server, angka manual tetap).
-//   Laporan IG (dialog Laporan, disusun di browser): postingan IG KISI per bulan, kartu bergambar + suka, komentar, bagikan,
-//   views, simpan, repost (kolom m_reposts). Gambar & angka masuk lewat tombol bookmark "Angka IG ke Planner" atau isian manual.
+//   Laporan Social Media Specialist (dialog Laporan, disusun di browser): deck SMS 4 halaman + kartu postingan IG KISI bulan itu
+//   (suka, komentar, bagikan, views, simpan, repost). Gambar & angka masuk lewat tombol bookmark "Angka IG ke Planner" atau isian manual.
 // - "/api/logs"     -> pekerjaan harian anggota (GET ?from=&to=, POST simpan milik sendiri, POST /api/logs/delete);
 //                     Monthly Report (PDF 16:9, per tim = role) disusun di browser dari kegiatan + pekerjaan harian
 // - "/api/picks"    -> stock pick + statusnya dari harga EOD Yahoo (GET ?from=&to=[&ihsg=1], POST simpan, POST /api/picks/delete); pembuat atau admin yang mengubah;

@@ -101,7 +101,11 @@ dialog::backdrop{background:rgba(10,20,15,.45)}
 .dlg{padding:20px}
 .dlg h2{margin:0 0 14px;font-size:17px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.grid3.g2w{grid-template-columns:1fr 2fr}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.grid4 label,.sm-row label{font-size:12px;font-weight:600}.grid4 .f{margin-top:2px}
+.sm-f .lbl{margin-top:10px}.sm-fol{overflow-x:auto}.sm-fol table{border-collapse:collapse;font-size:11px}.sm-fol th,.sm-fol td{padding:2px;text-align:center;white-space:nowrap}.sm-fol input{width:68px;padding:4px;font-size:11px}
+.sm-row{display:flex;gap:6px;align-items:center;margin:0 0 6px}.sm-row .f{flex:1}.sm-row .f.n{flex:0 0 90px}
+@media (max-width:640px){.grid4{grid-template-columns:1fr 1fr}}.grid3.g2w{grid-template-columns:1fr 2fr}
 .imptbl{width:100%;border-collapse:collapse}.imptbl th,.imptbl td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}.imptbl th{position:sticky;top:0;background:var(--card)}
 .gdoc{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center;margin:6px 0}.gdoc span{font-size:13px}
 .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
@@ -478,7 +482,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 <dialog id="rep">
   <div class="dlg">
     <h2>Laporan</h2>
-    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="ig">Laporan IG</button><button type="button" data-t="cw">Laporan Copywriter</button></div></div>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="sm">Laporan Social Media Specialist</button><button type="button" data-t="cw">Laporan Copywriter</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
@@ -501,6 +505,29 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <span class="lbl">Angka awal YTD artikel media (sekali per tahun)</span>
       <div class="grid2"><input class="f" type="month" id="rYtdUpto" aria-label="Sampai akhir bulan"><input class="f" id="rYtdExt" inputmode="numeric" maxlength="7" placeholder="Jumlah artikel media s.d. bulan itu" aria-label="Jumlah artikel media"></div>
       <p class="muted small" id="rCwNote" style="margin:6px 0 0"></p>
+    </div>
+    <!-- Laporan Social Media Specialist: angka abu-abu = hitungan dari Planner/bookmark; isi kolom untuk menggantinya. Tersimpan per bulan. -->
+    <div class="fld sm-f" id="rSmF" hidden>
+      <span class="lbl">Followers (18 bulan) — terisi dari bookmark, bisa diketik</span>
+      <div class="sm-fol" id="rSmFol"></div>
+      <span class="lbl">Instagram · Scheduled Content (jumlah ditebak dari judul / caption yang memuat nama seri)</span>
+      <div id="rSmSer"></div><button type="button" class="btn sm" data-smadd="ser">+ Seri</button>
+      <span class="lbl">Instagram · Regular Content (di luar seri)</span>
+      <div class="grid4"><label>Total Post<input class="f" data-k="reg.post" inputmode="numeric"></label><label>Account Reach<input class="f" data-k="reg.reach" inputmode="numeric"></label><label>Views<input class="f" data-k="reg.views" inputmode="numeric"></label><label>Total Likes<input class="f" data-k="reg.likes" inputmode="numeric"></label></div>
+      <span class="lbl">Instagram Ads</span>
+      <div class="grid4"><label>Total Cost Ads<input class="f" data-k="ads.cost" inputmode="numeric"></label><label>Total Post with Ads<input class="f" data-k="ads.posts" inputmode="numeric"></label><label>Account Reach<input class="f" data-k="ads.reach" inputmode="numeric"></label></div>
+      <span class="lbl">YouTube · Short Video</span>
+      <div class="grid4"><label>Total Post<input class="f" data-k="yt.post" inputmode="numeric"></label><label>Total Post with Ads<input class="f" data-k="yt.adPosts" inputmode="numeric"></label><label>Total Cost Ads<input class="f" data-k="yt.cost" inputmode="numeric"></label><label>Impression<input class="f" data-k="yt.impr" inputmode="numeric"></label><label>Interaction<input class="f" data-k="yt.inter" inputmode="numeric"></label><label>Views<input class="f" data-k="yt.views" inputmode="numeric"></label><label>Views Rate (%)<input class="f" data-k="yt.rate" data-pct="1" inputmode="decimal"></label></div>
+      <span class="lbl">TikTok · Content</span>
+      <div class="grid4"><label>Total Post<input class="f" data-k="tt.post" inputmode="numeric"></label><label>Profil Views<input class="f" data-k="tt.prof" inputmode="numeric"></label><label>Video Views<input class="f" data-k="tt.views" inputmode="numeric"></label><label>Total Likes<input class="f" data-k="tt.likes" inputmode="numeric"></label></div>
+      <span class="lbl">TikTok Ads</span>
+      <div class="grid4"><label>Total Cost Ads<input class="f" data-k="ttAds.cost" inputmode="numeric"></label><label>Total Post with Ads<input class="f" data-k="ttAds.posts" inputmode="numeric"></label><label>Account Reach with Ads<input class="f" data-k="ttAds.reach" inputmode="numeric"></label></div>
+      <label for="rSmNote">Catatan di bawah tabel TikTok Ads</label><input class="f" id="rSmNote" maxlength="120" placeholder="mis. No TikTok Ads in October">
+      <span class="lbl">Summary of Video Editing</span>
+      <div id="rSmVe"></div><button type="button" class="btn sm" data-smadd="ve">+ Baris</button>
+      <span class="lbl">Summary of Design</span>
+      <div id="rSmDe"></div><button type="button" class="btn sm" data-smadd="de">+ Baris</button>
+      <p class="muted small" id="rSmNoteMsg" style="margin:6px 0 0"></p>
     </div>
     <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
@@ -1082,7 +1109,7 @@ function renderMInfo(){
 }
 $("iCopy").addEventListener("input",renderChk);$("iCh").addEventListener("change",renderChk);$("iAppr").addEventListener("input",renderAp);$("iSt").addEventListener("change",showMet);
 MK.forEach(([id])=>$(id).addEventListener("input",renderMInfo));
-/* gambar postingan (Laporan IG): otomatis dari bookmark IG, atau pilih file / tempel screenshot; dikecilkan ke 480px */
+/* gambar postingan (Laporan Social Media Specialist): otomatis dari bookmark IG, atau pilih file / tempel screenshot; dikecilkan ke 480px */
 function shrinkImg(f){return createImageBitmap(f).then(b=>{const s=Math.min(1,480/Math.max(b.width,b.height)),cv=document.createElement("canvas");cv.width=Math.round(b.width*s);cv.height=Math.round(b.height*s);cv.getContext("2d").drawImage(b,0,0,cv.width,cv.height);
   let u=cv.toDataURL("image/webp",.75);if(!u.startsWith("data:image/webp"))u=cv.toDataURL("image/jpeg",.75);return u})}
 const showImg=u=>{$("mImg").hidden=!u;if(u)$("mImg").src=u;else $("mImg").removeAttribute("src");$("mImgDel").hidden=!u};
@@ -1319,24 +1346,24 @@ const KEG=["edukasi","artikel","konten","program","aktivitas","ops","produk","ca
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rCwF").hidden=t!=="cw";$("rCwNote").textContent="";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
+  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rCwF").hidden=t!=="cw";$("rSmF").hidden=t!=="sm";$("rCwNote").textContent="";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
-  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="ig"||t==="cw";
+  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="sm"||t==="cw";
   // Laporan Copywriter: pilihan Orang = anggota ber-role Copywriter (tidak mengikuti Tim); anggota lain bisa dipilih satu per satu
   // (mencoba laporan, atau pekerjaan copywriting yang PIC-nya bukan Copywriter)
   if(t==="cw"){const op=u=>`<option value="${esc(u.email)}">${esc(u.name)}</option>`,oth=USERS.filter(u=>u.role!=="copy");
     $("rWho").dataset.cw="1";$("rWho").innerHTML='<option value="">Semua copywriter</option>'+USERS.filter(u=>u.role==="copy").map(op).join("")+(oth.length?'<optgroup label="Anggota lain">'+oth.map(op).join("")+"</optgroup>":"")}
   else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
-  $("rHelp").innerHTML=(t==="ig"?"Laporan bulanan Instagram KISI: semua postingan IG yang tayang di periode ini beserta gambar, suka, komentar, bagikan, views, simpan, dan repost. Gambar dan angka diambil lewat tombol bookmark Angka IG ke Planner di tab Performa."
+  $("rHelp").innerHTML=(t==="sm"?"Laporan Social Media Specialist bergaya deck Canva (English), satu bulan: followers 18 bulan, Instagram (seri, regular, iklan), YouTube Shorts, TikTok, ringkasan video editing & desain, lalu kartu semua postingan IG. Angka postingan diambil dari tombol bookmark Angka IG / Angka TikTok ke Planner di tab Performa; angka abu-abu di form adalah hitungan otomatis, isi kolomnya untuk mengganti. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
     :t==="cw"?"Laporan Copywriter bergaya deck Canva (English): ringkasan, detail artikel, narasumber di media, dan galeri kampanye. Artikel kisi.co.id beserta views-nya diambil otomatis saat laporan dibuat; views YouTube dari halaman videonya. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
     :t==="mon"?"Monthly Report satu tim: ringkasan, lalu per role hasil program, kegiatan kalender, dan aktivitas anggotanya."
     :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
     :"Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan."+(BR.length?" Memilih regional / cabang membuat laporan hanya berisi kegiatan cabang di sana.":""))+pdf;
 }
-// Laporan IG: bawaannya bulan lalu (laporan bulanan dibuat setelah bulannya selesai)
-$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="ig"||b.dataset.t==="cw")$("rep").querySelector('[data-per="-1"]').click()});
+// Laporan SMS & Copywriter: bawaannya bulan lalu (laporan bulanan dibuat setelah bulannya selesai)
+$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="sm"||b.dataset.t==="cw")$("rep").querySelector('[data-per="-1"]').click()});
 function openRep(){
   $("rFrom").value=cur;$("rTo").value=monthEnd(cur);
   $("rProg").innerHTML='<option value="">Semua program di periode ini</option>'+PROGS.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");
@@ -1371,8 +1398,8 @@ $("rep").addEventListener("click",e=>{const b=e.target.closest("[data-per]");if(
   const t=todayIso().slice(0,8)+"01",p=b.dataset.per;
   if(p==="q"){const d=D(t);d.setUTCMonth(d.getUTCMonth()-2);$("rFrom").value=iso(d);$("rTo").value=monthEnd(t)}
   else{const d=D(t);d.setUTCMonth(d.getUTCMonth()+(+p));$("rFrom").value=iso(d);$("rTo").value=monthEnd(iso(d))}
-  cwLoad().catch(()=>{})});
-["rFrom","rTo"].forEach(id=>$(id).addEventListener("change",()=>cwLoad().catch(()=>{})));
+  cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message})});
+["rFrom","rTo"].forEach(id=>$(id).addEventListener("change",()=>{cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message})}));
 async function repData(){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
@@ -1385,7 +1412,8 @@ async function repData(){
   const [all,logs,wa]=await Promise.all([api(`/api/items?from=${from}&to=${to}&overlap=1`),api(`/api/logs?from=${from}&to=${to}`).catch(()=>[]),
     want.has("wa")?api(`/api/wa?from=${from}&to=${to}`).catch(()=>[]):[]]);
   const tk=$("rTeam").value,mine=i=>(who?i.owner_email===who:inTeam(i.owner_email,tk))&&brOk(i,br);
-  const S={};KEG.forEach(k=>{if(want.has(k))S[k]=all.filter(i=>kindOf(i)===k&&mine(i))});
+  // postingan yang masuk lewat bookmark / impor CSV (auto) hanya untuk Laporan Social Media Specialist
+  const S={};KEG.forEach(k=>{if(want.has(k))S[k]=all.filter(i=>kindOf(i)===k&&mine(i)&&!i.auto)});
   // pengembangan produk: riwayat update status untuk kolom Update terakhir
   if(S.produk&&S.produk.length){const G={};(await api("/api/galeri?kind=produk").catch(()=>[])).forEach(x=>G[x.id]=x.log);S.produk=S.produk.map(i=>({...i,log:G[i.id]||[]}))}
   if(want.has("desain"))S.desain=all.filter(i=>i.d_need&&(who?i.d_who===who:inTeam(i.d_who,tk)));
@@ -1732,7 +1760,8 @@ const MR_CSS=`.mr-page{width:13.333in;height:7.5in;position:relative;overflow:hi
 .mr-t tr.tot td{background:#136f4a;color:#fff;font-weight:700}
 .mr-t td.im{padding:.05in}.mr-t td.im img{width:100%;max-height:1.3in;aspect-ratio:16/9;object-fit:cover;display:block}
 .mr-live{color:#e02020;font-weight:500}
-.mr-sum{display:grid;grid-template-columns:1fr 1fr;gap:.6in;align-items:start}
+.mr-sum{display:grid;grid-template-columns:1fr 1fr;gap:.6in;align-items:start}.mr-sum.one{grid-template-columns:1fr}
+.mr-s1 .mr-sub{font-size:20pt;margin:-.1in 0 .12in;color:#17251d}.mr-snote{margin:.08in 0 0 .1in;font-size:11pt}.mr-t.sum.big td{font-size:15pt;font-weight:700}
 .mr-s1{margin:0 0 .3in}
 .mr-plain .mr-body .mr-s1 h2{font-size:26pt;margin:0 0 .14in}
 .mr-box{border:1.5px solid #3f8a66;border-radius:12px;padding:.03in .12in;background:#fff}
@@ -1755,7 +1784,7 @@ async function monData(div){
   const pk=await api(`/api/picks?from=${from}&to=${to}&ihsg=1`).catch(()=>null),picks=pk&&Array.isArray(pk.picks)?pk.picks:[];
   // rencana galeri: yang masih berproses di periode ini (walau mulai lebih awal), lengkap dengan riwayat progresnya
   // pengembangan produk: sama, yang belum rilis / batal atau diperbarui di periode ini
-  const its=[...its0.filter(i=>kindOf(i)!=="galeri"&&kindOf(i)!=="produk"),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to)),...(Array.isArray(prod)?prod:[]).filter(i=>prodIn(i,from,to))];
+  const its=[...its0.filter(i=>kindOf(i)!=="galeri"&&kindOf(i)!=="produk"&&!i.auto),...(Array.isArray(gal)?gal:[]).filter(i=>galIn(i,from,to)),...(Array.isArray(prod)?prod:[]).filter(i=>prodIn(i,from,to))];
   // hanya role di tim laporan (tim = kumpulan role, diatur di Tool Hub); tiap role jadi satu bagian
   const tk=$("rTeam").value,inT=k=>teamKey(k)===tk,order=Object.keys(PL.roles),T={};
   const team=k=>T[k]=T[k]||{key:k,name:PL.roles[k]||"Lainnya",members:new Map(),logs:[],items:[],wa:[],picks:[]};
@@ -1904,7 +1933,7 @@ async function pdfDoc(doc){
   };
   const tr=(r,cols)=>r.grp!==undefined?`<tr class="grp"><td colspan="${cols.length}">${esc(r.grp)}</td></tr>`:`<tr${r.tot?' class="tot"':""}>${r.map((c,i)=>td(c,(cols[i]||[])[2])).join("")}</tr>`;
   // tabel ringkasan berbingkai (blok sum): kolom kiri & kanan, masing-masing tumpukan tabel berjudul besar
-  const sumT=t=>`<div class="mr-s1"><h2>${esc(t.h2)}</h2><div class="mr-box"><table class="mr-t sum"><thead><tr>${t.cols.map(c=>`<th${c[2]?' class="n"':""} style="width:${c[1]}%">${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>tr(r,t.cols)).join("")}</tbody></table></div></div>`;
+  const sumT=t=>`<div class="mr-s1">${t.h2?`<h2>${esc(t.h2)}</h2>`:""}${t.sub?`<p class="mr-sub">${esc(t.sub)}</p>`:""}<div class="mr-box"><table class="mr-t sum${t.big?" big":""}"><colgroup>${t.cols.map(c=>`<col style="width:${c[1]}%">`).join("")}</colgroup>${t.nohead?"":`<thead><tr>${t.cols.map(c=>`<th${c[2]?' class="n"':""}>${esc(c[0])}</th>`).join("")}</tr></thead>`}<tbody>${t.rows.map(r=>tr(r,t.cols)).join("")}</tbody></table></div>${t.note?`<p class="mr-snote">• ${esc(t.note)}</p>`:""}</div>`;
   const fig=c=>`<figure>${c.title?`<small>${esc(c.title)}</small>`:""}${c.img?`<img src="${esc(c.img)}" alt="">`:`<div class="mr-noimg">${esc(T("Tanpa gambar"))}</div>`}<figcaption>${c.href?`<a href="${esc(c.href)}">${esc(c.cap)}</a>`:esc(c.cap)}</figcaption></figure>`;
   for(const b of doc.blocks){
     if(b.t==="cover"){page("mr-cover");body.innerHTML=`<h1>${b.lines.map(esc).join("<br>")}</h1><p>${esc(b.sub||"")}</p>`}
@@ -1922,7 +1951,7 @@ async function pdfDoc(doc){
     else if(b.t==="sum"){
       let cols=b.cols;
       while(cols.some(c=>c.length)){
-        page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum">${cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`);
+        page();body.insertAdjacentHTML("beforeend",`<div class="mr-sum${cols.length===1?" one":""}">${cols.map(st=>`<div>${st.map(sumT).join("")}</div>`).join("")}</div>`);
         const D=[...body.querySelector(".mr-sum").children],rest=cols.map(()=>[]);
         const lim=body.getBoundingClientRect().bottom+1;
         D.forEach((d,ci)=>{for(let k=cols[ci].length-1;k>0&&d.lastElementChild.getBoundingClientRect().bottom>lim;k--){d.lastElementChild.remove();rest[ci].unshift(cols[ci][k])}});
@@ -2022,17 +2051,19 @@ async function pptDoc(doc,fileName){
   // blok sum: satu slide, kolom kiri & kanan berisi tumpukan tabel ringkasan berbingkai dengan judul besar
   // tabel yang tidak muat di bawah tabel sebelumnya pindah ke slide sum berikutnya (kolom yang sama)
   const sum=b=>{
-    slide();const gap=.6,cwid=(W-gap)/2,rest=b.cols.map(()=>[]);
+    slide();const gap=.6,nc=b.cols.length,cwid=(W-gap*(nc-1))/nc,rest=b.cols.map(()=>[]);
     b.cols.forEach((st,ci)=>{let yy=y;const x=X+ci*(cwid+gap);
       st.forEach(t=>{
-        const tw=cwid-.24,cw=t.cols.map(c=>+(c[1]/100*tw).toFixed(3)),cell=(c,k,bold)=>({text:txt(c).trim()||"–",options:{fontFace:F,fontSize:12,bold,color:C.t,align:(t.cols[k]||[])[2]?"right":"left",valign:"middle"}});
-        const rows=[t.cols.map((c,k)=>cell(c[0],k,true)),...t.rows.map(r=>r.map((c,k)=>cell(c,k,!!r.tot)))];
-        const hs=[.42,...t.rows.map(r=>Math.max(...r.map((c,k)=>lines(txt(c),(cw[k]||1)-.1,12)))*.22+.2)],th=hs.reduce((a,v)=>a+v,0),hh=lines(t.h2,cwid,26)*.45+.05;
-        if(yy>y&&yy+hh+.1+th+.12>BOT){rest[ci].push(t);return}
-        s.addText(t.h2,{x,y:yy,w:cwid,h:hh,fontFace:F,fontSize:26,bold:true,color:C.t,margin:0,valign:"top"});
+        const tw=cwid-.24,cw=t.cols.map(c=>+(c[1]/100*tw).toFixed(3)),cell=(c,k,bold)=>({text:txt(c).trim()||(t.nohead||bold?"":"–"),options:{fontFace:F,fontSize:t.big?15:t.cols.length>8?10:12,bold,color:C.t,align:(t.cols[k]||[])[2]?"right":"left",valign:"middle"}});
+        const fs0=t.big?15:t.cols.length>8?10:12,rows=[...(t.nohead?[]:[t.cols.map((c,k)=>cell(c[0],k,true))]),...t.rows.map(r=>r.map((c,k)=>cell(c,k,!!r.tot)))];
+        const hs=[...(t.nohead?[]:[.42]),...t.rows.map(r=>Math.max(...r.map((c,k)=>lines(txt(c),(cw[k]||1)-.1,fs0)))*(fs0/12)*.22+.2)],th=hs.reduce((a,v)=>a+v,0),hh=(t.h2?lines(t.h2,cwid,26)*.45+.05:0)+(t.sub?.42:0),nh=t.note?.4:0;
+        if(yy>y&&yy+hh+.1+th+.12+nh>BOT){rest[ci].push(t);return}
+        if(t.h2)s.addText(t.h2,{x,y:yy,w:cwid,h:hh-(t.sub?.42:0),fontFace:F,fontSize:26,bold:true,color:C.t,margin:0,valign:"top"});
+        if(t.sub)s.addText(t.sub,{x,y:yy+hh-.42,w:cwid,h:.4,fontFace:F,fontSize:20,color:C.t,margin:0,valign:"top"});
         s.addShape(pp.ShapeType.roundRect,{x,y:yy+hh+.1,w:cwid,h:th+.12,fill:{color:"FFFFFF"},line:{color:C.g,width:1.25},rectRadius:.12});
         s.addTable(rows,{x:x+.12,y:yy+hh+.16,w:tw,colW:cw,rowH:hs.map(v=>+v.toFixed(3)),border:{type:"solid",color:"A9CDB9",pt:.75},margin:.06,autoPage:false});
-        yy+=hh+.1+th+.12+.4;
+        if(t.note)s.addText("• "+t.note,{x:x+.1,y:yy+hh+.1+th+.18,w:cwid,h:.32,fontFace:F,fontSize:11,color:C.t,margin:0});
+        yy+=hh+.1+th+.12+nh+.4;
       })});
     if(rest.some(r=>r.length))sum({cols:rest});
   };
@@ -2211,35 +2242,15 @@ $("impGo").onclick=async()=>{
   }catch(e){showErr("impErr",e);$("impMsg").textContent="";$("impGo").disabled=false}
 };
 $("impBtn").onclick=openImp;$("impClose").onclick=()=>$("imp").close();$("impBtn").hidden=!K.galeri||!PL.me.gal;
-/* ---------- Laporan IG: postingan Instagram KISI per bulan (gambar + 6 angka) ---------- */
-// konten IG (tanpa Story) yang tayang di periode; gambar dari /api/imgs (bookmark IG atau unggahan manual)
-const isIgPost=i=>kindOf(i)==="konten"&&/^IG|instagram/i.test(i.channel||"")&&!/story/i.test(i.channel||"")&&(i.status==="terbit"||hasM(i));
-const IGM=[["Suka","m_likes"],["Komentar","m_comments"],["Bagikan","m_shares"],["Views","m_views"],["Simpan","m_saves"],["Repost","m_reposts"]];
-async function igData(){
-  const from=$("rFrom").value,to=$("rTo").value;
-  if(!from||!to||from>to)throw new Error("Periode belum benar.");
-  const L=(await api(`/api/items?from=${from}&to=${to}`)).filter(i=>isIgPost(i)&&i.date>=from&&i.date<=to).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0),imgs={};
-  for(let i=0;i<L.length;i+=100)Object.assign(imgs,await api("/api/imgs?ids="+L.slice(i,i+100).map(x=>encodeURIComponent(x.id)).join(",")));
-  const per=from.slice(0,7)===to.slice(0,7)&&from.endsWith("-01")&&to===monthEnd(from)?`${MON[D(from).getUTCMonth()]} ${D(from).getUTCFullYear()}`:`${fmtShort(from)} – ${fmtShort(to)}`;
-  return {from,to,per,tag:"",items:L.map(i=>({...i,img:imgs[i.id]||""}))};
-}
-const igCard=i=>({img:i.img,date:fmtShort(i.date),title:i.title,ch:i.channel||"",m:IGM.map(([l,k])=>[T(l),int(i[k])])});
-function igDoc(R){
-  const L=R.items,sum=k=>L.reduce((a,i)=>a+(+i[k]||0),0),top=L.filter(i=>inter(i)>0).sort((a,b)=>inter(b)-inter(a)).slice(0,3);
-  const Bk=[{t:"cover",lines:["Laporan Instagram",R.per],sub:B.company||R.div},{t:"page",h2:"Ringkasan",sub:`${R.per} · ${L.length} postingan`}];
-  if(!L.length)Bk.push({t:"table",h3:"Postingan",cols:[["Postingan",100]],rows:[],empty:"Belum ada postingan Instagram di periode ini."});
-  else Bk.push({t:"kpis",items:[["Postingan",int(L.length),""],...IGM.map(([l,k])=>[l,int(sum(k)),"total"])]},
-    ...(top.length?[{t:"posts",cols:3,h3:T("3 postingan teratas (suka + komentar + simpan + bagikan + repost)"),items:top.map(igCard)}]:[]),
-    {t:"page",h2:"Semua postingan",sub:`${R.per} · ${L.length} postingan`},{t:"posts",cols:2,items:L.map(igCard)});
-  return {div:R.div,per:R.per,blocks:Bk};
-}
 /* ---------- Laporan Social Media Specialist (deck Canva SMS, label English) ---------- */
-// hitungan murni (dites di test.mjs): L = kegiatan bulan itu; o = {month:"YYYY-MM", fol:{"YYYY-MM":{ig,tt}}, v: isian form (sm_n)}.
+// hitungan murni (dites di test.mjs): L = kegiatan bulan itu (hanya yang sudah tayang dihitung; jumlah 0 = null); o = {month:"YYYY-MM", fol:{"YYYY-MM":{ig,tt}}, v: isian form (sm_n)}.
 // Angka tidak diketahui = null ("-" di laporan); isian form (bukan null) menimpa hitungan. Views Rate diketik dalam seperseratus persen (5357 = 53.57%).
 function smCalc(L,o){
   const v=o.v||{},num=x=>typeof x==="number"&&isFinite(x)?x:null,pick=(t,c)=>num(t)!==null?t:c,low=s=>String(s||"").toLowerCase();
   const sum=(A,k)=>A.some(i=>num(i[k])!==null)?A.reduce((a,i)=>a+(num(i[k])||0),0):null,g=k=>v[k]||{};
   const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0,link=i=>String(i.link||"");
+  const up=i=>i.status==="terbit"||!!i.auto||["m_views","m_reach","m_likes","m_comments","m_saves","m_shares"].some(k=>num(i[k])!==null);
+  L=L.filter(up);
   const igP=L.filter(i=>i.kind==="konten"&&(/^IG/i.test(i.channel||"")||/instagram\.com/i.test(link(i)))&&!/story/i.test(i.channel||"")&&!/\/stories\//i.test(link(i))).sort(byDate);
   const tt=L.filter(i=>i.kind==="konten"&&(i.channel==="TikTok"||/tiktok\.com/i.test(link(i)))),yt=L.filter(i=>/youtube\.com\/shorts\//i.test(link(i)));
   // seri: nama seri (huruf kecil) di judul + caption; nama terpanjang yang cocok menang, satu postingan satu seri
@@ -2253,11 +2264,96 @@ function smCalc(L,o){
   const R=g("reg"),Y=g("yt"),T=g("tt"),A=g("ads"),TA=g("ttAds"),rows=a=>(a||[]).map(x=>({n:String(x.n||""),c:num(x.c)})),tot=a=>a.some(x=>x.c!==null)?a.reduce((s,x)=>s+(x.c||0),0):null;
   const yv=num(Y.views),yi=num(Y.impr),ve=rows(v.ve),de=rows(v.de);
   return {months,ser,serTotal:tot(ser),
-    reg:{post:pick(R.post,reg.length),reach:num(R.reach),views:pick(R.views,sum(reg,"m_views")),likes:pick(R.likes,sum(reg,"m_likes"))},
+    reg:{post:pick(R.post,reg.length||null),reach:num(R.reach),views:pick(R.views,sum(reg,"m_views")),likes:pick(R.likes,sum(reg,"m_likes"))},
     ads:{cost:num(A.cost),posts:num(A.posts),reach:num(A.reach)},
-    yt:{post:pick(Y.post,yt.length),adPosts:num(Y.adPosts),cost:num(Y.cost),impr:yi,inter:num(Y.inter),views:yv,rate:num(Y.rate)!==null?Y.rate/100:yv!==null&&yi?Math.round(yv/yi*10000)/100:null},
-    tt:{post:pick(T.post,tt.length),prof:num(T.prof),views:pick(T.views,sum(tt,"m_views")),likes:pick(T.likes,sum(tt,"m_likes"))},
+    yt:{post:pick(Y.post,yt.length||null),adPosts:num(Y.adPosts),cost:num(Y.cost),impr:yi,inter:num(Y.inter),views:yv,rate:num(Y.rate)!==null?Y.rate/100:yv!==null&&yi?Math.round(yv/yi*10000)/100:null},
+    tt:{post:pick(T.post,tt.length||null),prof:num(T.prof),views:pick(T.views,sum(tt,"m_views")),likes:pick(T.likes,sum(tt,"m_likes"))},
     ttAds:{cost:num(TA.cost),posts:num(TA.posts),reach:num(TA.reach)},ttNote:String(v.ttNote||""),ve,veTotal:tot(ve),de,deTotal:tot(de),igPosts:igP};
+}
+// laporan: 4 halaman deck SMS (blok sum: h2 + sub, tanpa kepala tabel, catatan) + kartu semua postingan IG. Murni (dites di test.mjs).
+function smDoc(R){
+  const c=R.c,n=x=>x===null||x===undefined?"-":Number(x).toLocaleString("en-US"),B=[],two=(a,b)=>[["",a],["",b,1]];
+  const MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],day=d=>MN[+d.slice(5,7)-1]+" "+(+d.slice(8,10));
+  const fol=(h2,k)=>({h2,sub:"Followers",cols:c.months.map(x=>[x.label,100/18,1]),rows:[c.months.map(x=>n(x[k]))]});
+  B.push({t:"sum",cols:[[fol("Instagram","ig"),fol("TikTok","tt")]]});
+  B.push({t:"sum",cols:[
+    [{h2:"Instagram",sub:"Scheduled Content",cols:[["Content",44],["Posted",36],["Total",20,1]],rows:[...c.ser.map(x=>[x.n,x.s,n(x.c)]),Object.assign(["Total","",n(c.serTotal)],{tot:1})]}],
+    [{h2:"Instagram",sub:"Regular Content",nohead:1,cols:two(60,40),rows:[["Total Post",n(c.reg.post)],["Account Reach",n(c.reg.reach)],["Views",n(c.reg.views)],["Total Likes",n(c.reg.likes)]]},
+     {h2:"",nohead:1,big:1,cols:two(60,40),rows:[["Total Cost Ads",n(c.ads.cost)],["Total Post with Ads",n(c.ads.posts)],["Account Reach",n(c.ads.reach)]].map(r=>Object.assign(r,{tot:1}))}]]});
+  B.push({t:"sum",cols:[
+    [{h2:"Youtube",sub:"Short Video",nohead:1,cols:[["",34],["",18,1],["",26],["",22,1]],rows:[["Total Post",n(c.yt.post),"Impression",n(c.yt.impr)],["Total Post with Ads",n(c.yt.adPosts),"Interaction",n(c.yt.inter)],
+      ["Total Cost Ads",n(c.yt.cost),"Views",n(c.yt.views)],["","","Views Rate",c.yt.rate===null?"-":c.yt.rate.toFixed(2)+"%"]]}],
+    [{h2:"Tiktok",sub:"Content",nohead:1,cols:two(60,40),rows:[["Total Post",n(c.tt.post)],["Profil Views",n(c.tt.prof)],["Video Views",n(c.tt.views)],["Total Likes",n(c.tt.likes)]]},
+     {h2:"",nohead:1,big:1,cols:two(60,40),rows:[["Total Cost Ads",n(c.ttAds.cost)],["Total Post with Ads",n(c.ttAds.posts)],["Account Reach with Ads",n(c.ttAds.reach)]].map(r=>Object.assign(r,{tot:1})),note:c.ttNote}]]});
+  const list=(h2,L,t)=>({h2,nohead:1,cols:two(65,35),rows:[...L.map(x=>[x.n,n(x.c)]),Object.assign(["Total",n(t)],{tot:1})]});
+  B.push({t:"sum",cols:[[list("Summary of Video Editing",c.ve,c.veTotal)],[list("Summary of Design",c.de,c.deTotal)]]});
+  const P=c.igPosts,M=[["Likes","m_likes"],["Comments","m_comments"],["Shares","m_shares"],["Views","m_views"],["Saves","m_saves"],["Reposts","m_reposts"]];
+  if(P.length){
+    const card=i=>({img:(R.imgs||{})[i.id]||"",date:day(i.date),title:i.title,ch:i.channel||"",m:M.map(([l,k])=>[l,n(i[k]??null)])});
+    const sc=i=>["m_likes","m_comments","m_saves","m_shares","m_reposts"].reduce((a,k)=>a+(+i[k]||0),0),top=P.filter(i=>sc(i)>0).sort((a,b)=>sc(b)-sc(a)).slice(0,3);
+    B.push({t:"page",h2:"Instagram Posts",sub:`${R.mon} ${R.yr} · ${P.length} posts`});
+    if(top.length)B.push({t:"posts",cols:3,h3:"Top 3 posts (likes + comments + saves + shares + reposts)",items:top.map(card)});
+    B.push({t:"page",h2:"All Instagram Posts",sub:`${R.mon} ${R.yr} · ${P.length} posts`},{t:"posts",cols:2,items:P.map(card)});
+  }
+  return {div:R.div,per:`${R.mon} ${R.yr}`,head:`${R.div} | ${R.mon} ${R.yr}`,plain:true,raw:true,blocks:B};
+}
+// form Laporan SMS: angka abu-abu (placeholder) = hitungan; isian = pengganti. SMF = followers 18 bulan, SMI = kegiatan bulan itu (cache).
+let SMF={},SMI=null,smT=0;
+const SM_DEF={ser:[["BreakVest KISI","Every Tuesday - Friday"],["Weekly BreakVest KISI","Every Monday"],["Weekly Update Reksa Dana","Every Monday"],["Weekly Update Bonds","Every Monday"]].map(([n,s])=>({n,s})),
+  ve:[{n:"BreakVest KISI"},{n:"Reels"}],de:[{n:"Monthly Outlook"},{n:"Regular Education"}]},SM_BOX={ser:"rSmSer",ve:"rSmVe",de:"rSmDe"};
+const smMonth=()=>($("rFrom").value||"").slice(0,7);
+const smRowHtml=(k,x)=>`<div class="sm-row"><input class="f" data-r="n" maxlength="60" value="${esc(x.n||"")}" placeholder="${esc(T(k==="ser"?"Nama seri":"Nama"))}" aria-label="${esc(T("Nama"))}">`
+  +(k==="ser"?`<input class="f" data-r="s" maxlength="60" value="${esc(x.s||"")}" placeholder="${esc(T("Jadwal, mis. Every Monday"))}" aria-label="${esc(T("Jadwal"))}">`:"")
+  +`<input class="f n" data-r="c" inputmode="numeric" value="${x.c??""}" aria-label="${esc(T("Jumlah"))}"><button type="button" class="btn sm" data-smdel aria-label="${esc(T("Hapus baris"))}">✕</button></div>`;
+const smItems=async m=>{if(!SMI||SMI.m!==m)SMI={m,L:await api(`/api/items?from=${m}-01&to=${monthEnd(m+"-01")}`)};return SMI.L};
+const smInt=x=>{const t=String(x??"").replace(/[^\d]/g,"");return t===""?null:Math.min(+t,9e12)};
+function smForm(){
+  const v={};
+  $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split(".");v[a]=v[a]||{};
+    if(el.dataset.pct){const t=el.value.replace(",",".").replace(/[^\d.]/g,"");v[a][b]=t===""||isNaN(+t)?null:Math.round(+t*100)}else v[a][b]=smInt(el.value)});
+  const rows=id=>[...$(id).children].map(r=>{const g=k=>r.querySelector(`[data-r="${k}"]`);return {n:g("n").value.trim().slice(0,60),...(g("s")?{s:g("s").value.trim().slice(0,60)}:{}),c:smInt(g("c").value)}}).filter(x=>x.n).slice(0,20);
+  v.ser=rows("rSmSer");v.ve=rows("rSmVe");v.de=rows("rSmDe");v.ttNote=$("rSmNote").value.trim().slice(0,120);
+  return v;
+}
+function smFolTable(m){
+  const M=smCalc([],{month:m,fol:SMF,v:null}).months;
+  $("rSmFol").innerHTML=`<table><tr><th></th>${M.map(x=>`<th>${x.label}</th>`).join("")}</tr>`+[["ig","Instagram"],["tt","TikTok"]].map(([k,l])=>
+    `<tr><th>${l}</th>${M.map(x=>`<td><input data-fm="${x.m}" data-net="${k}" inputmode="numeric" aria-label="${l} ${x.label}" value="${x[k]??""}"></td>`).join("")}</tr>`).join("")+"</table>";
+}
+// angka hitungan (placeholder) dari kegiatan bulan itu dengan daftar seri di form
+async function smHint(){
+  const m=smMonth();if(RT!=="sm"||!m)return;
+  const L=await smItems(m),f=smForm(),c=smCalc(L,{month:m,fol:{},v:{ser:f.ser.map(x=>({n:x.n,s:x.s}))}});
+  $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(c[a]||{})[b];el.placeholder=x==null?"":el.dataset.pct?String(x):x.toLocaleString("en-US")});
+  [...$("rSmSer").children].forEach(r=>{const n=r.querySelector('[data-r="n"]').value.trim(),x=c.ser.find(z=>z.n===n);r.querySelector('[data-r="c"]').placeholder=x?String(x.c):""});
+  $("rSmNoteMsg").textContent=T("{n} postingan IG dan {m} video TikTok tercatat di bulan ini.").replace("{n}",c.igPosts.length).replace("{m}",c.tt.post);
+}
+async function smLoad(){
+  const m=smMonth();if(RT!=="sm"||!m)return;
+  const [cf,fo]=await Promise.all([api("/api/sm/cfg?m="+m),api("/api/sm/followers?to="+m)]);
+  if(smMonth()!==m)return;
+  const v=cf.v||{},pv=cf.prev||{};SMF=fo.months||{};
+  // bulan baru: daftar baris ikut bulan sebelumnya (tanpa angka), atau bawaan
+  Object.entries(SM_BOX).forEach(([k,id])=>{const L=v[k]||(pv[k]||SM_DEF[k]).map(x=>({n:x.n,s:x.s,c:null}));$(id).innerHTML=L.map(x=>smRowHtml(k,x)).join("")});
+  $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(v[a]||{})[b];el.value=x==null?"":el.dataset.pct?String(x/100):String(x)});
+  $("rSmNote").value=v.ttNote||"";
+  smFolTable(m);await smHint();
+}
+$("rSmF").addEventListener("click",e=>{
+  const a=e.target.closest("[data-smadd]");if(a){$(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
+  const d=e.target.closest("[data-smdel]");if(d){d.closest(".sm-row").remove();smHint().catch(()=>{})}});
+$("rSmF").addEventListener("input",e=>{if(e.target.closest("#rSmFol"))e.target.dataset.d="1";
+  else if(e.target.closest("#rSmSer")&&e.target.dataset.r==="n"){clearTimeout(smT);smT=setTimeout(()=>smHint().catch(()=>{}),400)}});
+async function smData(){
+  const m=smMonth();if(!m)throw new Error("Pilih bulan dulu.");
+  const from=m+"-01",to=monthEnd(from);$("rFrom").value=from;$("rTo").value=to;
+  const v=smForm();await api("/api/sm/cfg",{m,v});
+  for(const el of $("rSmFol").querySelectorAll("input[data-d]")){const x=smInt(el.value);await api("/api/sm/followers",{month:el.dataset.fm,[el.dataset.net]:x});delete el.dataset.d}
+  SMF=(await api("/api/sm/followers?to="+m)).months||{};SMI=null;
+  const c=smCalc(await smItems(m),{month:m,fol:SMF,v}),imgs={};
+  for(let k=0;k<c.igPosts.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+c.igPosts.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
+  const mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4);
+  return {mon,yr,per:mon+" "+yr,tag:"",c,imgs};
 }
 /* ---------- Laporan Copywriter (gaya deck Canva copywriter, label English seperti deck-nya) ---------- */
 // hitungan murni (dites di test.mjs): L = kegiatan periode yang sudah difilter orang; o = periode, kampanye, angka diketik, YTD
@@ -2353,7 +2449,7 @@ function cwDoc(R){
   });
   return {div:R.div,per:R.per,head:`${R.div} | ${R.per}`,plain:true,raw:true,blocks:B};
 }
-const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},ig:{data:igData,doc:igDoc,name:"Laporan Instagram"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
+const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},sm:{data:smData,doc:smDoc,name:"Laporan Social Media Specialist"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
 const repDiv=()=>{const tk=$("rTeam").value,d=$("rDiv").value.trim()||teamName(tk)||"Product & Digital Development";if(d!==teamName(tk))store("pl_div:"+tk,d);else try{localStorage.removeItem("pl_div:"+tk)}catch(e){}return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
 // Monthly Report: "<divisi> Report - <periode>". Karakter yang tidak boleh di nama file dibuang.
