@@ -850,11 +850,15 @@ async function smFollowers(env, b, to) {
   await cfgPut(env, "sm_fol:" + m, v);
   return { ok: true };
 }
-/** Isian form: objek bertingkat berisi angka bulat >= 0 / null, teks <= 120 karakter, larik <= 20 baris; JSON <= 8000 karakter. */
+/** Isian form, bentuknya dicek persis (teks di kolom angka bisa jadi XSS di form):
+ *  ser/ve/de = larik <= 20 baris {n, s?: teks <= 60, c: angka|null}; reg/ads/yt/tt/ttAds = {kunci: angka bulat >= 0 | null}; ttNote = teks <= 120. */
 export function smValid(v) {
-  const ok = (x, d) => d > 4 ? false : x === null || typeof x === "boolean" ? true : typeof x === "number" ? okNum(x) : typeof x === "string" ? x.length <= 120
-    : Array.isArray(x) ? x.length <= 20 && x.every((y) => ok(y, d + 1)) : typeof x === "object" ? Object.keys(x).every((k) => /^\w{1,20}$/.test(k) && ok(x[k], d + 1)) : false;
-  return !!v && typeof v === "object" && !Array.isArray(v) && JSON.stringify(v).length <= 8000 && ok(v, 0);
+  const obj = (x) => !!x && typeof x === "object" && !Array.isArray(x), txt = (x, n) => typeof x === "string" && x.length <= n;
+  const row = (r) => obj(r) && txt(r.n, 60) && (r.s === undefined || txt(r.s, 60)) && (r.c === undefined || okNum(r.c)) && Object.keys(r).every((k) => ["n", "s", "c"].includes(k));
+  const nums = (x) => obj(x) && Object.keys(x).length <= 12 && Object.entries(x).every(([k, n]) => /^\w{1,20}$/.test(k) && okNum(n));
+  const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120) };
+  F.ve = F.de = F.ser; F.reg = F.ads = F.yt = F.tt = F.ttAds = nums;
+  return obj(v) && JSON.stringify(v).length <= 8000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
 }
 async function smCfg(env, m, v) {
   await ensure(env);
@@ -1623,7 +1627,8 @@ $("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(
 if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?"Instagram menjawab: "+why+"; pastikan sudah login Instagram":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length&&fol===null}
 if(m.pl==="n")n=+m.n||0;
 if(m.pl==="err"){$("bar").style.width="0";$("st").textContent="Content insights tidak bisa dibaca (Instagram: "+String(m.msg||"").slice(0,120)+"). Isi reach lewat CSV Meta Business Suite atau ketik di kegiatan.";}
-if(m.pl==="done"&&ins&&m.tf)$("fol").textContent="Rentang data Instagram: "+(m.tf==="ONE_MONTH"?"±30 hari terakhir — postingan yang lebih lama tidak ikut":"±90 hari terakhir");
+if(m.pl==="wait")$("st").textContent="Sekarang ganti pilihan angka di halaman Content insights (mis. Views → Viewers) satu kali…";
+if(m.pl==="done"&&ins&&m.tf)$("fol").textContent="Rentang data Instagram: "+(m.tf==="ONE_MONTH"?"±30 hari terakhir — postingan yang lebih lama tidak ikut":"±90 hari terakhir")+(m.cut?". Instagram hanya memberi 200 postingan teratas per angka; postingan dengan angka kecil mungkin tidak terisi.":"");
 if(m.pl==="fol"&&typeof m.ig==="number"&&m.ig>=0){fol=Math.round(m.ig);$("fol").textContent="Followers: "+fol.toLocaleString("en-US")+" (dicatat untuk bulan ini)"}});
 // dari profil (Laporan Social Media Specialist): pilih bulan dulu, lalu semua postingan bulan itu diambil
 if(mm){$("mon").hidden=false;$("st").textContent="Pilih bulan postingan yang diambil.";[].forEach.call($("mon").querySelectorAll("button"),function(b){b.onclick=function(){

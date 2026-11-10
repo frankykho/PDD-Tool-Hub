@@ -393,7 +393,36 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   // Content insights: permintaan halaman diputar ulang untuk Views, Viewers (reach) & Shares; Story dilewati; tanpa membuat kegiatan
   assert.match(bm, /\/accounts\\\/insights/); assert.match(bm, /CONTENT_META_VIEWERS_COUNT/); assert.match(bm, /RESHARES_COUNT/); assert.match(bm, /CONTENT_VIEWS_COUNT/);
   assert.match(bm, /instagram_media_product_type==="STORY"/); assert.match(bm, /m_reach/);
-  assert.match(sh, /ins=/); assert.match(sh, /m\.pl==="err"/); assert.match(sh, /Reach/);
+  assert.match(sh, /ins=/); assert.match(sh, /m\.pl==="err"/); assert.match(sh, /Reach/); assert.match(sh, /m\.pl==="wait"/); assert.match(sh, /m\.cut/);
+  // simulasi di sandbox: jendela dibuka langsung saat klik, permintaan halaman ditangkap lalu diputar ulang; gagal = pesan "err"
+  const vm = await import("node:vm");
+  const sim = async ({ edges, capture = true }) => {
+    const sent = [], opened = [], timers = [];
+    let onMsg = null;
+    class XHR { open() {} setRequestHeader() {} send() {} }
+    const box = { location: { hostname: "www.instagram.com", pathname: "/accounts/insights/content/" }, document: {}, alert: (m) => sent.push({ alert: m }), XMLHttpRequest: XHR, URLSearchParams, JSON, Object, String, Promise,
+      setTimeout: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimeout: (i) => { if (timers[i - 1]) timers[i - 1].f = null; },
+      fetch: async (u, o) => { const v = JSON.parse(new URLSearchParams(o.body).get("variables")); return { text: async () => JSON.stringify({ data: { user: { business_manager: { medias: { edges: edges(v.metric) } } } } }) }; } };
+    box.window = { open: (u) => { opened.push(u); return {}; }, addEventListener: (t, h) => { onMsg = h; }, removeEventListener() {} };
+    vm.createContext(box);
+    vm.runInContext("(" + bm + ")('https://planner.test')", box);
+    assert.equal(opened[0], "https://planner.test/ig-sync?ins=1", "jendela dibuka saat klik (bukan setelah menunggu), jadi tidak diblokir pop-up");
+    onMsg({ origin: "https://planner.test", data: { pl: "ready" }, source: { postMessage: (m) => sent.push(m) } });
+    if (capture) { const x = new box.XMLHttpRequest(); x.open("POST", "/api/graphql"); x.send("doc_id=1&fb_api_req_friendly_name=PolarisInsightsMediaGridCardViewInitialQuery&variables=" + encodeURIComponent('{"metric":"ENGAGED_ACCOUNTS","timeframe":"ONE_MONTH"}')); }
+    for (let i = 0; i < 20; i++) { const t = timers.find((t) => t.f && t.ms < 1000); if (t) { const f = t.f; t.f = null; f(); } await new Promise((r) => setImmediate(r)); }
+    return { sent, timers };
+  };
+  const nd = (c, v, type = "FEED") => ({ node: { instagram_media_product_type: type, shortcode: c, inline_insights_node: { metric_single_value_query: { results: [{ total_value: v }] } } } });
+  let s1 = await sim({ edges: () => [nd("A1", 10), nd("ST", 5, "STORY")] });
+  assert.ok(s1.sent.some((m) => m.pl === "wait"), "jendela diberi tahu: ganti pilihan angka");
+  assert.deepEqual(s1.sent.filter((m) => m.pl === "row").map((m) => m.row.link), ["https://www.instagram.com/p/A1/"]);
+  assert.ok(s1.sent.some((m) => m.pl === "done" && !m.cut));
+  s1 = await sim({ edges: () => Array.from({ length: 200 }, (_, i) => nd("P" + i, i)) });
+  assert.ok(s1.sent.some((m) => m.pl === "done" && m.cut), "200 baris = mungkin terpotong, diberi tanda");
+  s1 = await sim({ edges: () => [{ node: { shortcode: "X" } }] });
+  assert.ok(s1.sent.some((m) => m.pl === "err"), "data terbaca tanpa angka = pesan gagal, bukan 0 postingan");
+  s1 = await sim({ edges: () => [], capture: false });
+  const tmo = s1.timers.find((t) => t.f && t.ms >= 30000); assert.ok(tmo, "ada batas waktu menunggu"); tmo.f(); assert.ok(s1.sent.some((m) => m.pl === "err"), "tanpa permintaan tertangkap = pesan gagal");
   // ?__a=1 sudah tidak melayani data: daftar postingan profil & info per postingan dicoba lebih dulu
   assert.match(bm, /\/api\/v1\/feed\/user\//); assert.match(bm, /\/api\/v1\/media\//);
   assert.match(sh, /Instagram menjawab/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");
@@ -1186,6 +1215,11 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { ttNote: "x".repeat(200) } } })).status, 400);
   assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { reg: { reach: -1 } } } })).status, 400);
   assert.equal((await call("/api/sm/cfg", { ck, body: { m: "bad", v: {} } })).status, 400);
+  // bentuk isian dicek: angka harus angka (teks di kolom angka = celah XSS di form), daftar harus larik
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { ser: [{ n: "x", c: "\"><img src=x onerror=alert(1)>" }] } } })).status, 400, "teks di kolom jumlah ditolak");
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { ser: "bukan larik" } } })).status, 400);
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { reg: { reach: "1" } } } })).status, 400);
+  assert.equal((await call("/api/sm/cfg", { ck, body: { m: "2026-10", v: { yt: { rate: 5357 }, ve: [{ n: "Reels", c: null }] } } })).status, 200);
 }
 
 // Laporan Social Media Specialist: hitungan murni smCalc
@@ -1228,6 +1262,11 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(calc([], { month: "2026-01", fol: {}, v: null }).months[0].m, "2024-08", "lintas tahun");
   { const z = calc([], { month: "2026-10", fol: {}, v: null }); assert.deepEqual([z.reg.post, z.yt.post, z.tt.post], [null, null, null], "tanpa postingan = \"-\", bukan 0"); }
   assert.equal(calc([ig("Ide konten", { status: "ide" }), ig("Draf", { status: "draf" }), ig("Terbit", { status: "terbit" })], { month: "2026-10", fol: {}, v: null }).reg.post, 1, "ide & draf belum tayang tidak dihitung");
+  { const z = calc([], { month: "2026-10", fol: {}, v: { ser } }); assert.deepEqual([z.ser[0].c, z.serTotal], [null, null], "belum ada postingan IG: seri \"-\", bukan 0"); }
+  // form: nilai diloloskan esc; isian hanya disimpan ke bulan yang sedang dimuat; teks petunjuk tanpa "null"
+  assert.match(pg, /data-r="c" inputmode="numeric" value="\$\{esc\(x\.c\?\?""\)\}"/);
+  assert.match(pg.match(/async function smData\(\)\{[\s\S]*?\n\}\n/)[0], /dataset\.m!==m/);
+  assert.doesNotMatch(pg, /\.replace\("\{m\}",c\.tt\.post\)/);
   // laporan: 4 halaman contoh + kartu postingan IG, English, koma ribuan, kosong = "-"
   const doc = new Function(pg.match(/function smDoc\(R\)\{[\s\S]*?\n\}\n/)[0] + "return smDoc")();
   const c = calc(L, { month: "2026-10", fol: { "2026-10": { ig: 37790 } }, v: { ser, reg: { reach: 3415684 }, ttNote: "No TikTok Ads in October", de: [{ n: "Monthly Outlook", c: 1 }] } });

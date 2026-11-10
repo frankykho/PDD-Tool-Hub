@@ -837,34 +837,44 @@ function plBookmark(W){
   // (sekali, saat user mengganti pilihan angka), lalu memutarnya ulang untuk Views, Viewers (= reach) & Shares. Permintaan & token
   // halaman hanya dikirim ke Instagram sendiri; ke Planner hanya link + angka. Tanpa tanggal -> hanya memperbarui kegiatan yang cocok.
   function insights(){
-    if(window.__plIns){alert("Ganti pilihan angka di halaman ini (mis. Views → Viewers) satu kali.");return}
-    window.__plIns=1;
-    var X=XMLHttpRequest.prototype,O=X.open,S=X.send,H=X.setRequestHeader,cap=null;
-    X.open=function(m,u){this.__u=String(u);this.__h={};return O.apply(this,arguments)};
-    X.setRequestHeader=function(k,v){if(this.__h)this.__h[k]=v;return H.apply(this,arguments)};
-    X.send=function(b){try{if(!cap&&/\/api\/graphql/.test(this.__u||"")&&typeof b==="string"&&/MediaGridCardView/.test(b)){cap={u:this.__u,h:this.__h,b:b};X.open=O;X.send=S;X.setRequestHeader=H;setTimeout(go,0)}}catch(e){}return S.apply(this,arguments)};
-    alert("Bookmark siap. Sekarang ganti pilihan angka di halaman ini (mis. Views → Viewers) satu kali.");
-    function q(metric,tf){var p=new URLSearchParams(cap.b),v=JSON.parse(p.get("variables")||"{}");v.metric=metric;v.order_by_options=Object.assign({},v.order_by_options,{metric:metric});v.initialCount=200;if(tf)v.timeframe=tf;p.set("variables",JSON.stringify(v));
-      return fetch(cap.u,{method:"POST",credentials:"include",headers:cap.h,body:p.toString()}).then(function(r){return r.text()}).then(function(t){
-        var j=JSON.parse(t.split("\n")[0]),u=j&&j.data&&j.data.user,e=u&&u.business_manager&&u.business_manager.medias&&u.business_manager.medias.edges;
-        if(!e)throw new Error((j&&j.errors&&j.errors[0]&&j.errors[0].message)||"tanpa data");return e})}
-    function go(){
-      var w=window.open(W+"/ig-sync?ins=1","planner_ig","width=540,height=760");
-      if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk instagram.com, lalu klik tombol lagi.");return}
-      window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready")return;window.removeEventListener("message",h);var t=e.source,tf="";
-        // rentang terpanjang yang diterima Instagram (halaman ini memakai ONE_MONTH): postingan awal bulan lalu ikut terbaca
-        var TF=["THREE_MONTHS","NINETY_DAYS",""];
-        (function tryTf(i){return q("CONTENT_VIEWS_COUNT",TF[i]).then(function(x){tf=TF[i];return x},function(err){if(i+1>=TF.length)throw err;return tryTf(i+1)})})(0)
-        .then(function(views){return Promise.all([views,q("CONTENT_META_VIEWERS_COUNT",tf),q("RESHARES_COUNT",tf)])})
-        .then(function(r){var M={};
-          [["m_views",r[0]],["m_reach",r[1]],["m_shares",r[2]]].forEach(function(x){x[1].forEach(function(ed){var n=ed&&ed.node;
-            if(!n||!n.shortcode||n.instagram_media_product_type==="STORY")return;
-            var o=M[n.shortcode]=M[n.shortcode]||{link:"https://www.instagram.com/p/"+n.shortcode+"/"},s=n.inline_insights_node&&n.inline_insights_node.metric_single_value_query,v=s&&s.results&&s.results[0];
-            if(v&&typeof v.total_value==="number")o[x[0]]=v.total_value})});
-          var L=Object.keys(M).map(function(k){return M[k]}).filter(function(o){return o.m_views!=null||o.m_reach!=null||o.m_shares!=null});
-          t.postMessage({pl:"n",n:L.length},W);L.forEach(function(o){t.postMessage({pl:"row",row:o,ok:true},W)});t.postMessage({pl:"done",tf:tf||"ONE_MONTH"},W)})
-        .catch(function(err){t.postMessage({pl:"err",msg:String(err&&err.message||err).slice(0,120)},W)})});
+    // jendela dibuka langsung saat klik (gesture user, tidak diblokir pop-up); menunggu user mengganti pilihan angka maks. 60 detik
+    var w=window.open(W+"/ig-sync?ins=1","planner_ig","width=540,height=760");
+    if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk instagram.com, lalu klik tombol lagi.");return}
+    var t=null,tm=0,done=false;
+    function fail(msg){if(done)return;done=true;clearTimeout(tm);if(t)t.postMessage({pl:"err",msg:String(msg&&msg.message||msg).slice(0,160)},W)}
+    window.__plOnCap=function(){clearTimeout(tm);if(t)go()};
+    window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready")return;window.removeEventListener("message",h);t=e.source;
+      if(window.__plCap)go();
+      else{t.postMessage({pl:"wait"},W);tm=setTimeout(function(){fail("Tidak ada data yang tertangkap dalam 60 detik. Ganti pilihan angka di halaman Content insights, lalu klik tombol bookmark lagi.")},60000)}});
+    // permintaan halaman ditangkap sekali (disimpan untuk klik berikutnya), lalu kait XHR dilepas
+    if(!window.__plCap&&!window.__plHook){window.__plHook=1;
+      var X=XMLHttpRequest.prototype,O=X.open,S=X.send,H=X.setRequestHeader;
+      X.open=function(m,u){this.__u=String(u);this.__h={};return O.apply(this,arguments)};
+      X.setRequestHeader=function(k,v){if(this.__h)this.__h[k]=v;return H.apply(this,arguments)};
+      X.send=function(b){try{if(!window.__plCap&&/\/api\/graphql/.test(this.__u||"")&&typeof b==="string"&&/MediaGridCardView/.test(b)){
+        window.__plCap={u:this.__u,h:this.__h,b:b};X.open=O;X.send=S;X.setRequestHeader=H;window.__plHook=0;var f=window.__plOnCap;setTimeout(function(){if(f)f()},0)}}catch(e){}return S.apply(this,arguments)};
     }
+    function q(metric,tf){var cap=window.__plCap,p=new URLSearchParams(cap.b),v=JSON.parse(p.get("variables")||"{}");v.metric=metric;v.order_by_options=Object.assign({},v.order_by_options,{metric:metric});v.initialCount=200;if(tf)v.timeframe=tf;p.set("variables",JSON.stringify(v));
+      return fetch(cap.u,{method:"POST",credentials:"include",headers:cap.h,body:p.toString()}).then(function(r){return r.text()}).then(function(x){
+        var j=JSON.parse(x.split("\n")[0]),u=j&&j.data&&j.data.user,e=u&&u.business_manager&&u.business_manager.medias&&u.business_manager.medias.edges;
+        if(!e)throw new Error((j&&j.errors&&j.errors[0]&&j.errors[0].message)||"tanpa data");return e})}
+    function go(){if(done)return;
+      // rentang terpanjang yang diterima Instagram (halaman ini memakai ONE_MONTH): postingan awal bulan lalu ikut terbaca
+      var TF=["THREE_MONTHS","NINETY_DAYS",""],tf="";
+      (function tryTf(i){return q("CONTENT_VIEWS_COUNT",TF[i]).then(function(x){tf=TF[i];return x},function(err){if(i+1>=TF.length)throw err;return tryTf(i+1)})})(0)
+      .then(function(views){return Promise.all([views,q("CONTENT_META_VIEWERS_COUNT",tf),q("RESHARES_COUNT",tf)])})
+      .then(function(r){var M={};
+        [["m_views",r[0]],["m_reach",r[1]],["m_shares",r[2]]].forEach(function(x){x[1].forEach(function(ed){var n=ed&&ed.node;
+          if(!n||!n.shortcode||n.instagram_media_product_type==="STORY")return;
+          var s=n.inline_insights_node&&n.inline_insights_node.metric_single_value_query,v=s&&s.results&&s.results[0];
+          if(!v||typeof v.total_value!=="number")return;
+          (M[n.shortcode]=M[n.shortcode]||{link:"https://www.instagram.com/p/"+n.shortcode+"/"})[x[0]]=v.total_value})});
+        var L=Object.keys(M).map(function(k){return M[k]});
+        if(!L.length)throw new Error("Content insights terbaca, tetapi tidak ada angka postingan (tampilan Instagram mungkin berubah).");
+        done=true;t.postMessage({pl:"n",n:L.length},W);L.forEach(function(o){t.postMessage({pl:"row",row:o,ok:true},W)});
+        // Instagram memberi maks. 200 postingan teratas per angka: postingan dengan angka kecil bisa tidak terisi
+        t.postMessage({pl:"done",tf:tf||"ONE_MONTH",cut:r.some(function(e){return e.length>=200})},W)})
+      .catch(fail)}
   }
 }
 /** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
@@ -2303,7 +2313,8 @@ function smCalc(L,o){
   const S=(v.ser||[]).map(x=>({n:String(x.n||""),s:String(x.s||""),t:num(x.c),k:low(x.n).trim(),c:0}));
   const order=S.filter(x=>x.k).sort((a,b)=>b.k.length-a.k.length),reg=[];
   igP.forEach(i=>{const t=low(i.title)+"\n"+low(i.copy),x=order.find(x=>t.includes(x.k));if(x)x.c++;else reg.push(i)});
-  const ser=S.map(x=>({n:x.n,s:x.s,c:pick(x.t,x.c),auto:x.t===null}));
+  // belum ada postingan IG sama sekali (bookmark belum dijalankan): "-", bukan 0 yang terlihat seperti data
+  const ser=S.map(x=>({n:x.n,s:x.s,c:pick(x.t,igP.length?x.c:null),auto:x.t===null}));
   const [y,m]=o.month.split("-").map(Number),MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const months=Array.from({length:18},(_,k)=>{const d=new Date(Date.UTC(y,m-18+k,1)),ym=d.toISOString().slice(0,7),f=(o.fol||{})[ym]||{};
     return {m:ym,label:MN[d.getUTCMonth()]+" "+String(d.getUTCFullYear()).slice(2),ig:num(f.ig),tt:num(f.tt)}});
@@ -2350,7 +2361,7 @@ const SM_DEF={ser:[["BreakVest KISI","Every Tuesday - Friday"],["Weekly BreakVes
 const smMonth=()=>($("rFrom").value||"").slice(0,7);
 const smRowHtml=(k,x)=>`<div class="sm-row"><input class="f" data-r="n" maxlength="60" value="${esc(x.n||"")}" placeholder="${esc(T(k==="ser"?"Nama seri":"Nama"))}" aria-label="${esc(T("Nama"))}">`
   +(k==="ser"?`<input class="f" data-r="s" maxlength="60" value="${esc(x.s||"")}" placeholder="${esc(T("Jadwal, mis. Every Monday"))}" aria-label="${esc(T("Jadwal"))}">`:"")
-  +`<input class="f n" data-r="c" inputmode="numeric" value="${x.c??""}" aria-label="${esc(T("Jumlah"))}"><button type="button" class="btn sm" data-smdel aria-label="${esc(T("Hapus baris"))}">✕</button></div>`;
+  +`<input class="f n" data-r="c" inputmode="numeric" value="${esc(x.c??"")}" aria-label="${esc(T("Jumlah"))}"><button type="button" class="btn sm" data-smdel aria-label="${esc(T("Hapus baris"))}">✕</button></div>`;
 const smItems=async m=>{if(!SMI||SMI.m!==m)SMI={m,L:await api(`/api/items?from=${m}-01&to=${monthEnd(m+"-01")}`)};return SMI.L};
 const smInt=x=>{const t=String(x??"").replace(/[^\d]/g,"");return t===""?null:Math.min(+t,9e12)};
 function smForm(){
@@ -2372,18 +2383,18 @@ async function smHint(){
   const L=await smItems(m),f=smForm(),c=smCalc(L,{month:m,fol:{},v:{ser:f.ser.map(x=>({n:x.n,s:x.s}))}});
   $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(c[a]||{})[b];el.placeholder=x==null?"":el.dataset.pct?String(x):x.toLocaleString("en-US")});
   [...$("rSmSer").children].forEach(r=>{const n=r.querySelector('[data-r="n"]').value.trim(),x=c.ser.find(z=>z.n===n);r.querySelector('[data-r="c"]').placeholder=x?String(x.c):""});
-  $("rSmNoteMsg").textContent=T("{n} postingan IG dan {m} video TikTok tercatat di bulan ini.").replace("{n}",c.igPosts.length).replace("{m}",c.tt.post);
+  $("rSmNoteMsg").textContent=T("{n} postingan IG dan {m} video TikTok tercatat di bulan ini.").replace("{n}",c.igPosts.length).replace("{m}",c.tt.post??0);
 }
 async function smLoad(){
   const m=smMonth();if(RT!=="sm"||!m)return;
   const [cf,fo]=await Promise.all([api("/api/sm/cfg?m="+m),api("/api/sm/followers?to="+m)]);
   if(smMonth()!==m)return;
-  const v=cf.v||{},pv=cf.prev||{};SMF=fo.months||{};
+  const v=cf.v||{},pv=cf.prev||{};SMF=fo.months||{};delete $("rSmF").dataset.m;
   // bulan baru: daftar baris ikut bulan sebelumnya (tanpa angka), atau bawaan
   Object.entries(SM_BOX).forEach(([k,id])=>{const L=v[k]||(pv[k]||SM_DEF[k]).map(x=>({n:x.n,s:x.s,c:null}));$(id).innerHTML=L.map(x=>smRowHtml(k,x)).join("")});
   $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(v[a]||{})[b];el.value=x==null?"":el.dataset.pct?String(x/100):String(x)});
   $("rSmNote").value=v.ttNote||"";
-  smFolTable(m);await smHint();
+  smFolTable(m);$("rSmF").dataset.m=m;await smHint();
 }
 $("rSmF").addEventListener("click",e=>{
   const a=e.target.closest("[data-smadd]");if(a){$(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
@@ -2393,6 +2404,8 @@ $("rSmF").addEventListener("input",e=>{if(e.target.closest("#rSmFol"))e.target.d
 async function smData(){
   const m=smMonth();if(!m)throw new Error("Pilih bulan dulu.");
   const from=m+"-01",to=monthEnd(from);$("rFrom").value=from;$("rTo").value=to;
+  // isian di form harus milik bulan ini (bulan berganti tapi gagal / belum selesai dimuat -> jangan timpa bulan lain)
+  if($("rSmF").dataset.m!==m){await smLoad();if($("rSmF").dataset.m!==m)throw new Error("Isian bulan ini belum termuat. Coba lagi.");throw new Error("Isian bulan ini baru dimuat. Periksa angkanya, lalu klik lagi.")}
   const v=smForm();await api("/api/sm/cfg",{m,v});
   for(const el of $("rSmFol").querySelectorAll("input[data-d]")){const x=smInt(el.value);await api("/api/sm/followers",{month:el.dataset.fm,[el.dataset.net]:x});delete el.dataset.d}
   SMF=(await api("/api/sm/followers?to="+m)).months||{};SMI=null;
