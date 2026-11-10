@@ -21,6 +21,8 @@
 //   "/api/img" (POST {id, img}) -> ganti/hapus gambar satu kegiatan (pembuat, PIC, desainer, admin)
 // - "/api/linkimg" (GET ?url=) -> gambar sampul dari link (YouTube: thumbnail; lainnya: og:image) untuk dikecilkan browser
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
+// - "/api/kisi/sync" (POST {from,to}) -> artikel kisi.co.id (API publik api-compro.kisi.co.id) dibuat / dilengkapi di Planner + YTD website;
+//   dipanggil saat Laporan Copywriter disusun. "/api/cw/cfg" (GET ?k= / POST {k,v}) -> angka laporan yang diketik (tabel cfg)
 // - "/api/yt/refresh" (POST {ids}) -> views, suka, komentar video YouTube dari YouTube Data API (secret opsional YOUTUBE_API_KEY:
 //   Google Cloud Console -> aktifkan "YouTube Data API v3" -> Credentials -> Create API key (batasi ke API itu),
 //   lalu `wrangler secret put YOUTUBE_API_KEY` di folder ini). Tanpa key: views, siaran langsung & nama channel dibaca dari
@@ -725,6 +727,90 @@ async function ytFromPages(env, rows) {
   }));
   if (q.length) await env.DB.batch(q);
   return { updated: q.length };
+}
+/* ---------- Artikel kisi.co.id (API publik website) untuk Laporan Copywriter ---------- */
+export const KISI_API = "https://api-compro.kisi.co.id/api/v1/kisiNews/list";
+/** Satu artikel dari API website -> bentuk yang dipakai sinkron. */
+export function kisiRow(n) {
+  const src = (String(n.news_content || "").match(/<img[^>]+src=["']([^"']+)["']/i) || [])[1] || "";
+  return { id: +n.news_id, link: "https://kisi.co.id/blog/artikel/" + n.news_id, title: unent(n.news_title), date: String(n.news_date || "").slice(0, 10),
+    views: Number.isFinite(+n.views) && n.views !== null ? +n.views : null, img: safeHttps(src) ? src : "", tags: tagsOf(n.news_tag), by: String(n.created_by || "").trim().toLowerCase() };
+}
+const normTitle = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+const kisiIdOf = (link) => { const u = safeHttps(link); return u && isInternal(u.href) ? +((u.pathname.match(/\/(\d+)\/?$/) || [])[1] || 0) : 0; };
+const b64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+/** Gambar artikel website -> data URL (≤ ±700 KB), "" bila gagal. */
+async function kisiImg(src, get) {
+  try {
+    const r = await get(src, { headers: { "User-Agent": UA_WEB, Accept: "image/*" }, signal: AbortSignal.timeout(10000) });
+    const ct = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!r.ok || !/^image\/(jpeg|png|webp)$/.test(ct)) return "";
+    const b = await readCapped(r, 7e5);
+    return b ? imgOk(`data:${ct};base64,${b64(b)}`) || "" : "";
+  } catch { return ""; }
+}
+/** POST /api/kisi/sync {from,to}: artikel website di periode dibuat / dilengkapi di Planner (views selalu terbaru; topik, kategori,
+ *  judul, media yang sudah diisi tidak ditimpa). ytdInt = jumlah artikel website 1 Januari s.d. `to`. */
+export async function kisiSync(env, from, to, get = fetch) {
+  await ensure(env);
+  const year = to.slice(0, 4) + "-01-01", all = [];
+  try {
+    for (let off = 0; off < 60 * 20; off += 60) {
+      const r = await get(`${KISI_API}?limit=60&offset=${off}&active=1`, { headers: { "User-Agent": UA_WEB, Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+      const j = r.ok ? await r.json() : null;
+      if (!j || !Array.isArray(j.data)) throw new Error("bukan data");
+      const L = j.data.map(kisiRow).filter((x) => x.id && /^\d{4}-\d{2}-\d{2}$/.test(x.date));
+      all.push(...L);
+      if (j.data.length < 60 || L.some((x) => x.date < year)) break;
+    }
+  } catch { return { created: 0, updated: 0, ytdInt: 0, error: "kisi.co.id tidak bisa diambil" }; }
+  const ytdInt = new Set(all.filter((x) => x.date >= year && x.date <= to).map((x) => x.id)).size;
+  const per = [...new Map(all.filter((x) => x.date >= from && x.date <= to).map((x) => [x.id, x])).values()];
+  if (!per.length) return { created: 0, updated: 0, ytdInt };
+  const have = (await env.DB.prepare("SELECT id, title, date, link FROM items WHERE kind='artikel' AND date BETWEEN ? AND ?").bind(from, to).all()).results;
+  const names = new Map((await env.DB.prepare("SELECT email, name FROM users").all()).results.map((u) => [String(u.email).toLowerCase(), u.name || ""]));
+  const imgs = new Set((await env.DB.prepare("SELECT id FROM item_img").all()).results.map((x) => x.id));
+  const now = new Date().toISOString(), q = [], want = [];
+  let created = 0, updated = 0;
+  for (const a of per) {
+    const ex = have.find((i) => kisiIdOf(i.link) === a.id) || have.find((i) => i.date === a.date && normTitle(i.title) === normTitle(a.title));
+    const topic = guessTopic({ title: a.title, tags: a.tags, internal: true, press: false }), sell = guessSell({ internal: true, press: false, topic });
+    let id = ex && ex.id;
+    if (ex) {
+      updated++;
+      q.push(env.DB.prepare(`UPDATE items SET m_views=COALESCE(?, m_views), m_src='kisi', m_at=?, tags=?, title=COALESCE(NULLIF(title, ''), ?), link=COALESCE(NULLIF(link, ''), ?),
+        media=COALESCE(NULLIF(media, ''), 'Company Website'), topic=COALESCE(topic, ?), sell=COALESCE(sell, ?) WHERE id=?`)
+        .bind(a.views, now, JSON.stringify(a.tags), a.title, a.link, topic, sell, id));
+    } else {
+      created++; id = crypto.randomUUID();
+      const pic = names.has(a.by) ? a.by : null;
+      q.push(env.DB.prepare(`INSERT INTO items (id, date, title, kind, channel, status, owner, owner_email, link, media, topic, sell, press, tags, m_views, m_src, m_at,
+        created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, 'artikel', 'Website', 'terbit', ?, ?, ?, 'Company Website', ?, ?, 0, ?, ?, 'kisi', ?, 'kisi.co.id', ?, 'kisi.co.id', ?)`)
+        .bind(id, a.date, a.title, pic ? names.get(pic) : "", pic, a.link, topic, sell, JSON.stringify(a.tags), a.views, now, now, now));
+    }
+    if (a.img && !imgs.has(id)) want.push([id, a.img]);
+  }
+  await env.DB.batch(q);
+  for (let k = 0; k < want.length; k += 5) await Promise.all(want.slice(k, k + 5).map(async ([id, src]) => {
+    const img = await kisiImg(src, get);
+    if (img) await env.DB.prepare("INSERT OR REPLACE INTO item_img (id, img, at) VALUES (?, ?, ?)").bind(id, img, now).run();
+  }));
+  return { created, updated, ytdInt };
+}
+/** Angka Laporan Copywriter yang diketik: cw_ytd:<tahun> {upto:"YYYY-MM", ext} dan cw_n:<YYYY-MM> {sm, promo, dArt, ...}. */
+const CW_KEY = /^cw_(ytd:\d{4}|n:\d{4}-\d{2})$/;
+async function cwCfg(env, k, v) {
+  await ensure(env);
+  if (!CW_KEY.test(String(k || ""))) return { error: "Kunci tidak dikenal." };
+  if (v === undefined) {
+    const r = await env.DB.prepare("SELECT v FROM cfg WHERE k=?").bind(k).first();
+    try { return { v: r ? JSON.parse(r.v) : null }; } catch { return { v: null }; }
+  }
+  const ok = v && typeof v === "object" && !Array.isArray(v) && JSON.stringify(v).length <= 2000 &&
+    Object.entries(v).every(([x, n]) => x === "upto" ? k.startsWith("cw_ytd:") && /^\d{4}-\d{2}$/.test(n) : /^\w{1,20}$/.test(x) && Number.isInteger(n) && n >= 0 && n < 1e9);
+  if (!ok) return { error: "Angka harus bilangan bulat 0 atau lebih." };
+  await env.DB.prepare("INSERT INTO cfg (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k, JSON.stringify(v)).run();
+  return { ok: true };
 }
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
 async function ytRefresh(env, ids) {
@@ -1570,6 +1656,7 @@ export default {
         if (path === "/api/links") return json(await listLinks(env, url.searchParams.get("item")));
         if (path === "/api/imgs") return json(await listImgs(env, url.searchParams.get("ids")));
         if (path === "/api/linkimg") return linkImg(url.searchParams.get("url"));
+        if (path === "/api/cw/cfg") { const r = await cwCfg(env, url.searchParams.get("k")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
@@ -1585,6 +1672,12 @@ export default {
         if (path === "/api/tasks/delete") { const r = await deleteTask(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/items/delete") { const r = await deleteItem(env, me, b.id); return json(r, r.error ? 403 : 200); }
         if (path === "/api/img") { const r = await saveImg(env, me, b); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
+        if (path === "/api/kisi/sync") {
+          const f = String(b.from || ""), t = String(b.to || "");
+          if (!ISO.test(f) || !ISO.test(t) || f > t) return json({ error: "Periode belum benar." }, 400);
+          return json(await kisiSync(env, f, t));
+        }
+        if (path === "/api/cw/cfg") { const r = await cwCfg(env, b.k, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b), "/api/yt/refresh": () => ytRefresh(env, b.ids),

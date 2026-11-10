@@ -949,6 +949,61 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
     assert.equal((await call("/api/items?id=" + id, { ck: COPY })).j.m_views, 5127);
   } finally { globalThis.fetch = realFetch; }
 }
+// artikel kisi.co.id: dibuat / diperbarui saat Laporan Copywriter disusun; YTD website; simpanan angka laporan
+{
+  const { kisiRow } = await import("./worker.js");
+  const N = (id, title, date, extra = {}) => ({ news_id: id, news_title: title, news_date: date, news_time: "10:00:00", news_source: "KISI", news_content: "<p>isi</p>", news_tag: "[]", views: 1, active: 1, created_by: "aurila@kisi.co.id", ...extra });
+  let views = 274, fail = false;
+  const data = () => [
+    N(262, "Laba MYOR Melonjak 31,24% di Q3 2026", "2026-10-29", { news_content: '<img src="https://api-compro.kisi.co.id/storage/newsimg/a.png"><p>x</p>', news_tag: '["MYOR","Behind The Candle"]', views, created_by: "CICI@acme.test" }),
+    N(250, "Meskipun Volatilitas Meningkat, Outlook Emas Tetap Bullish", "2026-10-15", { created_by: "orang@luar.test", views: 17 }),
+    N(239, "KISI Challenge: Beyond Tomorrow Dimulai", "2026-10-01", { news_tag: "bukan json", views: 39 }),
+    N(230, "Artikel September", "2026-09-20"),
+    N(100, "Artikel 2025", "2025-12-30"),
+  ];
+  assert.deepEqual(kisiRow(data()[2]).tags, []); assert.equal(kisiRow(data()[2]).img, "");
+  assert.equal(kisiRow(data()[0]).img, "https://api-compro.kisi.co.id/storage/newsimg/a.png");
+  assert.equal(kisiRow(data()[0]).link, "https://kisi.co.id/blog/artikel/262"); assert.equal(kisiRow(data()[0]).by, "cici@acme.test");
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    if (fail) throw new Error("mati");
+    if (u.includes("kisiNews/list")) { const off = +new URL(u).searchParams.get("offset"); return Response.json({ status: true, data: data().slice(off, off + 60) }); }
+    if (u.includes("newsimg")) return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
+    return new Response("", { status: 404 });
+  };
+  try {
+    // ditempel manual lebih dulu (link tanpa id): dicocokkan lewat judul + tanggal
+    const manual = (await call("/api/items", { ck: COPY, body: { kind: "artikel", channel: "Website", title: "KISI Challenge:  Beyond Tomorrow dimulai", date: "2026-10-01", status: "terbit", link: "https://kisi.co.id/blog/edukasi/kisi-challenge-dimulai" } })).j.id;
+    let s = await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-10-01", to: "2026-10-31" } });
+    assert.equal(s.status, 200); assert.deepEqual(s.j, { created: 2, updated: 1, ytdInt: 4 });
+    const L = (await call("/api/items?from=2026-10-01&to=2026-10-31", { ck: COPY })).j.filter((i) => i.channel === "Website");
+    const myor = L.find((i) => i.link === "https://kisi.co.id/blog/artikel/262"), emas = L.find((i) => /Emas/.test(i.title)), m = L.find((i) => i.id === manual);
+    assert.equal(L.length, 3, "tidak dobel");
+    assert.deepEqual([myor.kind, myor.status, myor.owner_email, myor.media, myor.topic, myor.sell, myor.m_views, myor.m_src], ["artikel", "terbit", "cici@acme.test", "Company Website", "saham", "soft", 274, "kisi"]);
+    assert.equal(emas.owner_email || null, null, "penulis tidak terdaftar -> tanpa PIC");
+    assert.deepEqual([m.m_views, m.tags, m.media, m.topic], [39, "[]", "Company Website", "event"]);
+    assert.ok((await call("/api/imgs?ids=" + myor.id, { ck: COPY })).j[myor.id].startsWith("data:image/png;base64,"));
+    // copywriter mengoreksi topik; sinkron berikutnya hanya memperbarui views
+    const full = (await call("/api/items?id=" + myor.id, { ck: COPY })).j;
+    assert.equal((await call("/api/items", { ck: COPY, body: { ...full, topic: "event", base: full.updated_at } })).status, 200);
+    views = 300;
+    s = await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-10-01", to: "2026-10-31" } });
+    assert.deepEqual(s.j, { created: 0, updated: 3, ytdInt: 4 });
+    const y = (await call("/api/items?id=" + myor.id, { ck: COPY })).j;
+    assert.deepEqual([y.m_views, y.topic], [300, "event"]);
+    fail = true;
+    assert.deepEqual((await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-11-01", to: "2026-11-30" } })).j, { created: 0, updated: 0, ytdInt: 0, error: "kisi.co.id tidak bisa diambil" });
+    assert.equal((await call("/api/kisi/sync", { ck: COPY, body: { from: "2026-10-31", to: "2026-10-01" } })).status, 400, "periode terbalik");
+  } finally { globalThis.fetch = realFetch; }
+  // angka laporan yang diketik
+  assert.deepEqual((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_ytd:2026", v: { upto: "2026-09", ext: 496 } } })).j, { ok: true });
+  assert.deepEqual((await call("/api/cw/cfg?k=cw_ytd:2026", { ck: COPY })).j, { v: { upto: "2026-09", ext: 496 } });
+  assert.deepEqual((await call("/api/cw/cfg?k=cw_n:2026-11", { ck: COPY })).j, { v: null });
+  assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "lain", v: {} } })).status, 400);
+  assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: "x" } } })).status, 400);
+  assert.equal((await call("/api/cw/cfg", { ck: COPY, body: { k: "cw_n:2026-10", v: { sm: -1 } } })).status, 400);
+}
 // /api/linkmeta: judul, media, topik & kategori dari link (hanya isian kosong)
 {
   const realFetch = globalThis.fetch;
