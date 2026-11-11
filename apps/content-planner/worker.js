@@ -1604,8 +1604,9 @@ async function weeklyCached(env, ctx, fresh) {
 /* =========================================================
    HALAMAN
    ========================================================= */
-// Jendela kecil yang dibuka tombol bookmark "Angka IG ke Planner" di Instagram: menerima angka per postingan dari tab Instagram
-// (postMessage, hanya dari instagram.com), lalu menyimpannya lewat /api/metrics/import setelah tim menekan Simpan.
+// Jendela kecil yang dibuka tombol bookmark "Angka IG ke Planner" (Instagram) dan "Angka TikTok ke Planner" (?tt=1): menerima angka
+// per postingan dari tab itu (postMessage, hanya dari instagram.com / tiktok.com), lalu menyimpannya lewat /api/metrics/import
+// (+ followers lewat /api/sm/followers) setelah tim menekan Simpan.
 const IG_SYNC = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Angka Instagram ke Content Planner</title>
 <style>body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#edf3ef;color:#17251d}.w{padding:18px}h1{font-size:17px;margin:0 0 6px}.prog{height:8px;border-radius:8px;background:#dfe8e2;overflow:hidden;margin:8px 0 12px}.prog i{display:block;height:100%;width:0;background:#1f7a4d}
 table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden}th,td{padding:5px 7px;border-bottom:1px solid #dfe8e2;text-align:left}td.n,th.n{text-align:right}.box{max-height:46vh;overflow:auto;margin-bottom:12px}
@@ -1615,21 +1616,25 @@ button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 14px
 <div class="box"><table><thead><tr id="hd"><th style="width:40px"></th><th>Tayang</th><th>Postingan</th><th class="n">Suka</th><th class="n">Komentar</th><th class="n">Views</th><th class="n">Repost</th></tr></thead><tbody id="rows"></tbody></table></div>
 <label id="crL"><input type="checkbox" id="cr"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button id="save" disabled>Simpan ke Planner</button><p class="m" id="msg"></p>
 <p class="m" id="hlp">Angka publik (suka, komentar, views, repost) dan gambar postingan. Jangkauan dan bagikan: jalankan tombol ini di halaman Content insights (Professional dashboard), atau isi dari CSV Meta Business Suite.</p></div>
-<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],why="",n=+new URLSearchParams(location.search).get("n")||0,got=0,fol=null,mm=new URLSearchParams(location.search).get("m")==="1",ins=new URLSearchParams(location.search).get("ins")==="1";
+<script>(function(){var $=function(i){return document.getElementById(i)},rows=[],why="",n=+new URLSearchParams(location.search).get("n")||0,got=0,fol=null,mm=new URLSearchParams(location.search).get("m")==="1",ins=new URLSearchParams(location.search).get("ins")==="1",tt=new URLSearchParams(location.search).get("tt")==="1",net="ig";
+// dari profil TikTok (bookmark Angka TikTok): video bulan itu, angka dari halaman tiap video
+if(tt){document.querySelector("h1").textContent="🎵 Angka TikTok → Content Planner";$("hd").innerHTML="<th style='width:40px'></th><th>Tayang</th><th>Video</th><th class=n>Suka</th><th class=n>Komentar</th><th class=n>Views</th><th class=n>Bagikan</th>";
+  $("hlp").textContent="Angka dari profil & halaman video TikTok (views, suka, komentar, bagikan, simpan) dan jumlah followers. Video dicocokkan lewat link.";}
 // dari Content insights: Views, Reach (Viewers) & Shares per postingan; tanpa tanggal, jadi hanya memperbarui kegiatan yang sudah ada
 if(ins){$("hd").innerHTML="<th style='width:40px'></th><th>Tayang</th><th>Postingan</th><th class=n>Views</th><th class=n>Reach</th><th class=n>Shares</th><th></th>";$("crL").hidden=true;$("cr").checked=false;
   $("hlp").textContent="Angka dari Content insights: views, reach (Viewers), dan shares per postingan. Postingan dicocokkan lewat link; yang belum ada di kalender dilewati — jalankan dulu tombol ini di profil Instagram.";}
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 if(!window.opener){$("st").textContent="Buka jendela ini lewat tombol bookmark di halaman Instagram.";return}
-addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?instagram\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
+addEventListener("message",function(e){if(e.source!==window.opener||!/^https:\\/\\/([a-z]+\\.)?(instagram|tiktok)\\.com$/.test(e.origin)||!e.data)return;var m=e.data;
 if(m.pl==="row"&&m.row){got++;if(!m.ok&&m.row.err)why=String(m.row.err).slice(0,80);if(m.row.img&&!/^data:image\\/(jpeg|png|webp);base64,[A-Za-z0-9+\\/=]+$/.test(m.row.img))m.row.img="";if(m.ok)rows.push(m.row);$("bar").style.width=(n?got/n*100:100)+"%";$("st").textContent="Membaca postingan "+got+(n?"/"+n:"")+"…";
-$("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(m.row.img)+"' alt='' width='36' height='36' style='object-fit:cover;border-radius:6px;display:block'>":"")+"</td><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td>"+(ins?[m.row.m_views,m.row.m_reach,m.row.m_shares,""]:[m.row.m_likes,m.row.m_comments,m.row.m_views,m.row.m_reposts]).map(function(x){return "<td class=n>"+esc(x)+"</td>"}).join("")+"</tr>")}
-if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?"Instagram menjawab: "+why+"; pastikan sudah login Instagram":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length&&fol===null}
+$("rows").insertAdjacentHTML("beforeend","<tr><td>"+(m.row.img?"<img src='"+esc(m.row.img)+"' alt='' width='36' height='36' style='object-fit:cover;border-radius:6px;display:block'>":"")+"</td><td>"+esc(m.row.date||"–")+"</td><td>"+esc((m.row.title||m.row.link).slice(0,50))+"</td>"+(ins?[m.row.m_views,m.row.m_reach,m.row.m_shares,""]:tt?[m.row.m_likes,m.row.m_comments,m.row.m_views,m.row.m_shares]:[m.row.m_likes,m.row.m_comments,m.row.m_views,m.row.m_reposts]).map(function(x){return "<td class=n>"+esc(x)+"</td>"}).join("")+"</tr>")}
+if(m.pl==="done"){$("bar").style.width="100%";$("st").textContent=rows.length+" postingan terbaca"+(got>rows.length?", "+(got-rows.length)+" gagal dibaca ("+(why?(tt?"TikTok":"Instagram")+" menjawab: "+why+"; pastikan sudah login":tt?"login TikTok dulu":"login Instagram dulu")+")":"")+". Periksa lalu simpan.";$("save").disabled=!rows.length&&fol===null}
 if(m.pl==="n")n=+m.n||0;
 if(m.pl==="err"){$("bar").style.width="0";$("st").textContent="Content insights tidak bisa dibaca (Instagram: "+String(m.msg||"").slice(0,120)+"). Isi reach lewat CSV Meta Business Suite atau ketik di kegiatan.";}
 if(m.pl==="wait")$("st").textContent="Sekarang ganti pilihan angka di halaman Content insights (mis. Views → Viewers) satu kali…";
 if(m.pl==="done"&&ins&&m.tf)$("fol").textContent="Rentang data Instagram: "+(m.tf==="ONE_MONTH"?"±30 hari terakhir — postingan yang lebih lama tidak ikut":"±90 hari terakhir")+(m.cut?". Instagram hanya memberi 200 postingan teratas per angka; postingan dengan angka kecil mungkin tidak terisi.":"");
-if(m.pl==="fol"&&typeof m.ig==="number"&&m.ig>=0){fol=Math.round(m.ig);$("fol").textContent="Followers: "+fol.toLocaleString("en-US")+" (dicatat untuk bulan ini)"}});
+if(m.pl==="fol"){var k=typeof m.tt==="number"?"tt":"ig";if(typeof m[k]==="number"&&m[k]>=0){net=k;fol=Math.round(m[k]);$("fol").textContent="Followers: "+fol.toLocaleString("en-US")+" (dicatat untuk bulan ini)"}}
+if(m.pl==="done"&&m.more)$("msg").textContent="Video terlama yang termuat masih di bulan ini: gulir profil TikTok lebih ke bawah, lalu klik bookmark lagi supaya video awal bulan ikut.";});
 // dari profil (Laporan Social Media Specialist): pilih bulan dulu, lalu semua postingan bulan itu diambil
 if(mm){$("mon").hidden=false;$("st").textContent="Pilih bulan postingan yang diambil.";[].forEach.call($("mon").querySelectorAll("button"),function(b){b.onclick=function(){
   var d=new Date(Date.now()+7*3600e3),y=d.getUTCFullYear(),k=d.getUTCMonth()+(+b.dataset.m),f=new Date(Date.UTC(y,k,1)),t=new Date(Date.UTC(y,k+1,0));
@@ -1637,7 +1642,7 @@ if(mm){$("mon").hidden=false;$("st").textContent="Pilih bulan postingan yang dia
 else window.opener.postMessage({pl:"ready"},"*");
 var post=function(u,b){return fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);return j})};
 $("save").onclick=function(){$("save").disabled=true;$("msg").textContent="Menyimpan…";
-(fol!==null?post("/api/sm/followers",{ig:fol}):Promise.resolve()).then(function(){return rows.length?post("/api/metrics/import",{rows:rows,create:$("cr").checked}):{matched:0,created:0,unmatched:0}}).then(function(j){
+(fol!==null?post("/api/sm/followers",net==="tt"?{tt:fol}:{ig:fol}):Promise.resolve()).then(function(){return rows.length?post("/api/metrics/import",{rows:rows,create:$("cr").checked}):{matched:0,created:0,unmatched:0}}).then(function(j){
 if(j.error)throw new Error(j.error);$("msg").textContent="✓ "+j.matched+" konten diperbarui"+(j.created?", "+j.created+" kegiatan baru":"")+(j.unmatched?". "+j.unmatched+" postingan belum ada di kalender (centang kotak di atas untuk menambahkannya).":".")}).catch(function(e){$("msg").textContent="✗ "+e.message;$("save").disabled=false})}})();</script></body></html>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 /** Glosarium tim dari Copy Studio (service binding COPY) untuk cek caption; kosong kalau Copy Studio belum ada. */

@@ -380,7 +380,7 @@ const sync = await planner.fetch(new Request(BASE + "/ig-sync?n=3", { headers: {
 const sh = await sync.text();
 assert.match(sh, /Angka Instagram/); assert.equal(sync.headers.get("content-security-policy"), "frame-ancestors 'none'");
 for (const [, code] of sh.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(code);
-assert.ok(/instagram\\\.com\$/.test(sh), "hanya menerima pesan dari instagram.com");
+assert.ok(/\(instagram\|tiktok\)\\\.com\$/.test(sh), "hanya menerima pesan dari instagram.com & tiktok.com");
 assert.match(sh, /Repost/, "kolom repost di jendela sinkron");
 assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
 { // bookmarklet: skripnya sah, ikut mengambil gambar (±480px) & repost
@@ -423,9 +423,38 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
   assert.ok(s1.sent.some((m) => m.pl === "err"), "data terbaca tanpa angka = pesan gagal, bukan 0 postingan");
   s1 = await sim({ edges: () => [], capture: false });
   const tmo = s1.timers.find((t) => t.f && t.ms >= 30000); assert.ok(tmo, "ada batas waktu menunggu"); tmo.f(); assert.ok(s1.sent.some((m) => m.pl === "err"), "tanpa permintaan tertangkap = pesan gagal");
+  // bookmark TikTok: followers persis dari data halaman, video bulan itu dari link profil (tanggal dari ID), angka persis dari halaman video
+  const tb = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8").match(/function ttBookmark\(W\)\{[\s\S]*?\n\}\n/)[0];
+  assert.match(tb, /mx=320/); assert.match(fs.readFileSync(new URL("./page.html", import.meta.url), "utf8"), /id="ttLink"/);
+  assert.match(sh, /tiktok/); assert.match(sh, /m\.more/);
+  {
+    const vid = (iso, n) => (BigInt(Math.floor(Date.parse(iso) / 1000)) << 32n | BigInt(n)).toString();
+    const V = [vid("2026-09-01T10:00:00+07:00", 9), vid("2026-11-03T10:00:00+07:00", 1), vid("2026-10-30T10:00:00+07:00", 2), vid("2026-10-02T10:00:00+07:00", 3), vid("2026-09-20T10:00:00+07:00", 4)];
+    const sent = [], fetched = [];
+    let onMsg = null;
+    const a = (id, user = "kisi_sekuritas") => ({ getAttribute: () => `https://www.tiktok.com/@${user}/video/${id}` });
+    const page = (id) => `<html><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify({ __DEFAULT_SCOPE__: { "webapp.video-detail": { itemInfo: { itemStruct: { id, desc: "Video " + id + "\nisi", stats: { playCount: 1000 }, statsV2: { playCount: "1234", diggCount: "56", commentCount: "7", shareCount: "8", collectCount: "9" }, video: { cover: "" } } } } } })}</script></html>`;
+    const box = { location: { hostname: "www.tiktok.com", pathname: "/@kisi_sekuritas" }, alert: (m) => sent.push({ alert: m }), JSON, Object, String, Number, BigInt, Date, Promise, setTimeout: (f) => Promise.resolve().then(f),
+      document: { getElementById: () => ({ textContent: JSON.stringify({ __DEFAULT_SCOPE__: { "webapp.user-detail": { userInfo: { stats: { followerCount: 63800 }, statsV2: { followerCount: "63753" } } } } }) }),
+        querySelectorAll: () => [...V.map((id) => a(id)), a("7000000000000000000", "orang_lain")] },
+      fetch: async (u) => { fetched.push(u); const id = String(u).match(/video\/(\d+)/)[1]; return { ok: true, text: async () => page(id) }; } };
+    box.window = { open: (u) => { sent.push({ open: u }); return {}; }, addEventListener: (t, h) => { onMsg = h; }, removeEventListener() {} };
+    vm.createContext(box);
+    vm.runInContext("(" + tb + ")('https://planner.test')", box);
+    assert.equal(sent[0].open, "https://planner.test/ig-sync?tt=1&m=1");
+    onMsg({ origin: "https://planner.test", data: { pl: "ready", from: "2026-10-01", to: "2026-10-31" }, source: { postMessage: (m) => sent.push(m) } });
+    for (let i = 0; i < 50 && !sent.some((m) => m.pl === "done"); i++) await new Promise((r) => setImmediate(r));
+    assert.equal(JSON.stringify(sent.find((m) => m.pl === "fol")), '{"pl":"fol","tt":63753}', "followers persis, bukan 63.8K");
+    const rows = sent.filter((m) => m.pl === "row").map((m) => m.row);
+    assert.deepEqual(rows.map((r) => r.date).sort(), ["2026-10-02", "2026-10-30"], "hanya video bulan itu, akun sendiri");
+    assert.deepEqual([rows[0].m_views, rows[0].m_likes, rows[0].m_comments, rows[0].m_shares, rows[0].m_saves], [1234, 56, 7, 8, 9]);
+    assert.match(rows[0].link, /^https:\/\/www\.tiktok\.com\/@kisi_sekuritas\/video\/\d+$/); assert.match(rows[0].caption, /^Video \d+\nisi$/);
+    assert.equal(fetched.length, 2, "hanya halaman video bulan itu yang dibuka");
+    assert.equal(sent.find((m) => m.pl === "done").more, false, "video sebelum awal bulan sudah termuat");
+  }
   // ?__a=1 sudah tidak melayani data: daftar postingan profil & info per postingan dicoba lebih dulu
   assert.match(bm, /\/api\/v1\/feed\/user\//); assert.match(bm, /\/api\/v1\/media\//);
-  assert.match(sh, /Instagram menjawab/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");
+  assert.match(sh, /" menjawab: "\+why/, "alasan gagal yang asli ditampilkan, bukan selalu \"login dulu\"");
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   assert.match(pg, /id="mReposts"/); assert.match(pg, /id="mImgF"/); assert.match(pg, /api\("\/api\/img",/);
   assert.ok(pg.indexOf('["m_reposts",/') > 0 && pg.indexOf('["m_reposts",/') < pg.indexOf('["m_shares",/'), "CSV: kolom Reposts tidak tertangkap Bagikan");
@@ -1190,6 +1219,12 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   L = (await call(Q, { ck })).j;
   assert.equal(L.length, 2, "impor ulang tidak membuat dobel");
   assert.equal(L.find((i) => i.id === own.id).copy, "caption dari IG", "caption kosong diisi dari IG");
+  // video TikTok: kanal TikTok, otomatis, impor ulang tidak dobel
+  const tt = [{ link: "https://www.tiktok.com/@kisi_sekuritas/video/7704905967804124437", date: "2027-03-04", title: "Video", type: "TikTok", m_views: "1234", caption: "Video\nisi" }];
+  await call("/api/metrics/import", { ck, body: { create: true, rows: tt } });
+  await call("/api/metrics/import", { ck, body: { create: true, rows: tt } });
+  const T = (await call(Q, { ck })).j.filter((i) => /tiktok/.test(i.link || ""));
+  assert.deepEqual(T.map((i) => [i.channel, i.auto, i.m_views]), [["TikTok", 1, 1234]]);
   await call("/api/items", { ck, body: { ...nw, title: "Weekly BreakVest KISI #1" } });
   assert.equal((await call("/api/items?id=" + nw.id, { ck })).j.auto, 1, "simpan lewat form tetap otomatis");
   // followers per bulan (cfg sm_fol:YYYY-MM)

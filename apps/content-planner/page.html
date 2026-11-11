@@ -767,11 +767,16 @@ function renderPerf(month){
     `<div class="card"><h2>Konten bulan ini</h2><div class="scroll"><table class="t"><thead><tr><th>Tayang</th><th>Konten</th><th>Kanal</th>${MK.slice(0,7).map(m=>`<th class="n">${m[2]}</th>`).join("")}<th class="n">ER</th><th class="n">Klik</th></tr></thead><tbody>${rows.map(i=>`<tr data-id="${esc(i.id)}"><td>${fmtDate(i.date)}</td><td translate="no">${esc(i.title)}${i.m_src==="csv"?' <span class="tag">CSV</span>':""}</td><td>${esc(i.channel)}</td>${MK.slice(0,7).map(m=>`<td class="n">${int(i[m[1]])}</td>`).join("")}<td class="n">${pct2(+i.m_reach>0?inter(i)/i.m_reach*100:null)}</td><td class="n">${int(i.clicks)}</td></tr>`).join("")||'<tr><td colspan="12" class="muted">Belum ada.</td></tr>'}</tbody></table></div><p class="muted small" style="margin:8px 0 0">Klik baris untuk mengisi angka. ER = (suka + komentar + simpan + bagikan + repost) ÷ jangkauan.</p></div>`+
     `<div class="card"><h2>Impor angka dari Meta Business Suite</h2><p class="muted small" style="margin:0 0 8px">Di Meta Business Suite: Insights → Konten → Ekspor data (CSV). Baris dicocokkan dengan kegiatan lewat link postingan (kolom Permalink), jadi isi <b>Link postingan</b> di setiap konten.</p>`+
     `<div class="acts"><label class="btn sm" style="cursor:pointer">📄 Pilih file CSV<input type="file" id="csvF" accept=".csv,text/csv" hidden></label><span class="muted small" id="csvN"></span><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
-    `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), gulir sampai postingan yang ingin diambil terlihat, lalu klik bookmark-nya. Suka, komentar, dan views tiap postingan (maks. 60) dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Bisa juga dari satu halaman postingan.</p>`+
-    `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div></div>`;
+    `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), klik bookmark-nya, lalu pilih bulan: semua postingan bulan itu (suka, komentar, views, gambar, caption) dan jumlah followers dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Di halaman Content insights (Professional dashboard), tombol yang sama mengisi reach, views, dan shares. Bisa juga dari satu halaman postingan.</p>`+
+    `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div>`+
+    `<div class="card"><h2>Ambil angka dari TikTok</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar. Buka profil TikTok akun sendiri (sudah login), gulir sampai video awal bulan terlihat, lalu klik bookmark-nya dan pilih bulan: followers serta views, suka, komentar, bagikan, dan simpan tiap video bulan itu dibaca di browser kamu.</p>`+
+    `<a class="btn" id="ttLink" href="#" draggable="true" onclick="return false">🎵 Angka TikTok ke Planner</a></div></div>`;
   let bm=plBookmark.toString();
   if(isEn())bm=bm.replace(/alert\("([^"]+)"\)/g,(m,x)=>"alert("+JSON.stringify(T(x))+")").replace('"/ig-sync?n="','"/ig-sync?lang=en&n="');
   $("bmLink").href="javascript:"+encodeURIComponent("("+bm+")("+JSON.stringify(location.origin)+")");
+  let tb=ttBookmark.toString();
+  if(isEn())tb=tb.replace(/alert\("([^"]+)"\)/g,(m,x)=>"alert("+JSON.stringify(T(x))+")").replace('"/ig-sync?tt=1&m=1"','"/ig-sync?lang=en&tt=1&m=1"');
+  $("ttLink").href="javascript:"+encodeURIComponent("("+tb+")("+JSON.stringify(location.origin)+")");
 }
 // Kode tombol bookmark. Dijalankan di tab Instagram, membuka jendela /ig-sync di Planner, lalu mengirim angka per postingan lewat postMessage.
 function plBookmark(W){
@@ -876,6 +881,43 @@ function plBookmark(W){
         // Instagram memberi maks. 200 postingan teratas per angka: postingan dengan angka kecil bisa tidak terisi
         t.postMessage({pl:"done",tf:tf||"ONE_MONTH",cut:r.some(function(e){return e.length>=200})},W)})
       .catch(fail)}
+  }
+}
+// Kode tombol bookmark TikTok. Dijalankan di profil TikTok akun sendiri: followers persis dari data halaman, video bulan yang
+// dipilih di jendela /ig-sync?tt=1 dari link di profil (tanggal unggah = 32 bit atas ID video), angka persis dari halaman tiap video.
+function ttBookmark(W){
+  var L=location,d=document,u=(L.pathname.match(/^\/@([\w.-]+)\/?$/)||[])[1];
+  if(!/(^|\.)tiktok\.com$/.test(L.hostname)||!u){alert("Buka profil TikTok akun sendiri dulu, lalu klik tombol ini.");return}
+  var fol=null,ids=[],seen={};
+  try{var x=JSON.parse(d.getElementById("__UNIVERSAL_DATA_FOR_REHYDRATION__").textContent).__DEFAULT_SCOPE__["webapp.user-detail"].userInfo,f=+((x.statsV2&&x.statsV2.followerCount)||x.stats.followerCount);if(f>=0)fol=f}catch(e){}
+  // urutan di profil: video tersemat dulu, lalu terbaru -> terlama; yang terakhir = video terlama yang sudah termuat
+  [].forEach.call(d.querySelectorAll('a[href*="/video/"]'),function(a){var m=(a.getAttribute("href")||"").match(/\/@([\w.-]+)\/video\/(\d+)/);if(m&&m[1].toLowerCase()===u.toLowerCase()&&!seen[m[2]]){seen[m[2]]=1;ids.push(m[2])}});
+  var w=window.open(W+"/ig-sync?tt=1&m=1","planner_ig","width=540,height=760");
+  if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk tiktok.com, lalu klik tombol lagi.");return}
+  var go=false;
+  window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source,e.data.from||"",e.data.to||"")});
+  function ts(id){return Number(BigInt(id)>>BigInt(32))}
+  function jpg(el,w0,h0){var mx=320,s=Math.min(1,mx/w0),cv=d.createElement("canvas");cv.width=Math.round(w0*s);cv.height=Math.round(h0*s);cv.getContext("2d").drawImage(el,0,0,cv.width,cv.height);
+    var r=cv.toDataURL("image/webp",0.75);if(r.indexOf("data:image/webp")!==0)r=cv.toDataURL("image/jpeg",0.75);return r.length<900000?r:""}
+  function grab(url){if(!url)return Promise.resolve("");return fetch(url,{credentials:"omit"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap).then(function(b){return jpg(b,b.width,b.height)}).catch(function(){return ""})}
+  function item(id){return fetch("/@"+u+"/video/"+id,{credentials:"include"}).then(function(r){return r.ok?r.text():""}).then(function(h){
+    var m=h.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/),s=m&&JSON.parse(m[1]).__DEFAULT_SCOPE__["webapp.video-detail"];
+    return s&&s.itemInfo&&s.itemInfo.itemStruct||null}).catch(function(){return null})}
+  function run(t,from,to){
+    if(fol!==null)t.postMessage({pl:"fol",tt:fol},W);
+    var a=from?Date.parse(from+"T00:00:00+07:00")/1000:0,b=to?Date.parse(to+"T23:59:59+07:00")/1000:Infinity,i=0;
+    var list=ids.filter(function(id){var s=ts(id);return s>=a&&s<=b});
+    t.postMessage({pl:"n",n:list.length},W);
+    (function next(){
+      // video terlama yang termuat masih di dalam bulan itu: profil perlu digulir lagi
+      if(i>=list.length){t.postMessage({pl:"done",more:!!ids.length&&ts(ids[ids.length-1])>=a},W);return}
+      var id=list[i++],s=ts(id),o={link:"https://www.tiktok.com/@"+u+"/video/"+id,date:new Date(s*1000+7*3600e3).toISOString().slice(0,10),type:"TikTok"};
+      item(id).then(function(it){
+        if(it){var st=it.statsV2||it.stats||{},n=function(k){var v=+st[k];return v>=0?v:""};
+          o.m_views=n("playCount");o.m_likes=n("diggCount");o.m_comments=n("commentCount");o.m_shares=n("shareCount");o.m_saves=n("collectCount");o.caption=it.desc||""}
+        else o.err="halaman video tidak terbaca";
+        o.title=(o.caption||"").split("\n")[0].slice(0,160)||"Video TikTok "+o.date;
+        return grab(it&&it.video&&(it.video.cover||it.video.originCover)).then(function(img){o.img=img;t.postMessage({pl:"row",row:o,ok:!!it},W);setTimeout(next,700)})})})()
   }
 }
 /** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
