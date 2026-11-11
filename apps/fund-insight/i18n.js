@@ -5,7 +5,7 @@ export default {
   "Home": "Home", "Katalog": "Catalog", "Semua RD": "All Funds", "Syariah": "Sharia", "Manajer Investasi": "Investment Managers",
   "Screener": "Screener", "Bandingkan": "Compare", "Banding": "Compare", "Simulator": "Simulator", "Pilihan & PDF": "Picks & PDF",
   "Pilihan": "Picks", "Rumus": "Formulas", "Insight": "Insight", "Daftar RD": "Fund List", "Panduan": "Guide",
-  "Menu utama": "Main menu", "Khusus admin": "Admin only",
+  "Menu utama": "Main menu", "Khusus admin": "Admin only", "Khusus internal": "Internal only",
   "Semua reksa dana di pasar, termasuk yang tidak kita jual": "All mutual funds in the market, including those we don't sell",
   "Reksa dana syariah: yang kita jual dan di pasar": "Sharia mutual funds: those we sell and in the market",
   "Satu halaman per manajer investasi: produk kita, peringkat di jenisnya, produk yang belum dijual": "One page per investment manager: our products, rank within their type, products we don't sell yet",

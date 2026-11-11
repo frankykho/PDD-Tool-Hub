@@ -165,7 +165,17 @@ assert.equal(qzScore([1, 3, 3, 3, 3, 3]).p, "m", "dana dipakai 1–3 tahun -> pa
   assert.match(koPage, /"ko":true/, "tombol Buat konten muncul untuk IGS");
   assert.ok(koPage.includes('data-th="light"') && koPage.includes("brand/ikisi-color.png") && fs.existsSync(new URL("./assets/brand/ikisi-color.png", import.meta.url)), "template gambar terang + logo berwarna");
   r = await call("/", { headers: { cookie: await hubCookie({ j: "sales" }) } });
-  assert.match(await r.text(), /"ko":false/);
+  const salesPage = await r.text();
+  assert.match(salesPage, /"ko":false/);
+  // tab Insight: admin hub, Investment Growth Specialist, dan Mutual Fund Partnership Specialist
+  assert.match(koPage, /"ins":true/, "tab Insight untuk IGS");
+  assert.match(salesPage, /"ins":false/, "jabatan lain tidak melihat Insight");
+  r = await call("/", { headers: { cookie: await hubCookie({ j: "partnership" }) } });
+  const ptPage = await r.text();
+  assert.match(ptPage, /"ins":true/, "tab Insight untuk Partnership");
+  assert.match(ptPage, /"ko":false/, "Partnership tidak ikut dapat Buat konten");
+  assert.ok(ptPage.includes('body:not(.can-ins) [data-v=\\"insight\\"]') || ptPage.includes('body:not(.can-ins) [data-v="insight"]'), "tombol Insight disembunyikan lewat can-ins, bukan role-admin");
+  assert.ok(ptPage.includes('v==="insight"&&!ME.ins'), "pindah ke tab Insight dicek dengan ME.ins");
   delete env.AI;
 }
 console.log("semua cek lolos");
