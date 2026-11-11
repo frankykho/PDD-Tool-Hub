@@ -769,7 +769,7 @@ function renderPerf(month){
     `<div class="acts"><label class="btn sm" style="cursor:pointer">📄 Pilih file CSV<input type="file" id="csvF" accept=".csv,text/csv" hidden></label><span class="muted small" id="csvN"></span><label class="chk small" style="margin:0"><input type="checkbox" id="csvNew"> Buat kegiatan untuk postingan yang belum ada di kalender</label><button type="button" class="btn sm pri" id="csvGo">Impor</button></div><div class="small" id="csvMsg" style="margin-top:6px"></div></div>`+
     `<div class="card"><h2>Ambil angka publik dari Instagram (tanpa akun Meta)</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar browser. Buka profil Instagram akun sendiri (sudah login IG), klik bookmark-nya, lalu pilih bulan: semua postingan bulan itu (suka, komentar, views, gambar, caption) dan jumlah followers dibaca di browser kamu, lalu disimpan setelah kamu menekan Simpan. Di halaman Content insights (Professional dashboard), tombol yang sama mengisi reach, views, dan shares. Bisa juga dari satu halaman postingan.</p>`+
     `<a class="btn" id="bmLink" href="#" draggable="true" onclick="return false">📈 Angka IG ke Planner</a></div>`+
-    `<div class="card"><h2>Ambil angka dari TikTok</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar. Buka profil TikTok akun sendiri (sudah login), gulir sampai video awal bulan terlihat, lalu klik bookmark-nya dan pilih bulan: followers serta views, suka, komentar, bagikan, dan simpan tiap video bulan itu dibaca di browser kamu.</p>`+
+    `<div class="card"><h2>Ambil angka dari TikTok</h2><p class="muted small" style="margin:0 0 8px">Seret tombol ini ke bookmark bar. Buka profil TikTok akun sendiri (sudah login), gulir sampai video awal bulan terlihat, lalu klik bookmark-nya dan pilih bulan: followers dan views tiap video bulan itu dibaca dari profil di browser kamu. Suka &amp; profile views diketik di form laporan.</p>`+
     `<a class="btn" id="ttLink" href="#" draggable="true" onclick="return false">🎵 Angka TikTok ke Planner</a></div></div>`;
   let bm=plBookmark.toString();
   if(isEn())bm=bm.replace(/alert\("([^"]+)"\)/g,(m,x)=>"alert("+JSON.stringify(T(x))+")").replace('"/ig-sync?n="','"/ig-sync?lang=en&n="');
@@ -884,41 +884,41 @@ function plBookmark(W){
   }
 }
 // Kode tombol bookmark TikTok. Dijalankan di profil TikTok akun sendiri: followers persis dari data halaman, video bulan yang
-// dipilih di jendela /ig-sync?tt=1 dari link di profil (tanggal unggah = 32 bit atas ID video), angka persis dari /api/item/detail per video.
+// dipilih di jendela /ig-sync?tt=1 dari kartu video di profil (tanggal unggah = 32 bit atas ID video), views dari teks kartu.
+// API TikTok (halaman video, item/detail, item_list diputar ulang) menjawab 403 / kosong tanpa tanda tangan halaman (dicoba 11 Nov 2026),
+// jadi suka, komentar & bagikan tidak diambil: diketik di form Laporan Social Media Specialist.
 function ttBookmark(W){
   var L=location,d=document,u=(L.pathname.match(/^\/@([\w.-]+)\/?$/)||[])[1];
   if(!/(^|\.)tiktok\.com$/.test(L.hostname)||!u){alert("Buka profil TikTok akun sendiri dulu, lalu klik tombol ini.");return}
-  var fol=null,ids=[],seen={},uid="";
+  var fol=null,cards=[],seen={},uid="";
   try{var x=JSON.parse(d.getElementById("__UNIVERSAL_DATA_FOR_REHYDRATION__").textContent).__DEFAULT_SCOPE__["webapp.user-detail"].userInfo,f=+((x.statsV2&&x.statsV2.followerCount)||x.stats.followerCount);if(f>=0)fol=f;uid=String(x.user&&x.user.id||"")}catch(e){}
   // urutan di profil: video tersemat dulu, lalu terbaru -> terlama; yang terakhir = video terlama yang sudah termuat.
   // link video kadang memakai nomor akun (@6857…), bukan nama akun
-  [].forEach.call(d.querySelectorAll('a[href*="/video/"]'),function(a){var m=(a.getAttribute("href")||"").match(/\/@([\w.-]+)\/video\/(\d+)/);if(m&&(m[1].toLowerCase()===u.toLowerCase()||(uid&&m[1]===uid))&&!seen[m[2]]){seen[m[2]]=1;ids.push(m[2])}});
+  [].forEach.call(d.querySelectorAll('a[href*="/video/"]'),function(a){var m=(a.getAttribute("href")||"").match(/\/@([\w.-]+)\/video\/(\d+)/);
+    if(m&&(m[1].toLowerCase()===u.toLowerCase()||(uid&&m[1]===uid))&&!seen[m[2]]){seen[m[2]]=1;var im=a.querySelector("img");cards.push({id:m[2],t:a.innerText||"",alt:im&&im.alt||"",img:im?(im.currentSrc||im.src||""):""})}});
   var w=window.open(W+"/ig-sync?tt=1&m=1","planner_ig","width=540,height=760");
   if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk tiktok.com, lalu klik tombol lagi.");return}
   var go=false;
   window.addEventListener("message",function h(e){if(e.origin!==W||!e.data||e.data.pl!=="ready"||go)return;go=true;window.removeEventListener("message",h);run(e.source,e.data.from||"",e.data.to||"")});
   function ts(id){return Number(BigInt(id)>>BigInt(32))}
+  // "337" -> 337, "1.2K" -> 1200, "3,4 rb" -> 3400 (angka pertama di kartu = views)
+  function views(t){var m=String(t).replace(/\s+/g," ").match(/(\d+(?:[.,]\d+)?)\s*(K|M|B|rb|jt)?\b/i);if(!m)return "";var s=m[2]?m[2].toLowerCase():"",n=parseFloat(s?m[1].replace(",","."):m[1].replace(/[.,]/g,""));
+    return Math.round(n*(s==="k"||s==="rb"?1e3:s==="m"||s==="jt"?1e6:s==="b"?1e9:1))}
   function jpg(el,w0,h0){var mx=320,s=Math.min(1,mx/w0),cv=d.createElement("canvas");cv.width=Math.round(w0*s);cv.height=Math.round(h0*s);cv.getContext("2d").drawImage(el,0,0,cv.width,cv.height);
     var r=cv.toDataURL("image/webp",0.75);if(r.indexOf("data:image/webp")!==0)r=cv.toDataURL("image/jpeg",0.75);return r.length<900000?r:""}
   function grab(url){if(!url)return Promise.resolve("");return fetch(url,{credentials:"omit"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap).then(function(b){return jpg(b,b.width,b.height)}).catch(function(){return ""})}
-  // halaman video ditolak TikTok (403) bila dibuka di latar belakang; data video dari API web TikTok (sesi tab ini)
-  function item(id){return fetch("/api/item/detail/?itemId="+id+"&aid=1988",{credentials:"include"}).then(function(r){return r.ok?r.json():null}).then(function(j){
-    return j&&j.itemInfo&&j.itemInfo.itemStruct||null}).catch(function(){return null})}
   function run(t,from,to){
     if(fol!==null)t.postMessage({pl:"fol",tt:fol},W);
     var a=from?Date.parse(from+"T00:00:00+07:00")/1000:0,b=to?Date.parse(to+"T23:59:59+07:00")/1000:Infinity,i=0;
-    var list=ids.filter(function(id){var s=ts(id);return s>=a&&s<=b});
+    var list=cards.filter(function(c){var s=ts(c.id);return s>=a&&s<=b});
     t.postMessage({pl:"n",n:list.length},W);
     (function next(){
       // video terlama yang termuat masih di dalam bulan itu: profil perlu digulir lagi
-      if(i>=list.length){t.postMessage({pl:"done",more:!!ids.length&&ts(ids[ids.length-1])>=a},W);return}
-      var id=list[i++],s=ts(id),o={link:"https://www.tiktok.com/@"+u+"/video/"+id,date:new Date(s*1000+7*3600e3).toISOString().slice(0,10),type:"TikTok"};
-      item(id).then(function(it){
-        if(it){var st=it.statsV2||it.stats||{},n=function(k){var v=+st[k];return v>=0?v:""};
-          o.m_views=n("playCount");o.m_likes=n("diggCount");o.m_comments=n("commentCount");o.m_shares=n("shareCount");o.m_saves=n("collectCount");o.caption=it.desc||""}
-        else o.err="halaman video tidak terbaca";
-        o.title=(o.caption||"").split("\n")[0].slice(0,160)||"Video TikTok "+o.date;
-        return grab(it&&it.video&&(it.video.cover||it.video.originCover)).then(function(img){o.img=img;t.postMessage({pl:"row",row:o,ok:!!it},W);setTimeout(next,700)})})})()
+      if(i>=list.length){t.postMessage({pl:"done",more:!!cards.length&&ts(cards[cards.length-1].id)>=a},W);return}
+      var c=list[i++],s=ts(c.id),o={link:"https://www.tiktok.com/@"+u+"/video/"+c.id,date:new Date(s*1000+7*3600e3).toISOString().slice(0,10),type:"TikTok",m_views:views(c.t),caption:c.alt};
+      o.title=c.alt.split("\n")[0].slice(0,160)||"Video TikTok "+o.date;
+      if(o.m_views==="")o.err="angka views tidak terbaca di kartu video";
+      grab(c.img).then(function(img){o.img=img;t.postMessage({pl:"row",row:o,ok:o.m_views!==""},W);setTimeout(next,50)})})()
   }
 }
 /** CSV -> baris (koma atau titik koma; tanda kutip ganda). */
