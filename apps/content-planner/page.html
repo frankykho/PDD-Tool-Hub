@@ -884,14 +884,15 @@ function plBookmark(W){
   }
 }
 // Kode tombol bookmark TikTok. Dijalankan di profil TikTok akun sendiri: followers persis dari data halaman, video bulan yang
-// dipilih di jendela /ig-sync?tt=1 dari link di profil (tanggal unggah = 32 bit atas ID video), angka persis dari halaman tiap video.
+// dipilih di jendela /ig-sync?tt=1 dari link di profil (tanggal unggah = 32 bit atas ID video), angka persis dari /api/item/detail per video.
 function ttBookmark(W){
   var L=location,d=document,u=(L.pathname.match(/^\/@([\w.-]+)\/?$/)||[])[1];
   if(!/(^|\.)tiktok\.com$/.test(L.hostname)||!u){alert("Buka profil TikTok akun sendiri dulu, lalu klik tombol ini.");return}
-  var fol=null,ids=[],seen={};
-  try{var x=JSON.parse(d.getElementById("__UNIVERSAL_DATA_FOR_REHYDRATION__").textContent).__DEFAULT_SCOPE__["webapp.user-detail"].userInfo,f=+((x.statsV2&&x.statsV2.followerCount)||x.stats.followerCount);if(f>=0)fol=f}catch(e){}
-  // urutan di profil: video tersemat dulu, lalu terbaru -> terlama; yang terakhir = video terlama yang sudah termuat
-  [].forEach.call(d.querySelectorAll('a[href*="/video/"]'),function(a){var m=(a.getAttribute("href")||"").match(/\/@([\w.-]+)\/video\/(\d+)/);if(m&&m[1].toLowerCase()===u.toLowerCase()&&!seen[m[2]]){seen[m[2]]=1;ids.push(m[2])}});
+  var fol=null,ids=[],seen={},uid="";
+  try{var x=JSON.parse(d.getElementById("__UNIVERSAL_DATA_FOR_REHYDRATION__").textContent).__DEFAULT_SCOPE__["webapp.user-detail"].userInfo,f=+((x.statsV2&&x.statsV2.followerCount)||x.stats.followerCount);if(f>=0)fol=f;uid=String(x.user&&x.user.id||"")}catch(e){}
+  // urutan di profil: video tersemat dulu, lalu terbaru -> terlama; yang terakhir = video terlama yang sudah termuat.
+  // link video kadang memakai nomor akun (@6857…), bukan nama akun
+  [].forEach.call(d.querySelectorAll('a[href*="/video/"]'),function(a){var m=(a.getAttribute("href")||"").match(/\/@([\w.-]+)\/video\/(\d+)/);if(m&&(m[1].toLowerCase()===u.toLowerCase()||(uid&&m[1]===uid))&&!seen[m[2]]){seen[m[2]]=1;ids.push(m[2])}});
   var w=window.open(W+"/ig-sync?tt=1&m=1","planner_ig","width=540,height=760");
   if(!w){alert("Pop-up diblokir browser. Izinkan pop-up untuk tiktok.com, lalu klik tombol lagi.");return}
   var go=false;
@@ -900,9 +901,9 @@ function ttBookmark(W){
   function jpg(el,w0,h0){var mx=320,s=Math.min(1,mx/w0),cv=d.createElement("canvas");cv.width=Math.round(w0*s);cv.height=Math.round(h0*s);cv.getContext("2d").drawImage(el,0,0,cv.width,cv.height);
     var r=cv.toDataURL("image/webp",0.75);if(r.indexOf("data:image/webp")!==0)r=cv.toDataURL("image/jpeg",0.75);return r.length<900000?r:""}
   function grab(url){if(!url)return Promise.resolve("");return fetch(url,{credentials:"omit"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap).then(function(b){return jpg(b,b.width,b.height)}).catch(function(){return ""})}
-  function item(id){return fetch("/@"+u+"/video/"+id,{credentials:"include"}).then(function(r){return r.ok?r.text():""}).then(function(h){
-    var m=h.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/),s=m&&JSON.parse(m[1]).__DEFAULT_SCOPE__["webapp.video-detail"];
-    return s&&s.itemInfo&&s.itemInfo.itemStruct||null}).catch(function(){return null})}
+  // halaman video ditolak TikTok (403) bila dibuka di latar belakang; data video dari API web TikTok (sesi tab ini)
+  function item(id){return fetch("/api/item/detail/?itemId="+id+"&aid=1988",{credentials:"include"}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    return j&&j.itemInfo&&j.itemInfo.itemStruct||null}).catch(function(){return null})}
   function run(t,from,to){
     if(fol!==null)t.postMessage({pl:"fol",tt:fol},W);
     var a=from?Date.parse(from+"T00:00:00+07:00")/1000:0,b=to?Date.parse(to+"T23:59:59+07:00")/1000:Infinity,i=0;

@@ -433,11 +433,13 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
     const sent = [], fetched = [];
     let onMsg = null;
     const a = (id, user = "kisi_sekuritas") => ({ getAttribute: () => `https://www.tiktok.com/@${user}/video/${id}` });
-    const page = (id) => `<html><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify({ __DEFAULT_SCOPE__: { "webapp.video-detail": { itemInfo: { itemStruct: { id, desc: "Video " + id + "\nisi", stats: { playCount: 1000 }, statsV2: { playCount: "1234", diggCount: "56", commentCount: "7", shareCount: "8", collectCount: "9" }, video: { cover: "" } } } } } })}</script></html>`;
+    // halaman video ditolak TikTok (403, hasil percobaan user); data video dari /api/item/detail
+    const detail = (id) => JSON.stringify({ itemInfo: { itemStruct: { id, desc: "Video " + id + "\nisi", stats: { playCount: 1000 }, statsV2: { playCount: "1234", diggCount: "56", commentCount: "7", shareCount: "8", collectCount: "9" }, video: { cover: "" } } } });
     const box = { location: { hostname: "www.tiktok.com", pathname: "/@kisi_sekuritas" }, alert: (m) => sent.push({ alert: m }), JSON, Object, String, Number, BigInt, Date, Promise, setTimeout: (f) => Promise.resolve().then(f),
-      document: { getElementById: () => ({ textContent: JSON.stringify({ __DEFAULT_SCOPE__: { "webapp.user-detail": { userInfo: { stats: { followerCount: 63800 }, statsV2: { followerCount: "63753" } } } } }) }),
-        querySelectorAll: () => [...V.map((id) => a(id)), a("7000000000000000000", "orang_lain")] },
-      fetch: async (u) => { fetched.push(u); const id = String(u).match(/video\/(\d+)/)[1]; return { ok: true, text: async () => page(id) }; } };
+      document: { getElementById: () => ({ textContent: JSON.stringify({ __DEFAULT_SCOPE__: { "webapp.user-detail": { userInfo: { user: { id: "6857339471395832833", uniqueId: "kisi_sekuritas" }, stats: { followerCount: 63800 }, statsV2: { followerCount: "63753" } } } } }) }),
+        // link di profil kadang memakai nomor akun, bukan nama akun
+        querySelectorAll: () => [...V.map((id, k) => a(id, k === 2 ? "6857339471395832833" : "kisi_sekuritas")), a("7000000000000000000", "orang_lain")] },
+      fetch: async (u) => { fetched.push(u); const m = String(u).match(/\/api\/item\/detail\/\?itemId=(\d+)/); return m ? { ok: true, status: 200, json: async () => JSON.parse(detail(m[1])), text: async () => detail(m[1]) } : { ok: false, status: 403, json: async () => ({}), text: async () => "" }; } };
     box.window = { open: (u) => { sent.push({ open: u }); return {}; }, addEventListener: (t, h) => { onMsg = h; }, removeEventListener() {} };
     vm.createContext(box);
     vm.runInContext("(" + tb + ")('https://planner.test')", box);
