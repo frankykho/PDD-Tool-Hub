@@ -30,7 +30,7 @@ Setiap ada fitur baru di aplikasi iKISI, tim butuh banner 1920×1080 dengan mock
 - Mockup HP digambar sendiri (bingkai generik), tidak ada file mockup.
 - Latar **terang** = gradasi putih → hijau muda (#ffffff → #e8f4ee), teks hijau #136F4A, label "FITUR BARU" hijau dengan huruf putih, logo `ikisi-color.png`.
 - Latar **gelap** = G2: hijau tua radial (cahaya #1a6b48 di belakang HP → #0d3b28 → #08261a), teks putih, label oranye #F5A623 dengan huruf #17251d, logo `ikisi-white.png`.
-- **Logo iKISI lebih kecil** dari contoh pertama (≈ ⅔; tinggi ±60 px di 1920×1080) di semua template.
+- **Logo iKISI lebih kecil** dari contoh pertama (tinggi ±76 px di 1920×1080, dibesarkan lagi 11 Nov 2026 atas permintaan user; judul 104 px, penjelasan 44 px, label 34 px) di semua template.
 - Susunan (semua dipakai, semua bisa kiri/kanan; teks & logo pindah ke sisi seberang HP):
   1. 1 HP tegak, sedikit terpotong bawah — kanan / kiri
   2. 1 HP miring ±8°, terpotong bawah — kanan / kiri

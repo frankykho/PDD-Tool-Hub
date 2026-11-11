@@ -26,11 +26,11 @@ export function layoutFor(id, side) {
   const phones = l.p.map(([x, y, w, h, rot]) => (left ? { x: W - x - w, y, w, h, rot: -rot } : { x, y, w, h, rot }));
   const xs = phones.map((p) => p.x).sort((a, b) => a - b);
   phones.forEach((p) => (p.no = xs.indexOf(p.x) + 1));
-  if (mid) return { phones, text: { x: 160, y: 160, w: W - 320, align: "center" }, logo: { x: W / 2, y: 60, h: 54, align: "center" }, desc: false, glow: [0.5, 0.45] };
+  if (mid) return { phones, text: { x: 160, y: 160, w: W - 320, align: "center" }, logo: { x: W / 2, y: 56, h: 66, align: "center" }, desc: false, glow: [0.5, 0.45] };
   return {
     phones,
     text: { x: left ? W - 120 - l.tw : 120, y: 300, w: l.tw, align: "left" },
-    logo: left ? { x: W - 120, y: 100, h: 60, align: "right" } : { x: 120, y: 100, h: 60, align: "left" },
+    logo: left ? { x: W - 120, y: 96, h: 76, align: "right" } : { x: 120, y: 96, h: 76, align: "left" },
     desc: true,
     glow: [left ? 0.25 : 0.75, 0.45],
   };
@@ -123,13 +123,13 @@ export function draw(ctx, o) {
   // label (pil)
   const tag = String(o.tag || "").trim();
   if (tag) {
-    const f = fitText(measureWith(800), tag, { w: L.text.w - 60, size: 30, minSize: 18, maxLines: 1 });
+    const f = fitText(measureWith(800), tag, { w: L.text.w - 60, size: 34, minSize: 20, maxLines: 1 });
     if (f.overflow) overflow.push("tag");
     ctx.font = font(800, f.size);
     if ("letterSpacing" in ctx) ctx.letterSpacing = "3px";
-    const tw = ctx.measureText(f.lines[0]).width + 60, th = 64, tx = mid ? ax - tw / 2 : ax;
+    const tw = ctx.measureText(f.lines[0]).width + 64, th = 72, tx = mid ? ax - tw / 2 : ax;
     ctx.fillStyle = T.tagBg; ctx.beginPath(); ctx.roundRect(tx, y, tw, th, th / 2); ctx.fill();
-    ctx.fillStyle = T.tagFg; ctx.fillText(f.lines[0], mid ? ax : ax + 30, y + (th - f.size) / 2);
+    ctx.fillStyle = T.tagFg; ctx.fillText(f.lines[0], mid ? ax : ax + 32, y + (th - f.size) / 2);
     if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
     y += th + (mid ? 20 : 34);
   }
@@ -142,8 +142,8 @@ export function draw(ctx, o) {
     y += f.lines.length * f.size * lh;
   };
   const title = String(o.title || "").trim(), desc = String(o.desc || "").trim();
-  if (title) block(title, "title", 800, mid ? 72 : 88, 1.05, mid ? 1 : 3, T.title);
-  if (L.desc && desc) { y += 28; block(desc, "desc", 400, 36, 1.4, 3, T.desc); }
+  if (title) block(title, "title", 800, mid ? 84 : 104, 1.05, mid ? 1 : 3, T.title);
+  if (L.desc && desc) { y += 28; block(desc, "desc", 400, 44, 1.4, 3, T.desc); }
   // HP
   for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
   ctx.restore();
