@@ -402,13 +402,13 @@ assert.ok(/\^data:image/.test(sh), "thumbnail hanya dari data URL gambar");
     class XHR { open() {} setRequestHeader() {} send() {} }
     const box = { location: { hostname: "www.instagram.com", pathname: "/accounts/insights/content/" }, document: {}, alert: (m) => sent.push({ alert: m }), XMLHttpRequest: XHR, URLSearchParams, JSON, Object, String, Promise,
       setTimeout: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimeout: (i) => { if (timers[i - 1]) timers[i - 1].f = null; },
-      fetch: async (u, o) => { const v = JSON.parse(new URLSearchParams(o.body).get("variables")); return { text: async () => JSON.stringify({ data: { user: { business_manager: { medias: { edges: edges(v.metric) } } } } }) }; } };
+      fetch: async (u, o) => { const v = JSON.parse(new URLSearchParams(o.body).get("variables")); assert.equal(v.order_by_options, null, "urutan Newest dari halaman dipertahankan (batas 200 memotong yang lama, bukan yang angkanya kecil)"); return { text: async () => JSON.stringify({ data: { user: { business_manager: { medias: { edges: edges(v.metric) } } } } }) }; } };
     box.window = { open: (u) => { opened.push(u); return {}; }, addEventListener: (t, h) => { onMsg = h; }, removeEventListener() {} };
     vm.createContext(box);
     vm.runInContext("(" + bm + ")('https://planner.test')", box);
     assert.equal(opened[0], "https://planner.test/ig-sync?ins=1", "jendela dibuka saat klik (bukan setelah menunggu), jadi tidak diblokir pop-up");
     onMsg({ origin: "https://planner.test", data: { pl: "ready" }, source: { postMessage: (m) => sent.push(m) } });
-    if (capture) { const x = new box.XMLHttpRequest(); x.open("POST", "/api/graphql"); x.send("doc_id=1&fb_api_req_friendly_name=PolarisInsightsMediaGridCardViewInitialQuery&variables=" + encodeURIComponent('{"metric":"ENGAGED_ACCOUNTS","timeframe":"ONE_MONTH"}')); }
+    if (capture) { const x = new box.XMLHttpRequest(); x.open("POST", "/api/graphql"); x.send("doc_id=1&fb_api_req_friendly_name=PolarisInsightsMediaGridCardViewInitialQuery&variables=" + encodeURIComponent('{"metric":"ENGAGED_ACCOUNTS","timeframe":"ONE_MONTH","order_by_options":null}')); }
     for (let i = 0; i < 20; i++) { const t = timers.find((t) => t.f && t.ms < 1000); if (t) { const f = t.f; t.f = null; f(); } await new Promise((r) => setImmediate(r)); }
     return { sent, timers };
   };

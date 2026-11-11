@@ -854,7 +854,8 @@ function plBookmark(W){
       X.send=function(b){try{if(!window.__plCap&&/\/api\/graphql/.test(this.__u||"")&&typeof b==="string"&&/MediaGridCardView/.test(b)){
         window.__plCap={u:this.__u,h:this.__h,b:b};X.open=O;X.send=S;X.setRequestHeader=H;window.__plHook=0;var f=window.__plOnCap;setTimeout(function(){if(f)f()},0)}}catch(e){}return S.apply(this,arguments)};
     }
-    function q(metric,tf){var cap=window.__plCap,p=new URLSearchParams(cap.b),v=JSON.parse(p.get("variables")||"{}");v.metric=metric;v.order_by_options=Object.assign({},v.order_by_options,{metric:metric});v.initialCount=200;if(tf)v.timeframe=tf;p.set("variables",JSON.stringify(v));
+    // urutan Newest (order_by_options null, seperti halaman): batas 200 memotong postingan paling lama, bukan yang angkanya kecil
+    function q(metric,tf){var cap=window.__plCap,p=new URLSearchParams(cap.b),v=JSON.parse(p.get("variables")||"{}");v.metric=metric;v.order_by_options=null;v.initialCount=200;if(tf)v.timeframe=tf;p.set("variables",JSON.stringify(v));
       return fetch(cap.u,{method:"POST",credentials:"include",headers:cap.h,body:p.toString()}).then(function(r){return r.text()}).then(function(x){
         var j=JSON.parse(x.split("\n")[0]),u=j&&j.data&&j.data.user,e=u&&u.business_manager&&u.business_manager.medias&&u.business_manager.medias.edges;
         if(!e)throw new Error((j&&j.errors&&j.errors[0]&&j.errors[0].message)||"tanpa data");return e})}
