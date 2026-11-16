@@ -76,7 +76,7 @@ const CATEGORIES = {
 const appById = id => APPS.find(a => a.id === id);
 const topLevel = a => a.tabs ? ['*'] : a.levels ? Object.keys(a.levels).pop() : true;
 
-const COOKIE = 'hub_sess', SESSION_DAYS = 30, MAX_FAIL = 5, LOCK_MIN = 15, MAX_REG = 5, TICKET_SEC = 60;
+const COOKIE = 'hub_sess', SESSION_DAYS = 30, MAX_FAIL = 5, MAX_ACC_FAIL = 20, LOCK_MIN = 15, MAX_REG = 5, TICKET_SEC = 60;
 // ponytail: 10.000 iterasi PBKDF2 supaya muat di batas CPU paket gratis Workers. Naikkan kalau pindah ke paket berbayar;
 // hash lama tetap terbaca karena jumlah iterasi tersimpan di hash.
 const ITER = 10000;
@@ -85,6 +85,11 @@ const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\
 const fromB64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
 const hex = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
 function safeEq(a, b) { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; }
+// Kode daftar sekali pakai untuk akun tanpa password (ditambahkan admin / di-reset / impor). Tanpa kode, siapa pun yang tahu
+// emailnya bisa mengambil akun itu beserta hak aksesnya. Yang disimpan hanya hash-nya; kode tampil sekali di halaman admin.
+const newCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = [...crypto.getRandomValues(new Uint8Array(8))].map(x => A[x % 32]).join(''); return s.slice(0, 4) + '-' + s.slice(4); };
+const codeHash = async c => hex(await crypto.subtle.digest('SHA-256', enc.encode(String(c).toUpperCase().replace(/[^A-Z0-9]/g, ''))));
+const codeNote = c => c ? `<br><span>Berikan kode daftar ini ke orangnya: ia memilih Daftar dengan email itu lalu mengisi kode ini. Kode hanya tampil sekali.</span> <b class="code" translate="no" style="font-family:monospace;font-size:1.15em">${c}</b>` : '';
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const THEME_CSS = `<style id="hub-theme-style">
 :root{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}html[data-theme="system"]{color-scheme:light dark}
@@ -100,7 +105,10 @@ const THEME_SCRIPT = `<script>(function(){var k='toolhub-theme-v2',v='system';tr
 // Tombol bahasa di halaman hub yang berdiri sendiri (login, akun, admin). Di dashboard, pilihan bahasa ada di sidebar.
 // Penanda mesin bahasa sudah ada = "__i18o" (hanya ada di skrip shared/i18n.js; shell.html sendiri memuat teks "toolhub-lang-request").
 const LANG_BUTTON = `<button id="hub-lang-toggle" type="button" translate="no" onclick="hubSetLang(hubLang()==='en'?'id':'en');this.textContent=hubLang()==='en'?'ID':'EN';this.title=hubLang()==='en'?'Bahasa Indonesia':'English'">EN</button><script>(function(){var b=document.getElementById('hub-lang-toggle');if(b&&window.hubLang&&hubLang()==='en'){b.textContent='ID';b.title='Bahasa Indonesia'}else if(b)b.title='English'})()</script>`;
-const themedHtml = body => { if (typeof body !== 'string' || !/<html[\s>]/i.test(body)) return body; let out = body; if (!out.includes('__i18o')) out = out.replace(/<\/head>/i, () => i18nHead(EN) + '</head>'); if (!out.includes('id="hub-lang-toggle"') && !out.includes('id="lang2"')) out = out.replace(/<\/body>/i, () => LANG_BUTTON + '</body>'); if (!out.includes('id="hub-theme-style"')) out = out.replace(/<\/head>/i, THEME_CSS + '</head>'); if (!out.includes('hub-theme-v2')) { if (!out.includes('id="hub-theme-toggle"')) out = out.replace(/<\/body>/i, THEME_BUTTON + THEME_SCRIPT + '</body>'); else out = out.replace(/<\/body>/i, THEME_SCRIPT + '</body>'); } return out; };
+const themedHtml = body => { if (typeof body !== 'string' || !/<html[\s>]/i.test(body)) return body; let out = body; if (!out.includes('__i18o')) out = out.replace(/<\/head>/i, () => `<script src="${I18N_SRC}"></script></head>`); if (!out.includes('id="hub-lang-toggle"') && !out.includes('id="lang2"')) out = out.replace(/<\/body>/i, () => LANG_BUTTON + '</body>'); if (!out.includes('id="hub-theme-style"')) out = out.replace(/<\/head>/i, THEME_CSS + '</head>'); if (!out.includes('hub-theme-v2')) { if (!out.includes('id="hub-theme-toggle"')) out = out.replace(/<\/body>/i, THEME_BUTTON + THEME_SCRIPT + '</body>'); else out = out.replace(/<\/body>/i, THEME_SCRIPT + '</body>'); } return out; };
+// Kamus EN (±75 KB) disajikan sekali sebagai file ber-cache (/i18n.js), bukan ditempel di setiap halaman; ?v= berganti bila isinya berubah
+const I18N_JS = i18nHead(EN).slice(8, -9);
+const I18N_SRC = '/i18n.js?v=' + [...I18N_JS].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7).toString(36);
 const page = (status, body, extra = {}) => new Response(themedHtml(body), { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "frame-ancestors 'self'", ...extra } });
 const redirect = (to, extra = {}) => new Response(null, { status: 303, headers: { location: to, 'cache-control': 'no-store', ...extra } });
 // SameSite=None: tool yang beralamat di situs lain (domain berbeda dari hub) melempar pengguna ke /sso dari DALAM bingkai dashboard.
@@ -194,10 +202,11 @@ async function readSession(env, cookieHeader) {
   return u && u.hash && fp(u) === s.h ? { email: s.e, role: u.role === 'admin' ? 'admin' : 'user', status: u.status, u } : null;
 }
 // "next" hanya boleh alamat di dalam hub sendiri (mis. /sso?...), supaya login tidak bisa dipakai melempar orang ke situs lain
-const safeNext = n => (typeof n === 'string' && /^\/(?!\/)/.test(n) ? n : '/');
+// browser membaca "\" sebagai "/" dan membuang tab/enter, jadi "/\evil.com" = "//evil.com": keduanya ditolak
+const safeNext = n => (typeof n === 'string' && /^\/(?![\/\\])[^\\\x00-\x1f]*$/.test(n) ? n : '/');
 const startSession = async (env, email, u, next) => redirect(safeNext(next), { 'set-cookie': cookieStr(await makeSession(env, email, u), SESSION_DAYS * 86400) });
 
-const CSS = `:root{--card:rgba(255,255,255,.74);--card-edge:rgba(23,35,27,.1);--text:#17231B;--text-2:#56625A;--line:#DDE5DF;--field:#fff;--field-line:#C9D3CC;--link:#0F7F33;--primary:#0B2117;--primary-hover:#163A28;--primary-text:#fff;--soft:rgba(255,255,255,.72);--soft-hover:#fff;--soft-text:#0B2117;--soft-line:rgba(23,35,27,.12);--focus:#14DB4C;--ok-bg:#E8F7EE;--ok-text:#166534;--ok-line:#BFE8D4;--err-bg:#FDECEC;--err-text:#991B1B;--err-line:#F6C9C9;--del:#B3261E;--sel:#F3FBF7;--sel-line:#3FAE78;--shadow:0 1px 2px rgba(16,32,22,.04),0 12px 32px rgba(16,32,22,.08);--hl:inset 0 1px 0 rgba(255,255,255,.9)}
+const CSS = `:root{--card:rgba(255,255,255,.74);--card-edge:rgba(23,35,27,.1);--text:#17231B;--text-2:#56625A;--line:#DDE5DF;--field:#fff;--field-line:#C9D3CC;--link:#0F7F33;--primary:#0B2117;--primary-hover:#163A28;--primary-text:#fff;--soft:rgba(255,255,255,.72);--soft-hover:#fff;--soft-text:#0B2117;--soft-line:rgba(23,35,27,.12);--focus:#0F7F33;--ok-bg:#E8F7EE;--ok-text:#166534;--ok-line:#BFE8D4;--err-bg:#FDECEC;--err-text:#991B1B;--err-line:#F6C9C9;--del:#B3261E;--sel:#F3FBF7;--sel-line:#3FAE78;--shadow:0 1px 2px rgba(16,32,22,.04),0 12px 32px rgba(16,32,22,.08);--hl:inset 0 1px 0 rgba(255,255,255,.9)}
 html[data-theme="dark"]{--card:rgba(19,28,23,.78);--card-edge:rgba(255,255,255,.09);--text:#E6EDE8;--text-2:#A3B0A8;--line:#26342C;--field:#0E1712;--field-line:#3A4B41;--link:#4ADE80;--primary:#14DB4C;--primary-hover:#3BE56B;--primary-text:#06140C;--soft:rgba(255,255,255,.06);--soft-hover:rgba(255,255,255,.11);--soft-text:#D6F5E0;--soft-line:rgba(255,255,255,.12);--focus:#4ADE80;--ok-bg:#10301E;--ok-text:#BBF7D0;--ok-line:#2F6748;--err-bg:#3A1515;--err-text:#FECACA;--err-line:#783B3A;--del:#F87171;--sel:#12301F;--sel-line:#2F8F5A;--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px rgba(0,0,0,.35);--hl:inset 0 1px 0 rgba(255,255,255,.06)}@media(prefers-color-scheme:dark){html[data-theme="system"]{--card:rgba(19,28,23,.78);--card-edge:rgba(255,255,255,.09);--text:#E6EDE8;--text-2:#A3B0A8;--line:#26342C;--field:#0E1712;--field-line:#3A4B41;--link:#4ADE80;--primary:#14DB4C;--primary-hover:#3BE56B;--primary-text:#06140C;--soft:rgba(255,255,255,.06);--soft-hover:rgba(255,255,255,.11);--soft-text:#D6F5E0;--soft-line:rgba(255,255,255,.12);--focus:#4ADE80;--ok-bg:#10301E;--ok-text:#BBF7D0;--ok-line:#2F6748;--err-bg:#3A1515;--err-text:#FECACA;--err-line:#783B3A;--del:#F87171;--sel:#12301F;--sel-line:#2F8F5A;--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px rgba(0,0,0,.35);--hl:inset 0 1px 0 rgba(255,255,255,.06)}}
 *{box-sizing:border-box}html{background:var(--hg-base,#EDF3EF)}body{margin:0;min-height:100vh;background:transparent;font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);padding:24px 16px 32px;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--hg-mesh,#EDF3EF);pointer-events:none}
@@ -238,9 +247,10 @@ ${reg ? `<label for="n">Nama</label><input id="n" name="name" required maxlength
 ${reg ? `<label for="un">Username (opsional, untuk login lebih singkat)</label><input id="un" name="username" maxlength="32" pattern="[a-z0-9._-]{3,32}" placeholder="huruf kecil, angka, titik" value="${esc(v.username)}">` : ''}
 <label for="p">Password${reg ? ' (minimal 8 karakter)' : ''}</label>${pwField('p', 'password', reg ? 'new-password' : 'current-password', reg ? ' minlength="8"' : '')}
 ${reg ? `<label id="wl">Tool yang ingin dipakai</label><div role="group" aria-labelledby="wl">${APPS.map(a => `<label class="opt"><input type="checkbox" name="want" value="${a.id}"${(v.want || []).includes(a.id) ? ' checked' : ''}><span>${esc(a.name)}<br><small>${esc(a.desc)}</small></span></label>`).join('')}</div>
-<label for="w">Keperluan (opsional)</label><input id="w" name="why" maxlength="200" value="${esc(v.why)}">` : ''}
+<label for="w">Keperluan (opsional)</label><input id="w" name="why" maxlength="200" value="${esc(v.why)}">
+<label for="kd">Kode daftar (hanya bila diberi admin)</label><input id="kd" name="code" maxlength="12" autocomplete="off" autocapitalize="characters" placeholder="contoh: ABCD-1234">` : ''}
 <div style="margin-top:20px"><button type="submit" style="width:100%">${reg ? 'Daftar &amp; ajukan akses' : 'Masuk'}</button></div>
-${note ? `<div class="msg err">${note}</div>` : ''}<p class="sub" style="margin:16px 0 0">${reg ? 'Setelah daftar, admin menyetujui tool mana saja yang bisa Anda buka.' : 'Belum punya akun? Pilih Daftar. Lupa password? Minta admin mereset, lalu daftar ulang dengan email yang sama.'}</p></form><script>if(location.hash){var f=document.forms[0];f.action+=location.hash;[].forEach.call(document.querySelectorAll('.tabs a'),function(x){x.href+=location.hash})}</script>`); };
+${note ? `<div class="msg err" role="alert">${note}</div>` : ''}<p class="sub" style="margin:16px 0 0">${reg ? 'Setelah daftar, admin menyetujui tool mana saja yang bisa kamu buka.' : 'Belum punya akun? Pilih Daftar. Lupa password? Minta admin mereset dan memberi kode daftar, lalu pilih Daftar dengan email yang sama.'}</p></form><script>if(location.hash){var f=document.forms[0];f.action+=location.hash;[].forEach.call(document.querySelectorAll('.tabs a'),function(x){x.href+=location.hash})}</script>`); };
 
 const setupPage = env => doc('Belum dikonfigurasi', `<div class="card" style="max-width:560px"><h1>Tool Hub belum dikonfigurasi</h1>
 <p class="sub">Di Cloudflare buka Worker ini &rarr; <b>Settings</b>, lalu lengkapi yang belum:</p>
@@ -249,7 +259,7 @@ const setupPage = env => doc('Belum dikonfigurasi', `<div class="card" style="ma
 <tr><td>${env.HUB_KV ? '&#9989;' : '&#10060;'}</td><td><b>HUB_KV</b><small>Bindings &rarr; Add &rarr; KV namespace, Variable name <b>HUB_KV</b></small></td></tr></table></div>`);
 
 const gatePage = sess => doc('Menunggu persetujuan', `<div class="card"><h1>${sess.status === 'pending' ? 'Menunggu persetujuan admin' : 'Akses tidak aktif'}</h1>
-<p class="sub">${sess.status === 'pending' ? 'Pendaftaran Anda sudah diterima. Tool terbuka setelah admin menyetujui.' : 'Akses akun ini ditolak atau sudah dicabut. Hubungi admin bila ini keliru.'}</p>
+<p class="sub">${sess.status === 'pending' ? 'Pendaftaranmu sudah diterima. Tool terbuka setelah admin menyetujui.' : 'Akses akun ini ditolak atau sudah dicabut. Hubungi admin bila ini keliru.'}</p>
 <p class="sub">Masuk sebagai <b>${esc(sess.email)}</b></p><div class="row"><a href="/"><button type="button" style="width:100%">Cek lagi</button></a><a href="/logout"><button type="button" class="ghost" style="width:100%">Keluar</button></a></div></div>`);
 
 async function form(request) { try { return await request.formData(); } catch (e) { return new FormData(); } }
@@ -261,16 +271,20 @@ async function login(request, env, next) {
   const email = typed.includes('@') ? typed : USER_RE.test(typed) ? (await env.HUB_KV.get('n:' + typed)) || '' : '';
   // pembatas percobaan per alamat IP + isian. Dihitung per IP supaya orang lain tidak bisa mengunci akun korban.
   const fk = 'f:' + ipOf(request) + ':' + typed.slice(0, 120), fails = Number(await env.HUB_KV.get(fk)) || 0;
-  if (fails >= MAX_FAIL) return page(429, authPage(env, false, `Terlalu banyak percobaan gagal. Coba lagi dalam ${LOCK_MIN} menit.`, { email: typed }, next));
+  // ditambah batas per akun (lebih longgar) supaya tebakan dari banyak IP sekaligus juga berhenti
+  const ak = email ? 'fa:' + email : '', afails = ak ? Number(await env.HUB_KV.get(ak)) || 0 : 0;
+  if (fails >= MAX_FAIL || afails >= MAX_ACC_FAIL) return page(429, authPage(env, false, `Terlalu banyak percobaan gagal. Coba lagi dalam ${LOCK_MIN} menit.`, { email: typed }, next));
   const u = EMAIL_RE.test(email) && password ? await getUser(env, email) : null;
   let ok = false;
   if (u && u.hash) { try { ok = await checkPw(password, u.hash); } catch (e) { ok = false; } }
   if (!ok) {
     await env.HUB_KV.put(fk, String(fails + 1), { expirationTtl: LOCK_MIN * 60 });
+    if (ak) await env.HUB_KV.put(ak, String(afails + 1), { expirationTtl: LOCK_MIN * 60 });
     await new Promise(r => setTimeout(r, 800));
     return page(401, authPage(env, false, 'Email/username atau password salah.', { email: typed }, next));
   }
   if (fails) await env.HUB_KV.delete(fk);
+  if (afails) await env.HUB_KV.delete(ak);
   if (!u.hash.startsWith('pbkdf2$')) { u.hash = await hashPw(password); await saveUser(env, email, u); }   // hash impor diganti ke format hub saat login pertama
   return startSession(env, email, u, next);
 }
@@ -289,11 +303,19 @@ async function register(request, env, next) {
   if (old && old.hash) return bad(409, 'Email ini sudah terdaftar. Silakan Masuk. Lupa password? Minta admin mereset.');
   const owner = v.username ? await env.HUB_KV.get('n:' + v.username) : null;
   if (owner && owner !== v.email) return bad(409, 'Username sudah dipakai. Pilih yang lain atau kosongkan.');
-  await env.HUB_KV.put(rk, String(n + 1), { expirationTtl: 3600 });
+  await env.HUB_KV.put(rk, String(n + 1), { expirationTtl: 3600 });   // dihitung sebelum cek kode, jadi tebakan kode ikut dibatasi
   const main = isMain(env, v.email);
+  // akun tanpa password, atau admin utama setelah hub punya admin: wajib kode daftar dari admin
+  if ((old && !old.hash) || (!old && main && (await listUsers(env)).some(x => x.role === 'admin' && x.reg))) {
+    const code = fv(f, 'code');
+    if (!old || !old.code || !code || !safeEq(await codeHash(code), old.code))
+      return bad(403, old ? 'Akun ini sudah disiapkan admin. Isi Kode daftar yang diberikan admin; bila belum punya atau hilang, minta admin klik "Kode daftar baru".'
+        : 'Email admin utama ini belum punya akun. Minta admin lain memakai "Tambahkan langsung" untuk email ini di halaman Admin agar mendapat kode daftar.');
+  }
   // akun lama tanpa password (ditambahkan admin / di-reset) mempertahankan status, peran, role pekerjaan, dan hak aksesnya.
   // Role pekerjaan tidak dipilih saat daftar: admin yang menentukan (tanpa role = user biasa).
   const u = { role: main ? 'admin' : 'user', status: main ? 'approved' : 'pending', at: stamp(), access: {}, ...(old || {}), name: v.name, why: v.why || (old && old.why) || '', want: v.want, hash: await hashPw(password) };
+  delete u.code;   // sekali pakai
   if (v.username && !u.username) { u.username = v.username; await env.HUB_KV.put('n:' + v.username, v.email); }
   await saveUser(env, v.email, u);
   if (u.status === 'approved') await syncPlanner(env, { email: v.email, u });
@@ -307,14 +329,14 @@ async function register(request, env, next) {
 async function sso(env, url, sess) {
   const app = appById(url.searchParams.get('app')), back = url.searchParams.get('back') || '';
   const deny = (t, d) => page(403, doc(t, `<div class="card"><h1>${t}</h1><p class="sub">${d}</p><a href="/">Kembali ke beranda</a></div>`));
-  if (!app) return deny('Tool tidak dikenal', 'Alamat yang Anda buka tidak terdaftar di Tool Hub.');
+  if (!app) return deny('Tool tidak dikenal', 'Alamat yang kamu buka tidak terdaftar di Tool Hub.');
   const au = appUrl(env, app.id);
   if (!au) return deny('Tool belum diatur', 'Alamat tool ini belum ada di profil (profile.urls).');
   let b; try { b = new URL(back || au); } catch (e) { b = null; }
   // tiket hanya boleh dikirim ke alamat tool yang terdaftar; kalau tidak, situs lain bisa meminta tiket atas nama pengguna
   if (!b || b.origin !== new URL(au).origin || !(b.pathname + '/').startsWith(new URL(au).pathname.replace(/\/$/, '') + '/')) return deny('Alamat tidak dikenali', 'Permintaan login ini tidak berasal dari alamat tool yang terdaftar.');
   const a = accessOf(sess.u, app);
-  if (!a) return deny(`Belum punya akses ke ${esc(app.name)}`, 'Minta admin menambahkan akses tool ini ke akun Anda.');
+  if (!a) return deny(`Belum punya akses ke ${esc(app.name)}`, 'Minta admin menambahkan akses tool ini ke akunmu.');
   if (app.firebase) {
     // tiket ditaruh di belakang tanda # supaya tidak terkirim ke server tool dan tidak tercatat di log
     let t; try { t = await firebaseToken(env, sess.email, a); } catch (e) { return deny('Tutorial belum tersambung', 'Secret <b>FIREBASE_SA</b> belum dipasang di Tool Hub, atau isinya bukan berkas kunci service account yang utuh.'); }
@@ -413,13 +435,13 @@ async function syncPlanner(env, changed = null) {
     };
     // anggota Planner = admin hub, atau akun yang punya role pekerjaan. User biasa (tanpa role) hanya memakai tool:
     // tidak tampil sebagai pilihan penanggung jawab/penerima tugas.
-    await post(env.PLANNER, 'planner', 'Content Planner', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (J[x.job] && has(x, 'planner'))))).map(row));
+    await Promise.all([post(env.PLANNER, 'planner', 'Content Planner', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || (J[x.job] && has(x, 'planner'))))).map(row)),
     // Event & Lead: semua yang boleh membukanya (cabangnya menentukan event yang terlihat)
-    await post(env.EVENT, 'event', 'Event & Lead', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'event')))).map(row));
+    post(env.EVENT, 'event', 'Event & Lead', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'event')))).map(row)),
     // Brand Kit: semua yang boleh membukanya (cabang mengisi template, Head boleh mengubah narasumber)
-    await post(env.BRAND, 'brand', 'Brand Kit', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'brand')))).map(row));
+    post(env.BRAND, 'brand', 'Brand Kit', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'brand')))).map(row)),
     // Link & QR Studio: tim & role menentukan aturan regional (kegiatan yang bisa dipilih) dan Head (boleh menonaktifkan link)
-    await post(env.LINK, 'go', 'Link & QR Studio', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'go')))).map(row));
+    post(env.LINK, 'go', 'Link & QR Studio', users.filter(x => isMain(env, x.email) || (x.status === 'approved' && (x.role === 'admin' || has(x, 'go')))).map(row))]);
   } catch (e) { console.log('sinkron anggota gagal:', e.message); }
 }
 
@@ -429,7 +451,8 @@ const ACTS = {
   revoke: ['Cabut akses', u => { u.status = 'revoked'; }, 'dicabut aksesnya'],
   make_admin: ['Jadikan admin', u => { u.role = 'admin'; }, 'dijadikan admin'],
   remove_admin: ['Cabut admin', u => { u.role = 'user'; }, 'tidak lagi admin'],
-  reset: ['Reset password', u => { delete u.hash; }, 'di-reset passwordnya. Minta ia klik Daftar lagi dengan email yang sama'],
+  reset: ['Reset password', u => { delete u.hash; }, 'di-reset passwordnya'],
+  code: ['Kode daftar baru', () => {}, 'mendapat kode daftar baru'],
   delete: ['Hapus', null, 'dihapus'],
 };
 const ST_ID = { approved: 'disetujui', pending: 'menunggu persetujuan', rejected: 'ditolak', revoked: 'dicabut', added: 'ditambahkan admin' };
@@ -442,13 +465,13 @@ async function adminPage(env, sess, note = '', bad = false, changed = null) {
   if (changed) { users = users.filter(x => x.email !== changed.email); if (changed.u) users.push({ email: changed.email, ...meta(changed.u) }); }
   users.forEach(x => { if (isMain(env, x.email)) { x.role = 'admin'; x.status = 'approved'; x.main = true; } });
   users.sort((a, b) => a.email < b.email ? -1 : 1);
-  const btn = (x, act, cls = 'ghost') => `<form method="post" action="/admin/act"${{ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act] ? ` onsubmit="return confirm('${{ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act]} ${esc(x.email)}?')"` : ''}><input type="hidden" name="email" value="${esc(x.email)}"><input type="hidden" name="act" value="${act}"><button class="sm ${cls}">${ACTS[act][0]}</button></form>`;
+  const btn = (x, act, cls = 'ghost') => `<form method="post" action="/admin/act"${{ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act] ? ` data-q="${esc({ delete: 'Hapus akun', reject: 'Tolak pendaftaran', revoke: 'Cabut akses' }[act] + ' ' + x.email + '?')}" onsubmit="return confirm(this.dataset.q)"` : ''}><input type="hidden" name="email" value="${esc(x.email)}"><input type="hidden" name="act" value="${act}"><button class="sm ${cls}">${ACTS[act][0]}</button></form>`;
   const akses = x => `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Atur akses</a>`;
   // admin utama & akun sendiri: tidak bisa dicabut/diubah statusnya, tapi role pekerjaannya tetap bisa diatur (laporan Content Planner per role)
   const own = x => `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Atur role</a>`;
-  const acts = x => x.main ? '<small>admin utama</small> ' + own(x) : x.email === sess.email ? '<small>akun Anda</small> ' + own(x)
+  const acts = x => x.main ? '<small>admin utama</small> ' + own(x) + (x.reg ? '' : btn(x, 'code')) :x.email === sess.email ? '<small>akunmu</small> ' + own(x)
     : x.status === 'pending' ? `<a class="sm" href="/admin/user?e=${encodeURIComponent(x.email)}">Tinjau &amp; setujui</a>` + btn(x, 'reject', 'del')
-    : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'delete', 'del'))
+    : x.status === 'approved' ? akses(x) + (x.reg ? btn(x, x.role === 'admin' ? 'remove_admin' : 'make_admin') + btn(x, 'reset') : '') + btn(x, 'revoke', 'del') + (x.reg ? '' : btn(x, 'code') + btn(x, 'delete', 'del'))
     : btn(x, 'approve', '') + btn(x, 'delete', 'del');
   const tbl = (title, rows, empty) => `<h2>${title} (${rows.length})</h2>` + (rows.length ? `<div class="scroll"><table><tr><th>Pengguna</th><th>Akses tool</th><th>Terdaftar</th><th></th></tr>${rows.map(x => `<tr><td><b>${esc(x.email)}</b><small>${esc(x.name || 'nama belum diisi')}${x.un ? ' &middot; @' + esc(x.un) : ''}${x.reg ? '' : ' &middot; belum membuat password'} &middot; ${x.job ? esc(J[x.job] || x.job) : 'tanpa role pekerjaan'}${x.br ? ' &middot; ' + esc(x.br) : ''}</small>${x.why ? `<small>${esc(x.why)}</small>` : ''}</td><td><small><span class="ml">Akses tool</span>${esc(x.status === 'pending' && x.role !== 'admin' ? 'minta: ' + (accessLabel(x, x.want) === 'belum ada tool' ? 'tidak memilih' : accessLabel(x, x.want)) : accessLabel(x, x.apps))}</small></td><td style="white-space:nowrap"><small><span class="ml">Terdaftar</span>${esc(atTxt(x.at))}</small></td><td style="text-align:right">${acts(x)}</td></tr>`).join('')}</table></div>` : `<p class="sub">${empty}</p>`);
   const by = s => users.filter(x => s.includes(x.status));
@@ -498,7 +521,7 @@ function rolePage(sess, org, users, note = '', err = '') {
   const row = r => `<tr><td><input name="r_${r.k}_name" value="${esc(r.name)}" maxlength="60" required aria-label="Nama role ${esc(r.name)}"></td><td><select name="r_${r.k}_team" aria-label="Tim ${esc(r.name)}">${tOpts(r.team)}</select></td><td>${flags('r_' + r.k, r)}</td><td class="inl"><small><span class="ml">Orang</span>${n(r.k) || '–'}</small></td><td class="inl">${n(r.k) ? '<small>dipakai</small>' : ck(`r_${r.k}_del`, false, 'Hapus')}</td></tr>`;
   return doc('Tim & role', `<form class="card wide xl" method="post" action="/admin/role">${topBar(sess, 'Tim &amp; role pekerjaan', '/admin/role')}
 <p class="sub">Role pekerjaan dipilih per orang di <a href="/admin">Admin</a> &rarr; Atur akses. Di Content Planner, laporan dibuat per tim; orang dengan role tanpa tim membuat laporannya masing-masing.</p>
-${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
+${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" role="alert" style="margin:0 0 6px">${err}</div>` : ''}
 <h2>Tim (${org.teams.length})</h2><div class="scroll"><table class="rt"><tr><th>Nama tim</th><th>Tim regional</th><th>Role</th><th></th></tr>${org.teams.map(t => `<tr><td><input name="t_${t.id}_name" value="${esc(t.name)}" maxlength="60" required aria-label="Nama tim ${esc(t.name)}"></td><td class="inl"><span class="ml">Tim regional</span>${ck(`t_${t.id}_reg`, t.regional, 'Ya')}</td><td class="inl"><small><span class="ml">Role</span>${org.roles.filter(r => r.team === t.id).length}</small></td><td class="inl">${ck(`t_${t.id}_del`, false, 'Hapus')}</td></tr>`).join('')}
 <tr><td><input name="nt_name" maxlength="60" placeholder="Tim baru (opsional)" aria-label="Nama tim baru"></td><td class="inl"><span class="ml">Tim regional</span>${ck('nt_reg', false, 'Ya')}</td><td></td><td></td></tr></table></div>
 <p class="sub" style="margin:4px 0 0">Tim regional: anggotanya di Content Planner hanya melihat dan mencatat kegiatan cabang dan rencana galeri. Menghapus tim membuat role-nya menjadi tanpa tim.</p>
@@ -515,7 +538,7 @@ function branchPage(sess, B, users, note = '', err = '', raw = null, P = []) {
   const ST = { mou: 'MoU ditandatangani', resmi: 'Diresmikan' };
   return doc('Regional & cabang', `<form class="card wide" method="post" action="/admin/cabang">${topBar(sess, 'Regional &amp; cabang', '/admin/cabang')}
 <p class="sub">Dipakai tim regional (Sales &amp; GI Coordinator) untuk mencatat kegiatan cabang di Content Planner, dan untuk memfilter laporan per regional, per cabang, atau per galeri. Cabang / galeri tiap orang diatur di <a href="/admin">Admin</a> &rarr; Atur akses.</p>
-${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" style="margin:0 0 6px">${err}</div>` : ''}
+${note ? `<div class="msg ok" style="margin:0 0 6px">${note}</div>` : ''}${err ? `<div class="msg err" role="alert" style="margin:0 0 6px">${err}</div>` : ''}
 ${P.length ? `<h2>Usulan galeri baru (${P.length})</h2><p class="sub" style="margin:0 0 6px">Dari rencana kerja sama galeri di Content Planner yang sudah MoU atau diresmikan, tapi belum ada di daftar.</p>
 <div class="scroll"><table><tr><th>Regional</th><th>Galeri</th><th>Mitra &middot; kota</th><th>Tahap</th><th></th></tr>${P.map(p => `<tr><td>${esc(p.r)}</td><td><b>${esc(p.c)}</b><small>PIC: ${esc(p.by || '–')}</small></td><td>${esc([p.partner, p.city].filter(Boolean).join(' · ') || '–')}</td><td>${esc(ST[p.status] || p.status)}</td><td><button type="submit" class="ghost" name="add" value="${esc(p.id)}" formnovalidate>Tambahkan ke daftar</button></td></tr>`).join('')}</table></div>` : ''}
 <label for="brList">Satu per baris: <b>Regional | Cabang / galeri</b>. Bisa juga tempel 2 kolom dari Excel. Nama berawalan &ldquo;Galeri&rdquo; otomatis tercatat sebagai galeri investasi.</label>
@@ -549,7 +572,7 @@ async function importUsers(env, text) {
 }
 
 async function admin(request, env, url, sess) {
-  if (sess.role !== 'admin') return page(403, doc('Tidak diizinkan', `<div class="card"><h1>Khusus admin</h1><p class="sub">Akun Anda tidak punya akses ke halaman ini.</p><a href="/">Kembali ke beranda</a></div>`));
+  if (sess.role !== 'admin') return page(403, doc('Tidak diizinkan', `<div class="card"><h1>Khusus admin</h1><p class="sub">Akunmu tidak punya akses ke halaman ini.</p><a href="/">Kembali ke beranda</a></div>`));
   const post = request.method === 'POST', path = url.pathname;
   if (!post && path === '/admin/user') { const e = (url.searchParams.get('e') || '').toLowerCase(), u = await getUser(env, e); return u ? page(200, userPage(sess, e, u, '', await getBranches(env), await getOrg(env))) : page(404, await adminPage(env, sess, 'Akun tidak ditemukan.', true)); }
   if (!post && path === '/admin/role') return page(200, rolePage(sess, await getOrg(env), await listUsers(env)));
@@ -614,16 +637,19 @@ async function admin(request, env, url, sess) {
   if (act === 'add') {
     if (u && u.status === 'approved') return bad(`<b>${esc(email)}</b> sudah disetujui.`);
     u = { role: 'user', at: stamp(), why: 'ditambahkan admin', access: {}, ...(u || {}), status: 'approved' };
+    const code = u.hash ? '' : newCode(); if (code) u.code = await codeHash(code);
     await saveUser(env, email, u); await syncPlanner(env, { email, u });
-    return page(200, await adminPage(env, sess, `<b>${esc(email)}</b> ditambahkan.${u.hash ? '' : ' Minta ia klik Daftar dengan email itu untuk membuat password.'} Klik <b>Atur akses</b> untuk memilih tool-nya.`, false, { email, u }));
+    return page(200, await adminPage(env, sess, `<b>${esc(email)}</b> ditambahkan. Klik <b>Atur akses</b> untuk memilih tool-nya.${codeNote(code)}`, false, { email, u }));
   }
   if (!ACTS[act]) return bad('Aksi tidak dikenal.');
   if (!u) return bad('Akun tidak ditemukan.');
-  if (isMain(env, email)) return bad('Admin utama diatur lewat ADMIN_EMAILS di Cloudflare, bukan dari halaman ini.');
+  if (act === 'code' && u.hash) return bad('Akun ini sudah punya password. Pakai Reset password bila ia lupa.');
+  if (isMain(env, email) && act !== 'code') return bad('Admin utama diatur lewat ADMIN_EMAILS di Cloudflare, bukan dari halaman ini.');
   if (email === sess.email) return bad('Tidak bisa mengubah akun yang sedang dipakai.');
-  if (act === 'delete') { await env.HUB_KV.delete('u:' + email); if (u.username) await env.HUB_KV.delete('n:' + u.username); u = null; } else { ACTS[act][1](u); await saveUser(env, email, u); }
-  if (act !== 'reset') await syncPlanner(env, { email, u });
-  return page(200, await adminPage(env, sess, `<b>${esc(email)}</b> ${ACTS[act][2]}.${act === 'approve' ? ' Klik <b>Atur akses</b> untuk memilih tool-nya.' : ''}`, false, { email, u }));
+  const code = act === 'reset' || act === 'code' ? newCode() : '';
+  if (act === 'delete') { await env.HUB_KV.delete('u:' + email); if (u.username) await env.HUB_KV.delete('n:' + u.username); u = null; } else { ACTS[act][1](u); if (code) u.code = await codeHash(code); await saveUser(env, email, u); }
+  if (!code) await syncPlanner(env, { email, u });
+  return page(200, await adminPage(env, sess, `<b>${esc(email)}</b> ${ACTS[act][2]}.${act === 'approve' ? ' Klik <b>Atur akses</b> untuk memilih tool-nya.' : ''}${codeNote(code)}`, false, { email, u }));
 }
 
 async function account(request, env, url, sess) {
@@ -846,8 +872,9 @@ export function rhythm(now, parts, has) {
 
 export { APPS, checkPw, hashPw, RHYTHM };
 export default {
-  async fetch(request, env = {}) {
+  async fetch(request, env = {}, ctx) {
     const url = new URL(request.url), path = url.pathname, post = request.method === 'POST';
+    if (path === '/i18n.js') return new Response(I18N_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
     if (!configured(env)) return page(500, setupPage(env));
     if (path.startsWith('/gh/')) return ghProxy(request, env, url);
     if (path === '/logout') return redirect('/login', { 'set-cookie': cookieStr('', 0) });
@@ -869,7 +896,8 @@ export default {
     if (path === '/api/prefs' && post) return savePrefs(request, env, url, sess, mine);
     if (path === '/api/notif/read' && post) return readNotif(request, env, url, sess, mine);
     if (path !== '/') return redirect('/');
-    if (Date.now() - plannerSyncAt > 30 * 60e3) await syncPlanner(env);   // sesekali, supaya daftar anggota Planner tetap sama dengan hub
+    // sesekali, supaya daftar anggota Planner tetap sama dengan hub; di latar belakang agar beranda tidak menunggu tool yang lambat
+    if (Date.now() - plannerSyncAt > 30 * 60e3) { const s = syncPlanner(env); if (ctx && ctx.waitUntil) ctx.waitUntil(s); else await s; }
     return page(200, shellPage(env, sess, mine, sess.role === 'admin' ? (await listUsers(env)).filter(x => x.status === 'pending').length : 0, await getFav(env, sess.email, mine), await getOrg(env)),
       { 'set-cookie': cookieStr(await makeSession(env, sess.email, sess.u), SESSION_DAYS * 86400) });   // perbarui cookie (juga memperpanjang sesi 30 hari)
   },

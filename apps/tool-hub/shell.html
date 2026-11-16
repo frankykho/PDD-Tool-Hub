@@ -14,8 +14,8 @@
 <style id="hub-theme-style">
 :root{
   --bg:#F5F7F5;--surface:#FFFFFF;--surface-2:#F8FAF8;--hover:#F1F5F2;--border:#E5EAE5;--border-strong:#D3DBD4;
-  --text:#17231B;--text-2:#5E6A61;--text-3:#68746B;
-  --brand:#14DB4C;--brand-soft:#EAF8ED;--brand-text:#0F7F33;--focus:#14DB4C;
+  --text:#17231B;--text-2:#4F5B53;--text-3:#56625A;
+  --brand:#14DB4C;--brand-soft:#EAF8ED;--brand-text:#0F7F33;--focus:#0F7F33;
   --primary:#0B2117;--primary-hover:#163A28;--primary-text:#FFFFFF;
   --side:#0B2117;--side-2:#12301F;--side-text:#B9CABF;--side-strong:#FFFFFF;--side-muted:#A9BEB1;--side-line:rgba(255,255,255,.08);
   --ok:#15803D;--ok-soft:#E8F7EE;--warn:#B45309;--warn-soft:#FEF3E2;--err:#B91C1C;--err-soft:#FDECEC;--info:#2563EB;--info-soft:#EAF1FE;--muted-soft:#EEF1EE;
@@ -129,7 +129,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .side .avatar{width:34px;height:34px;background:var(--side-2);color:var(--brand)}
 .menu-wrap{position:relative}
 .bellbtn{position:relative}
-.nbadge{position:absolute;top:1px;right:1px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--err);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;box-shadow:0 0 0 2px var(--bg)}
+.nbadge{position:absolute;top:1px;right:1px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#B91C1C;color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;box-shadow:0 0 0 2px var(--bg)}
 .nbadge[hidden]{display:none}
 .menu.notif{width:min(380px,calc(100vw - 32px));max-height:min(72vh,540px);overflow:auto;padding:0}
 .notif .nh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
@@ -215,7 +215,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .tact{position:absolute;top:10px;right:10px;display:flex;gap:2px}
 .tact .iconbtn{width:30px;height:30px;border-radius:8px}
 .tact svg.ic{width:16px;height:16px}
-.star.on{color:#E5A00D}
+.star.on{color:var(--warn)}
 .compact .tmain{min-height:72px;padding:12px 44px 12px 12px;align-items:center}
 .compact .tname{padding-right:0}
 .compact .tact{top:50%;transform:translateY(-50%);right:8px}
@@ -272,7 +272,7 @@ span.rhy-a{cursor:default}
 .rhy-a .m small{display:block;font-size:12px;color:var(--text-2)}
 a.rhy-a:hover b,button.rhy-a:hover b{text-decoration:underline}
 .rhy-i.err small{color:var(--err)}.rhy-i.warn small{color:var(--warn)}
-.rhy-i.wait{opacity:.62}
+.rhy-i.wait b{font-weight:500;color:var(--text-2)}
 .panel-f{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .panel-f .muted{flex:1;font-size:12px}
 
@@ -349,7 +349,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);transition:all .2s;z-index:95;max-width:calc(100vw - 32px)}
 .toast.on{opacity:1;transform:translate(-50%,0)}
-.toast.err{background:var(--err);color:#fff}
+.toast.err{background:#B91C1C;color:#fff}
 
 /* ---------- responsif ---------- */
 @media (max-width:900px){.rhy-cols{grid-template-columns:1fr}}
@@ -381,6 +381,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .grid{grid-template-columns:minmax(0,1fr)}
   .today{grid-template-columns:minmax(0,1fr)}
   .topbar .iconbtn,.topbar .avatar,.searchbtn{width:44px;height:44px}
+  .subp button,.appbar .back,.notif .link,.panel-h .link{min-height:44px}
   .topbar{gap:4px}
   .chip{height:44px}
   .tact .iconbtn{width:44px;height:44px}
@@ -618,7 +619,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     var want = fav.slice(), done = on ? a.name + " dihapus dari favorit" : a.name + " ditambahkan ke favorit";
     favBusy = favBusy.then(function () {
       return fetch("/api/prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fav: want }) })
-        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); toast(done); })
+        .then(function (r) { if (r.status === 401) location.href = "/login?next=%2F"; if (!r.ok) throw new Error("HTTP " + r.status); toast(done); })
         .catch(function () { if (fav.join() === want.join()) { fav = prev; renderLists(); } toast("Favorit gagal disimpan. Periksa koneksi lalu coba lagi.", true); });
     });
   }
@@ -697,7 +698,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
         : mark + '<span class="brand-name">' + esc(b.name) + "</span>");
     $("#railBtn").innerHTML = icon("panel"); $("#drawerClose").innerHTML = icon("x");
     $("#menuBtn").innerHTML = icon("menu"); $("#menuBtn2").innerHTML = icon("menu");
-    $("#back").innerHTML = icon("chevL") + "<span>Workspace</span>";
+    $("#back").innerHTML = icon("chevL") + "<span>Kembali</span>";
     $("#appSearch").innerHTML = icon("search");
     var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     $("#searchBtn").innerHTML = icon("search") + "<span>Cari tool, halaman, atau aksi…</span><kbd>" + (mac ? "⌘ K" : "Ctrl K") + "</kbd>";
@@ -762,7 +763,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       return '<section class="panel" aria-labelledby="' + p[1] + 'H"><div class="panel-h"><span class="ticon sm cat-' + p[3] + '">' + icon(p[2]) + '</span><h2 id="' + p[1] + 'H">' + esc(p[4]) + '</h2></div><div class="pbody" id="' + p[1] + '">' + skel(3) + "</div></section>";
     }).join("");
     // tugas otomatis yang gagal: kartu ini hanya muncul bila ada masalah (diisi fillJobs)
-    if (H.today.jobs || H.today.cron) html += '<section class="panel" id="jobsPanel" aria-labelledby="jobsH" hidden><div class="panel-h"><span class="ticon sm st-err">' + icon("alert") + '</span><h2 id="jobsH">Tugas otomatis bermasalah</h2>' +
+    if (H.me.ops && (H.today.jobs || H.today.cron)) html += '<section class="panel" id="jobsPanel" aria-labelledby="jobsH" hidden><div class="panel-h"><span class="ticon sm st-err">' + icon("alert") + '</span><h2 id="jobsH">Tugas otomatis bermasalah</h2>' +
       (H.actions ? '<a class="link" href="' + esc(H.actions) + '" target="_blank" rel="noopener">GitHub ' + icon("ext") + "</a>" : "") + '</div><div class="pbody" id="jobsBody">' + skel(4) + "</div></section>";
     box.innerHTML = html; box.hidden = !html;
     var rb = $("#rhythm");
@@ -930,7 +931,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       rows.push('<div class="row"><span class="dot err" aria-hidden="true"></span><a class="m" href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.name) + '</b><small title="' + esc(sub) + '">' + esc(sub) + "</small></a></div>");
     });
     panel.hidden = !rows.length;
-    el.innerHTML = rows.length ? '<div class="rows">' + rows.join("") + '</div><div class="panel-f"><span class="muted">Diperbarui ' + esc(ago(Date.now())) + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang" title="Muat ulang">' + icon("refresh") + "</button></div>" : "";
+    el.innerHTML = rows.length ? '<div class="rows">' + rows.join("") + '</div><div class="panel-f"><span class="muted">Diperbarui ' + new Date().toTimeString().slice(0, 5).replace(':', '.') + '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang" title="Muat ulang">' + icon("refresh") + "</button></div>" : "";
   }
   /* ---------- ritme hari ini (langkah dihitung di server: rhythm() di worker.js) ---------- */
   var RCOLS = [["Pagi", 0, 660, "00.00–11.00"], ["Siang", 660, 900, "11.00–15.00"], ["Sore", 900, 1440, "15.00–24.00"]];
@@ -938,7 +939,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function mins(t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); }
   function rhyItem(s) {
     var inner = '<span class="tm">' + s.at.replace(":", ".") + '</span><span class="dot ' + (RDOT[s.state] || "") + '" aria-hidden="true"></span><span class="m"><b>' + esc(s.title) + "</b><small>" + esc([s.note, s.sub].filter(Boolean).join(" · ")) + "</small></span>";
-    var body = s.url ? '<a class="rhy-a" href="' + esc(s.url) + '" target="_blank" rel="noopener">' + inner + "</a>"
+    var body = s.url && H.me.ops ? '<a class="rhy-a" href="' + esc(s.url) + '" target="_blank" rel="noopener">' + inner + "</a>"
       : s.tool && byId[s.tool] ? '<button class="rhy-a" type="button" data-open="' + s.tool + '">' + inner + "</button>" : '<span class="rhy-a">' + inner + "</span>";
     return '<li class="rhy-i ' + s.state + '">' + body + "</li>";
   }
@@ -1002,7 +1003,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     if (quiet !== true) PANELS.map(function (p) { return "#" + p[1]; }).concat("#jobsBody", "#rhythmBody").forEach(function (s) { var e = $(s); if (e) e.innerHTML = skel(3); });
     var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
     fetch("/api/today", { headers: { accept: "application/json" }, signal: ctl && ctl.signal }).then(function (r) {
-      if (r.status === 401) throw new Error("Sesi habis. Muat ulang halaman lalu login lagi.");
+      if (r.status === 401) { location.href = "/login?next=%2F"; throw new Error("Sesi habis. Mengarahkan ke halaman login…"); }
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
     }).then(function (d) { feed = d; fillAll(d); })
       .catch(function (e) { var m = { ok: false, error: e.name === "AbortError" ? "waktu habis" : e.message }; if (quiet !== true) fillAll({ rhythm: m, recap: m, planner: m, fund: m, competitor: m, edukasi: m, news: m, brand: m, jobs: m, cron: m }); })
@@ -1124,6 +1125,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       if (typeof d.hubShareUrl === "string" && d.hubShareUrl.length <= 500 && d.hubShareUrl.indexOf(e.origin + "/") === 0) SH[k] = d.hubShareUrl;
       if (d.type === "toolhub-theme-request") try { e.source.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (x) { }
       if (d.type === "toolhub-lang-request") try { e.source.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (x) { }
+      if (d.type === "toolhub-search") palOpen();
       if (d.type === "toolhub-guide" && byId[k] && byId[k].guide) go("#/about/" + k + "/panduan");
       // buka halaman tool lain dari dalam tool (mis. Event & Lead -> Brand Kit "Buat poster"); hanya tool yang boleh dibuka pengguna
       if (d.type === "toolhub-open" && typeof d.app === "string" && byId[d.app] && typeof d.path === "string" && d.path.length <= 300 && /^\/[?#][\w=&%.\-\/#?]*$/.test(d.path)) {
@@ -1133,8 +1135,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   });
 
   /* ---------- laci (mobile) & menu akun ---------- */
-  function openDrawer() { app.classList.add("drawer"); var f = document.querySelector("#nav a"); if (f) f.focus(); }
-  function closeDrawer() { app.classList.remove("drawer"); }
+  function openDrawer() { app.classList.add("drawer"); $("#main").inert = $("#appview").inert = true; var f = document.querySelector("#nav a"); if (f) f.focus(); }
+  function closeDrawer() { app.classList.remove("drawer"); $("#main").inert = $("#appview").inert = false; }
   function acct(open) { $("#acctMenu").classList.toggle("open", open); $("#acctBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = document.querySelector("#acctMenu a"); if (f) f.focus(); } }
 
   /* ---------- pencarian global ---------- */

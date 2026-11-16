@@ -2,5 +2,7 @@
 {
   "name": "market-proxy",
   "main": "worker.js",
-  "compatibility_date": "2026-09-22"
+  "compatibility_date": "2026-09-22",
+  // tanpa alamat publik: hanya story-data (service binding) yang memakainya, jadi tidak bisa dipakai orang luar sebagai proxy Yahoo
+  "workers_dev": false
 }

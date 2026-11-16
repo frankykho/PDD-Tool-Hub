@@ -117,6 +117,44 @@ assert.equal(JSON.parse(env.HUB_KV.m.get("u:" + ADMIN).v).job, undefined, "isian
 const admin = cookieOf(reg);
 assert.match(admin, /^hub_sess=/);
 
+/* ---------- kamus EN disajikan sebagai file ber-cache, tidak ditempel di setiap halaman ---------- */
+{
+  const html = await (await call("/login")).text(), src = (/<script src="(\/i18n\.js\?v=[\w-]+)"/.exec(html) || [])[1];
+  assert.ok(src, "halaman login memuat /i18n.js");
+  assert.ok(html.length < 30000, "halaman login ramping (sekarang " + html.length + " byte)");
+  const js = await call(src);
+  assert.match(js.headers.get("cache-control"), /immutable/);
+  assert.match(await js.text(), /__i18o/, "isi /i18n.js = mesin bahasa + kamus");
+}
+
+/* ---------- kode daftar:akun tanpa password tidak bisa diklaim orang lain ---------- */
+{
+  let ip = 0;
+  const daftar = (form, e = env) => hub.fetch(new Request(HUB + "/daftar", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "10.0.0." + ++ip }, body: new URLSearchParams(form) }), e);
+  const act = async (act, email) => (await call("/admin/act", { method: "POST", cookie: admin, origin: HUB, form: { act, email } })).text();
+  const codeIn = (html) => (/<b class="code"[^>]*>([A-Z0-9-]{9})</.exec(html) || [])[1];
+  const BOB = "bob@acme.test", bob = { name: "Bob", email: BOB, password: "rahasia-456" };
+  const code = codeIn(await act("add", BOB));
+  assert.ok(code, "tambah langsung menampilkan kode daftar");
+  assert.equal((await daftar(bob)).status, 403, "akun tambahan admin tidak bisa diklaim tanpa kode");
+  assert.equal((await daftar({ ...bob, code: "AAAA-AAAA" })).status, 403, "kode salah ditolak");
+  assert.equal((await daftar({ ...bob, code: code.toLowerCase().replace("-", "") })).status, 303, "kode benar (huruf kecil, tanpa minus) diterima");
+  const rec = JSON.parse(env.HUB_KV.m.get("u:" + BOB).v);
+  assert.equal(rec.status, "approved", "status dari admin tetap"); assert.equal(rec.code, undefined, "kode sekali pakai dihapus");
+  assert.equal((await daftar({ ...bob, code })).status, 409, "kode tidak bisa dipakai lagi");
+  const code2 = codeIn(await act("reset", BOB));
+  assert.ok(code2 && code2 !== code, "reset password memberi kode baru");
+  assert.equal((await daftar(bob)).status, 403, "akun yang di-reset tidak bisa diklaim tanpa kode");
+  assert.ok(codeIn(await act("code", BOB)), "admin bisa membuat kode pengganti");
+  const env2 = { ...env, ADMIN_EMAILS: ADMIN + ",boss@acme.test" };
+  assert.equal((await daftar({ name: "Boss", email: "boss@acme.test", password: "rahasia-789" }, env2)).status, 403, "admin utama baru perlu kode setelah hub punya admin");
+  await act("delete", BOB);
+}
+
+// ?next= hanya boleh ke dalam hub: "\" dan tab dibaca browser sebagai "//" (situs lain)
+for (const [n, want] of [["/%5Cevil.com", "/"], ["/%09/evil.com", "/"], ["//evil.com", "/"], ["/akun?x=1", "/akun?x=1"]])
+  assert.equal((await call("/login?next=" + n, { cookie: admin })).headers.get("location"), want, "next " + n);
+
 let r = await call("/", { cookie: admin });
 assert.equal(r.status, 200);
 let html = await r.text(), boot = bootOf(html);
