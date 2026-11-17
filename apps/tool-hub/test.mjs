@@ -151,6 +151,25 @@ assert.match(admin, /^hub_sess=/);
   await act("delete", BOB);
 }
 
+/* ---------- keluar dari semua perangkat ---------- */
+{
+  const CAROL = "carol@acme.test", pw = "rahasia-carol";
+  const add = await (await call("/admin/act", { method: "POST", cookie: admin, origin: HUB, form: { act: "add", email: CAROL } })).text();
+  const code = /<b class="code"[^>]*>([A-Z0-9-]{9})</.exec(add)[1];
+  const hp = cookieOf(await call("/daftar", { method: "POST", form: { name: "Carol", email: CAROL, password: pw, code } }));
+  const laptop = cookieOf(await call("/login", { method: "POST", form: { email: CAROL, password: pw } }));
+  assert.equal((await call("/", { cookie: hp })).status, 200); assert.equal((await call("/", { cookie: laptop })).status, 200);
+  assert.match(await (await call("/akun", { cookie: hp })).text(), /id="perangkat"/, "tombol ada di halaman akun");
+  assert.equal((await call("/akun", { method: "POST", cookie: hp, form: { act: "out-all" } })).status, 403, "tanpa Origin ditolak");
+  const out = await call("/akun", { method: "POST", cookie: hp, origin: HUB, form: { act: "out-all" } });
+  assert.equal(out.headers.get("location"), "/login"); assert.match(out.headers.get("set-cookie"), /Max-Age=0/);
+  for (const c of [hp, laptop]) assert.equal((await call("/", { cookie: c })).headers.get("location"), "/login", "semua sesi lama batal");
+  const again = cookieOf(await call("/login", { method: "POST", form: { email: CAROL, password: pw } }));
+  assert.equal((await call("/", { cookie: again })).status, 200, "bisa login lagi");
+  assert.equal((await call("/", { cookie: admin })).status, 200, "akun lain tidak ikut keluar");
+  await call("/admin/act", { method: "POST", cookie: admin, origin: HUB, form: { act: "delete", email: CAROL } });
+}
+
 // ?next= hanya boleh ke dalam hub: "\" dan tab dibaca browser sebagai "//" (situs lain)
 for (const [n, want] of [["/%5Cevil.com", "/"], ["/%09/evil.com", "/"], ["//evil.com", "/"], ["/akun?x=1", "/akun?x=1"]])
   assert.equal((await call("/login?next=" + n, { cookie: admin })).headers.get("location"), want, "next " + n);

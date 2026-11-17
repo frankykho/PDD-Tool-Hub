@@ -707,7 +707,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     $("#acctMenu").innerHTML = '<div class="mh"><b translate="no">' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email + (H.me.job ? " · " + H.me.job : "")) + "</small></div>" +
       '<a role="menuitem" href="/akun">' + icon("key") + "Ganti password</a>" +
       (H.me.admin ? '<a role="menuitem" href="/admin">' + icon("shield") + "Admin" + (H.pending ? '<span class="badge st-warn">' + H.pending + " menunggu</span>" : "") + "</a>" : "") +
-      '<a role="menuitem" href="/logout">' + icon("logout") + "Keluar</a>";
+      '<a role="menuitem" href="/logout">' + icon("logout") + "Keluar</a>" +
+      '<a role="menuitem" href="/akun#perangkat">' + icon("logout") + "Keluar dari semua perangkat</a>";
     $("#sideFoot").innerHTML = '<div class="theme-seg" role="group" aria-label="Tema">' +
       '<button type="button" data-theme="light" title="Tema terang">' + icon("sun") + "Terang</button>" +
       '<button type="button" data-theme="dark" title="Tema gelap">' + icon("moon") + "Gelap</button>" +
@@ -1156,6 +1157,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     out.push({ g: "Aksi", t: "Tema ikuti sistem", s: "Tampilan", ic: "monitor", h: "tema sistem system auto", run: function () { setTheme("system"); } });
     out.push({ g: "Aksi", t: lang === "en" ? "Bahasa Indonesia" : "English", s: "Bahasa", ic: "globe", h: "bahasa language english inggris indonesia", run: toggleLang });
     out.push({ g: "Aksi", t: "Ganti password", s: "Akun", ic: "key", h: "ganti password akun kata sandi", run: function () { location.href = "/akun"; } });
+    out.push({ g: "Aksi", t: "Keluar dari semua perangkat", s: "Akun", ic: "logout", h: "logout semua perangkat device sesi keluar", run: function () { location.href = "/akun#perangkat"; } });
     if (H.me.admin) out.push({ g: "Aksi", t: "Admin", s: H.pending ? H.pending + " permintaan akses menunggu" : "Pengguna & hak akses", ic: "shield", h: "admin pengguna akses persetujuan approval", run: function () { location.href = "/admin"; } });
     out.push({ g: "Aksi", t: "Keluar", s: "Akun", ic: "logout", h: "keluar logout sign out", run: function () { location.href = "/logout"; } });
     return out;

@@ -183,7 +183,8 @@ const getOrg = async env => cleanOrg(await env.HUB_KV.get('cfg:org', 'json'));
 const orgGroups = org => [...org.teams.map(t => [t.name, org.roles.filter(r => r.team === t.id)]), ['Tanpa tim', org.roles.filter(r => !r.team)]].filter(g => g[1].length);
 const jobOpts = (org, cur) => orgGroups(org).map(([l, R]) => `<optgroup label="${esc(l)}">${R.map(r => `<option value="${r.k}"${cur === r.k ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}</optgroup>`).join('');
 const saveUser = (env, email, u) => env.HUB_KV.put('u:' + email, JSON.stringify(u), { metadata: meta(u) });
-const fp = u => u.hash.slice(-12);   // sidik password: berubah kalau password diganti/di-reset, jadi sesi lama ikut batal
+// sidik sesi: berubah kalau password diganti/di-reset atau pengguna memilih "Keluar dari semua perangkat" (u.sv), jadi sesi lama ikut batal
+const fp = u => u.hash.slice(-12) + (u.sv || '');
 /** Hak akses pengguna untuk satu tool. Admin hub selalu dapat tingkat tertinggi. null = tidak punya akses. */
 const accessOf = (u, app) => u.role === 'admin' ? topLevel(app) : (u.access && u.access[app.id]) || null;
 
@@ -655,10 +656,15 @@ async function admin(request, env, url, sess) {
 async function account(request, env, url, sess) {
   const view = (note = '', bad = false) => doc('Ganti password', `<form class="card" method="post" action="/akun">${topBar(sess, 'Ganti password', '/akun')}
 <label for="po">Password sekarang</label>${pwField('po', 'old', 'current-password')}<label for="pn">Password baru (minimal 8 karakter)</label>${pwField('pn', 'pw', 'new-password', ' minlength="8"')}
-<div style="margin-top:20px"><button type="submit" style="width:100%">Simpan</button></div>${note ? `<div class="msg ${bad ? 'err' : 'ok'}">${note}</div>` : ''}<p class="sub" style="margin:16px 0 0">Satu password ini berlaku untuk semua tool.</p></form>`);
+<div style="margin-top:20px"><button type="submit" style="width:100%">Simpan</button></div>${note ? `<div class="msg ${bad ? 'err' : 'ok'}">${note}</div>` : ''}<p class="sub" style="margin:16px 0 0">Satu password ini berlaku untuk semua tool.</p></form>
+<form class="card" id="perangkat" method="post" action="/akun" style="margin-top:16px"><input type="hidden" name="act" value="out-all"><h2 style="margin-top:0">Keluar dari semua perangkat</h2>
+<p class="sub">Semua perangkat yang masuk dengan akun ini, termasuk yang sedang kamu pakai, harus login lagi. Pakai ini bila lupa keluar di komputer bersama atau HP hilang.</p>
+<button type="submit" class="ghost" style="width:100%">Keluar dari semua perangkat</button></form>`);
   if (request.method !== 'POST') return page(200, view());
   if (request.headers.get('origin') !== url.origin) return page(403, 'Permintaan ditolak.');
   const f = await form(request), pw = fv(f, 'pw');
+  // tool yang sedang terbuka di perangkat lain tetap jalan sampai sesi tool itu habis (2-8 jam), lalu harus login lagi
+  if (fv(f, 'act') === 'out-all') { sess.u.sv = Date.now().toString(36); await saveUser(env, sess.email, sess.u); return redirect('/login', { 'set-cookie': cookieStr('', 0) }); }
   if (!(await checkPw(fv(f, 'old'), sess.u.hash))) return page(400, view('Password sekarang salah.', true));
   if (pw.length < 8 || pw.length > 200) return page(400, view('Password baru minimal 8 karakter.', true));
   sess.u.hash = await hashPw(pw); await saveUser(env, sess.email, sess.u);

@@ -471,6 +471,8 @@ export default {
   "Email ini sudah terdaftar. Silakan Masuk. Lupa password? Minta admin mereset.": "This email is already registered. Please sign in. Forgot your password? Ask an admin to reset it.",
   "Username sudah dipakai. Pilih yang lain atau kosongkan.": "That username is taken. Choose another or leave it empty.",
   "Password sekarang": "Current password", "Password baru (minimal 8 karakter)": "New password (at least 8 characters)",
+  "Keluar dari semua perangkat": "Sign out of all devices",
+  "Semua perangkat yang masuk dengan akun ini, termasuk yang sedang kamu pakai, harus login lagi. Pakai ini bila lupa keluar di komputer bersama atau HP hilang.": "Every device signed in with this account, including the one you are using, must sign in again. Use this if you forgot to sign out on a shared computer or lost your phone.",
   "Satu password ini berlaku untuk semua tool.": "This one password works for all tools.", "Password sekarang salah.": "The current password is incorrect.",
   "Password baru minimal 8 karakter.": "The new password must be at least 8 characters.", "Password diganti.": "Password changed.",
   "Tema sistem": "System theme", "Tema aktif: {v}. Klik untuk mengganti.": "Active theme: {v}. Click to change.", "Tema aktif: {v}": "Active theme: {v}",
