@@ -7,7 +7,7 @@
 <title>Tool Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap">
 <!-- Dashboard Tool Hub. Diisi apps/tool-hub/worker.js: penanda window.HUB di bagian bawah diganti data pengguna (tool yang boleh diakses, favorit, dll.).
      Kunci localStorage: toolhub-theme-v2 (tema, dipakai juga halaman lain di hub), toolhub-recent:<email> (riwayat per akun). -->
 <script>(function(){var t='system';try{t=localStorage.getItem('toolhub-theme-v2')||'system'}catch(e){}if(['light','dark','system'].indexOf(t)<0)t='system';document.documentElement.setAttribute('data-theme',t)})()</script>
@@ -23,8 +23,8 @@
   --c-research:#1D5A44;--c-research-bg:#E3F3EA;--c-creative:#6D3FD4;--c-creative-bg:#F1ECFE;
   --c-campaign:#B45309;--c-campaign-bg:#FEF1E1;--c-education:#1D4ED8;--c-education-bg:#E7EFFE;
   --ai-bg:#E3F3EA;
-  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 18px 48px rgba(18,36,27,.16);
-  --r-sm:6px;--r:10px;--r-lg:12px;color-scheme:light
+  --shadow:0 1px 2px rgba(18,36,27,.05),0 8px 24px rgba(18,36,27,.07);--shadow-md:0 14px 34px rgba(18,36,27,.12);--shadow-lg:0 20px 50px rgba(18,36,27,.18);
+  --r-sm:6px;--r:12px;--r-lg:16px;color-scheme:light
 }
 html[data-theme="dark"]{
   --bg:#0D1512;--surface:#141F1A;--surface-2:#17241E;--hover:#1C2A23;--border:#25352D;--border-strong:#34473C;
@@ -37,7 +37,7 @@ html[data-theme="dark"]{
   --c-research:#6BD99C;--c-research-bg:#173527;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
   --c-campaign:#FBBF24;--c-campaign-bg:#33250E;--c-education:#93B4FF;--c-education-bg:#152645;
   --ai-bg:#173527;
-  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.28);--shadow-md:0 16px 40px rgba(0,0,0,.42);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
 }
 @media (prefers-color-scheme:dark){html[data-theme="system"]{
   --bg:#0D1512;--surface:#141F1A;--surface-2:#17241E;--hover:#1C2A23;--border:#25352D;--border-strong:#34473C;
@@ -50,11 +50,11 @@ html[data-theme="dark"]{
   --c-research:#6BD99C;--c-research-bg:#173527;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
   --c-campaign:#FBBF24;--c-campaign-bg:#33250E;--c-education:#93B4FF;--c-education-bg:#152645;
   --ai-bg:#173527;
-  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.28);--shadow-md:0 16px 40px rgba(0,0,0,.42);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
 }}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:14px/1.5 "Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font:14px/1.5 Geist,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit}
@@ -64,7 +64,7 @@ svg.ic.fill{fill:currentColor}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .skip{position:absolute;left:12px;top:-60px;z-index:100;background:var(--primary);color:var(--primary-text);padding:8px 14px;border-radius:var(--r);text-decoration:none;font-weight:600}
 .skip:focus{top:12px}
-kbd{font:600 11px/1 "Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;padding:3px 6px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;color:var(--text-2);background:var(--surface)}
+kbd{font:600 11px/1 Geist,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;color:var(--text-2);background:var(--surface)}
 
 /* ---------- kerangka ---------- */
 .app{min-height:100vh}
@@ -386,31 +386,50 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .appbar .back span{display:none}
 }
 
-/* ---------- sistem visual: kertas, tinta, pinus, kayu ----------
-   Datar: garis 1px, tanpa kaca/gradasi/bayangan; hanya lapisan yang melayang (menu, pencarian, menu tool) berbayang.
-   Lingkaran = tool, persegi = informasi. Warna selalu bermakna: pinus = aksi, daun = sesi bursa, kayu = sekarang & milikmu. */
-.main{padding-top:0}
-.topbar{position:sticky;top:0;z-index:30;background:var(--bg);padding:14px 0;margin-bottom:20px;border-bottom:1px solid var(--border)}
-.greet h1{font-size:28px;font-weight:800;letter-spacing:-.6px;line-height:1.15}
+/* ---------- sistem visual: kaca bersudut iKISI ----------
+   Latar: bidang hijau miring 45° seperti potongan di kotak logo iKISI (gradasi bertepi tegas, bukan gumpalan blur).
+   Di atasnya panel kaca putih tembus pandang. Lingkaran = tool, persegi = informasi. Pinus = aksi, daun = sesi bursa, kayu = sekarang & milikmu.
+   Blur topbar lewat ::before: backdrop-filter di elemennya sendiri membuatnya containing block anak position:fixed. */
+:root{--glass:rgba(255,255,255,.62);--glass-hover:rgba(255,255,255,.8);--float:rgba(255,255,255,.84);--glass-edge:rgba(255,255,255,.75);--glass-line:rgba(18,36,27,.1);
+  --glass-hl:inset 0 1px 0 rgba(255,255,255,.95);
+  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.26) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.18) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.22) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.14) 84%),linear-gradient(160deg,#EAF3EE,#F3F8F5 55%,#E6F0EA)}
+html[data-theme="dark"]{--glass:rgba(22,34,28,.6);--glass-hover:rgba(30,46,38,.75);--float:rgba(18,28,23,.88);--glass-edge:rgba(255,255,255,.08);--glass-line:rgba(255,255,255,.08);
+  --glass-hl:inset 0 1px 0 rgba(255,255,255,.07);
+  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.1) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.32) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.08) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.25) 84%),linear-gradient(160deg,#0B1511,#0E1814 55%,#0A130F)}
+@media (prefers-color-scheme:dark){html[data-theme="system"]{--glass:rgba(22,34,28,.6);--glass-hover:rgba(30,46,38,.75);--float:rgba(18,28,23,.88);--glass-edge:rgba(255,255,255,.08);--glass-line:rgba(255,255,255,.08);
+  --glass-hl:inset 0 1px 0 rgba(255,255,255,.07);
+  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.1) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.32) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.08) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.25) 84%),linear-gradient(160deg,#0B1511,#0E1814 55%,#0A130F)}}
+:root{--blur:blur(18px) saturate(160%)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--facets);pointer-events:none}
+.main{padding-top:12px}
+.topbar{position:sticky;top:12px;z-index:30;isolation:isolate;padding:10px 14px 10px 10px;margin-bottom:18px;border-radius:var(--r-lg)}
+.topbar::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:0 0 0 1px var(--glass-line),var(--glass-hl),var(--shadow)}
+.greet h1{font-size:27px;font-weight:700;letter-spacing:-.7px;line-height:1.15}
 .greet p{font-size:13.5px}
-.searchbtn{border-color:var(--border-strong)}
-.badge.now{background:var(--kayu-soft);color:var(--kayu)}
-.panel-h h2,.panel-h h3{font-size:15.5px;font-weight:700}
-.rhythm{border-color:var(--border-strong)}
-.pill{padding:4px 12px 4px 4px}
-.pill .ticon{width:28px;height:28px}
+.panel,.tcard,.detail-head,.pill,.chip,.searchbtn,.btn:not(.btn-primary),.field input,.select,.empty,.appbar .back{background-color:var(--glass);border-color:var(--glass-line)}
+.panel,.tcard,.detail-head{box-shadow:var(--glass-hl),var(--shadow)}
+.pill,.chip,.searchbtn,.btn:not(.btn-primary){box-shadow:var(--glass-hl)}
+.tcard:hover,.pill:hover,.chip:hover,.searchbtn:hover,.btn:not(.btn-primary):hover,.appbar .back:hover{background-color:var(--glass-hover)}
 .pill:hover,.tcard:hover{border-color:var(--primary)}
 .chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
-.menu,.pal-box{border-color:var(--border-strong)}
-.appbar{background:var(--surface)}
-.palette{background:rgba(13,21,18,.32)}
-/* menu tool: panel terang, ikon tool bulat */
-.side{border:1px solid var(--border-strong)}
+.badge.now{background:var(--kayu-soft);color:var(--kayu)}
+.panel-h h2,.panel-h h3{font-size:15.5px;font-weight:650}
+.rhy-col{background:rgba(255,255,255,.35);border-color:var(--glass-line)}
+html[data-theme="dark"] .rhy-col{background:rgba(255,255,255,.02)}
+.pill{padding:4px 12px 4px 4px}
+.pill .ticon{width:28px;height:28px}
+.menu,.pal-box,.side{background:var(--float);border:1px solid var(--glass-line);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hl),var(--shadow-lg)}
+.notif .nh{background:transparent}
+.appbar{background:var(--float);border-bottom-color:var(--glass-line);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.palette{background:rgba(11,21,17,.28);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .nav a:hover,.side .iconbtn:hover{background:var(--side-2)}
 .nav a[aria-current="page"]{background:var(--brand-soft);color:var(--brand-text);font-weight:600}
-.theme-seg{background:var(--surface-2)}
-.theme-seg button[aria-pressed="true"]{background:var(--surface);color:var(--side-strong);box-shadow:0 0 0 1px var(--border-strong)}
-.app.drawer .scrim{background:rgba(13,21,18,.28)}
+.theme-seg{background:var(--glass)}
+.theme-seg button[aria-pressed="true"]{background:var(--surface);color:var(--side-strong);box-shadow:0 0 0 1px var(--glass-line)}
+.app.drawer .scrim{background:rgba(11,21,17,.22)}
+.r-step{background:var(--surface)}
+@media (min-width:901px){.panel,.tcard,.detail-head{-webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%)}}
+@media (max-width:900px){.topbar{top:8px;padding:8px 10px 8px 6px}}
 
 /* penggaris hari bursa: jadwal sesi BEI, titik tiap langkah ritme, penanda kayu = sekarang */
 .ruler{margin:4px 0 18px}
@@ -425,8 +444,7 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 .r-ticks{position:relative;height:16px;margin-top:10px;font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
 .r-ticks span{position:absolute;transform:translateX(-50%)}
 .r-ticks span:first-child{transform:none}
-@media (max-width:900px){.topbar{padding:10px 0}}
-@media (max-width:640px){.main{padding-top:0}.greet h1{font-size:22px}}
+@media (max-width:640px){.main{padding-top:8px}.greet h1{font-size:22px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
