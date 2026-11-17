@@ -386,19 +386,19 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .appbar .back span{display:none}
 }
 
-/* ---------- sistem visual: kaca bersudut iKISI ----------
-   Latar: bidang hijau miring 45° seperti potongan di kotak logo iKISI (gradasi bertepi tegas, bukan gumpalan blur).
+/* ---------- sistem visual: kaca ----------
+   Latar: gradasi lembut hijau, biru, ungu.
    Di atasnya panel kaca putih tembus pandang. Lingkaran = tool, persegi = informasi. Pinus = aksi, daun = sesi bursa, kayu = sekarang & milikmu.
    Blur topbar lewat ::before: backdrop-filter di elemennya sendiri membuatnya containing block anak position:fixed. */
 :root{--glass:rgba(255,255,255,.62);--glass-hover:rgba(255,255,255,.8);--float:rgba(255,255,255,.84);--glass-edge:rgba(255,255,255,.75);--glass-line:rgba(18,36,27,.1);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.95);
-  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.26) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.18) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.22) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.14) 84%),linear-gradient(160deg,#EAF3EE,#F3F8F5 55%,#E6F0EA)}
+  --facets:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.36),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.3),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.16),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.22),transparent 70%),linear-gradient(180deg,#F1F7F3,#E8F0EB)}
 html[data-theme="dark"]{--glass:rgba(22,34,28,.6);--glass-hover:rgba(30,46,38,.75);--float:rgba(18,28,23,.88);--glass-edge:rgba(255,255,255,.08);--glass-line:rgba(255,255,255,.08);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.07);
-  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.1) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.32) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.08) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.25) 84%),linear-gradient(160deg,#0B1511,#0E1814 55%,#0A130F)}
+  --facets:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}
 @media (prefers-color-scheme:dark){html[data-theme="system"]{--glass:rgba(22,34,28,.6);--glass-hover:rgba(30,46,38,.75);--float:rgba(18,28,23,.88);--glass-edge:rgba(255,255,255,.08);--glass-line:rgba(255,255,255,.08);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.07);
-  --facets:linear-gradient(135deg,transparent 0 46%,rgba(67,201,126,.1) 46% 64%,transparent 64%),linear-gradient(45deg,rgba(29,90,68,.32) 0 34%,transparent 34%),linear-gradient(45deg,transparent 0 78%,rgba(67,201,126,.08) 78%),linear-gradient(135deg,transparent 0 84%,rgba(29,90,68,.25) 84%),linear-gradient(160deg,#0B1511,#0E1814 55%,#0A130F)}}
+  --facets:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}}
 :root{--blur:blur(18px) saturate(160%)}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--facets);pointer-events:none}
 .main{padding-top:12px}
