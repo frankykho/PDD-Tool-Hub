@@ -7,51 +7,54 @@
 <title>Tool Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
 <!-- Dashboard Tool Hub. Diisi apps/tool-hub/worker.js: penanda window.HUB di bagian bawah diganti data pengguna (tool yang boleh diakses, favorit, dll.).
      Kunci localStorage: toolhub-theme-v2 (tema, dipakai juga halaman lain di hub), toolhub-recent:<email> (riwayat per akun). -->
 <script>(function(){var t='system';try{t=localStorage.getItem('toolhub-theme-v2')||'system'}catch(e){}if(['light','dark','system'].indexOf(t)<0)t='system';document.documentElement.setAttribute('data-theme',t)})()</script>
 <style id="hub-theme-style">
 :root{
-  --bg:#F5F7F5;--surface:#FFFFFF;--surface-2:#F8FAF8;--hover:#F1F5F2;--border:#E5EAE5;--border-strong:#D3DBD4;
-  --text:#17231B;--text-2:#4F5B53;--text-3:#56625A;
-  --brand:#14DB4C;--brand-soft:#EAF8ED;--brand-text:#0F7F33;--focus:#0F7F33;
-  --primary:#0B2117;--primary-hover:#163A28;--primary-text:#FFFFFF;
-  --side:#0B2117;--side-2:#12301F;--side-text:#B9CABF;--side-strong:#FFFFFF;--side-muted:#A9BEB1;--side-line:rgba(255,255,255,.08);
-  --ok:#15803D;--ok-soft:#E8F7EE;--warn:#B45309;--warn-soft:#FEF3E2;--err:#B91C1C;--err-soft:#FDECEC;--info:#2563EB;--info-soft:#EAF1FE;--muted-soft:#EEF1EE;
-  --c-research:#0F7F33;--c-research-bg:#E6F7EB;--c-creative:#6D3FD4;--c-creative-bg:#F1ECFE;
+  --bg:#F5F7F6;--surface:#FFFFFF;--surface-2:#F9FBFA;--hover:#EEF3F0;--border:#DCE4DF;--border-strong:#C4D0C8;
+  --text:#12241B;--text-2:#45554B;--text-3:#56655B;
+  --brand:#43C97E;--brand-soft:#E3F3EA;--brand-text:#1D5A44;--focus:#1D5A44;
+  --primary:#1D5A44;--primary-hover:#174A38;--primary-text:#FFFFFF;
+  --kayu:#7B3F14;--kayu-soft:#F6ECE4;
+  --side:#FFFFFF;--side-2:#EEF3F0;--side-text:#2C3D33;--side-strong:#12241B;--side-muted:#56655B;--side-line:#DCE4DF;
+  --ok:#15803D;--ok-soft:#E8F7EE;--warn:#B45309;--warn-soft:#FEF3E2;--err:#B91C1C;--err-soft:#FDECEC;--info:#2563EB;--info-soft:#EAF1FE;--muted-soft:#EEF1EF;
+  --c-research:#1D5A44;--c-research-bg:#E3F3EA;--c-creative:#6D3FD4;--c-creative-bg:#F1ECFE;
   --c-campaign:#B45309;--c-campaign-bg:#FEF1E1;--c-education:#1D4ED8;--c-education-bg:#E7EFFE;
-  --ai-bg:linear-gradient(120deg,#EAF8ED 0%,#F4FBF6 55%,#FFFFFF 100%);
-  --shadow:0 1px 2px rgba(16,32,22,.04);--shadow-md:0 4px 16px rgba(16,32,22,.06);--shadow-lg:0 20px 50px rgba(11,33,23,.18);
-  --r-sm:6px;--r:10px;--r-lg:14px;color-scheme:light
+  --ai-bg:#E3F3EA;
+  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 18px 48px rgba(18,36,27,.16);
+  --r-sm:6px;--r:10px;--r-lg:12px;color-scheme:light
 }
 html[data-theme="dark"]{
-  --bg:#0C130F;--surface:#131C17;--surface-2:#17221C;--hover:#1B2821;--border:#233129;--border-strong:#2F4036;
-  --text:#E6EDE8;--text-2:#A3B0A8;--text-3:#8D9B92;
-  --brand:#14DB4C;--brand-soft:#12301F;--brand-text:#4ADE80;--focus:#4ADE80;
-  --primary:#14DB4C;--primary-hover:#3BE56B;--primary-text:#06140C;
-  --side:#08100B;--side-2:#11241A;--side-text:#A9BBB0;--side-strong:#F2F7F3;--side-muted:#869C8E;--side-line:rgba(255,255,255,.07);
+  --bg:#0D1512;--surface:#141F1A;--surface-2:#17241E;--hover:#1C2A23;--border:#25352D;--border-strong:#34473C;
+  --text:#E5EDE8;--text-2:#A9B8AF;--text-3:#93A399;
+  --brand:#43C97E;--brand-soft:#173527;--brand-text:#6BD99C;--focus:#6BD99C;
+  --primary:#43C97E;--primary-hover:#5AD48E;--primary-text:#0B1D14;
+  --kayu:#E0A272;--kayu-soft:#3A2516;
+  --side:#141F1A;--side-2:#1C2A23;--side-text:#C3D0C8;--side-strong:#F1F6F3;--side-muted:#93A399;--side-line:#25352D;
   --ok:#4ADE80;--ok-soft:#10301E;--warn:#FBBF24;--warn-soft:#33260C;--err:#F87171;--err-soft:#3A1515;--info:#93B4FF;--info-soft:#142342;--muted-soft:#1C2721;
-  --c-research:#4ADE80;--c-research-bg:#123222;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
+  --c-research:#6BD99C;--c-research-bg:#173527;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
   --c-campaign:#FBBF24;--c-campaign-bg:#33250E;--c-education:#93B4FF;--c-education-bg:#152645;
-  --ai-bg:linear-gradient(120deg,#12301F 0%,#142219 60%,#131C17 100%);
-  --shadow:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 16px rgba(0,0,0,.35);--shadow-lg:0 24px 60px rgba(0,0,0,.6);color-scheme:dark
+  --ai-bg:#173527;
+  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
 }
 @media (prefers-color-scheme:dark){html[data-theme="system"]{
-  --bg:#0C130F;--surface:#131C17;--surface-2:#17221C;--hover:#1B2821;--border:#233129;--border-strong:#2F4036;
-  --text:#E6EDE8;--text-2:#A3B0A8;--text-3:#8D9B92;
-  --brand:#14DB4C;--brand-soft:#12301F;--brand-text:#4ADE80;--focus:#4ADE80;
-  --primary:#14DB4C;--primary-hover:#3BE56B;--primary-text:#06140C;
-  --side:#08100B;--side-2:#11241A;--side-text:#A9BBB0;--side-strong:#F2F7F3;--side-muted:#869C8E;--side-line:rgba(255,255,255,.07);
+  --bg:#0D1512;--surface:#141F1A;--surface-2:#17241E;--hover:#1C2A23;--border:#25352D;--border-strong:#34473C;
+  --text:#E5EDE8;--text-2:#A9B8AF;--text-3:#93A399;
+  --brand:#43C97E;--brand-soft:#173527;--brand-text:#6BD99C;--focus:#6BD99C;
+  --primary:#43C97E;--primary-hover:#5AD48E;--primary-text:#0B1D14;
+  --kayu:#E0A272;--kayu-soft:#3A2516;
+  --side:#141F1A;--side-2:#1C2A23;--side-text:#C3D0C8;--side-strong:#F1F6F3;--side-muted:#93A399;--side-line:#25352D;
   --ok:#4ADE80;--ok-soft:#10301E;--warn:#FBBF24;--warn-soft:#33260C;--err:#F87171;--err-soft:#3A1515;--info:#93B4FF;--info-soft:#142342;--muted-soft:#1C2721;
-  --c-research:#4ADE80;--c-research-bg:#123222;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
+  --c-research:#6BD99C;--c-research-bg:#173527;--c-creative:#B9A0FF;--c-creative-bg:#241C3D;
   --c-campaign:#FBBF24;--c-campaign-bg:#33250E;--c-education:#93B4FF;--c-education-bg:#152645;
-  --ai-bg:linear-gradient(120deg,#12301F 0%,#142219 60%,#131C17 100%);
-  --shadow:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 16px rgba(0,0,0,.35);--shadow-lg:0 24px 60px rgba(0,0,0,.6);color-scheme:dark
+  --ai-bg:#173527;
+  --shadow:0 0 #0000;--shadow-md:0 0 0 1px var(--border-strong);--shadow-lg:0 24px 60px rgba(0,0,0,.55);color-scheme:dark
 }}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font:14px/1.5 "Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit}
@@ -61,7 +64,7 @@ svg.ic.fill{fill:currentColor}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .skip{position:absolute;left:12px;top:-60px;z-index:100;background:var(--primary);color:var(--primary-text);padding:8px 14px;border-radius:var(--r);text-decoration:none;font-weight:600}
 .skip:focus{top:12px}
-kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;color:var(--text-2);background:var(--surface)}
+kbd{font:600 11px/1 "Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;padding:3px 6px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;color:var(--text-2);background:var(--surface)}
 
 /* ---------- kerangka ---------- */
 .app{min-height:100vh}
@@ -87,7 +90,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .side .iconbtn{color:var(--side-text)}
 .side .iconbtn:hover{background:var(--side-2);color:var(--side-strong)}
 .nav{display:flex;flex-direction:column;gap:2px;flex:1}
-.nav-h{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--side-muted);padding:18px 12px 6px}
+.nav-h{font-size:13px;font-weight:700;color:var(--side-strong);padding:18px 8px 6px}
 .nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:9px;text-decoration:none;color:var(--side-text);font-size:13.5px;font-weight:500;line-height:1.3;position:relative}
 .nav a:hover{background:var(--side-2);color:var(--side-strong)}
 .nav a[aria-current="page"]{background:var(--side-2);color:var(--side-strong)}
@@ -188,10 +191,10 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .small{font-size:12px}
 
 /* ikon tool per kategori */
-.ticon{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none}
+.ticon{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none}
 .ticon svg.ic{width:20px;height:20px}
-.ticon.sm{width:30px;height:30px;border-radius:8px}.ticon.sm svg.ic{width:16px;height:16px}
-.ticon.lg{width:56px;height:56px;border-radius:14px}.ticon.lg svg.ic{width:28px;height:28px}
+.ticon.sm{width:30px;height:30px;border-radius:50%}.ticon.sm svg.ic{width:16px;height:16px}
+.ticon.lg{width:56px;height:56px;border-radius:50%}.ticon.lg svg.ic{width:28px;height:28px}
 .cat-research{background:var(--c-research-bg);color:var(--c-research)}
 .cat-creative{background:var(--c-creative-bg);color:var(--c-creative)}
 .cat-campaign{background:var(--c-campaign-bg);color:var(--c-campaign)}
@@ -209,7 +212,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .tact{position:absolute;top:10px;right:10px;display:flex;gap:2px}
 .tact .iconbtn{width:30px;height:30px;border-radius:8px}
 .tact svg.ic{width:16px;height:16px}
-.star.on{color:var(--warn)}
+.star.on{color:var(--kayu)}
 .compact .tmain{min-height:72px;padding:12px 44px 12px 12px;align-items:center}
 .compact .tname{padding-right:0}
 .compact .tact{top:50%;transform:translateY(-50%);right:8px}
@@ -218,11 +221,11 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 /* beranda */
 .home{max-width:1320px}
 .mytools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.mytools .lbl{white-space:nowrap;font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-right:2px}
+.mytools .lbl{white-space:nowrap;font-size:13px;font-weight:700;color:var(--text);margin-right:4px}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
 .pill:hover{border-color:var(--border-strong);box-shadow:var(--shadow)}
 .pill .ticon{width:26px;height:26px;border-radius:999px}.pill .ticon svg.ic{width:14px;height:14px}
-.pill .pstar{display:inline-flex;color:var(--warn)}.pill .pstar svg.ic{width:13px;height:13px}
+.pill .pstar{display:inline-flex;color:var(--kayu)}.pill .pstar svg.ic{width:13px;height:13px}
 .mytools .link{margin-left:auto;display:inline-flex;align-items:center;gap:4px}
 #jobsPanel{order:-1;border-color:var(--err)}
 #jobsPanel[hidden],.today[hidden],.mytools[hidden]{display:none}
@@ -239,7 +242,7 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .row a.m:hover b{text-decoration:underline}
 .pct{font-weight:600;font-size:12.5px;font-variant-numeric:tabular-nums}
 .pct.up{color:var(--ok)}.pct.down{color:var(--err)}
-.subh{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin:14px 0 4px}
+.subh{font-size:12.5px;font-weight:700;color:var(--text);margin:14px 0 4px}
 .subh:first-child{margin-top:0}
 .today .panel{display:flex;flex-direction:column}
 .pbody{flex:1;display:flex;flex-direction:column}
@@ -250,10 +253,10 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .rhy-next b{color:var(--text)}
 .rhy-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .rhy-col{border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;min-width:0}
-.rhy-col.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
-.rhy-col h3{margin:0 0 4px;font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rhy-col.now{border-color:var(--kayu);box-shadow:inset 0 0 0 1px var(--kayu)}
+.rhy-col h3{margin:0 0 4px;font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .rhy-col h3 small{font-size:12px;font-weight:500;letter-spacing:0;text-transform:none}
-.rhy-col.now h3{color:var(--brand-text)}
+.rhy-col.now h3{color:var(--kayu)}
 .rhy-list{list-style:none;margin:0;padding:0}
 .rhy-i{border-top:1px solid var(--border)}
 .rhy-i:first-child{border-top:0}
@@ -383,58 +386,47 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   .appbar .back span{display:none}
 }
 
-/* ---------- liquid glass ----------
-   Panel tembus pandang di atas latar gradasi. Blur hanya untuk yang melayang di atas konten (topbar lengket, menu, pencarian, laci menu);
-   kartu cukup isian transparan karena latarnya gradasi halus. Blur topbar ada di ::before: backdrop-filter di elemennya sendiri membuatnya
-   jadi containing block anak position:fixed dan "backdrop root" (menu di dalamnya tak bisa mem-blur halaman di bawahnya). */
-:root{--r:12px;--r-lg:18px;--blur:blur(20px) saturate(170%);
-  --glass:rgba(255,255,255,.36);--glass-hover:rgba(255,255,255,.58);--float:rgba(255,255,255,.66);--glass-edge:rgba(23,35,27,.1);
-  --glass-hl:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.45);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.1) 100%);
-  --glass-shadow:0 1px 2px rgba(16,32,22,.04),0 8px 24px rgba(16,32,22,.06);--glass-lift:0 14px 34px rgba(16,32,22,.11);
-  --side-glass:linear-gradient(180deg,rgba(11,33,23,.95),rgba(9,27,19,.93));
-  --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.36),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.3),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.16),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.22),transparent 70%),linear-gradient(180deg,#F1F7F3,#E8F0EB)}
-html[data-theme="dark"]{
-  --glass:rgba(28,42,35,.32);--glass-hover:rgba(36,54,45,.48);--float:rgba(18,28,23,.7);--glass-edge:rgba(255,255,255,.09);
-  --glass-hl:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.04);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,.02) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.03) 100%);--glass-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.24);--glass-lift:0 16px 40px rgba(0,0,0,.4);
-  --side-glass:linear-gradient(180deg,rgba(6,14,10,.93),rgba(6,14,10,.9));
-  --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}
-@media (prefers-color-scheme:dark){html[data-theme="system"]{
-  --glass:rgba(28,42,35,.32);--glass-hover:rgba(36,54,45,.48);--float:rgba(18,28,23,.7);--glass-edge:rgba(255,255,255,.09);
-  --glass-hl:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.04);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,.02) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.03) 100%);--glass-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.24);--glass-lift:0 16px 40px rgba(0,0,0,.4);
-  --side-glass:linear-gradient(180deg,rgba(6,14,10,.93),rgba(6,14,10,.9));
-  --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}}
-body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh);pointer-events:none}
-.side{background:var(--side-glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:inset -1px 0 0 rgba(255,255,255,.06)}
-.nav a:hover,.side .iconbtn:hover{background:rgba(255,255,255,.07)}
-.nav a[aria-current="page"],.theme-seg button[aria-pressed="true"]{background:rgba(255,255,255,.11);box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
-.topbar{position:relative;isolation:isolate;padding:10px 12px 10px 18px;border-radius:var(--r-lg)}
-.topbar::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--glass-sheen),var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:0 0 0 1px var(--glass-edge),var(--glass-hl),var(--glass-shadow)}
-.panel,.tcard,.detail-head,.pill,.chip,.searchbtn,.btn:not(.btn-primary),.field input,.select,.empty,.appbar .back{background-color:var(--glass);border-color:var(--glass-edge)}
-.tcard:hover,.pill:hover,.chip:hover,.searchbtn:hover,.btn:not(.btn-primary):hover,.appbar .back:hover{background-color:var(--glass-hover)}
-.panel,.tcard,.detail-head{box-shadow:var(--glass-hl),var(--glass-shadow);background-image:var(--glass-sheen)}
-.pill,.chip,.searchbtn,.btn:not(.btn-primary){box-shadow:var(--glass-hl)}
-.chip[aria-pressed="true"]{background-color:var(--primary);border-color:var(--primary)}
-.btn-primary,.chip[aria-pressed="true"]{background-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 14px rgba(11,33,23,.16)}
-.tcard{transition:background-color .2s,box-shadow .2s,transform .2s}
-.tcard:hover{transform:translateY(-2px);box-shadow:var(--glass-hl),var(--glass-lift)}
-.menu{background:var(--float);border-color:var(--glass-edge);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hl),var(--shadow-lg)}
-.notif .nh{background:var(--float)}
-.appbar{background:var(--float);border-bottom-color:var(--glass-edge);box-shadow:var(--glass-hl)}
-.palette{background:rgba(6,16,10,.26);-webkit-backdrop-filter:blur(8px) saturate(140%);backdrop-filter:blur(8px) saturate(140%)}
-.pal-box{background:var(--float);border-color:var(--glass-edge);border-radius:20px;box-shadow:var(--glass-hl),var(--shadow-lg)}
-.pal-in,.pal-foot{border-color:var(--glass-edge)}
-.pal-foot{background:transparent}
-.toast{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
-@media (min-width:901px){
-  /* topbar melayang */
-  .topbar{position:sticky;top:12px;z-index:30}
-  /* kartu ikut buram (desktop saja, supaya HP tetap ringan) */
-  .panel,.tcard,.detail-head{-webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
-}
-@media (max-width:900px){
-  .app.drawer .scrim{background:rgba(6,16,10,.3);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-  .topbar{padding:8px 10px}
-}
+/* ---------- sistem visual: kertas, tinta, pinus, kayu ----------
+   Datar: garis 1px, tanpa kaca/gradasi/bayangan; hanya lapisan yang melayang (menu, pencarian, menu tool) berbayang.
+   Lingkaran = tool, persegi = informasi. Warna selalu bermakna: pinus = aksi, daun = sesi bursa, kayu = sekarang & milikmu. */
+.main{padding-top:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);padding:14px 0;margin-bottom:20px;border-bottom:1px solid var(--border)}
+.greet h1{font-size:28px;font-weight:800;letter-spacing:-.6px;line-height:1.15}
+.greet p{font-size:13.5px}
+.searchbtn{border-color:var(--border-strong)}
+.badge.now{background:var(--kayu-soft);color:var(--kayu)}
+.panel-h h2,.panel-h h3{font-size:15.5px;font-weight:700}
+.rhythm{border-color:var(--border-strong)}
+.pill{padding:4px 12px 4px 4px}
+.pill .ticon{width:28px;height:28px}
+.pill:hover,.tcard:hover{border-color:var(--primary)}
+.chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
+.menu,.pal-box{border-color:var(--border-strong)}
+.appbar{background:var(--surface)}
+.palette{background:rgba(13,21,18,.32)}
+/* menu tool: panel terang, ikon tool bulat */
+.side{border:1px solid var(--border-strong)}
+.nav a:hover,.side .iconbtn:hover{background:var(--side-2)}
+.nav a[aria-current="page"]{background:var(--brand-soft);color:var(--brand-text);font-weight:600}
+.theme-seg{background:var(--surface-2)}
+.theme-seg button[aria-pressed="true"]{background:var(--surface);color:var(--side-strong);box-shadow:0 0 0 1px var(--border-strong)}
+.app.drawer .scrim{background:rgba(13,21,18,.28)}
+
+/* penggaris hari bursa: jadwal sesi BEI, titik tiap langkah ritme, penanda kayu = sekarang */
+.ruler{margin:4px 0 18px}
+.r-track{position:relative;height:44px;border-bottom:2px solid var(--text)}
+.r-sess{position:absolute;bottom:0;height:24px;background:var(--brand-soft);border-top:3px solid var(--brand);color:var(--brand-text);font-size:11.5px;font-weight:700;padding:3px 6px 0;white-space:nowrap;overflow:hidden}
+.r-step{position:absolute;bottom:-7px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--surface);border:2px solid var(--text-3)}
+.r-step.ok{background:var(--ok);border-color:var(--ok)}.r-step.err{background:var(--err);border-color:var(--err)}.r-step.warn{background:var(--warn);border-color:var(--warn)}
+.r-step.run,.r-step.due{border-color:var(--info)}
+.r-now{position:absolute;top:0;bottom:-10px;width:2px;margin-left:-1px;background:var(--kayu)}
+.r-now b{position:absolute;top:-1px;left:6px;font-size:12px;font-weight:800;color:var(--kayu);font-variant-numeric:tabular-nums;white-space:nowrap}
+.r-now.end b{left:auto;right:6px}
+.r-ticks{position:relative;height:16px;margin-top:10px;font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.r-ticks span{position:absolute;transform:translateX(-50%)}
+.r-ticks span:first-child{transform:none}
+@media (max-width:900px){.topbar{padding:10px 0}}
+@media (max-width:640px){.main{padding-top:0}.greet h1{font-size:22px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -691,7 +683,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       '<div class="theme-seg lang-seg" role="group" aria-label="Bahasa" translate="no"><button type="button" data-lang="id" title="Bahasa Indonesia">Indonesia</button><button type="button" data-lang="en" title="English">English</button></div>';
     var h = new Date().getHours(), first = (H.me.name || "").trim().split(/\s+/)[0];
     $("#greet").textContent = (h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam") + (first ? ", " + first : "");
-    var d = new Date(); $("#greetSub").textContent = HARI[d.getDay()] + ", " + d.getDate() + " " + BLN[d.getMonth()] + " " + d.getFullYear() + " · Apa yang ingin kamu kerjakan hari ini?";
+    var d = new Date(); $("#greetSub").textContent = HARI[d.getDay()] + ", " + d.getDate() + " " + BLN[d.getMonth()] + " " + d.getFullYear();
   }
 
   /* ---------- tema ---------- */
@@ -916,6 +908,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       : s.tool && byId[s.tool] ? '<button class="rhy-a" type="button" data-open="' + s.tool + '">' + inner + "</button>" : '<span class="rhy-a">' + inner + "</span>";
     return '<li class="rhy-i ' + s.state + '">' + body + "</li>";
   }
+  // shortcut: jam sesi BEI ditulis tetap (Senin–Kamis 09.00–12.00 & 13.30–16.00, Jumat 09.00–11.30 & 14.00–16.00) dan hari libur bursa
+  // tidak diketahui; perbarui bila BEI mengubah jam perdagangan. Ini jadwal, bukan status perdagangan langsung.
+  var R0 = 360, R1 = 1200;   // penggaris 06.00–20.00; langkah di luar rentang menempel di tepi
+  function dayRuler(d, steps) {
+    var pos = function (m) { return (Math.min(Math.max(m, R0), R1) - R0) / (R1 - R0) * 100; }, now = mins(d.now.replace(".", ":"));
+    var fri = new Date(d.date + "T12:00:00Z").getUTCDay() === 5, S = d.bourse ? [[540, fri ? 690 : 720, "Sesi 1"], [fri ? 840 : 810, 960, "Sesi 2"]] : [];
+    var hm = function (m) { return ("0" + Math.floor(m / 60)).slice(-2) + "." + ("0" + m % 60).slice(-2); };
+    var label = (d.bourse ? "Jadwal bursa hari ini: " + S.map(function (x) { return x[2] + " " + hm(x[0]) + "–" + hm(x[1]); }).join(", ") : "Bukan hari bursa") + ". Sekarang " + d.now + ".";
+    var html = S.map(function (x) { return '<span class="r-sess" style="left:' + pos(x[0]) + "%;width:" + (pos(x[1]) - pos(x[0])) + '%" title="' + x[2] + " " + hm(x[0]) + "–" + hm(x[1]) + '">' + x[2] + "</span>"; }).join("") +
+      steps.map(function (s) { return '<span class="r-step ' + s.state + '" style="left:' + pos(mins(s.at)) + '%" title="' + esc(s.at.replace(":", ".") + " " + s.title) + '"></span>'; }).join("") +
+      '<span class="r-now' + (pos(now) > 88 ? " end" : "") + '" style="left:' + pos(now) + '%"><b>' + esc(d.now) + "</b></span>";
+    var ticks = [360, 540, 720, 900, 1080].map(function (m) { return '<span style="left:' + pos(m) + '%">' + hm(m) + "</span>"; }).join("");
+    return '<div class="ruler" role="img" aria-label="' + esc(label) + '"><div class="r-track" aria-hidden="true">' + html + '</div><div class="r-ticks" aria-hidden="true">' + ticks + "</div></div>";
+  }
   function fillRhythm(r) {
     var el = $("#rhythmBody"); if (!el) return;
     if (!r || !r.ok) { el.innerHTML = errBox("Ritme hari ini tidak bisa dimuat: " + why(r)); return; }
@@ -929,11 +935,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       (d.bourse ? "" : '<span class="badge st-muted">Bukan hari bursa</span>') + "</p>";
     var cols = RCOLS.map(function (c) {
       var list = steps.filter(function (s) { var m = mins(s.at); return m >= c[1] && m < c[2]; }), on = now >= c[1] && now < c[2];
-      return '<div class="rhy-col' + (on ? " now" : "") + '"><h3>' + c[0] + " <small>" + c[3] + "</small>" + (on ? '<span class="badge st-ok">Sekarang</span>' : "") + "</h3>" +
+      return '<div class="rhy-col' + (on ? " now" : "") + '"><h3>' + c[0] + " <small>" + c[3] + "</small>" + (on ? '<span class="badge now">Sekarang</span>' : "") + "</h3>" +
         (list.length ? '<ol class="rhy-list">' + list.map(rhyItem).join("") + "</ol>" : '<p class="muted small" style="margin:6px 0">Tidak ada langkah.</p>') + "</div>";
     }).join("");
     var note = d.planner ? (d.untimed ? d.untimed + " kegiatan Content Planner hari ini belum punya jam" : "Kegiatan Content Planner yang berjam ikut tampil di sini") : "";
-    el.innerHTML = head + '<div class="rhy-cols">' + cols + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date) + " · " + d.now + " WIB" + (note ? " · " + note : "")) +
+    el.innerHTML = head + dayRuler(d, steps) + '<div class="rhy-cols">' + cols + '</div><div class="panel-f"><span class="muted">' + esc(hari(d.date) + " · " + d.now + " WIB" + (note ? " · " + note : "")) +
       '</span><button class="iconbtn" type="button" data-retry aria-label="Muat ulang ritme" title="Muat ulang">' + icon("refresh") + "</button></div>";
   }
   /* ---------- notifikasi tugas (disimpan Content Planner, ikut /api/today) ---------- */
