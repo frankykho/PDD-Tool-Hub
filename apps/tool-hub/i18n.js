@@ -256,7 +256,7 @@ export default {
   "Desainer": "Designer", "Pengelola Galeri Investasi": "Investment Gallery Manager", "Syariah": "Sharia",
 
   /* ---------- dashboard (shell.html) ---------- */
-  "Lewati ke konten": "Skip to content", "Navigasi utama": "Main navigation", "Ciutkan menu": "Collapse menu", "Lebarkan menu": "Expand menu",
+  "Lewati ke konten": "Skip to content", "Menu tool": "Tools menu", "Buka menu tool": "Open tools menu", "Tutup menu tool": "Close tools menu",
   "Tutup menu": "Close menu", "Buka menu": "Open menu", "Halo": "Hello",
   "Apa yang ingin kamu kerjakan hari ini?": "What would you like to work on today?",
   "Selamat pagi": "Good morning", "Selamat siang": "Good afternoon", "Selamat sore": "Good afternoon", "Selamat malam": "Good evening",

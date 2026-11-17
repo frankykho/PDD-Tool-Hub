@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <!-- Dashboard Tool Hub. Diisi apps/tool-hub/worker.js: penanda window.HUB di bagian bawah diganti data pengguna (tool yang boleh diakses, favorit, dll.).
-     Kunci localStorage: toolhub-theme-v2 (tema, dipakai juga halaman lain di hub), toolhub-rail (menu diciutkan), toolhub-recent:<email> (riwayat per akun). -->
+     Kunci localStorage: toolhub-theme-v2 (tema, dipakai juga halaman lain di hub), toolhub-recent:<email> (riwayat per akun). -->
 <script>(function(){var t='system';try{t=localStorage.getItem('toolhub-theme-v2')||'system'}catch(e){}if(['light','dark','system'].indexOf(t)<0)t='system';document.documentElement.setAttribute('data-theme',t)})()</script>
 <style id="hub-theme-style">
 :root{
@@ -64,9 +64,20 @@ svg.ic.fill{fill:currentColor}
 kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;color:var(--text-2);background:var(--surface)}
 
 /* ---------- kerangka ---------- */
-.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
-.app.rail{grid-template-columns:68px minmax(0,1fr)}
-.side{position:sticky;top:0;height:100vh;height:100dvh;background:var(--side);color:var(--side-text);display:flex;flex-direction:column;padding:18px 12px 14px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;z-index:40}
+.app{min-height:100vh}
+/* menu tool: satu tombol (ikon grid) membuka panel melayang berisi ikon tool bulat; tertutup lewat Esc, klik di luar, atau tombol x */
+.side{position:fixed;left:12px;top:12px;width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);border-radius:20px;background:var(--side);color:var(--side-text);display:flex;flex-direction:column;padding:14px 12px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;z-index:70;visibility:hidden;opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top left;transition:opacity .15s,transform .15s,visibility 0s linear .15s}
+.side:focus{outline:none}
+.app.drawer .side{visibility:visible;opacity:1;transform:none;transition:opacity .15s,transform .15s;box-shadow:var(--shadow-lg)}
+.app.drawer .scrim{display:block;position:fixed;inset:0;z-index:65;background:rgba(6,16,10,.3)}
+.nav-links{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.nav-links a[aria-current="page"]::before{display:none}
+.lgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+.lt{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:44px;padding:8px 2px;border:0;border-radius:12px;background:none;color:var(--side-text);font:inherit;font-size:11.5px;font-weight:500;line-height:1.25;text-align:center;cursor:pointer}
+.lt:hover{background:var(--side-2);color:var(--side-strong)}
+.lt .ticon{width:46px;height:46px;border-radius:50%}
+.lt .ticon svg.ic{width:21px;height:21px}
+.lt .ln{max-width:100%;overflow-wrap:anywhere}
 .side-head{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 4px 0 8px;margin-bottom:18px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1;text-decoration:none;color:var(--side-strong)}
 .brand img{display:block;max-height:30px;max-width:150px;object-fit:contain}
@@ -85,35 +96,18 @@ kbd{font:500 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;padding:3px 6px;bor
 .nav .count{font-size:12px;color:var(--side-muted);font-variant-numeric:tabular-nums}
 .nav .badge{background:var(--brand);color:#06140C;font-size:11px;font-weight:700;border-radius:999px;min-width:20px;padding:1px 6px;text-align:center}
 .side-foot{border-top:1px solid var(--side-line);padding-top:12px;margin-top:12px;display:flex;flex-direction:column;gap:10px}
-.side-user{display:flex;align-items:center;gap:10px;padding:4px 6px;min-width:0}
-.side-user .who{min-width:0;flex:1}
-.side-user b{display:block;color:var(--side-strong);font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.side-user small{display:block;color:var(--side-muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .theme-seg{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--side-line);border-radius:9px;padding:3px;gap:2px}
 .theme-seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--side-text);padding:6px 4px;border-radius:6px;font-size:12px;font-weight:500}
 .theme-seg button:hover{color:var(--side-strong)}
 .theme-seg button[aria-pressed="true"]{background:var(--side-2);color:var(--side-strong)}
 .theme-seg svg.ic{width:15px;height:15px}
-.theme-one{display:none}
 .lang-seg{margin-top:6px}
 .iconbtn.lang{font-size:11px;font-weight:700;letter-spacing:.04em}
-.app.rail .side{padding:18px 10px 14px}
-.app.rail .side-head{flex-direction:column;padding:0;gap:10px}
-.app.rail .brand{justify-content:center;flex:none}
-.app.rail .brand-name,.app.rail .brand img,.app.rail .nav .lbl,.app.rail .nav .count,.app.rail .nav-h,.app.rail .side-user .who,.app.rail .theme-seg{display:none}
 .brand .brand-mark.alt{display:none}
-.app.rail .brand .brand-mark.alt{display:grid}
-.app.rail .brand .chipimg{display:none}
-.app.rail .nav a{justify-content:center;padding:10px}
-.app.rail .nav .badge{position:absolute;top:2px;right:2px;min-width:16px;padding:0 4px;font-size:10px}
-.app.rail .nav-sep{height:1px;background:var(--side-line);margin:10px 6px}
-.app.rail .side-user{justify-content:center;padding:0}
-.app.rail .theme-one{display:flex;justify-content:center}
 .nav-sep{display:none}
-.iconbtn.side-close,.iconbtn.menu-btn{display:none}
 .scrim{display:none}
 
-.main{min-width:0;padding:22px 32px 56px}
+.main{min-width:0;padding:22px 32px 56px;max-width:1440px;margin:0 auto}
 .topbar{display:flex;align-items:center;gap:16px;margin-bottom:22px}
 .greet{min-width:0;flex:1}
 .greet h1{font-size:26px;line-height:1.2;letter-spacing:-.5px;margin:0;font-weight:700}
@@ -354,20 +348,6 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
 /* ---------- responsif ---------- */
 @media (max-width:900px){.rhy-cols{grid-template-columns:1fr}}
 @media (max-width:900px){
-  .app,.app.rail{grid-template-columns:minmax(0,1fr)}
-  .side{position:fixed;left:0;top:0;bottom:0;width:280px;transform:translateX(-100%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s;z-index:70}
-  .app.rail .side{padding:18px 12px 14px}
-  .app.rail .side-head{flex-direction:row;padding:0 4px 0 8px}
-  .app.rail .brand{justify-content:flex-start;flex:1}
-  .app.rail .brand .brand-mark.alt{display:none}.app.rail .brand .chipimg{display:inline-block}
-  .app.rail .brand-name,.app.rail .brand img,.app.rail .nav .lbl,.app.rail .nav .count,.app.rail .side-user .who{display:block}
-  .app.rail .nav-h{display:block}.app.rail .theme-seg{display:flex}.app.rail .theme-one,.app.rail .nav-sep{display:none}
-  .app.rail .nav a{justify-content:flex-start;padding:9px 12px}
-  .app.rail .nav .badge{position:static}
-  .app.rail .side-user{justify-content:flex-start;padding:4px 6px}
-  .app.drawer .side{transform:none;visibility:visible;box-shadow:var(--shadow-lg);transition:transform .2s ease}
-  .app.drawer .scrim{display:block;position:fixed;inset:0;background:rgba(6,16,10,.45);z-index:65}
-  .iconbtn.side-toggle{display:none}.iconbtn.side-close,.iconbtn.menu-btn{display:inline-grid}
   .main{padding:14px 16px 40px}
   .topbar{gap:8px;margin-bottom:16px}
   .greet h1{font-size:20px}
@@ -411,17 +391,17 @@ a.tag:hover{color:var(--text);border-color:var(--border-strong)}
   --glass:rgba(255,255,255,.36);--glass-hover:rgba(255,255,255,.58);--float:rgba(255,255,255,.66);--glass-edge:rgba(23,35,27,.1);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.45);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.1) 100%);
   --glass-shadow:0 1px 2px rgba(16,32,22,.04),0 8px 24px rgba(16,32,22,.06);--glass-lift:0 14px 34px rgba(16,32,22,.11);
-  --side-glass:linear-gradient(180deg,rgba(11,33,23,.8),rgba(9,27,19,.72));
+  --side-glass:linear-gradient(180deg,rgba(11,33,23,.95),rgba(9,27,19,.93));
   --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.36),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.3),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.16),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.22),transparent 70%),linear-gradient(180deg,#F1F7F3,#E8F0EB)}
 html[data-theme="dark"]{
   --glass:rgba(28,42,35,.32);--glass-hover:rgba(36,54,45,.48);--float:rgba(18,28,23,.7);--glass-edge:rgba(255,255,255,.09);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.04);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,.02) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.03) 100%);--glass-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.24);--glass-lift:0 16px 40px rgba(0,0,0,.4);
-  --side-glass:linear-gradient(180deg,rgba(6,14,10,.66),rgba(6,14,10,.58));
+  --side-glass:linear-gradient(180deg,rgba(6,14,10,.93),rgba(6,14,10,.9));
   --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}
 @media (prefers-color-scheme:dark){html[data-theme="system"]{
   --glass:rgba(28,42,35,.32);--glass-hover:rgba(36,54,45,.48);--float:rgba(18,28,23,.7);--glass-edge:rgba(255,255,255,.09);
   --glass-hl:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.04);--glass-sheen:linear-gradient(135deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,.02) 35%,rgba(255,255,255,0) 60%,rgba(255,255,255,.03) 100%);--glass-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.24);--glass-lift:0 16px 40px rgba(0,0,0,.4);
-  --side-glass:linear-gradient(180deg,rgba(6,14,10,.66),rgba(6,14,10,.58));
+  --side-glass:linear-gradient(180deg,rgba(6,14,10,.93),rgba(6,14,10,.9));
   --mesh:radial-gradient(60vw 55vh at 0% 0%,rgba(20,219,76,.26),transparent 70%),radial-gradient(50vw 50vh at 100% 0%,rgba(56,189,248,.2),transparent 70%),radial-gradient(45vw 45vh at 35% 60%,rgba(16,185,129,.12),transparent 70%),radial-gradient(60vw 55vh at 75% 100%,rgba(139,92,246,.2),transparent 70%),linear-gradient(180deg,#08100C,#0A120E)}}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh);pointer-events:none}
 .side{background:var(--side-glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:inset -1px 0 0 rgba(255,255,255,.06)}
@@ -446,16 +426,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
 .pal-foot{background:transparent}
 .toast{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
 @media (min-width:901px){
-  /* menu samping & topbar melayang */
-  .app{grid-template-columns:252px minmax(0,1fr)}
-  .app.rail{grid-template-columns:80px minmax(0,1fr)}
-  .side{top:12px;margin:12px 0 12px 12px;height:calc(100vh - 24px);height:calc(100dvh - 24px);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 12px 32px rgba(6,20,12,.18)}
+  /* topbar melayang */
   .topbar{position:sticky;top:12px;z-index:30}
   /* kartu ikut buram (desktop saja, supaya HP tetap ringan) */
   .panel,.tcard,.detail-head{-webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
 }
 @media (max-width:900px){
-  .side{border-radius:0 20px 20px 0}
   .app.drawer .scrim{background:rgba(6,16,10,.3);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
   .topbar{padding:8px 10px}
 }
@@ -465,11 +441,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
 <body>
 <a class="skip" href="#content">Lewati ke konten</a>
 <div class="app" id="app">
-  <aside class="side" id="side" aria-label="Navigasi utama">
+  <aside class="side" id="side" aria-label="Menu tool" tabindex="-1">
     <div class="side-head">
       <a class="brand" id="brand" href="#/" aria-label="Beranda"></a>
-      <button class="iconbtn side-toggle" id="railBtn" type="button" aria-label="Ciutkan menu" title="Ciutkan menu"></button>
-      <button class="iconbtn side-close" id="drawerClose" type="button" aria-label="Tutup menu"></button>
+      <button class="iconbtn side-close" id="drawerClose" type="button" aria-label="Tutup menu tool"></button>
     </div>
     <nav class="nav" id="nav" aria-label="Menu"></nav>
     <div class="side-foot" id="sideFoot"></div>
@@ -478,7 +453,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
 
   <main class="main" id="main">
     <header class="topbar">
-      <button class="iconbtn menu-btn" id="menuBtn" type="button" aria-label="Buka menu"></button>
+      <button class="iconbtn menu-btn" id="menuBtn" type="button" aria-label="Buka menu tool" title="Menu tool" aria-controls="side" aria-expanded="false"></button>
       <div class="greet"><h1 id="greet">Halo</h1><p id="greetSub">Apa yang ingin kamu kerjakan hari ini?</p></div>
       <button class="searchbtn" id="searchBtn" type="button" aria-haspopup="dialog" aria-label="Cari tool, halaman, atau aksi"></button>
       <div class="top-actions"><div class="menu-wrap" id="bell" hidden><button class="iconbtn bellbtn" id="bellBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="bellMenu" aria-label="Notifikasi"></button><div class="menu notif" id="bellMenu" role="menu" aria-label="Notifikasi"></div></div><div class="menu-wrap" id="acct"><button class="avatar" id="acctBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="acctMenu"></button><div class="menu" id="acctMenu" role="menu"></div></div></div>
@@ -498,7 +473,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
 
   <section class="appview" id="appview" aria-label="Tool">
     <div class="appbar">
-      <button class="iconbtn menu-btn" id="menuBtn2" type="button" aria-label="Buka menu"></button>
+      <button class="iconbtn menu-btn" id="menuBtn2" type="button" aria-label="Buka menu tool" title="Menu tool" aria-controls="side" aria-expanded="false"></button>
       <button class="back" id="back" type="button"></button>
       <div class="ttl"><span class="ticon sm" id="appIcon"></span><strong id="appTitle">Tool</strong></div>
       <nav class="subp" id="subp" aria-label="Halaman tool"></nav>
@@ -581,7 +556,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   };
   var icon = function (k, cls) { return '<svg class="ic' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + (IC[k] || IC.grid) + "</svg>"; };
   var app = $("#app"), main = $("#main"), view = $("#appview"), framebox = $("#appframe"), loader = $("#ld");
-  var desk = window.matchMedia("(min-width: 901px)");
   var T0 = H.brand.name || "Tool Hub";
   var LS = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
@@ -680,12 +654,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function renderNav() {
     var n = function (h, label, ic, key, extra) { return '<a href="' + h + '" data-key="' + key + '" title="' + esc(label) + '"' + (key === curKey ? ' aria-current="page"' : "") + ">" + icon(ic) + '<span class="lbl">' + esc(label) + "</span>" + (extra || "") + "</a>"; };
     var cnt = function (k) { return '<span class="count">' + k + "</span>"; };
-    var html = n("#/", "Beranda", "home", "home") + n("#/tools", "Semua tools", "grid", "tools/all", cnt(apps.length));
-    html += '<div class="nav-h">Kategori</div><div class="nav-sep"></div>';
-    catOrder.forEach(function (c) { var k = apps.filter(function (a) { return a.cat === c; }).length; if (k) html += n("#/tools/" + c, cats[c].label, cats[c].icon, "tools/" + c, cnt(k)); });
-    html += '<div class="nav-h">Ruang kerja</div><div class="nav-sep"></div>';
-    html += n("#/tools/fav", "Favorit", "star", "tools/fav", fav.length ? cnt(fav.length) : "") + n("#/tools/recent", "Terakhir dibuka", "clock", "tools/recent");
+    // ikon tool bulat: Favorit dulu, lalu per kategori; tombol data-open ditangani klik global (buka tool & tutup menu)
+    var tile = function (a) { return '<button class="lt" type="button" data-open="' + a.id + '" title="' + esc(a.desc) + '"><span class="ticon cat-' + a.cat + '">' + icon(a.icon) + '</span><span class="ln">' + esc(a.name) + "</span></button>"; };
+    var sec = function (label, list) { return list.length ? '<div class="nav-h">' + esc(label) + '</div><div class="lgrid">' + list.map(tile).join("") + "</div>" : ""; };
+    var html = '<div class="nav-links">' + n("#/", "Beranda", "home", "home") + n("#/tools", "Semua tools", "grid", "tools/all", cnt(apps.length)) + n("#/tools/recent", "Terakhir dibuka", "clock", "tools/recent");
     if (H.me.admin) html += n("/admin", "Admin & akses", "shield", "admin", H.pending ? '<span class="badge" aria-label="' + H.pending + ' menunggu">' + H.pending + "</span>" : "");
+    html += "</div>" + sec("Favorit", fav.map(function (id) { return byId[id]; }).filter(Boolean));
+    catOrder.forEach(function (c) { html += sec(cats[c].label, apps.filter(function (a) { return a.cat === c; })); });
     $("#nav").innerHTML = html;
   }
   function setKey(k) { curKey = k; [].forEach.call(document.querySelectorAll("#nav a"), function (a) { if (a.dataset.key === k) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }); }
@@ -696,8 +671,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     $("#brand").innerHTML = (b.logoDark ? '<img src="' + esc(b.logoDark) + '" alt="' + esc(b.name) + '">' + mark.replace("brand-mark", "brand-mark alt")
       : b.logo ? '<span class="chipimg"><img src="' + esc(b.logo) + '" alt="' + esc(b.name) + '"></span>' + mark.replace("brand-mark", "brand-mark alt")
         : mark + '<span class="brand-name">' + esc(b.name) + "</span>");
-    $("#railBtn").innerHTML = icon("panel"); $("#drawerClose").innerHTML = icon("x");
-    $("#menuBtn").innerHTML = icon("menu"); $("#menuBtn2").innerHTML = icon("menu");
+    $("#drawerClose").innerHTML = icon("x");
+    $("#menuBtn").innerHTML = icon("grid"); $("#menuBtn2").innerHTML = icon("grid");
     $("#back").innerHTML = icon("chevL") + "<span>Kembali</span>";
     $("#appSearch").innerHTML = icon("search");
     var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -713,10 +688,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
       '<button type="button" data-theme="light" title="Tema terang">' + icon("sun") + "Terang</button>" +
       '<button type="button" data-theme="dark" title="Tema gelap">' + icon("moon") + "Gelap</button>" +
       '<button type="button" data-theme="system" title="Ikuti sistem">' + icon("monitor") + "Sistem</button></div>" +
-      '<div class="theme-seg lang-seg" role="group" aria-label="Bahasa" translate="no"><button type="button" data-lang="id" title="Bahasa Indonesia">Indonesia</button><button type="button" data-lang="en" title="English">English</button></div>' +
-      '<div class="theme-one"><button class="iconbtn" type="button" id="theme3" aria-label="Ganti tema"></button></div>' +
-      '<div class="theme-one"><button class="iconbtn lang" type="button" id="lang3" translate="no"></button></div>' +
-      '<div class="side-user"><span class="avatar" aria-hidden="true">' + esc(initials) + '</span><span class="who" translate="no"><b>' + esc(H.me.name || H.me.email) + "</b><small>" + esc(H.me.email) + "</small></span></div>";
+      '<div class="theme-seg lang-seg" role="group" aria-label="Bahasa" translate="no"><button type="button" data-lang="id" title="Bahasa Indonesia">Indonesia</button><button type="button" data-lang="en" title="English">English</button></div>';
     var h = new Date().getHours(), first = (H.me.name || "").trim().split(/\s+/)[0];
     $("#greet").textContent = (h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam") + (first ? ", " + first : "");
     var d = new Date(); $("#greetSub").textContent = HARI[d.getDay()] + ", " + d.getDate() + " " + BLN[d.getMonth()] + " " + d.getFullYear() + " · Apa yang ingin kamu kerjakan hari ini?";
@@ -729,7 +701,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
     document.documentElement.setAttribute("data-theme", theme); LS("toolhub-theme-v2", theme);
     [].forEach.call(document.querySelectorAll("[data-theme]:not(html)"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.theme === theme)); });
     var ic = icon(theme === "dark" ? "moon" : theme === "light" ? "sun" : "monitor"), lbl = "Tema: " + (theme === "dark" ? "gelap" : theme === "light" ? "terang" : "ikuti sistem") + ". Klik untuk mengganti.";
-    ["#theme2", "#theme3"].forEach(function (s) { var b = $(s); if (b) { b.innerHTML = ic; b.title = lbl; b.setAttribute("aria-label", lbl); } });
+    ["#theme2"].forEach(function (s) { var b = $(s); if (b) { b.innerHTML = ic; b.title = lbl; b.setAttribute("aria-label", lbl); } });
     Object.keys(frames).forEach(function (k) { try { frames[k].contentWindow.postMessage({ type: "toolhub-theme", theme: theme }, "*"); } catch (e) { } });
   }
   function setTheme(t) { theme = t; applyTheme(); }
@@ -740,7 +712,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function applyLang() {
     if (window.hubSetLang) window.hubSetLang(lang);
     [].forEach.call(document.querySelectorAll("[data-lang]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === lang)); });
-    ["#lang2", "#lang3"].forEach(function (s) { var b = $(s); if (b) { b.textContent = lang === "en" ? "EN" : "ID"; b.title = lang === "en" ? "Language: English. Klik untuk Bahasa Indonesia." : "Bahasa: Indonesia. Click for English."; b.setAttribute("aria-label", b.title); } });
+    ["#lang2"].forEach(function (s) { var b = $(s); if (b) { b.textContent = lang === "en" ? "EN" : "ID"; b.title = lang === "en" ? "Language: English. Klik untuk Bahasa Indonesia." : "Bahasa: Indonesia. Click for English."; b.setAttribute("aria-label", b.title); } });
     Object.keys(frames).forEach(function (k) { try { frames[k].contentWindow.postMessage({ type: "toolhub-lang", lang: lang }, "*"); } catch (e) { } });
   }
   function setLang(l) { lang = l === "en" ? "en" : "id"; applyLang(); }
@@ -1053,8 +1025,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   }
 
   /* ---------- tampilan & rute ---------- */
-  var curView = "home", curId = null, lastView = "#/", railPref = LS("toolhub-rail") === "1";
-  function setRail(on) { app.classList.toggle("rail", on); var b = $("#railBtn"); b.setAttribute("aria-label", on ? "Lebarkan menu" : "Ciutkan menu"); b.title = b.getAttribute("aria-label"); }
+  var curView = "home", curId = null, lastView = "#/";
   function show(v) {
     closeApp(); curView = v;
     [].forEach.call(document.querySelectorAll(".view"), function (s) { s.hidden = s.dataset.view !== v; });
@@ -1100,7 +1071,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   function openApp(id) {
     var a = byId[id]; if (!a) return;
     var page = pendingPage[id]; delete pendingPage[id];
-    curId = id; app.classList.add("tool"); if (desk.matches) setRail(true); closeDrawer();
+    curId = id; app.classList.add("tool"); closeDrawer();
     $("#appTitle").textContent = a.name; var ai = $("#appIcon"); ai.className = "ticon sm cat-" + a.cat; ai.innerHTML = icon(a.icon);
     Object.keys(frames).forEach(function (k) { frames[k].style.display = k === id ? "block" : "none"; });
     var f = frames[id];
@@ -1116,7 +1087,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   // asal (origin) alamat tool: dari src "/sso?app=..&back=<alamat>" atau alamat langsung
   function appOrigin(a) { try { var s = a.src.indexOf("/sso?") === 0 ? new URLSearchParams(a.src.split("?")[1]).get("back") : a.src; return new URL(s, location.href).origin; } catch (e) { return ""; } }
   function openPage(id, url) { pendingPage[id] = url; if (location.hash === "#" + id) openApp(id); else location.hash = id; }
-  function closeApp() { if (!curId) return; curId = null; app.classList.remove("tool"); setRail(railPref); document.title = T0; }
+  function closeApp() { if (!curId) return; curId = null; app.classList.remove("tool"); document.title = T0; }
 
   // pesan dari tool di dalam bingkai: judul halaman (nama file PDF), alamat halaman (tombol Bagikan), minta tema
   window.addEventListener("message", function (e) {
@@ -1136,8 +1107,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   });
 
   /* ---------- laci (mobile) & menu akun ---------- */
-  function openDrawer() { app.classList.add("drawer"); $("#main").inert = $("#appview").inert = true; var f = document.querySelector("#nav a"); if (f) f.focus(); }
-  function closeDrawer() { app.classList.remove("drawer"); $("#main").inert = $("#appview").inert = false; }
+  function openDrawer() { app.classList.add("drawer"); expanded(true); $("#main").inert = $("#appview").inert = true; $("#side").focus(); }
+  function expanded(on) { ["#menuBtn", "#menuBtn2"].forEach(function (b) { $(b).setAttribute("aria-expanded", String(on)); }); }
+  function closeDrawer() { app.classList.remove("drawer"); expanded(false); $("#main").inert = $("#appview").inert = false; }
   function acct(open) { $("#acctMenu").classList.toggle("open", open); $("#acctBtn").setAttribute("aria-expanded", String(open)); if (open) { var f = document.querySelector("#acctMenu a"); if (f) f.focus(); } }
 
   /* ---------- pencarian global ---------- */
@@ -1272,7 +1244,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   $("#searchBtn").addEventListener("click", palOpen); $("#appSearch").addEventListener("click", palOpen);
   $("#menuBtn").addEventListener("click", openDrawer); $("#menuBtn2").addEventListener("click", openDrawer);
   $("#drawerClose").addEventListener("click", closeDrawer); $("#scrim").addEventListener("click", closeDrawer);
-  $("#railBtn").addEventListener("click", function () { var on = !app.classList.contains("rail"); setRail(on); if (!curId) { railPref = on; LS("toolhub-rail", on ? "1" : "0"); } });
   $("#back").addEventListener("click", function () { go(lastView || "#/"); });
   $("#theme2").addEventListener("click", cycleTheme); $("#lang2").addEventListener("click", toggleLang);
   $("#nav").addEventListener("click", function (e) { var a = e.target.closest("a"); if (a && a.getAttribute("href").charAt(0) === "#") { e.preventDefault(); go(a.getAttribute("href")); } });
@@ -1280,8 +1251,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--mesh)
   window.addEventListener("hashchange", route);
 
   /* ---------- mulai ---------- */
-  renderChrome(); document.addEventListener("click", function (e) { if (e.target.closest("#theme3")) cycleTheme(); if (e.target.closest("#lang3")) toggleLang(); });
-  setRail(railPref); applyTheme(); applyLang(); renderNav(); renderToday(); renderMine();
+  renderChrome();
+  applyTheme(); applyLang(); renderNav(); renderToday(); renderMine();
   if (!apps.length) $("#vHome").innerHTML = '<div class="empty"><b>Belum ada tool yang bisa kamu buka</b>Admin perlu memberikan akses ke akunmu. Hubungi admin tim.</div>';
   route();
   if (Object.keys(H.today).some(function (k) { return H.today[k]; })) {

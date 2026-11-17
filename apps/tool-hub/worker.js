@@ -18,7 +18,7 @@ import EN from "./i18n.js";
 
 // cat = kategori di dashboard (CATEGORIES); icon = nama ikon di shell.html; blurb / features = isi halaman detail;
 // ai = baris singkat kalau tool memakai AI (label "Memakai AI" di halaman detail, ikut dicari); kw = kata kunci tambahan untuk pencarian.
-// Tool baru cukup ditambahkan di sini: sidebar, beranda, pencarian, dan halaman detail membaca daftar ini.
+// Tool baru cukup ditambahkan di sini: menu tool, beranda, pencarian, dan halaman detail membaca daftar ini.
 // frame: false = belum bisa tampil di dalam dashboard, dibuka di tab browser baru (hapus setelah tool itu disambungkan ke hub).
 // Daftar tool. Alamat tool = profile.urls[id] (appUrl); tiket hanya dikirim ke alamat ini. levels / tabs = pilihan hak akses di halaman admin.
 const APPS = [
@@ -66,7 +66,7 @@ const APPS = [
     // halaman di dalam tab ini; only = hanya untuk tingkat itu; share = halaman publik, dapat tombol "Bagikan link"
     pages: [{ label: 'Lihat tutorial', path: '/', share: true }, { label: 'Kirim usulan', path: '/submit' }, { label: 'Admin', path: '/admin', only: 'admin' }] },
 ];
-/** Kategori dashboard, urut seperti di sidebar. icon = nama ikon di shell.html. */
+/** Kategori dashboard, urut seperti di menu tool. icon = nama ikon di shell.html. */
 const CATEGORIES = {
   research: { label: 'Research & Intelligence', short: 'Riset', icon: 'flask', desc: 'Data produk, pasar, dan kompetitor untuk riset investasi.' },
   creative: { label: 'Content & Creative', short: 'Konten', icon: 'pen', desc: 'Membuat konten dan mencari referensinya.' },
@@ -102,7 +102,7 @@ const THEME_CSS = `<style id="hub-theme-style">
 </style>`;
 const THEME_BUTTON = `<button id="hub-theme-toggle" type="button" aria-label="Ganti tema">◐ Tema sistem</button>`;
 const THEME_SCRIPT = `<script>(function(){var k='toolhub-theme-v2',v='system';try{v=localStorage.getItem(k)||'system'}catch(e){}if(['light','dark','system'].indexOf(v)<0)v='system';var root=document.documentElement;function apply(n){v=n;root.setAttribute('data-theme',v);try{localStorage.setItem(k,v)}catch(e){}var b=document.getElementById('hub-theme-toggle');if(b){b.textContent=v==='dark'?'☀ Tema terang':v==='light'?'☾ Tema gelap':'◐ Tema sistem';b.title='Tema aktif: '+v+' — klik untuk mengganti';b.setAttribute('aria-label','Tema aktif: '+v+'. Klik untuk mengganti.')}try{document.querySelectorAll('iframe').forEach(function(f){f.contentWindow.postMessage({type:'toolhub-theme',theme:v},'*')})}catch(e){}}root.setAttribute('data-theme',v);var b=document.getElementById('hub-theme-toggle');if(b){b.onclick=function(){apply(v==='system'?'light':v==='light'?'dark':'system')};apply(v)}window.addEventListener('message',function(e){if(e.data&&e.data.type==='toolhub-theme-request'&&e.source){try{e.source.postMessage({type:'toolhub-theme',theme:v},e.origin)}catch(err){}}});})();</script>`;
-// Tombol bahasa di halaman hub yang berdiri sendiri (login, akun, admin). Di dashboard, pilihan bahasa ada di sidebar.
+// Tombol bahasa di halaman hub yang berdiri sendiri (login, akun, admin). Di dashboard, pilihan bahasa ada di menu tool (ikon grid).
 // Penanda mesin bahasa sudah ada = "__i18o" (hanya ada di skrip shared/i18n.js; shell.html sendiri memuat teks "toolhub-lang-request").
 const LANG_BUTTON = `<button id="hub-lang-toggle" type="button" translate="no" onclick="hubSetLang(hubLang()==='en'?'id':'en');this.textContent=hubLang()==='en'?'ID':'EN';this.title=hubLang()==='en'?'Bahasa Indonesia':'English'">EN</button><script>(function(){var b=document.getElementById('hub-lang-toggle');if(b&&window.hubLang&&hubLang()==='en'){b.textContent='ID';b.title='Bahasa Indonesia'}else if(b)b.title='English'})()</script>`;
 const themedHtml = body => { if (typeof body !== 'string' || !/<html[\s>]/i.test(body)) return body; let out = body; if (!out.includes('__i18o')) out = out.replace(/<\/head>/i, () => `<script src="${I18N_SRC}"></script></head>`); if (!out.includes('id="hub-lang-toggle"') && !out.includes('id="lang2"')) out = out.replace(/<\/body>/i, () => LANG_BUTTON + '</body>'); if (!out.includes('id="hub-theme-style"')) out = out.replace(/<\/head>/i, THEME_CSS + '</head>'); if (!out.includes('hub-theme-v2')) { if (!out.includes('id="hub-theme-toggle"')) out = out.replace(/<\/body>/i, THEME_BUTTON + THEME_SCRIPT + '</body>'); else out = out.replace(/<\/body>/i, THEME_SCRIPT + '</body>'); } return out; };
@@ -678,7 +678,7 @@ function levelLabel(a, acc) {
   return '';
 }
 
-/** Dashboard: sidebar, beranda (Tool kamu, Ritme & kartu hari ini), Semua tools, detail tool, dan tool di dalam bingkai.
+/** Dashboard: menu tool (ikon grid), beranda (Tool kamu, Ritme & kartu hari ini), Semua tools, detail tool, dan tool di dalam bingkai.
  *  Tampilan ada di shell.html; di sini hanya data pengguna yang disuntikkan. Tool tetap dibuka di bingkai lewat /sso seperti sebelumnya. */
 function shellPage(env, sess, mine, pending, fav, org = cleanOrg(null)) {
   const p = profile(env), repo = env.GITHUB_REPO || p.github.repo || '';
