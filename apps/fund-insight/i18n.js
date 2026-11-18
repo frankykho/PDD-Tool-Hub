@@ -764,4 +764,12 @@ export default {
   "{x} ▾": "{x} ▾", "{x} ▴": "{x} ▴",
   "{n} produk": "{n} products", "rata-rata {x}": "average {x}",
   "{a} → {b}": "{a} → {b}", "{a} dari {b}": "{a} of {b}",
+  // ---------- Proposal saya ----------
+  "Proposal saya": "My proposals", "Memuat…": "Loading…", "Gagal memuat daftar proposal.": "Couldn't load the proposal list.",
+  "{a} dari {b} sudah dibuka nasabah": "{a} of {b} opened by clients", "link berlaku 90 hari": "links are valid for 90 days", "admin melihat proposal semua orang": "admins see everyone's proposals",
+  "Nasabah": "Client", "Produk": "Products", "Dibuat": "Created", "Status": "Status", "Tanpa nama": "No name", "oleh {x}": "by {x}",
+  "berlaku s.d. {d}": "valid until {d}", "Dibuka {d}": "Opened {d}", "Belum dibuka": "Not opened yet", "Cabut": "Revoke",
+  "Belum ada proposal. Pilih produk, lalu klik Kirim ke nasabah.": "No proposals yet. Pick products, then click Send to client.",
+  "Link proposal dicabut": "Proposal link revoked", "Gagal mencabut link": "Couldn't revoke the link", "Proposal tidak ditemukan": "Proposal not found",
+  "Hanya pembuatnya yang bisa mencabut link ini": "Only its creator can revoke this link",
 };

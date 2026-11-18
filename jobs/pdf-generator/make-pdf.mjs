@@ -1,6 +1,6 @@
 // Membuat PDF detail produk (reksa dana & obligasi) dari halaman Fund Insight / Bond Insight, sama seperti tombol Export PDF.
 // Dijalankan terjadwal oleh GitHub Actions (.github/workflows/pdf.yml). Hasil: out/fund-<kode>.pdf, out/bond-<kode>.pdf, out/keep.txt
-// Wajib env FUND_URL dan BOND_URL (alamat Fund Insight & Bond Insight; di workflow diambil dari profil).
+// Wajib env FUND_URL dan BOND_URL (alamat Fund Insight & Bond Insight; di workflow diambil dari profil). FUND_ADMIN_KEY = ADMIN_KEY Fund Insight (data ringkas /api/rt).
 import { chromium } from 'playwright';
 import fs from 'fs';
 
@@ -39,10 +39,27 @@ async function make(kind, ids, open, ready) {
   console.log(`${kind}: ${ok} dari ${ids.length} PDF dibuat` + (fail.length ? `\n  dilewati: ${fail.join(', ')}` : ''));
 }
 
-let listed = 0;
+// Data pasar ringkas untuk halaman nasabah & PDF (rating, naik-turun harga, median sejenis): dihitung halaman Fund Insight dari data
+// pasar lengkap (khusus internal, dibuka dengan ADMIN_KEY) lalu disimpan ke /api/rt. Dijalankan sebelum PDF supaya PDF memakai hasil terbaru.
+async function slim(id) {
+  const key = process.env.FUND_ADMIN_KEY || '';
+  if (!key) { console.log('data ringkas: dilewati - secret FUND_ADMIN_KEY belum diisi (isi = ADMIN_KEY Fund Insight). Halaman nasabah tetap memakai data lama.'); return null; }
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${FUND}/p/${id}`, { waitUntil: 'load', timeout: 60000 });
+    await page.waitForFunction(() => typeof funds !== 'undefined' && funds.length > 0 && typeof slimMake === 'function', null, { timeout: 60000 });
+    const r = await page.evaluate((k) => slimMake(k), key);
+    console.log(`data ringkas: ${r.funds} produk, ${r.rated} berating 1 th, ${r.kb} KB, data pasar per ${r.at}`);
+    return true;
+  } catch (e) { console.log('data ringkas: GAGAL - ' + String(e.message || e).split('\n')[0]); return false; }
+  finally { await page.close(); }
+}
+
+let listed = 0, slimOk = null;   // null = dilewati (secret belum diisi), false = gagal
 try {
   const ids = (await getJson(FUND + '/api/funds')).funds.map((f) => String(f.pid)).filter((p) => /^\d+$/.test(p));
   ids.forEach((id) => keep.push(`fund-${id}.pdf`)); listed++;
+  slimOk = await slim(ids[0]);
   await make('fund', ids, `${FUND}/p/${ids[0]}`, () => typeof funds !== 'undefined' && funds.length > 0 && typeof pdf === 'function');
 } catch (e) { console.log('fund: GAGAL - ' + (e.message || e)); result.fund = { ok: 0 }; }
 try {
@@ -57,3 +74,4 @@ await browser.close();
 if (listed === 2) fs.writeFileSync('out/keep.txt', keep.join('\n') + '\n');
 fs.writeFileSync('status.txt', `${new Date().toISOString()} fund ${result.fund.ok} bond ${result.bond.ok}\n`);
 if (!result.fund.ok || !result.bond.ok) { console.log('Ada bagian yang tidak menghasilkan PDF sama sekali. PDF lama tetap dipakai.'); process.exit(1); }
+if (slimOk === false) { console.log('PDF selesai, tetapi data ringkas halaman nasabah tidak diperbarui (lihat "data ringkas" di atas).'); process.exit(1); }

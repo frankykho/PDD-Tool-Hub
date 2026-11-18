@@ -16,6 +16,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PROFILE_JSON: ${{ secrets.PROFILE_JSON }}   # isi profile.json (sama dengan untuk deploy)
+      FUND_ADMIN_KEY: ${{ secrets.FUND_ADMIN_KEY }}   # = ADMIN_KEY Fund Insight; untuk membuat data ringkas halaman nasabah (/api/rt)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
