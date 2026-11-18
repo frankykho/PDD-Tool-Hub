@@ -262,7 +262,7 @@
   }
   .slide-text{ flex:0 0 auto; padding-bottom:14px; }
   .slide-title{ font-size:17px; font-weight:800; margin:0 0 6px 0; letter-spacing:-.2px; }
-  .slide-desc{ font-size:13.5px; color:#3d5047; line-height:1.6; margin:0; }
+  .slide-desc{ font-size:16px; font-weight:500; color:#1f2f27; line-height:1.55; margin:0; }
   .slide-end-note{
     margin-top:12px; font-size:10.5px; line-height:1.5; color:var(--sub);
     border-top:1px solid var(--line); padding-top:10px;
@@ -352,7 +352,7 @@
   .step.active{ background:var(--brand-emerald-soft); }
   .step.active .step-n{ background:var(--brand-emerald); color:#0f2e1e; border-color:transparent; }
   .step-body{ display:none; padding:0 12px 12px 46px; }
-  .step-body .slide-desc{ font-size:14px; }
+  .step-body .slide-desc{ font-size:14px; font-weight:400; color:#3d5047; }
 
   /* ============ LAPTOP & TABLET: tanpa bingkai HP ============ */
   @media (min-width: 700px){
@@ -741,7 +741,7 @@ function renderMenu(){
       btn.className = 'row';
       btn.innerHTML = rowHtml({
         icon: cat.icon, tint: cat.tint, title: cat.title,
-        subData: cat.desc, sub: cat.desc ? '' : `${n} topik`
+        subData: cat.desc, sub: `${n} topik`
       });
       btn.addEventListener('click', () => navigate(buildHash(cat.id)));
       menuList.appendChild(btn);
@@ -752,8 +752,8 @@ function renderMenu(){
   // Mode pencarian: cari judul topik & isi langkahnya di semua kategori
   const results = [];
   CATEGORIES.forEach(cat => (cat.items || []).forEach(t => {
-    const hay = normalize(t.title + ' ' + (t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
-    if(hay.includes(q)) results.push({ cat, t });
+    const hay = normalize(cat.title + ' ' + t.title + ' ' + (t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
+    if(q.split(/\s+/).every(w => hay.includes(w))) results.push({ cat, t });
   }));
 
   if(results.length === 0){
@@ -829,8 +829,9 @@ const stepsBox = $('steps'), stepsList = $('steps-list'), stepsBg = $('steps-bg'
 function buildSteps(){
   const slides = currentTutorial.slides || [];
   stepsList.innerHTML = slides.map((s, i) => {
-    const body = s.text !== undefined ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>` : '');
-    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t"${String(s.title || slideText(s) || '').trim() ? ' translate="no"' : ''}>${esc(stepTitle(s, i))}</span></button>`
+    const raw = String(slideText(s) || '').trim(), same = !s.title && raw && raw.replace(/\*\*/g, '') === stepTitle(s, i);
+    const body = same ? '' : s.text !== undefined ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>` : '');
+    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t"${String(s.title || slideText(s) || '').trim() ? ' translate="no"' : ''}>${same ? formatDesc(raw) : esc(stepTitle(s, i))}</span></button>`
       + `<div class="step-body">${body}${i === slides.length - 1 ? endHtml() : ''}</div></li>`;
   }).join('');
 }
@@ -857,7 +858,7 @@ function buildSlides(){
     el.setAttribute('role', 'group');
     el.setAttribute('aria-label', `Langkah ${i + 1} dari ${total}`);
     const img = safeUrl(s.image);
-    const alt = s.title ? `Langkah ${i + 1}: ${s.title}` : `Screenshot langkah ${i + 1}`;
+    const alt = String(s.title || slideText(s) || '').trim() ? `Langkah ${i + 1}: ${stepTitle(s, i)}` : `Screenshot langkah ${i + 1}`;
     const imgHtml = img
       ? `<img translate="no" src="${esc(img)}" alt="${esc(alt)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom>`
       : `<div class="slide-image-placeholder" aria-hidden="true"><div style="font-size:28px">🖼️</div>Gambar untuk langkah ini belum tersedia</div>`;
@@ -1200,6 +1201,25 @@ $('btn-konten').addEventListener('click', () => {
 });
 
 /* ========================= MUAT DATA ========================= */
+// Halaman nasabah membaca Firestore lewat REST (satu permintaan, tanpa pustaka Firebase). Admin & form usulan tetap memakai SDK.
+const CACHE_KEY = 'tutorial-data-v1';
+const fsVal = (v) => v == null ? null : 'stringValue' in v ? v.stringValue : 'integerValue' in v ? Number(v.integerValue) : 'doubleValue' in v ? v.doubleValue
+  : 'booleanValue' in v ? v.booleanValue : 'timestampValue' in v ? v.timestampValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(fsVal)
+  : 'mapValue' in v ? fsMap(v.mapValue.fields) : null;
+const fsMap = (f) => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, fsVal(v)]));
+async function loadCategories(projectId){
+  if(!projectId) throw new Error('firebase projectId kosong di profil');
+  const out = [];
+  let page = '';
+  do{   // urut "order" seperti query lama; dokumen tanpa "order" tidak ikut (sama dengan orderBy di SDK)
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/categories?orderBy=order&pageSize=100${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
+    if(!r.ok) throw new Error('Firestore HTTP ' + r.status);
+    const j = await r.json();
+    (j.documents || []).forEach(d => out.push({ id: d.name.split('/').pop(), ...fsMap(d.fields) }));
+    page = j.nextPageToken || '';
+  }while(page);
+  return out;
+}
 function setData(list){
   CATEGORIES = (list || []).map(c => ({ ...c, items: Array.isArray(c.items) ? c.items : [] }));
   dataLoaded = true;
@@ -1230,20 +1250,15 @@ if(IS_STATIC){
   setData(STATIC_DATA);
 }else{
   try{
-    const [{ initializeApp }, fs, { firebaseConfig }] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js'),
-      import('./firebase-config.js')
-    ]);
-    const db = fs.getFirestore(initializeApp(firebaseConfig));
-    fs.onSnapshot(
-      fs.query(fs.collection(db, 'categories'), fs.orderBy('order')),
-      (snap) => setData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
-      (err) => { console.error('Gagal memuat data tutorial:', err); if(!dataLoaded) showLoadError(); }
-    );
+    // kunjungan ulang: tampil langsung dari simpanan di HP, lalu diperbarui dari server
+    try{ const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if(Array.isArray(c) && c.length) setData(c); }catch(e){}
+    const { firebaseConfig } = await import('./firebase-config.js');
+    const list = await loadCategories(firebaseConfig.projectId);
+    setData(list);
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify(list)); }catch(e){}
   }catch(err){
-    console.error(err);
-    showLoadError();
+    console.error('Gagal memuat data tutorial:', err);
+    if(!dataLoaded) showLoadError();
   }
 }
 </script>

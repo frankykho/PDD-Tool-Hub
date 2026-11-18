@@ -84,4 +84,13 @@ assert.deepEqual((await call("/api/faq")).j, [{ q: "Berapa minimal top up?", a: 
 
 // skrip editor anotasi bisa dimuat sebagai modul
 assert.ok(fs.readFileSync(new URL("./site/annotate.js", import.meta.url), "utf8").includes("export async function annotate"));
+// halaman nasabah membaca Firestore lewat REST: nilai bertipe -> nilai biasa (sama dengan isi dokumen di SDK)
+{
+  const page = fs.readFileSync(new URL('./site/index.html', import.meta.url), 'utf8'), i = page.indexOf('const fsVal'), j = page.indexOf('async function loadCategories', i);
+  const { fsMap } = new Function(page.slice(i, j) + ';return { fsMap };')();
+  assert.deepEqual(fsMap({ title: { stringValue: 'Saham' }, order: { integerValue: '2' }, x: { doubleValue: 1.5 }, on: { booleanValue: false }, n: { nullValue: null },
+    items: { arrayValue: { values: [{ mapValue: { fields: { id: { stringValue: 't1' }, slides: { arrayValue: {} } } } }] } } }),
+    { title: 'Saham', order: 2, x: 1.5, on: false, n: null, items: [{ id: 't1', slides: [] }] });
+  assert.ok(page.includes("q.split(/\\s+/).every(w => hay.includes(w))"), 'pencarian: semua kata harus ada');
+}
 console.log("semua cek lolos");

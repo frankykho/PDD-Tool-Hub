@@ -47,6 +47,6 @@ ${D} .row-chevron{color:#5D7066}
 ${D} .skeleton{background:linear-gradient(90deg,#16201B 25%,#1C2822 50%,#16201B 75%);background-size:200% 100%}
 ${D} .slide-image-wrap{background:linear-gradient(160deg,#121C17,#16201B)}
 ${D} .slide-image-placeholder{color:#7F9187}
-${D} .slide-desc{color:#B8C8BF}
+${D} .slide-desc{color:#DCE6E0}${D} .step-body .slide-desc{color:#B8C8BF}
 ${D} .toast{background:#26332C;color:var(--ink)}
 ${GLASS}`;
