@@ -24,6 +24,8 @@ const json = (v, status = 200) => Response.json(v, { status, headers: { "cache-c
 const str = (v, n) => (typeof v === "string" ? v : "").replace(/\s+/g, " ").trim().slice(0, n);
 const today = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 export const TOPIC = /^[\w-]{1,80}\/[\w-]{1,80}$/;
+/** Rute halaman tutorial (index.html): /kategori, /kategori/<slug>, /tutorial/<slug>, /cari. */
+export const SPA = /^\/(?:kategori(?:\/[^/]+)?|tutorial\/[^/]+|cari)\/?$/;
 
 /** Izin admin dari Tool Hub: { app: "tutorial", k: "gh", e, x } bertanda tangan HMAC SSO_SECRET. Email admin, atau null. */
 export async function adminOf(env, tok) {
@@ -156,8 +158,9 @@ export default {
       try { return await api(request, env, url); }
       catch (e) { return json({ error: e instanceof AiError ? e.message : "Gagal: " + (e.message || e) }, e instanceof AiError ? 502 : 500); }
     }
-    // tanpa If-None-Match: kalau tidak, browser bisa terus memakai HTML lama (dengan profil lama) dari cache
-    const req = new Request(request);
+    // rute halaman (link yang bisa dibagikan) disajikan dari index.html; tanpa If-None-Match: kalau tidak, browser bisa
+    // terus memakai HTML lama (dengan profil lama) dari cache
+    const req = SPA.test(url.pathname) ? new Request(new URL("/", url), request) : new Request(request);
     req.headers.delete("if-none-match");
     const res = injectProfile(await env.ASSETS.fetch(req), env);
     // tema & bahasa dari Tool Hub (di luar Hub bawaannya tema terang & bahasa Indonesia). fetch() dari tombol export (Sec-Fetch-Dest: empty) tidak disisipi,

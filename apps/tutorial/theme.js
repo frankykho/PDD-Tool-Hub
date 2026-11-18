@@ -31,6 +31,8 @@ ${G} .btn-logout,${G} .mini-btn:not(.danger),${G} .btn-view-topic,${G} .btn-edit
 `;
 
 export const TUTORIAL_THEME_CSS = `
+${D}{--pri:#4CC38A;--pri-2:#62CF9A;--acc:#4CC38A;--pri-soft:#173126;--pri-ink:#BFEBD3;--on-pri:#08170F;--surf:#16201B;--soft:#1C2822;--soft-2:#26342D;--faint:#7F9187;--line-2:#34463C;
+--tip:#2A2410;--tip-line:#4A3F1C;--tip-ink:#F0D58A;--focus:#62CF9A;--sh:0 1px 2px rgba(0,0,0,.3);--sh-md:0 4px 18px rgba(0,0,0,.35);--sh-lg:0 12px 40px rgba(0,0,0,.5)}
 ${D}{color-scheme:dark;--brand-green:#6FDC9F;--brand-emerald-soft:#14281E;--ink:#E4ECE7;--sub:#9DB0A5;--line:#2A3A31;--paper:#16201B;--bg:#0F1713;--danger:#F2897E;--danger-soft:#3B1A18;--warn-soft:#2A2010;--warn:#F0C875}
 ${D} input,${D} select,${D} textarea{background:var(--bg);color:var(--ink);border-color:var(--line)}
 ${D} #login-box button,${D} .btn-approve,${D} .btn-add-cat,${D} .btn-save-topic-title,${D} .btn-save-slide,${D} .btn-submit{background:#1F7A4C;color:#fff}

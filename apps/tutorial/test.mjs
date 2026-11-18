@@ -91,6 +91,50 @@ assert.ok(fs.readFileSync(new URL("./site/annotate.js", import.meta.url), "utf8"
   assert.deepEqual(fsMap({ title: { stringValue: 'Saham' }, order: { integerValue: '2' }, x: { doubleValue: 1.5 }, on: { booleanValue: false }, n: { nullValue: null },
     items: { arrayValue: { values: [{ mapValue: { fields: { id: { stringValue: 't1' }, slides: { arrayValue: {} } } } }] } } }),
     { title: 'Saham', order: 2, x: 1.5, on: false, n: null, items: [{ id: 't1', slides: [] }] });
-  assert.ok(page.includes("q.split(/\\s+/).every(w => hay.includes(w))"), 'pencarian: semua kata harus ada');
+  // model data, slug, dan peringkat pencarian (diambil dari kode halaman)
+  const grab = (a, b) => { const x = page.indexOf(a), y = page.indexOf(b, x); assert.ok(x >= 0 && y > x, 'potongan ' + a); return page.slice(x, y); };
+  const P = new Function('location', grab('const esc =', '/* Ikon garis') + grab('/* ========================= DATA', '/* ========================= ROUTER')
+    + ';return { build, searchTopics, searchFaq, bySlug, stepLabel, all: () => ({ CATS, TOPICS }), setPop: (p) => { POP = p; }, setFaq: (f) => { FAQ = f; } };')({ href: 'https://t.test/' });
+  P.build([
+    { id: 'cat-1-a6in3', title: 'Saham', icon: '📊', items: [
+      { id: 'topic_9iz2siz', title: 'Log In iKISI', slides: [{ text: 'Masukkan **User ID** Anda', image: 'https://t.test/1.webp' }, { title: 'Klik Log In', desc: 'Tekan tombolnya', image: 'javascript:alert(1)', tip: 'Jangan bagikan password' }] },
+      { id: 'topic_buy1', title: 'Cara Beli Saham', desc: 'Membeli saham lewat order', keywords: ['order', 'buy'], slides: [{ text: 'Pilih saham' }] },
+      { id: 'topic_sell', title: 'Cara Jual Saham', keywords: 'sell, jual', slides: [] }, { id: 'topic_stop', title: 'Order Stop Loss', slides: [] }] },
+    { id: 'cat_ixgqkq9', title: 'Dompet / RDN', items: [{ id: 'topic_tu1', title: 'Top Up RDN', slides: [{ text: 'Buka menu **Top Up**' }] }] },
+  ]);
+  const { CATS, TOPICS } = P.all(), login = TOPICS[0];
+  assert.deepEqual([CATS[0].slug, CATS[1].slug, login.slug], ['saham-1a6in3', 'dompet-rdn-ixgqkq9', 'log-in-ikisi-9iz2siz']);
+  assert.equal(P.bySlug(TOPICS, 'judul-lama-sekali-9iz2siz'), login, 'link tetap jalan walau judul diganti (id pendek di ujung slug)');
+  assert.equal(P.bySlug(TOPICS, 'tidak-ada-zzz'), null);
+  assert.deepEqual(login.steps[0], { title: '', text: 'Masukkan **User ID** Anda', image: 'https://t.test/1.webp', tip: '' });
+  assert.deepEqual([login.steps[1].title, login.steps[1].text, login.steps[1].image, login.steps[1].tip], ['Klik Log In', 'Tekan tombolnya', '', 'Jangan bagikan password'], 'format lama judul+desc, tip baru, URL gambar berbahaya dibuang');
+  assert.equal(login.thumb, 'https://t.test/1.webp');
+  assert.equal(login.key, 'cat-1-a6in3/topic_9iz2siz', 'kunci statistik sama dengan versi lama');
+  assert.deepEqual(TOPICS[2].keywords, ['sell', 'jual'], 'kata kunci boleh teks berkoma');
+  assert.equal(P.stepLabel(login.steps[0], 0), 'Masukkan User ID Anda');
+  const titles = (q) => P.searchTopics(q).map((t) => t.title);
+  assert.deepEqual(titles('cara beli saham'), ['Cara Beli Saham'], 'judul persis paling atas & semua kata harus ada');
+  assert.deepEqual(titles('saham beli'), ['Cara Beli Saham'], 'urutan kata bebas');
+  assert.deepEqual(titles('buy'), ['Cara Beli Saham'], 'kata kunci dari Admin ikut dicari');
+  assert.deepEqual(titles('rdn top'), ['Top Up RDN']);
+  assert.equal(titles('saham').length, 4, 'nama kategori ikut dicari');
+  assert.deepEqual(titles('top up'), ['Top Up RDN'], 'cocok di awal kata: "top" tidak menemukan "Stop"');
+  assert.deepEqual(titles('password'), ['Log In iKISI'], 'isi langkah & tip ikut dicari');
+  assert.deepEqual(titles('zzzz'), []);
+  P.setPop(['cat-1-a6in3/topic_sell']);
+  assert.equal(titles('saham')[0], 'Cara Jual Saham', 'skor seri: yang lebih sering dibuka dulu');
+  P.setFaq([{ q: 'Berapa minimal top up?', a: 'Rp10.000' }]);
+  assert.equal(P.searchFaq('minimal top').length, 1);
+}
+/* rute halaman yang bisa dibagikan disajikan dari index.html */
+{
+  const { SPA } = await import('./worker.js');
+  for (const p of ['/tutorial/log-in-ikisi-9iz2siz', '/kategori', '/kategori/saham-1a6in3', '/cari', '/tutorial/x/']) assert.ok(SPA.test(p), p);
+  for (const p of ['/', '/api/faq', '/icons.js', '/images/2026-10/a.webp', '/tutorial', '/tutorial/a/b', '/admin.html']) assert.ok(!SPA.test(p), p);
+  const seen = [], asset = env.ASSETS.fetch;
+  env.ASSETS.fetch = async (rq) => { seen.push(new URL(rq.url).pathname); return asset(rq); };
+  await tut.fetch(new Request(BASE + '/tutorial/log-in-ikisi-9iz2siz?langkah=2'), env).catch(() => {});   // HTMLRewriter hanya ada di Workers
+  assert.deepEqual(seen, ['/'], 'yang diambil index.html');
+  env.ASSETS.fetch = asset;
 }
 console.log("semua cek lolos");

@@ -155,11 +155,12 @@
     border:1px solid var(--line); background:var(--paper); color:var(--brand-green); font-size:10.5px;
     font-weight:700; padding:3px 8px; border-radius:7px; cursor:pointer; flex:0 0 auto;
   }
-  .topic-title-edit{ display:flex; align-items:center; gap:6px; flex:1 1 100%; }
-  .topic-title-edit-input{
+  .topic-title-edit{ display:flex; align-items:center; gap:6px; flex:1 1 100%; flex-wrap:wrap; }
+  .topic-title-edit-input,.topic-desc-edit-input,.topic-kw-edit-input{
     flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:8px;
     font-size:12.5px; font-family:inherit;
   }
+  .topic-title-edit > input{ flex:1 1 100%; }
   .btn-save-topic-title, .btn-cancel-topic-title{
     flex:0 0 auto; font-size:11px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer;
   }
@@ -356,7 +357,7 @@ async function buildExportedHTML(categories){
   if(!res.ok || !ico.ok) throw new Error('Tidak bisa mengambil index.html / icons.js');
   // file export dibuka offline: ikon ditanam langsung, bukan dimuat dari icons.js
   const icoJs = await ico.text();
-  const template = (await res.text()).replace('<script src="icons.js"><\/script>', () => '<script>' + icoJs + '<\/script>');
+  const template = (await res.text()).replace(/<script src="\/?icons\.js"><\/script>/, () => '<script>' + icoJs + '<\/script>');
   const json = JSON.stringify(categories)
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
@@ -696,7 +697,7 @@ function renderSlideDetailHtml(slide, i, topicId){
     <li class="slide-detail-row" data-new-image="${escapeHtml(image)}">
       <div class="slide-view-mode">
         ${imgHtml}
-        <div class="slide-view-text" translate="no"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}</div>
+        <div class="slide-view-text" translate="no"><b>${i + 1}.</b>${titleHtml}${escapeHtml(body)}${slide.tip ? `<br><small style="color:var(--sub)">💡 ${escapeHtml(slide.tip)}</small>` : ''}</div>
         <button type="button" class="btn-edit-slide" data-topic-id="${escapeHtml(topicId)}" data-slide-index="${i}">Edit</button>
       </div>
       <div class="slide-edit-mode" style="display:none;">
@@ -708,6 +709,7 @@ function renderSlideDetailHtml(slide, i, topicId){
           <button type="button" class="btn-remove-slide-image">Hapus gambar</button>
         </div>
         <textarea class="slide-edit-body" placeholder="Jelaskan langkah ini...">${escapeHtml(body)}</textarea>
+        <input type="text" class="slide-edit-tip" maxlength="200" placeholder="Tip / catatan penting (opsional), mis. Pastikan rekening tujuan sesuai di aplikasi" value="${escapeHtml(slide.tip || '')}">
         <div class="slide-edit-actions">
           <button type="button" class="btn-save-slide" data-topic-id="${escapeHtml(topicId)}" data-slide-index="${i}">Simpan</button>
           <button type="button" class="btn-cancel-slide-edit">Batal</button>
@@ -737,10 +739,12 @@ function renderManageCategory(catId, cat, index, allDocs){
           <div class="manage-topic-row-head">
             <div class="topic-title-view">
               <span><span${it.title ? ' translate="no"' : ''}>${escapeHtml(it.title || '(tanpa judul)')}</span> <span style="color:var(--sub);">(${(it.slides || []).length} langkah)</span></span>
-              <button class="btn-edit-topic-title" data-topic-id="${escapeHtml(it.id)}">Edit Judul</button>
+              <button class="btn-edit-topic-title" data-topic-id="${escapeHtml(it.id)}">Edit Info</button>
             </div>
             <div class="topic-title-edit" style="display:none;">
-              <input type="text" class="topic-title-edit-input" value="${escapeHtml(it.title || '')}">
+              <input type="text" class="topic-title-edit-input" value="${escapeHtml(it.title || '')}" placeholder="Judul topik" aria-label="Judul topik">
+              <input type="text" class="topic-desc-edit-input" maxlength="160" value="${escapeHtml(it.desc || '')}" placeholder="Deskripsi singkat (opsional), mis. Cara mengisi saldo RDN" aria-label="Deskripsi singkat">
+              <input type="text" class="topic-kw-edit-input" maxlength="200" value="${escapeHtml(Array.isArray(it.keywords) ? it.keywords.join(', ') : (it.keywords || ''))}" placeholder="Kata kunci pencarian, pisahkan koma (opsional), mis. setor, deposit" aria-label="Kata kunci pencarian">
               <button class="btn-save-topic-title" data-topic-id="${escapeHtml(it.id)}">Simpan</button>
               <button class="btn-cancel-topic-title">Batal</button>
             </div>
@@ -863,6 +867,8 @@ function renderManageCategory(catId, cat, index, allDocs){
       const row = btn.closest('.manage-topic-row-head');
       const topicId = btn.dataset.topicId;
       const newTitle = row.querySelector('.topic-title-edit-input').value.trim();
+      const newDesc = row.querySelector('.topic-desc-edit-input').value.trim().slice(0, 160);
+      const newKw = row.querySelector('.topic-kw-edit-input').value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 15);
       if(!newTitle){
         alert('Judul topik tidak boleh kosong.');
         return;
@@ -876,7 +882,9 @@ function renderManageCategory(catId, cat, index, allDocs){
         const freshItems = [...(freshSnap.data().items || [])];
         const topicIdx = freshItems.findIndex(t => t.id === topicId);
         if(topicIdx === -1) return;
-        freshItems[topicIdx] = { ...freshItems[topicIdx], title: newTitle };
+        // deskripsi & kata kunci opsional: tampil di halaman tutorial dan ikut dipakai pencarian; kosong = field dihapus
+        const { desc: _d, keywords: _k, ...rest } = freshItems[topicIdx];
+        freshItems[topicIdx] = { ...rest, title: newTitle, ...(newDesc ? { desc: newDesc } : {}), ...(newKw.length ? { keywords: newKw } : {}) };
         await updateDoc(catRef, { items: freshItems });
       }catch(err){
         console.error(err);
@@ -1011,6 +1019,7 @@ function renderManageCategory(catId, cat, index, allDocs){
       const slideIndex = parseInt(btn.dataset.slideIndex, 10);
       const newTitle = li.querySelector('.slide-edit-title').value.trim();
       const newBody = li.querySelector('.slide-edit-body').value.trim();
+      const newTip = li.querySelector('.slide-edit-tip').value.trim().slice(0, 200);
       const newImage = li.dataset.newImage !== undefined ? li.dataset.newImage : '';
 
       btn.disabled = true;
@@ -1024,9 +1033,10 @@ function renderManageCategory(catId, cat, index, allDocs){
         if(topicIdx === -1) return;
         const slides = [...(freshItems[topicIdx].slides || [])];
         if(slideIndex < 0 || slideIndex >= slides.length) return;
-        slides[slideIndex] = newTitle
-          ? { image: newImage, title: newTitle, desc: newBody }
-          : { image: newImage, text: newBody };
+        slides[slideIndex] = {
+          ...(newTitle ? { image: newImage, title: newTitle, desc: newBody } : { image: newImage, text: newBody }),
+          ...(newTip ? { tip: newTip } : {}),
+        };
         freshItems[topicIdx] = { ...freshItems[topicIdx], slides };
         await updateDoc(catRef, { items: freshItems });
       }catch(err){

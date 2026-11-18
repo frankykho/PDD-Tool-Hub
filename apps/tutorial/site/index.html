@@ -2,1198 +2,1130 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pusat Tutorial Aplikasi</title>
 <meta name="description" content="Panduan langkah demi langkah menggunakan aplikasi.">
-<meta name="theme-color" content="#14432c">
+<meta name="theme-color" content="#1F634F">
 <meta property="og:title" content="Pusat Tutorial Aplikasi">
 <meta property="og:description" content="Panduan langkah demi langkah menggunakan aplikasi.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --brand-dark: #14432c;
-    --brand-green: #1a5c3a;
-    --brand-emerald: #2ecc71;
-    --brand-emerald-soft: #eafaf1;
-    --ink: #14201a;
-    --sub: #5f7268;
-    --line: #e4ece7;
-    --paper: #ffffff;
-    --bg: #f4f8f5;
-    --focus: #2ecc71;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;}
-  html{height:100%;}
-  body{
-    font-family:'Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif;
-    background:var(--bg);
-    color:var(--ink);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:100vh;
-    min-height:100svh;
-    padding:16px;
-    overflow-y:auto;
-  }
-  button{ font-family:inherit; }
-  :focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
+/* ============================================================================
+   TOKEN DESAIN (tema gelap di dalam Tool Hub menimpa token ini, lihat ../theme.js)
+   ============================================================================ */
+:root{
+  --pri:#1F634F; --pri-2:#27765F; --acc:#33986C;
+  --pri-soft:#E8F2ED; --pri-ink:#174D3D;
+  --bg:#F7F9F8; --surf:#FFFFFF; --soft:#F1F5F3; --soft-2:#E9EFEC;
+  --ink:#202624; --sub:#66736D; --faint:#8A9690;
+  --line:#E5EBE8; --line-2:#D6DFDA;
+  --tip:#FFF8E8; --tip-line:#F1E2B8; --tip-ink:#5C4A16;
+  --bad:#B42318; --on-pri:#FFFFFF;
+  --r-sm:8px; --r:12px; --r-lg:16px; --r-full:999px;
+  --sh:0 1px 2px rgba(16,32,24,.04),0 1px 6px rgba(16,32,24,.04);
+  --sh-md:0 2px 6px rgba(16,32,24,.05),0 8px 24px rgba(16,32,24,.07);
+  --sh-lg:0 12px 40px rgba(16,32,24,.16);
+  --focus:#1F634F;
+  --hdr:64px; --bnav:64px; --safe-b:env(safe-area-inset-bottom,0px);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  color-scheme:light;
+}
+@media (max-width:767px){ :root{ --hdr:56px; } }
 
-  /* ============ PHONE FRAME (mockup di desktop) ============ */
-  #phone{
-    width:100%;
-    max-width:360px;
-    height:780px;
-    max-height:88vh;
-    max-height:88svh;
-    background:var(--paper);
-    border-radius:34px;
-    box-shadow:0 20px 60px rgba(20,67,44,.18), 0 2px 8px rgba(20,67,44,.08);
-    overflow:hidden;
-    position:relative;
-    border:8px solid #0f2e1e;
-  }
-  #app{position:absolute; inset:0; overflow:hidden;}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html{ scroll-padding-top:calc(var(--hdr) + 16px); }
+html,body{ margin:0; }
+body{
+  font:400 15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh; min-height:100svh;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+button,input,textarea{ font:inherit; color:inherit; }
+button{ cursor:pointer; }
+a{ color:var(--pri); }
+img{ max-width:100%; }
+:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; border-radius:6px; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.ic{ width:20px; height:20px; flex:0 0 auto; }
+.ic-sm{ width:16px; height:16px; }
+.wrap{ max-width:1280px; margin:0 auto; padding:0 24px; }
+@media (max-width:767px){ .wrap{ padding:0 16px; } }
+[hidden]{ display:none !important; }
+.skip{ position:absolute; left:16px; top:-48px; z-index:100; background:var(--pri); color:var(--on-pri); padding:10px 14px; border-radius:var(--r-sm); text-decoration:none; font-weight:600; }
+.skip:focus{ top:8px; }
 
-  /* Di HP beneran: bingkai dilepas, isi penuh layar */
-  @media (max-width: 480px){
-    body{ padding:0; align-items:stretch; }
-    #phone{
-      width:100%; max-width:100%;
-      height:100vh; height:100dvh;
-      max-height:none;
-      border-radius:0; border:none; box-shadow:none;
-    }
-  }
+/* ---------- tombol ---------- */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 18px; border-radius:var(--r); border:1px solid var(--line-2);
+  background:var(--surf); color:var(--ink); font-weight:600; font-size:14.5px; text-decoration:none; white-space:nowrap; transition:background .15s,border-color .15s,box-shadow .15s,color .15s; }
+.btn:hover{ background:var(--soft); }
+.btn:active{ transform:translateY(1px); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+.btn-pri{ background:var(--pri); border-color:var(--pri); color:var(--on-pri); }
+.btn-pri:hover{ background:var(--pri-2); border-color:var(--pri-2); }
+.btn-sm{ min-height:36px; padding:0 14px; font-size:13.5px; border-radius:10px; }
+.btn-ghost{ border-color:transparent; background:transparent; }
+.btn-ghost:hover{ background:var(--soft); }
+.icon-btn{ display:inline-grid; place-items:center; width:44px; height:44px; border-radius:var(--r); border:1px solid transparent; background:transparent; color:var(--ink); }
+.icon-btn:hover{ background:var(--soft); }
+.icon-btn.bordered{ border-color:var(--line); background:var(--surf); }
 
-  /* ============ SCREEN STATE ============ */
-  .screen{
-    position:absolute; inset:0;
-    display:flex; flex-direction:column;
-    background:var(--paper);
-    transition: transform .32s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
-  }
-  .screen[data-pos="current"]{ transform:translateX(0); opacity:1; }
-  .screen[data-pos="right"]{ transform:translateX(100%); }
-  .screen[data-pos="left"]{ transform:translateX(-28%); opacity:0; pointer-events:none; }
-  .scroll{ overflow-y:auto; }
+/* ---------- header ---------- */
+.hdr{ position:sticky; top:0; z-index:40; height:var(--hdr); background:color-mix(in srgb,var(--surf) 92%,transparent); border-bottom:1px solid var(--line);
+  -webkit-backdrop-filter:saturate(160%) blur(8px); backdrop-filter:saturate(160%) blur(8px); }
+.hdr-in{ height:100%; display:flex; align-items:center; gap:24px; }
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font-weight:700; font-size:16px; letter-spacing:-.01em; flex:0 0 auto; }
+.brand-mark{ width:32px; height:32px; border-radius:9px; background:var(--pri); color:var(--on-pri); display:grid; place-items:center; }
+.brand small{ display:block; font-weight:500; font-size:11.5px; color:var(--sub); letter-spacing:0; }
+.hdr-nav{ display:flex; gap:4px; }
+.hdr-nav a,.hdr-nav button{ display:inline-flex; align-items:center; height:40px; padding:0 12px; border-radius:10px; border:0; background:transparent; color:var(--sub); font-weight:500; font-size:14.5px; text-decoration:none; }
+.hdr-nav a:hover,.hdr-nav button:hover{ background:var(--soft); color:var(--ink); }
+.hdr-nav [aria-current="page"]{ color:var(--pri); background:var(--pri-soft); }
+.hdr-search{ flex:1 1 auto; max-width:420px; margin-left:auto; }
+.hdr-right{ display:flex; align-items:center; gap:8px; margin-left:auto; }
+.hdr-search + .hdr-right{ margin-left:0; }
+.hdr-menu{ display:none; }
+.menu-pop{ position:absolute; right:12px; top:calc(var(--hdr) - 4px); width:min(280px,calc(100vw - 24px)); background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-lg); padding:8px; }
+.menu-pop a,.menu-pop button{ display:flex; align-items:center; gap:12px; width:100%; min-height:44px; padding:0 12px; border:0; border-radius:10px; background:transparent; text-decoration:none; color:var(--ink); font-weight:500; text-align:left; }
+.menu-pop a:hover,.menu-pop button:hover{ background:var(--soft); }
+@media (max-width:899px){
+  .hdr-nav,.hdr-search,#hdr-app{ display:none; }
+  .hdr-menu{ display:inline-grid; }
+  .hdr-in{ gap:8px; }
+  .hdr-right{ margin-left:auto !important; }
+}
 
-  /* ============ HEADER HIJAU (menu & submenu) ============ */
-  .green-head{
-    background:linear-gradient(155deg, var(--brand-dark), var(--brand-green) 70%);
-    color:#fff;
-    position:relative;
-  }
-  .green-head::after{
-    content:"";
-    position:absolute; left:0; right:0; bottom:-1px; height:18px;
-    background:var(--paper);
-    border-radius:18px 18px 0 0;
-  }
-  .menu-header{ padding:28px 22px 30px 22px; }
-  #menu-screen .menu-header{ background:linear-gradient(180deg, #070b09, #1b2a24); }
-  .menu-title{ font-size:24px; font-weight:800; letter-spacing:-.2px; margin:0 0 6px 0; }
-  .menu-desc{ font-size:13px; color:#d9e3de; line-height:1.5; margin:0 0 14px 0; max-width:300px; }
+/* ---------- pencarian ---------- */
+.sbox{ position:relative; }
+.sfield{ display:flex; align-items:center; gap:10px; height:44px; padding:0 6px 0 14px; background:var(--surf); border:1px solid var(--line-2); border-radius:var(--r); transition:border-color .15s,box-shadow .15s; }
+.sfield:focus-within{ border-color:var(--pri); box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 16%,transparent); }
+.sfield .ic{ color:var(--faint); }
+.sfield input{ flex:1 1 auto; min-width:0; height:100%; border:0; outline:0; background:transparent; font-size:15px; }
+.sbox .sfield input,.ask-f .sfield input{ background:transparent; border:0; }   /* menimpa gaya input umum tema gelap Tool Hub */
+.sfield input::placeholder{ color:var(--faint); }
+.sfield input::-webkit-search-cancel-button{ display:none; }
+.sclear{ width:36px; height:36px; border-radius:10px; border:0; background:transparent; color:var(--sub); display:grid; place-items:center; }
+.sclear:hover{ background:var(--soft); }
+.sbox.big .sfield{ height:56px; border-radius:var(--r-lg); padding-left:18px; box-shadow:var(--sh-md); }
+.sbox.big input{ font-size:16px; }
+.suggest{ position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:30; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-lg); padding:6px; margin:0; list-style:none; max-height:min(420px,60vh); overflow:auto; }
+.suggest li{ display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; cursor:pointer; }
+.suggest li[aria-selected="true"],.suggest li:hover{ background:var(--soft); }
+.suggest .s-t{ font-weight:500; }
+.suggest .s-c{ font-size:12.5px; color:var(--sub); }
+.suggest .s-all{ color:var(--pri); font-weight:600; font-size:14px; }
+.suggest mark{ background:transparent; color:var(--pri); font-weight:700; }
 
-  .search-box{ position:relative; }
-  .search-box input{
-    width:100%; padding:11px 14px 11px 38px; border:none; border-radius:12px;
-    font-size:14px; font-family:inherit; color:var(--ink); background:#fff;
-  }
-  .search-box input::placeholder{ color:#8a9b92; }
-  .search-box svg{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8a9b92; }
+/* ---------- beranda ---------- */
+main{ display:block; min-height:calc(100vh - var(--hdr) - 200px); outline:0; }
+.hero{ padding:56px 0 40px; text-align:center; }
+.hero h1{ margin:0 0 8px; font-size:36px; line-height:1.15; letter-spacing:-.025em; font-weight:700; }
+.hero p{ margin:0 auto 24px; color:var(--sub); font-size:16px; max-width:560px; }
+.hero .sbox{ max-width:640px; margin:0 auto; text-align:left; }
+.chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:16px; }
+.chips-l{ color:var(--sub); font-size:13px; align-self:center; margin-right:2px; }
+.chip{ display:inline-flex; align-items:center; min-height:34px; padding:0 14px; border-radius:var(--r-full); border:1px solid var(--line); background:var(--surf); color:var(--ink); font-size:13.5px; font-weight:500; text-decoration:none; }
+.chip:hover{ border-color:var(--pri); color:var(--pri); }
+@media (max-width:767px){
+  .hero{ padding:24px 0 20px; text-align:left; }
+  .hero h1{ font-size:24px; }
+  .hero p{ font-size:14.5px; margin:0 0 16px; }
+  .chips{ justify-content:flex-start; flex-wrap:nowrap; overflow-x:auto; margin:12px -16px 0; padding:0 16px 4px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chip{ flex:0 0 auto; }
+}
+.sec{ padding:28px 0; }
+.sec-h{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.sec-h h2{ margin:0; font-size:20px; letter-spacing:-.015em; font-weight:700; }
+.sec-h p{ margin:4px 0 0; color:var(--sub); font-size:14px; }
+.sec-h a{ font-size:14px; font-weight:600; text-decoration:none; white-space:nowrap; }
+@media (max-width:767px){ .sec{ padding:20px 0; } .sec-h h2{ font-size:18px; } }
 
-  .list{ padding:16px 18px 10px 18px; display:flex; flex-direction:column; gap:10px; }
-  .list-label{ font-size:12px; color:var(--sub); margin:2px 2px -2px 2px; }
+.banner{ display:flex; align-items:center; gap:20px; padding:20px 24px; border-radius:var(--r-lg); background:var(--pri-soft); border:1px solid color-mix(in srgb,var(--pri) 14%,transparent); }
+.banner-ic{ width:48px; height:48px; border-radius:var(--r); background:var(--pri); color:var(--on-pri); display:grid; place-items:center; flex:0 0 auto; }
+.banner-b{ flex:1 1 auto; min-width:0; }
+.banner h2{ margin:0 0 2px; font-size:17px; font-weight:700; }
+.banner p{ margin:0; color:var(--sub); font-size:14px; }
+.banner-a{ display:flex; gap:8px; flex-wrap:wrap; }
+@media (max-width:767px){ .banner{ flex-wrap:wrap; padding:16px; gap:14px; } .banner-ic{ width:40px; height:40px; } .banner-a{ width:100%; } .banner-a .btn{ flex:1 1 auto; } }
 
-  .row{
-    display:flex; align-items:center; gap:14px; width:100%;
-    padding:14px; border:1px solid var(--line); border-radius:16px;
-    background:var(--paper); cursor:pointer; text-align:left; color:inherit;
-    font:inherit;
-    transition: border-color .15s ease, transform .12s ease;
-  }
-  .row:active{ transform:scale(.98); }
-  .row:hover{ border-color:#c7ddce; }
-  .row-icon{
-    width:44px; height:44px; border-radius:12px; flex:0 0 auto;
-    display:flex; align-items:center; justify-content:center; font-size:20px;
-    background:var(--brand-emerald-soft);
-  }
-  .row-body{ flex:1; min-width:0; }
-  .row-title{ font-size:14.5px; font-weight:700; margin-bottom:2px; line-height:1.3; }
-  .row-sub{ font-size:12px; color:var(--sub); line-height:1.4; }
-  .row-icon.line{ background:var(--bg); color:var(--ink); }
-  .menu-main .list-label{ font-size:13px; font-weight:700; color:var(--ink); }
-  .row-chevron{ color:#b5c2bb; font-size:20px; flex:0 0 auto; }
+.grid{ display:grid; gap:16px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media (max-width:1023px){ .grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:767px){ .grid{ gap:12px; } .grid.stack{ grid-template-columns:1fr; } }
 
-  .skeleton{
-    height:74px; border-radius:16px; border:1px solid var(--line);
-    background:linear-gradient(90deg,#f1f6f3 25%,#e7efea 50%,#f1f6f3 75%);
-    background-size:200% 100%; animation:shimmer 1.4s infinite;
-  }
-  @keyframes shimmer{ to{ background-position:-200% 0; } }
+.ccard{ display:flex; flex-direction:column; gap:12px; padding:20px; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); text-decoration:none; color:var(--ink); box-shadow:var(--sh); transition:border-color .15s,box-shadow .2s,transform .2s var(--ease); min-height:100%; }
+.ccard:hover{ border-color:color-mix(in srgb,var(--pri) 40%,var(--line)); box-shadow:var(--sh-md); transform:translateY(-1px); }
+.ccard-ic{ width:44px; height:44px; border-radius:var(--r); display:grid; place-items:center; background:var(--pri-soft); color:var(--pri); font-size:22px; }
+.ccard h3{ margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em; }
+.ccard p{ margin:0; color:var(--sub); font-size:14px; line-height:1.5; }
+.ccard .meta{ margin-top:auto; font-size:13px; color:var(--sub); display:flex; align-items:center; gap:6px; }
+@media (max-width:767px){ .ccard{ padding:14px; gap:10px; } .ccard-ic{ width:38px; height:38px; font-size:19px; } .ccard h3{ font-size:15px; } .ccard p{ display:none; } }
 
-  .state-note{
-    text-align:center; font-size:13px; color:var(--sub); line-height:1.6;
-    padding:24px 16px;
-  }
-  .state-note button{
-    margin-top:10px; border:none; background:var(--brand-green); color:#fff;
-    font-weight:700; font-size:13px; padding:10px 18px; border-radius:10px; cursor:pointer;
-  }
+.tcard{ display:flex; flex-direction:column; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; text-decoration:none; color:var(--ink); box-shadow:var(--sh); transition:border-color .15s,box-shadow .2s,transform .2s var(--ease); }
+.tcard:hover{ border-color:color-mix(in srgb,var(--pri) 40%,var(--line)); box-shadow:var(--sh-md); transform:translateY(-1px); }
+.thumb{ position:relative; aspect-ratio:16/9; background:var(--soft); overflow:hidden; display:grid; place-items:center; color:var(--faint); }
+/* screenshot ditampilkan utuh (tidak dipotong) di area abu-abu */
+.thumb img{ position:absolute; inset:10px; width:calc(100% - 20px); height:calc(100% - 20px); object-fit:contain; filter:drop-shadow(0 2px 6px rgba(16,32,24,.12)); }
+.lcard .thumb img{ inset:4px; width:calc(100% - 8px); height:calc(100% - 8px); }
+.tcard-b{ padding:14px 16px 16px; display:flex; flex-direction:column; gap:4px; flex:1 1 auto; }
+.tcard .cat{ font-size:12px; font-weight:600; color:var(--pri); text-transform:none; }
+.tcard h3{ margin:0; font-size:15.5px; font-weight:600; line-height:1.35; letter-spacing:-.005em; }
+.tcard p{ margin:0; color:var(--sub); font-size:13.5px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.tcard .meta{ margin-top:auto; padding-top:8px; font-size:12.5px; color:var(--sub); display:flex; align-items:center; gap:6px; }
+@media (max-width:767px){
+  .tcard.row-m{ flex-direction:row; align-items:stretch; }
+  .tcard.row-m .thumb{ aspect-ratio:auto; width:92px; flex:0 0 92px; }
+  .tcard.row-m .tcard-b{ padding:12px 14px; }
+  .tcard.row-m h3{ font-size:15px; }
+}
 
-  .btn-suggest{
-    display:block; text-align:center; text-decoration:none;
-    margin:4px 18px 14px 18px; padding:12px; border-radius:14px;
-    background:var(--brand-emerald-soft); color:var(--brand-green);
-    font-size:13px; font-weight:800; border:1px dashed var(--brand-green);
-  }
+.ask{ display:grid; grid-template-columns:minmax(0,320px) minmax(0,1fr); gap:24px; padding:24px; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh); }
+.ask-i{ display:flex; gap:14px; align-items:flex-start; }
+.ask-ic{ width:44px; height:44px; border-radius:var(--r); background:var(--pri-soft); color:var(--pri); display:grid; place-items:center; flex:0 0 auto; }
+.ask h2{ margin:0 0 4px; font-size:18px; }
+.ask-i p{ margin:0; color:var(--sub); font-size:14px; }
+.ask-f{ display:flex; gap:8px; }
+.ask-f .sfield{ flex:1 1 auto; }
+.ask-note{ margin:8px 0 0; font-size:12.5px; color:var(--sub); }
+.ans{ margin-top:14px; padding:14px 16px; border-radius:var(--r); background:var(--soft); font-size:14.5px; }
+.ans-l{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--sub); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+.ans-cards{ display:grid; gap:10px; margin-top:12px; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+.lcard{ display:flex; align-items:center; gap:12px; padding:10px; background:var(--surf); border:1px solid var(--line); border-radius:var(--r); text-decoration:none; color:var(--ink); }
+.lcard:hover{ border-color:var(--pri); }
+.lcard .thumb{ width:48px; height:48px; flex:0 0 48px; aspect-ratio:auto; border-radius:8px; }
+.lcard b{ display:block; font-weight:600; font-size:14px; line-height:1.3; }
+.lcard small{ color:var(--pri); font-weight:600; font-size:12.5px; }
+@media (max-width:899px){ .ask{ grid-template-columns:1fr; padding:18px; gap:16px; } }
 
-  /* ============ TANYA ASISTEN, FAQ, BUKA APLIKASI, MEMBANTU? ============ */
-  .help{ margin:4px 18px 10px 18px; display:flex; flex-direction:column; gap:10px; }
-  .help-card{ border:1px solid var(--line); border-radius:16px; padding:12px 14px; background:var(--paper); }
-  .help-card b{ font-size:13.5px; }
-  .ask-row{ display:flex; gap:6px; margin-top:8px; }
-  .ask-row input{ flex:1; min-width:0; border:1px solid var(--line); border-radius:10px; padding:9px 10px; font:inherit; font-size:13px; }
-  .ask-row button,.fb button,.fb-send{ border:none; background:var(--brand-green); color:#fff; font-weight:700; font-size:12.5px; padding:8px 12px; border-radius:10px; cursor:pointer; font-family:inherit; }
-  .ask-row button:disabled{ opacity:.6; }
-  .ask-out{ font-size:13px; line-height:1.55; margin-top:8px; }
-  .ask-out .ans{ background:var(--brand-emerald-soft); border-radius:10px; padding:9px 11px; }
-  .ask-out .tl{ display:block; width:100%; text-align:left; margin-top:6px; border:1px solid var(--line); background:var(--paper); border-radius:10px; padding:8px 10px; font:inherit; font-size:12.5px; font-weight:700; color:var(--brand-green); cursor:pointer; }
-  .help-note{ font-size:11px; color:var(--sub); margin:8px 0 0; }
-  .faq details{ border:1px solid var(--line); border-radius:12px; padding:9px 12px; background:var(--paper); margin-bottom:6px; font-size:13px; }
-  .faq summary{ font-weight:700; cursor:pointer; }
-  .faq p{ margin:6px 0 0; color:var(--sub); line-height:1.55; white-space:pre-line; }
-  .btn-app{ display:block; text-align:center; text-decoration:none; margin:0 18px 12px 18px; padding:11px; border-radius:14px; background:var(--brand-green); color:#fff; font-size:13px; font-weight:800; }
-  .btn-app[hidden],.faq[hidden]{ display:none; }
-  .slide-app{ margin:10px 0 0; }
-  .fb{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--bg); font-size:12.5px; font-weight:700; }
-  .fb span{ flex:1 1 100%; }
-  .fb button{ background:var(--paper); color:var(--ink); border:1px solid var(--line); }
-  .fb textarea{ flex:1 1 100%; border:1px solid var(--line); border-radius:10px; padding:8px; font:inherit; font-size:12.5px; min-height:56px; resize:vertical; }
-  .fb .thx{ font-weight:600; color:var(--brand-green); }
-  .hub-only{ display:none !important; }
-  .in-hub .hub-only{ display:inline-flex !important; }
-  .kn-bg{ position:fixed; inset:0; background:rgba(10,16,13,.6); z-index:50; display:flex; align-items:center; justify-content:center; padding:16px; }
-  .kn{ background:var(--paper); color:var(--ink); border-radius:16px; padding:16px; max-width:340px; width:100%; display:flex; flex-direction:column; gap:8px; font-size:13px; }
-  .kn h3{ margin:0 0 4px; font-size:15px; }
-  .kn button{ border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:12px; padding:11px; font:inherit; font-weight:700; cursor:pointer; text-align:left; }
-  .kn button.pri{ background:var(--brand-green); color:#fff; border-color:var(--brand-green); text-align:center; }
-  .kn small{ color:var(--sub); }
-  /* tema gelap (di dalam Tool Hub): hijau gelap untuk tombol berteks putih, sama dengan tombol lain di tema gelap */
-  html[data-theme="dark"] .btn-app,html[data-theme="dark"] .ask-row button,html[data-theme="dark"] .fb-send,html[data-theme="dark"] .kn button.pri{ background:#1F7A4C; border-color:#1F7A4C; color:#fff; }
+.faq{ max-width:860px; }
+.faq details{ background:var(--surf); border:1px solid var(--line); border-radius:var(--r); margin-bottom:8px; }
+.faq summary{ list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:12px 16px; cursor:pointer; font-weight:600; font-size:15px; }
+.faq summary::-webkit-details-marker{ display:none; }
+.faq summary .ic{ color:var(--sub); transition:transform .2s var(--ease); }
+.faq details[open] summary .ic{ transform:rotate(90deg); }
+.faq .faq-a{ padding:0 16px 16px; color:var(--sub); font-size:14.5px; white-space:pre-line; }
 
-  .disclaimer{
-    margin:6px 18px 22px 18px; padding:12px 14px;
-    font-size:11px; line-height:1.55; color:var(--sub);
-    background:var(--bg); border-radius:12px;
-  }
-  .disclaimer p{ margin:0; }
-  .disclaimer p + p{ margin-top:6px; }
+/* ---------- halaman kategori / hasil cari ---------- */
+.page-h{ padding:28px 0 8px; }
+.crumb{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--sub); margin-bottom:12px; flex-wrap:wrap; }
+.crumb a{ color:var(--sub); text-decoration:none; }
+.crumb a:hover{ color:var(--pri); text-decoration:underline; }
+.page-h h1{ margin:0; font-size:28px; letter-spacing:-.02em; font-weight:700; outline:0; }
+.page-h p{ margin:6px 0 0; color:var(--sub); font-size:15px; }
+.cat-h{ display:flex; gap:16px; align-items:center; }
+.cat-h .ccard-ic{ width:52px; height:52px; font-size:26px; }
+.toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:20px 0 16px; flex-wrap:wrap; }
+.toolbar .sbox{ flex:0 1 360px; }
+.count{ color:var(--sub); font-size:14px; }
+.empty{ text-align:center; padding:48px 16px; background:var(--surf); border:1px dashed var(--line-2); border-radius:var(--r-lg); color:var(--sub); }
+.empty b{ display:block; color:var(--ink); font-size:16px; margin-bottom:4px; }
+.empty .ic{ width:32px; height:32px; color:var(--faint); margin-bottom:8px; }
+.empty .chips{ margin-top:16px; justify-content:center; flex-wrap:wrap; overflow:visible; margin-left:0; margin-right:0; padding:0; }
+@media (max-width:767px){ .page-h{ padding:20px 0 4px; } .page-h h1{ font-size:22px; } .cat-h .ccard-ic{ width:44px; height:44px; font-size:22px; } .toolbar .sbox{ flex:1 1 100%; } }
 
-  /* ============ SUBMENU ============ */
-  .submenu-topbar{
-    padding:16px 16px 26px 16px;
-    display:flex; align-items:center; gap:10px;
-  }
-  .icon-btn{
-    width:38px; height:38px; border-radius:10px; border:none; background:transparent;
-    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
-    font-size:22px; line-height:1; cursor:pointer; color:inherit; margin-left:-6px;
-  }
-  .submenu-heading-title{ font-size:17px; font-weight:800; margin:0; outline:none; }
-  .submenu-heading-sub{ font-size:12px; color:#d6ecdf; margin-top:1px; }
+/* ---------- skeleton ---------- */
+.sk{ background:linear-gradient(90deg,var(--soft) 25%,var(--soft-2) 50%,var(--soft) 75%); background-size:200% 100%; animation:sk 1.3s infinite linear; border-radius:var(--r-lg); }
+@keyframes sk{ to{ background-position:-200% 0; } }
 
-  /* ============ TUTORIAL (SWIPE) ============ */
-  .tut-topbar{
-    padding:12px 12px 10px 16px;
-    display:flex; align-items:center; gap:8px;
-    background:var(--paper); position:relative; z-index:5;
-  }
-  .tut-heading{ flex:1; min-width:0; }
-  .tut-heading-title{ font-size:15px; font-weight:800; line-height:1.25; margin:0; outline:none; }
-  .tut-heading-sub{ font-size:11.5px; color:var(--sub); margin-top:1px; }
-  .share-btn{
-    border:1px solid var(--line); background:var(--paper); color:var(--brand-green);
-    font-size:12px; font-weight:700; padding:7px 10px; border-radius:10px; cursor:pointer;
-    display:flex; align-items:center; gap:5px; flex:0 0 auto;
-  }
+/* ---------- penampil tutorial ---------- */
+.tut{ padding:20px 0 40px; }
+.tut-h{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid var(--line); }
+.tut-h h1{ margin:0; font-size:28px; letter-spacing:-.02em; font-weight:700; line-height:1.2; outline:0; }
+.tut-h p{ margin:6px 0 0; color:var(--sub); font-size:15px; }
+.tut-act{ display:flex; gap:8px; flex:0 0 auto; }
+.tut-grid{ display:grid; grid-template-columns:280px minmax(0,1fr); gap:24px; align-items:start; }
+.side{ position:sticky; top:calc(var(--hdr) + 16px); background:var(--soft); border-radius:var(--r-lg); padding:16px; display:flex; flex-direction:column; max-height:calc(100vh - var(--hdr) - 40px); }
+.side h2{ margin:4px 4px 12px; font-size:14px; font-weight:700; }
+.side-f{ margin-top:12px; padding:12px 4px 0; border-top:1px solid var(--line-2); font-size:13px; color:var(--sub); }
+.steps{ list-style:none; margin:0; padding:0; overflow:auto; }
+.steps li + li{ margin-top:2px; }
+.st{ display:flex; align-items:flex-start; gap:12px; width:100%; min-height:44px; padding:10px 8px; border:0; border-radius:10px; background:transparent; text-align:left; color:var(--sub); font-size:14px; line-height:1.4; }
+.st:hover{ background:color-mix(in srgb,var(--surf) 70%,transparent); color:var(--ink); }
+.st-n{ width:24px; height:24px; flex:0 0 24px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:600; color:var(--sub); border:1px solid var(--line-2); background:var(--surf); }
+.st-t{ padding-top:2px; }
+.st-t strong{ font-weight:600; }
+.steps .done .st-n{ border-color:transparent; background:transparent; color:var(--pri); }
+.steps .cur .st{ color:var(--ink); font-weight:600; background:var(--surf); box-shadow:var(--sh); }
+.steps .cur .st-n{ background:var(--pri); border-color:var(--pri); color:var(--on-pri); }
 
-  .progress-row{ display:flex; gap:4px; padding:0 16px 12px 16px; }
-  .progress-seg{ flex:1; height:4px; border-radius:3px; background:var(--line); overflow:hidden; }
-  .progress-seg > i{ display:block; height:100%; width:0; background:var(--brand-emerald); transition:width .25s ease; }
-  .progress-seg.done > i, .progress-seg.active > i{ width:100%; }
+.stage{ min-width:0; }
+.media{ position:relative; height:min(56vh,520px); min-height:320px; background:var(--soft); border-radius:var(--r-lg); overflow:hidden; touch-action:pan-y; user-select:none; }
+.track{ display:flex; height:100%; transition:transform .35s var(--ease); will-change:transform; }
+.slide{ flex:0 0 100%; height:100%; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; min-height:0; }
+.slide img{ display:block; max-width:100%; max-height:100%; width:auto; height:auto; min-height:0; object-fit:contain; border-radius:14px; box-shadow:0 1px 3px rgba(16,32,24,.08),0 8px 24px rgba(16,32,24,.10); cursor:zoom-in; background:var(--surf); }
+.slide .ph{ display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--faint); font-size:13.5px; text-align:center; }
+.slide .ph .ic{ width:32px; height:32px; }
+.zoom-hint{ position:absolute; right:12px; bottom:12px; display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:var(--r-full); border:0; background:color-mix(in srgb,var(--surf) 92%,transparent); color:var(--sub); font-size:12.5px; font-weight:500; box-shadow:var(--sh); }
+.zoom-hint:hover{ color:var(--ink); }
+.meta-row{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; font-size:12.5px; color:var(--sub); font-weight:500; letter-spacing:.04em; }
+.bar{ height:6px; border-radius:var(--r-full); background:var(--soft-2); overflow:hidden; }
+.bar i{ display:block; height:100%; width:0; background:var(--pri); border-radius:inherit; transition:width .35s var(--ease); }
+.segs{ display:none; gap:4px; }
+.segs i{ flex:1 1 0; height:4px; border-radius:var(--r-full); background:var(--soft-2); transition:background .2s; }
+.segs i.on{ background:var(--pri); }
+.body{ margin-top:20px; }
+.body h2{ margin:0 0 6px; font-size:22px; font-weight:600; letter-spacing:-.015em; line-height:1.3; outline:0; }
+.body h2 strong{ font-weight:700; }
+.body p{ margin:0; color:var(--sub); font-size:15.5px; line-height:1.6; }
+.body p strong{ color:var(--ink); font-weight:600; }
+.tip{ display:flex; gap:12px; margin-top:16px; padding:12px 14px; border-radius:var(--r); background:var(--tip); border:1px solid var(--tip-line); color:var(--tip-ink); font-size:14px; }
+.tip .ic{ margin-top:1px; }
+.tnav{ display:grid; grid-template-columns:1fr 1.6fr; gap:12px; margin-top:24px; }
+.tnav .btn{ min-height:48px; }
+.tnav.off{ display:none; }
 
-  .slides-viewport{ flex:1; position:relative; overflow:hidden; touch-action:pan-y; }
-  .slides-track{ display:flex; height:100%; transition: transform .32s cubic-bezier(.22,.61,.36,1); }
-  .slide{
-    flex:0 0 100%; height:100%;
-    display:flex; flex-direction:column;
-    padding:4px 20px 0 20px;
-    overflow-y:auto;
-  }
-  .slide-image-wrap{
-    width:100%; aspect-ratio:1080 / 1760; flex:0 0 auto;
-    border-radius:20px; overflow:hidden;
-    background:linear-gradient(160deg,#eef5f0,#e2eee6);
-    display:flex; align-items:center; justify-content:center;
-    position:relative; margin-bottom:14px;
-    border:1px solid var(--line);
-  }
-  .slide-image-wrap img{
-    max-width:100%; max-height:100%; width:auto; height:auto;
-    object-fit:contain; display:block; border-radius:20px; cursor:zoom-in;
-  }
-  @media (max-width: 899px){
-    .slide-image-wrap.has-image{
-      aspect-ratio:auto; flex:1 1 auto; min-height:90px;
-      background:none; border:none;
-    }
-  }
-  .slide-image-placeholder{
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-    color:#8fa699; padding:20px; text-align:center; font-size:12px; font-weight:600;
-  }
-  .slide-step-tag{
-    position:absolute; top:12px; left:12px;
-    background:rgba(20,67,44,.85); color:#fff; font-size:11px; font-weight:700;
-    padding:5px 10px; border-radius:999px;
-  }
-  .slide-text{ flex:0 0 auto; padding-bottom:14px; }
-  .slide-title{ font-size:17px; font-weight:800; margin:0 0 6px 0; letter-spacing:-.2px; }
-  .slide-desc{ font-size:16px; font-weight:500; color:#1f2f27; line-height:1.55; margin:0; }
-  .slide-end-note{
-    margin-top:12px; font-size:10.5px; line-height:1.5; color:var(--sub);
-    border-top:1px solid var(--line); padding-top:10px;
-  }
+.done-card{ text-align:center; padding:36px 24px; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh); }
+.done-ic{ width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:var(--pri-soft); color:var(--pri); display:grid; place-items:center; }
+.done-ic .ic{ width:28px; height:28px; }
+.done-card h2{ margin:0 0 6px; font-size:22px; outline:0; }
+.done-card > p{ margin:0 auto; color:var(--sub); max-width:440px; }
+.done-a{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+.fb{ margin-top:24px; padding-top:20px; border-top:1px solid var(--line); }
+.fb > span{ display:block; font-weight:600; margin-bottom:10px; }
+.fb-b{ display:flex; gap:8px; justify-content:center; }
+.fb textarea{ width:100%; max-width:440px; min-height:80px; margin:4px auto 10px; display:block; padding:10px 12px; border:1px solid var(--line-2); border-radius:var(--r); background:var(--surf); resize:vertical; }
+.fb .thx{ color:var(--pri); font-weight:600; }
+.related{ margin-top:28px; text-align:left; }
+.related h3{ margin:0 0 12px; font-size:16px; }
+.done-card > p.legal,.legal{ margin:28px auto 0; font-size:12px; color:var(--faint); }
 
-  .tut-nav{ display:flex; align-items:center; gap:10px; padding:12px 20px 22px 20px; }
-  .nav-btn{
-    flex:1; padding:13px; border-radius:14px; text-align:center;
-    font-size:14px; font-weight:800; cursor:pointer; border:none;
-    transition: opacity .15s ease, transform .12s ease;
-  }
-  .nav-btn:active{ transform:scale(.98); }
-  .nav-prev{ background:var(--bg); color:var(--ink); flex:0 0 84px; }
-  .nav-prev:disabled{ opacity:.35; cursor:default; }
-  .nav-next{ background:var(--brand-green); color:#fff; }
+/* bar atas tutorial (HP) */
+.tbar{ display:none; }
+@media (max-width:959px){
+  .tut{ padding:0 0 calc(96px + var(--safe-b)); }
+  .tut-h,.side,.tut .crumb{ display:none; }
+  .tut-grid{ display:block; }
+  .tbar{ position:sticky; top:0; z-index:35; display:grid; grid-template-columns:44px 1fr 44px; align-items:center; gap:4px; height:56px; padding:0 6px; background:var(--surf); border-bottom:1px solid var(--line); }
+  .tbar h1{ margin:0; font-size:15px; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; outline:0; }
+  .t-in{ padding:12px 16px 0; }
+  .meta-row{ order:-2; margin:4px 0 8px; text-transform:none; letter-spacing:0; font-size:13px; }
+  .bar{ display:none; }
+  .segs{ display:flex; order:-1; margin-bottom:12px; }
+  .media{ height:min(56vh,500px); min-height:260px; }
+  .slide{ padding:14px; }
+  .body{ margin-top:16px; }
+  .body h2{ font-size:19px; }
+  .body p{ font-size:15px; }
+  .tnav{ position:fixed; left:0; right:0; bottom:0; z-index:36; margin:0; padding:12px 16px calc(12px + var(--safe-b)); background:var(--surf); border-top:1px solid var(--line); }
+  .tnav.off{ display:none; }
+  .stage-flex{ display:flex; flex-direction:column; }
+  .hdr.in-tut{ display:none; }
+  .done-card{ margin:8px 0 0; padding:28px 16px; }
+}
+@media (min-width:960px){ .tbar{ display:none !important; } }
 
-  /* Tap kiri/kanan untuk pindah langkah; area tengah untuk perbesar gambar */
-  .tap-zone{ position:absolute; top:0; bottom:0; width:22%; z-index:2; cursor:pointer; }
-  .tap-zone.left{ left:0; }
-  .tap-zone.right{ right:0; }
+/* lembar daftar langkah (HP) */
+.sheet-bg{ position:fixed; inset:0; z-index:60; background:rgba(16,24,20,.36); opacity:0; pointer-events:none; transition:opacity .2s; }
+.sheet-bg.open{ opacity:1; pointer-events:auto; }
+.sheet{ position:fixed; left:0; right:0; bottom:0; z-index:61; max-height:78vh; display:flex; flex-direction:column; background:var(--surf); border-radius:20px 20px 0 0; box-shadow:var(--sh-lg); padding:8px 12px calc(12px + var(--safe-b)); transform:translateY(105%); transition:transform .28s var(--ease); visibility:hidden; }
+.sheet.open{ transform:none; visibility:visible; }
+.sheet-grip{ width:40px; height:4px; border-radius:4px; background:var(--line-2); margin:4px auto 8px; }
+.sheet-h{ display:flex; align-items:center; justify-content:space-between; padding:0 4px 8px; }
+.sheet-h b{ font-size:16px; }
+.sheet .steps{ overflow:auto; padding-bottom:4px; }
+.sheet .steps .cur .st{ background:var(--pri-soft); box-shadow:none; }
 
-  /* ============ LIGHTBOX GAMBAR ============ */
-  .lightbox{
-    position:fixed; inset:0; z-index:50; background:rgba(8,20,14,.94);
-    display:none; flex-direction:column;
-  }
-  .lightbox.open{ display:flex; }
-  .lightbox-bar{ display:flex; justify-content:flex-end; padding:10px; }
-  .lightbox-close{
-    border:none; background:rgba(255,255,255,.14); color:#fff; font-size:13px; font-weight:700;
-    padding:9px 14px; border-radius:10px; cursor:pointer;
-  }
-  .lightbox-body{ flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; padding:0 10px 16px; touch-action:pinch-zoom pan-x pan-y; }
-  .lightbox-body img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:10px; }
+/* ---------- navigasi bawah (HP) ---------- */
+.bnav{ display:none; }
+@media (max-width:767px){
+  .bnav{ position:fixed; left:0; right:0; bottom:0; z-index:38; display:grid; grid-template-columns:repeat(3,1fr); height:calc(var(--bnav) + var(--safe-b)); padding-bottom:var(--safe-b); background:color-mix(in srgb,var(--surf) 96%,transparent); border-top:1px solid var(--line);
+    -webkit-backdrop-filter:saturate(160%) blur(8px); backdrop-filter:saturate(160%) blur(8px); }
+  .bnav a,.bnav button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:0; background:transparent; color:var(--sub); font-size:11.5px; font-weight:500; text-decoration:none; }
+  .bnav [aria-current="page"]{ color:var(--pri); }
+  body.has-bnav{ padding-bottom:calc(var(--bnav) + var(--safe-b)); }
+  body.in-tut .bnav{ display:none; }
+  body.in-tut.has-bnav{ padding-bottom:0; }
+}
 
-  /* ============ TOAST ============ */
-  .toast{
-    position:absolute; left:50%; bottom:90px; transform:translate(-50%, 20px);
-    background:var(--ink); color:#fff; font-size:12.5px; font-weight:600;
-    padding:10px 14px; border-radius:10px; opacity:0; pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease; z-index:20; white-space:nowrap;
-  }
-  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+/* ---------- footer ---------- */
+.ftr{ margin-top:40px; padding:28px 0 36px; border-top:1px solid var(--line); color:var(--sub); font-size:12.5px; }
+.ftr p{ margin:0 0 6px; max-width:860px; }
+.ftr .ftr-a{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.ftr .ftr-a a{ color:var(--sub); font-weight:500; text-decoration:none; }
+body.in-tut .ftr{ display:none; }
+@media (min-width:960px){ body.in-tut .ftr{ display:block; } }
 
-  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+/* ---------- lightbox ---------- */
+.lb{ position:fixed; inset:0; z-index:80; background:rgba(10,14,12,.92); display:none; flex-direction:column; }
+.lb.open{ display:flex; }
+.lb-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; padding-top:max(10px,env(safe-area-inset-top)); color:#fff; font-size:13px; }
+.lb-bar .icon-btn{ color:#fff; }
+.lb-bar .icon-btn:hover{ background:rgba(255,255,255,.12); }
+.lb-body{ flex:1 1 auto; display:grid; place-items:center; overflow:hidden; touch-action:none; padding:8px 12px 24px; }
+.lb-body img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; transform-origin:center; transition:transform .15s ease-out; cursor:zoom-in; user-select:none; -webkit-user-drag:none; }
+.lb-body.zoomed img{ cursor:grab; transition:none; }
 
-  /* File hasil export (offline) tidak punya fitur yang butuh internet/server */
-  .is-static .live-only{ display:none !important; }
+/* ---------- toast & dialog konten ---------- */
+.toast{ position:fixed; left:50%; bottom:calc(24px + var(--safe-b)); transform:translate(-50%,20px); z-index:90; background:#202624; color:#fff; padding:10px 16px; border-radius:var(--r); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s,transform .2s; max-width:calc(100vw - 32px); }
+.toast.show{ opacity:1; transform:translate(-50%,0); }
+body.in-tut .toast{ bottom:calc(96px + var(--safe-b)); }
+.hub-only{ display:none !important; }
+.in-hub .hub-only{ display:inline-flex !important; }
+.is-static .live-only{ display:none !important; }
+.kn-bg{ position:fixed; inset:0; z-index:85; background:rgba(16,24,20,.4); display:grid; place-items:center; padding:16px; }
+.kn{ width:min(380px,100%); background:var(--surf); border-radius:var(--r-lg); padding:20px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--sh-lg); }
+.kn h3{ margin:0; }
+.kn small{ color:var(--sub); }
+.kn button{ min-height:44px; border:1px solid var(--line-2); border-radius:var(--r); background:var(--surf); font-weight:600; text-align:left; padding:0 14px; }
+.kn button.pri{ background:var(--pri); border-color:var(--pri); color:var(--on-pri); text-align:center; }
 
-  ::-webkit-scrollbar{ width:0; height:0; }
-
-  /* ============ PALING SERING DIBUKA ============ */
-  .popular{ padding:16px 0 0; }
-  .popular .list-label{ margin:0 20px 8px; font-weight:700; }
-  .pop-list{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; padding:0 18px 2px; }
-  .pop{
-    text-align:left; cursor:pointer; min-width:0;
-    border:1px solid transparent; border-radius:14px; padding:12px; background:var(--bg); color:inherit; font:inherit;
-  }
-  .pop:hover{ border-color:#c7ddce; }
-  .pop-ico{ display:block; height:20px; margin-bottom:10px; color:var(--ink); font-size:18px; line-height:20px; }
-  .pop b{ display:block; font-size:13px; line-height:1.35; }
-  .pop small{ display:block; margin-top:3px; font-size:11.5px; color:var(--sub); }
-  .popular[hidden]{ display:none; }
-
-  /* ============ DAFTAR LANGKAH (HP: lembar dari bawah; laptop: kolom kanan) ============ */
-  .share-btn svg{ flex:0 0 auto; }
-  @media (max-width: 420px){ .share-btn .btn-label{ display:none; } .share-btn{ padding:7px 9px; } }
-  @media (max-width: 640px){ .share-btn{ min-width:40px; min-height:40px; justify-content:center; } }
-  .steps{
-    position:absolute; left:0; right:0; bottom:0; z-index:30; max-height:72%;
-    display:flex; flex-direction:column; background:var(--paper);
-    border-radius:20px 20px 0 0; box-shadow:0 -12px 40px rgba(10,30,20,.25);
-    transform:translateY(105%); transition:transform .28s cubic-bezier(.22,.61,.36,1); visibility:hidden;
-  }
-  .steps.open{ transform:none; visibility:visible; }
-  .steps-bg{ position:absolute; inset:0; z-index:29; background:rgba(10,20,15,.45); opacity:0; pointer-events:none; transition:opacity .2s ease; }
-  .steps-bg.open{ opacity:1; pointer-events:auto; }
-  .steps-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px 6px 20px; font-size:14px; }
-  .steps-list{ list-style:none; margin:0; padding:4px 12px 16px; overflow-y:auto; }
-  .step{ border-radius:14px; }
-  .step-btn{ display:flex; align-items:flex-start; gap:10px; width:100%; padding:10px; border:none; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; border-radius:12px; }
-  .step-btn:hover{ background:var(--bg); }
-  .step-n{ flex:0 0 26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:var(--bg); color:var(--sub); border:1px solid var(--line); }
-  .step-t{ font-size:13.5px; font-weight:700; line-height:1.4; padding-top:3px; }
-  .step.done .step-n{ background:var(--brand-emerald-soft); color:var(--brand-green); border-color:transparent; }
-  .step.active{ background:var(--brand-emerald-soft); }
-  .step.active .step-n{ background:var(--brand-emerald); color:#0f2e1e; border-color:transparent; }
-  .step-body{ display:none; padding:0 12px 12px 46px; }
-  .step-body .slide-desc{ font-size:14px; font-weight:400; color:#3d5047; }
-
-  /* ============ LAPTOP & TABLET: tanpa bingkai HP ============ */
-  @media (min-width: 700px){
-    body{ display:block; padding:20px; }
-    #phone{
-      max-width:1200px; margin:0 auto;
-      height:calc(100vh - 40px); height:calc(100svh - 40px); max-height:none; min-height:560px;
-      border:1px solid var(--line); border-radius:24px; box-shadow:0 12px 40px rgba(20,67,44,.10);
-    }
-    .menu-header{ padding:40px 44px 46px; }
-    .menu-title{ font-size:32px; }
-    .menu-desc{ max-width:560px; font-size:14px; }
-    .search-box{ max-width:560px; }
-    .search-box input{ padding:13px 16px 13px 40px; font-size:15px; }
-    .menu-body{ padding:6px 26px 24px; }
-    .menu-body .list, #submenu-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
-    .menu-body .list{ padding:16px 0 10px; }
-    .menu-body .list .list-label, .menu-body .list .state-note{ grid-column:1 / -1; }
-    .popular .list-label{ margin-left:2px; }
-    .pop-list{ grid-template-columns:repeat(4, minmax(0, 1fr)); padding:0; }
-    .menu-side .help, .menu-side .btn-app, .menu-side .disclaimer{ margin-left:0; margin-right:0; }
-    .submenu-topbar{ padding:24px 32px 34px; }
-    .submenu-heading-title{ font-size:22px; }
-    #submenu-list{ padding:16px 32px 24px; }
-  }
-  @media (min-width: 1000px){
-    .menu-body{ display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:28px; align-items:start; padding:6px 32px 24px; }
-    .menu-side{ position:sticky; top:16px; padding-top:16px; }
-  }
-  @media (min-width: 900px){
-    #tut-screen{
-      display:grid; grid-template-columns:minmax(0,1fr) 380px;
-      grid-template-rows:auto auto minmax(0,1fr) auto;
-      grid-template-areas:"top top" "prog prog" "view steps" "view nav";
-    }
-    .tut-topbar{ grid-area:top; padding:18px 24px 10px 18px; }
-    .tut-heading-title{ font-size:19px; }
-    .tut-heading-sub{ font-size:12.5px; }
-    .progress-row{ grid-area:prog; padding:0 24px 16px; }
-    /* latar membulat di lapisan sendiri: border-radius + overflow:hidden pada viewport yang isinya digeser (transform) bisa gagal digambar */
-    .slides-viewport{ grid-area:view; margin:0 0 24px 24px; }
-    .slides-viewport::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:20px; background:var(--bg); }
-    .slide{ padding:22px; align-items:center; justify-content:center; overflow:hidden; }
-    .slide-image-wrap{ width:100%; height:100%; aspect-ratio:auto; margin:0; flex:1 1 auto; }
-    .slide-image-wrap.has-image{ background:none; border:none; }
-    .slide-text{ display:none; }
-    .steps{ grid-area:steps; position:static; transform:none; visibility:visible; max-height:none; min-height:0; border-radius:0; box-shadow:none; background:transparent; transition:none; }
-    .steps-head{ padding:2px 24px 6px 20px; }
-    .steps-list{ padding:0 18px 8px 10px; }
-    .step.active .step-body{ display:block; }
-    .steps-bg, #btn-steps, #steps-close{ display:none !important; }
-    .tut-nav{ grid-area:nav; padding:12px 24px 24px 20px; }
-    .tap-zone{ width:18%; display:flex; align-items:center; }
-    .tap-zone.left{ justify-content:flex-start; padding-left:14px; }
-    .tap-zone.right{ justify-content:flex-end; padding-right:14px; }
-    .tap-zone::after{
-      width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-      background:var(--paper); color:var(--ink); box-shadow:0 4px 16px rgba(10,30,20,.18);
-      font-size:26px; line-height:1; opacity:0; transition:opacity .15s ease;
-    }
-    .tap-zone.left::after{ content:"‹"; }
-    .tap-zone.right::after{ content:"›"; }
-    .slides-viewport:hover .tap-zone::after{ opacity:.9; }
-    .slides-viewport.at-start .tap-zone.left, .slides-viewport.at-end .tap-zone.right{ display:none; }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .steps, .steps-bg{ transition:none !important; }
-    .screen, .slides-track, .progress-seg > i, .row, .toast{ transition:none !important; }
-    .skeleton{ animation:none; }
-  }
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ transition-duration:.01ms !important; animation-duration:.01ms !important; scroll-behavior:auto !important; }
+}
 </style>
 </head>
 <body>
+<a class="skip" href="#main" id="skip">Lewati ke konten</a>
 
-<div id="phone">
-  <div id="app">
-
-    <!-- ============ LEVEL 1: KATEGORI ============ -->
-    <section class="screen scroll" id="menu-screen" data-pos="current" aria-labelledby="menu-title">
-      <header class="green-head menu-header">
-        <h1 class="menu-title" id="menu-title">Tutorial Center</h1>
-        <p class="menu-desc">Learn. Explore. Invest with Confidence.</p>
-        <div class="search-box">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <label for="search-input" class="sr-only">Cari tutorial</label>
-          <input type="search" id="search-input" placeholder="Cari tutorial yang kamu butuhkan" autocomplete="off">
-        </div>
-      </header>
-      <div class="menu-body">
-      <div class="menu-main">
-        <div class="popular" id="popular" hidden>
-          <div class="list-label">Paling sering dibuka</div>
-          <div class="pop-list" id="pop-list"></div>
-        </div>
-        <div class="list" id="menu-list" aria-live="polite">
-          <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
-        </div>
-      </div>
-      <aside class="menu-side">
-      <div class="help live-only">
-        <div class="help-card">
-          <b>Masih bingung? Tanya asisten</b>
-          <form class="ask-row" id="ask-form"><input id="ask-q" maxlength="300" placeholder="Mis. bagaimana cara top up?" aria-label="Pertanyaan untuk asisten" autocomplete="off"><button id="ask-btn">Tanya</button></form>
-          <div class="ask-out" id="ask-out" aria-live="polite"></div>
-          <p class="help-note">Jawaban disusun AI dari isi tutorial di sini. Jangan tulis PIN, password, OTP, atau data pribadi.</p>
-        </div>
-        <div class="faq" id="faq-box" hidden><div class="list-label" style="margin-bottom:6px">Pertanyaan yang sering ditanyakan</div><div id="faq-list" translate="no"></div></div>
-      </div>
-      <a class="btn-app" id="btn-app" hidden target="_blank" rel="noopener">Buka aplikasi</a>
-      <div class="disclaimer">
-        <p>Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.</p>
-        <p>Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan untuk membeli atau menjual produk investasi tertentu.</p>
-        <p id="brand-license" hidden></p>
-      </div>
-      </aside>
-      </div>
-    </section>
-
-    <!-- ============ LEVEL 2: TOPIK DALAM 1 KATEGORI ============ -->
-    <section class="screen scroll" id="submenu-screen" data-pos="right" aria-labelledby="submenu-title" inert>
-      <header class="green-head submenu-topbar">
-        <button class="icon-btn" id="btn-submenu-back" aria-label="Kembali ke daftar kategori">‹</button>
-        <div>
-          <h2 class="submenu-heading-title" id="submenu-title" tabindex="-1" translate="no">Kategori</h2>
-          <div class="submenu-heading-sub" id="submenu-sub"></div>
-        </div>
-      </header>
-      <div class="list" id="submenu-list"></div>
-    </section>
-
-    <!-- ============ LEVEL 3: SLIDE TUTORIAL ============ -->
-    <section class="screen" id="tut-screen" data-pos="right" aria-labelledby="tut-title" inert>
-      <div class="tut-topbar">
-        <button class="icon-btn" id="btn-back" aria-label="Kembali ke daftar topik">‹</button>
-        <div class="tut-heading">
-          <h2 class="tut-heading-title" id="tut-title" tabindex="-1" translate="no">Judul Tutorial</h2>
-          <div class="tut-heading-sub" id="tut-step-label" aria-live="polite"></div>
-        </div>
-        <button class="share-btn" id="btn-steps" aria-controls="steps" aria-expanded="false" aria-label="Daftar langkah" title="Lompat ke langkah tertentu">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
-          <span class="btn-label">Langkah</span>
-        </button>
-        <button class="share-btn live-only hub-only" id="btn-konten" aria-label="Jadikan konten: carousel, story, atau teks WhatsApp" title="Khusus tim: jadikan konten">Konten</button>
-        <button class="share-btn live-only" id="btn-share" aria-label="Bagikan link tutorial ini">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
-          <span class="btn-label">Bagikan</span>
-        </button>
-      </div>
-      <div class="progress-row" id="progress-row" aria-hidden="true"></div>
-
-      <div class="slides-viewport" id="slides-viewport">
-        <div class="tap-zone left" id="zone-prev" aria-hidden="true"></div>
-        <div class="tap-zone right" id="zone-next" aria-hidden="true"></div>
-        <div class="slides-track" id="slides-track"></div>
-      </div>
-
-      <div class="steps-bg" id="steps-bg"></div>
-      <aside class="steps" id="steps" aria-labelledby="steps-h">
-        <div class="steps-head"><b id="steps-h">Daftar langkah</b><button type="button" class="icon-btn" id="steps-close" aria-label="Tutup daftar langkah">×</button></div>
-        <ol class="steps-list" id="steps-list"></ol>
-      </aside>
-
-      <div class="tut-nav">
-        <button class="nav-btn nav-prev" id="btn-prev">Kembali</button>
-        <button class="nav-btn nav-next" id="btn-next">Lanjut</button>
-      </div>
-    </section>
-
-    <div class="toast" id="toast" role="status"></div>
+<header class="hdr" id="hdr">
+  <div class="wrap hdr-in">
+    <a class="brand" href="/" data-link aria-label="Beranda Tutorial Center">
+      <span class="brand-mark" data-ic="book"></span>
+      <span><span id="brand-name">Tutorial Center</span><small>Learn. Explore. Invest with Confidence.</small></span>
+    </a>
+    <nav class="hdr-nav" aria-label="Navigasi utama">
+      <a href="/" data-link data-nav="home">Tutorial</a>
+      <a href="/kategori" data-link data-nav="cats">Kategori</a>
+      <button type="button" data-scroll="faq" class="nav-faq" hidden>FAQ</button>
+    </nav>
+    <div class="hdr-search" id="hdr-search"></div>
+    <div class="hdr-right">
+      <a class="btn btn-pri btn-sm" id="hdr-app" hidden target="_blank" rel="noopener">Buka aplikasi</a>
+      <button type="button" class="icon-btn hdr-menu" id="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="menu-pop" data-ic="menu"></button>
+    </div>
   </div>
-</div>
+  <div class="menu-pop" id="menu-pop" hidden>
+    <a href="/" data-link><span data-ic="home"></span>Beranda</a>
+    <a href="/kategori" data-link><span data-ic="grid"></span>Semua kategori</a>
+    <a href="/cari" data-link><span data-ic="search"></span>Cari tutorial</a>
+    <button type="button" data-scroll="faq" class="nav-faq" hidden><span data-ic="help"></span>FAQ</button>
+    <button type="button" data-scroll="ask" class="live-only"><span data-ic="spark"></span>Tanya asisten</button>
+    <a id="menu-app" hidden target="_blank" rel="noopener"><span data-ic="phone"></span>Buka aplikasi</a>
+  </div>
+</header>
 
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Gambar diperbesar">
-  <div class="lightbox-bar"><button class="lightbox-close" id="lightbox-close">Tutup</button></div>
-  <div class="lightbox-body"><img id="lightbox-img" alt=""></div>
-</div>
+<main id="main" tabindex="-1" aria-live="polite"></main>
 
-<script src="icons.js"></script>
+<footer class="ftr" id="ftr">
+  <div class="wrap">
+    <div class="ftr-a"><a href="/" data-link>Beranda</a><a href="/kategori" data-link>Kategori</a><a href="/cari" data-link>Cari tutorial</a></div>
+    <p>Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan.</p>
+    <p>Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan untuk membeli atau menjual produk investasi tertentu.</p>
+    <p id="brand-license" hidden></p>
+  </div>
+</footer>
+
+<nav class="bnav" id="bnav" aria-label="Navigasi bawah">
+  <a href="/" data-link data-nav="home"><span data-ic="home"></span>Beranda</a>
+  <a href="/kategori" data-link data-nav="cats"><span data-ic="grid"></span>Kategori</a>
+  <button type="button" data-scroll="ask" class="live-only"><span data-ic="spark"></span>Tanya AI</button>
+  <a href="/cari" data-link data-nav="search" class="static-only"><span data-ic="search"></span>Cari</a>
+</nav>
+
+<div class="sheet-bg" id="sheet-bg"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <div class="sheet-h"><b id="sheet-h">Daftar langkah</b><button type="button" class="icon-btn" id="sheet-x" aria-label="Tutup daftar langkah" data-ic="x"></button></div>
+  <ol class="steps" id="sheet-steps"></ol>
+</aside>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Gambar diperbesar">
+  <div class="lb-bar"><span id="lb-cap"></span><button type="button" class="icon-btn" id="lb-x" aria-label="Tutup gambar" data-ic="x"></button></div>
+  <div class="lb-body" id="lb-body"><img id="lb-img" alt=""></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/icons.js"></script>
 <script type="module">
-/* Nama aplikasi & perusahaan dari profil (disisipkan worker sebagai window.PROFILE). Kosong = teks netral. */
+/* =============================================================================
+   iKISI Tutorial Center (halaman nasabah).
+   Satu file tanpa build: token desain di <style>, komponen = fungsi render di bawah.
+   Sumber data:
+   - Normal (worker tutorial): Firestore lewat REST + simpanan di HP.
+   - File "Export HTML" dari admin: data ditanam di window.TUTORIAL_STATIC_DATA (dibuka offline, rute lewat #).
+   Rute: /  ·  /kategori  ·  /kategori/<slug>  ·  /tutorial/<slug>?langkah=n  ·  /cari?q=
+   slug = judul + id pendek (tetap jalan walau judul diganti). Link lama #/k/<kat>/<topik>/<n> dialihkan.
+   ============================================================================= */
 const PROFILE = window.PROFILE || {};
 const APP_NAME = (PROFILE.app && PROFILE.app.name) || '';
 const HUB_URL = String((PROFILE.urls && PROFILE.urls.hub) || '').replace(/\/+$/, '');
 // tombol "Buka aplikasi": toko aplikasi sesuai perangkat, selain itu link unduh dari profil
 const APP_LINK = (() => { const a = PROFILE.app || {}, ua = navigator.userAgent; return (/iPhone|iPad|iPod/i.test(ua) && a.ios) || (/Android/i.test(ua) && a.android) || a.download || a.android || a.ios || ''; })();
-{
-  const b = PROFILE.brand || {}, strip = (t) => String(t || '').trim().replace(/\.+$/, '');
-  const line = [strip(b.company), strip(b.license)].filter(Boolean).join('. ');
-  if(APP_NAME){
-    document.title = `Pusat Tutorial ${APP_NAME}`;
-    document.getElementById('menu-title').textContent = `${APP_NAME} Tutorial Center`;
-  }
-  if(line){ const el = document.getElementById('brand-license'); el.textContent = line + '.'; el.hidden = false; }
-}
-// Di dalam Tool Hub: beri tahu dashboard alamat halaman yang sedang dibuka, supaya tombol "Bagikan link" di sana menyalin link tutorial yang tepat.
-if (window.parent !== window && HUB_URL) {
-  const tell = () => parent.postMessage({ hubShareUrl: location.href }, new URL(HUB_URL).origin);
-  ['pushState', 'replaceState'].forEach(k => { const o = history[k]; history[k] = function () { const r = o.apply(this, arguments); tell(); return r; }; });
-  addEventListener('hashchange', tell); addEventListener('popstate', tell); tell();
-}
-/* =============================================================================
-   SUMBER DATA
-   - Normal (worker tutorial): data live dari Firestore.
-   - File hasil "Export HTML" dari admin: data ditanam di
-     window.TUTORIAL_STATIC_DATA, jadi bisa dibuka offline tanpa Firebase.
-   ============================================================================= */
+const APP_BTN = `Buka ${APP_NAME || 'aplikasi'}`;
+const CENTER = `${APP_NAME ? APP_NAME + ' ' : ''}Tutorial Center`;
 const STATIC_DATA = window.TUTORIAL_STATIC_DATA;
 const IS_STATIC = Array.isArray(STATIC_DATA);
 if(IS_STATIC) document.documentElement.classList.add('is-static');
+if(window.parent !== window) document.documentElement.classList.add('in-hub');
 
-let CATEGORIES = [];
-let dataLoaded = false;
-let POP = []; // urutan topik paling sering dibuka ("idKategori/idTopik"), dari /api/popular
-
-/* ========================= UTIL KEAMANAN =========================
-   Semua teks dari database di-escape sebelum masuk HTML, karena isi
-   tutorial bisa berasal dari form usulan publik. */
-function esc(str){
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+/* ========================= UTIL ========================= */
+// Semua teks dari database di-escape sebelum masuk HTML (isi tutorial bisa berasal dari form usulan).
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 function safeUrl(url){
   if(!url || !String(url).trim()) return '';
-  try{
-    const u = new URL(String(url || ''), location.href);
-    return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : '';
-  }catch(_){ return ''; }
+  try{ const u = new URL(String(url), location.href); return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : ''; }catch(_){ return ''; }
 }
-function safeColor(c){
-  const s = String(c || '').trim();
-  return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i.test(s) ? s : '';
-}
-function formatDesc(str){
-  return esc(str)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
-}
-function normalize(str){
-  return String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-function slideText(s){ return s.text !== undefined ? s.text : (s.desc || ''); }
-
-/* ========================= ELEMEN ========================= */
+const safeColor = (c) => { const s = String(c || '').trim(); return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i.test(s) ? s : ''; };
+const fmt = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+const plain = (s) => String(s || '').replace(/\*\*/g, '');
+const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const slugify = (s) => normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'tutorial';
+const shortId = (id) => String(id || '').replace(/^(topic|cat)[_-]?/i, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
 const $ = (id) => document.getElementById(id);
-const menuScreen = $('menu-screen');
-const submenuScreen = $('submenu-screen');
-const tutScreen = $('tut-screen');
-const menuList = $('menu-list');
-const submenuList = $('submenu-list');
-const searchInput = $('search-input');
-const slidesTrack = $('slides-track');
-const progressRow = $('progress-row');
-const btnPrev = $('btn-prev');
-const btnNext = $('btn-next');
-const viewport = $('slides-viewport');
 
-let currentCategory = null;
-let currentTutorial = null;
-let currentIndex = 0;
+/* Ikon garis (bentuk Lucide, ISC). Ikon kategori dari icons.js (dipilih admin); emoji lama tetap tampil. */
+const IC = {
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  left:'<path d="m15 18-6-6 6-6"/>', right:'<path d="m9 18 6-6-6-6"/>', aleft:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', aright:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  list:'<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', checkc:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  bulb:'<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  spark:'<path d="M12 3l1.9 5.8L20 10.7l-6.1 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z"/><path d="M19 17v4"/><path d="M17 19h4"/>',
+  menu:'<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>', home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  phone:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+  book:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  zoom:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>',
+  up:'<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
+  down:'<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>',
+  redo:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  rocket:'<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+  layers:'<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+};
+const ic = (n, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
+const catIcon = (c, size = 22) => (window.tutIcon && window.tutIcon(c.icon, size)) || `<span aria-hidden="true">${esc(c.icon || '📘')}</span>`;
+const fillIcons = (root = document) => root.querySelectorAll('[data-ic]').forEach(el => { if(!el.firstChild) el.innerHTML = ic(el.dataset.ic); });
 
-/* ========================= ROUTING (link bisa dibagikan) =========================
-   #/k/<idKategori>                 -> daftar topik
-   #/k/<idKategori>/<idTopik>/<n>   -> tutorial, langsung ke langkah n
-   Tombol "back" di HP/browser ikut berfungsi. */
-function parseHash(){
-  const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  if(parts[0] !== 'k') return {};
-  return { catId: parts[1], topicId: parts[2], step: parseInt(parts[3], 10) };
-}
-function buildHash(catId, topicId, step){
-  let h = '#/k/' + encodeURIComponent(catId);
-  if(topicId) h += '/' + encodeURIComponent(topicId) + '/' + (step || 1);
-  return h;
-}
-function navigate(hash){
-  const depth = (history.state && history.state.depth) || 0;
-  history.pushState({ depth: depth + 1 }, '', hash);
-  applyRoute();
-}
-function goUp(parentHash){
-  if(history.state && history.state.depth){
-    history.back();
-  }else{
-    history.replaceState(null, '', parentHash || location.pathname + location.search);
-    applyRoute();
-  }
-}
-window.addEventListener('popstate', applyRoute);
-
-function setScreens(level){
-  // level: 1 = menu, 2 = submenu, 3 = tutorial
-  menuScreen.dataset.pos = level === 1 ? 'current' : 'left';
-  submenuScreen.dataset.pos = level === 2 ? 'current' : (level === 3 ? 'left' : 'right');
-  tutScreen.dataset.pos = level === 3 ? 'current' : 'right';
-  menuScreen.inert = level !== 1;
-  submenuScreen.inert = level !== 2;
-  tutScreen.inert = level !== 3;
-}
-
-let lastLevel = 1;
-function applyRoute(){
-  if(!dataLoaded) return;
-  const { catId, topicId, step } = parseHash();
-  const cat = CATEGORIES.find(c => c.id === catId);
-  const topic = cat && (cat.items || []).find(t => t.id === topicId);
-
-  if(cat && topic){
-    const sameTopic = currentTutorial && currentTutorial.id === topic.id && lastLevel === 3;
-    currentCategory = cat;
-    renderSubmenu(cat);
-    if(!sameTopic) openTutorial(topic);
-    const target = Number.isFinite(step) ? step - 1 : 0;
-    if(target !== currentIndex || !sameTopic) goToSlide(target, sameTopic);
-    setScreens(3);
-    if(lastLevel !== 3) focusLater($('tut-title'));
-    lastLevel = 3;
-    return;
-  }
-  if(cat){
-    currentCategory = cat;
-    renderSubmenu(cat);
-    setScreens(2);
-    if(lastLevel !== 2) focusLater($('submenu-title'));
-    lastLevel = 2;
-    return;
-  }
-  if(catId){
-    // link lama / topik sudah dihapus
-    history.replaceState(null, '', location.pathname + location.search);
-    showToast('Tutorial tidak ditemukan, mungkin sudah diperbarui');
-  }
-  setScreens(1);
-  lastLevel = 1;
-}
-function focusLater(el){
-  setTimeout(() => el && el.focus({ preventScroll:true }), 330);
-}
-
-/* ========================= LEVEL 1: KATEGORI + PENCARIAN ========================= */
-// sub = teks UI (jumlah topik/langkah); subData = isian admin (deskripsi / judul kategori), tidak diterjemahkan
-const lineIcon = (icon) => (window.tutIcon && window.tutIcon(icon)) || '';
-function rowHtml({ icon, tint, title, sub, subData }){
-  const svg = lineIcon(icon), bg = svg ? '' : safeColor(tint);
-  return `
-    <div class="row-icon${svg ? ' line' : ''}"${bg ? ` style="background:${bg}"` : ''} aria-hidden="true">${svg || esc(icon || '📄')}</div>
-    <div class="row-body">
-      <div class="row-title" translate="no">${esc(title)}</div>
-      ${sub || subData ? `<div class="row-sub">${subData ? `<span translate="no">${esc(subData)}</span>` : ''}${sub && subData ? ' · ' : ''}${esc(sub || '')}</div>` : ''}
-    </div>
-    <div class="row-chevron" aria-hidden="true">›</div>`;
-}
-
-/** "Paling sering dibuka": maks. 4 topik (kotak 2×2) yang masih ada; disembunyikan saat mencari atau bila datanya belum cukup. */
-function renderPopular(){
-  const L = POP.map(k => {
-    const [c, t] = k.split('/'), cat = CATEGORIES.find(x => x.id === c), tp = cat && cat.items.find(x => x.id === t);
-    return tp ? { cat, tp } : null;
-  }).filter(Boolean).slice(0, 4);
-  $('pop-list').innerHTML = L.map(({ cat, tp }) => `<button type="button" class="pop" data-go="${esc(cat.id + '/' + tp.id)}"><span class="pop-ico" aria-hidden="true">${lineIcon(cat.icon) || esc(cat.icon || '📄')}</span><b translate="no">${esc(tp.title)}</b><small translate="no">${esc(cat.title)}</small></button>`).join('');
-  $('popular').hidden = L.length < 2 || !!searchInput.value.trim();
-}
-$('pop-list').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-go]'); if(!b) return;
-  const [c, t] = b.dataset.go.split('/'); navigate(buildHash(c, t, 1));
-});
-
-function renderMenu(){
-  const q = normalize(searchInput.value.trim());
-  renderPopular();
-  menuList.innerHTML = '';
-
-  if(!q){
-    if(CATEGORIES.length === 0){
-      menuList.innerHTML = '<div class="state-note">Belum ada tutorial yang tayang.</div>';
-      return;
-    }
-    menuList.insertAdjacentHTML('beforeend', '<div class="list-label">Kategori Tutorial</div>');
-    CATEGORIES.forEach(cat => {
-      const n = (cat.items || []).length;
-      const btn = document.createElement('button');
-      btn.className = 'row';
-      btn.innerHTML = rowHtml({
-        icon: cat.icon, tint: cat.tint, title: cat.title,
-        subData: cat.desc, sub: `${n} topik`
-      });
-      btn.addEventListener('click', () => navigate(buildHash(cat.id)));
-      menuList.appendChild(btn);
+/* ========================= DATA =========================
+   Model (dari Firestore categories/<id>, field baru opsional & diisi di Admin):
+   kategori {id, slug, title, desc, icon, tint, topics[]}
+   topik {id, key "kat/topik" (statistik), slug, title, desc, keywords[], thumb, steps[{title, text, image, tip}]} */
+let CATS = [], TOPICS = [], dataLoaded = false, POP = [], FAQ = [];
+function build(list){
+  CATS = (list || []).map((c) => {
+    const cat = { id: c.id, title: c.title || 'Tanpa judul', desc: c.desc || '', icon: c.icon, tint: safeColor(c.tint) };
+    cat.slug = `${slugify(cat.title)}-${shortId(c.id)}`;
+    cat.topics = (Array.isArray(c.items) ? c.items : []).map((t) => {
+      const steps = (Array.isArray(t.slides) ? t.slides : []).map((s) => ({
+        title: String(s.title || '').trim(),
+        text: String((s.text !== undefined ? s.text : s.desc) || '').trim(),
+        image: safeUrl(s.image), tip: String(s.tip || '').trim(),
+      }));
+      const kw = Array.isArray(t.keywords) ? t.keywords : String(t.keywords || '').split(',');
+      return { id: t.id, cat, key: `${c.id}/${t.id}`, title: t.title || 'Tanpa judul', desc: String(t.desc || '').trim(),
+        keywords: kw.map((x) => String(x).trim()).filter(Boolean), steps, thumb: (steps.find((s) => s.image) || {}).image || '',
+        slug: `${slugify(t.title)}-${shortId(t.id)}` };
     });
+    return cat;
+  });
+  TOPICS = CATS.flatMap((c) => c.topics);
+}
+const bySlug = (list, slug) => { const s = String(slug || '').toLowerCase(), id = s.split('-').pop(); return list.find((x) => x.slug === s) || list.find((x) => shortId(x.id) === id) || null; };
+const popRank = (t) => { const i = POP.indexOf(t.key); return i < 0 ? 999 : i; };
+const popular = (n) => POP.map((k) => TOPICS.find((t) => t.key === k)).filter(Boolean).slice(0, n);
+/** Judul singkat satu langkah: judulnya, atau kalimat pertama teksnya. */
+function stepLabel(s, i){
+  const t = plain(s.title || s.text).split(/\n|(?<=[.!?])\s/)[0].trim();
+  return t ? (t.length > 80 ? t.slice(0, 78) + '…' : t) : `Langkah ${i + 1}`;
+}
+
+/* ========================= PENCARIAN =========================
+   Deterministik (asisten AI tidak menggantikannya). Semua kata harus ditemukan di topik;
+   urutan: judul persis > frasa di judul > kata di judul > kata kunci > kategori/deskripsi > isi langkah. */
+// kata cocok bila ada kata di teks yang DIAWALI kata itu ("top" cocok dengan "top up", tidak dengan "stop")
+const toks = (s) => normalize(plain(s)).split(/[^a-z0-9]+/).filter(Boolean);
+const has = (T, w) => T.some((x) => x.startsWith(w));
+function searchTopics(q){
+  const nq = toks(q).join(' '), W = nq.split(' ').filter(Boolean);
+  if(!W.length) return [];
+  const out = [];
+  TOPICS.forEach((t) => {
+    const title = toks(t.title), kw = toks(t.keywords.join(' ')), meta = toks(t.cat.title + ' ' + t.desc);
+    const body = toks(t.steps.map((s) => s.title + ' ' + s.text + ' ' + s.tip).join(' '));
+    if(!W.every((w) => has(title, w) || has(kw, w) || has(meta, w) || has(body, w))) return;
+    const tj = title.join(' ');
+    let sc = 0;
+    if(tj === nq) sc += 1000; else if((' ' + tj).includes(' ' + nq)) sc += 400;
+    W.forEach((w) => { if(has(title, w)) sc += 60; else if(has(kw, w)) sc += 40; else if(has(meta, w)) sc += 15; else sc += 5; });
+    sc -= Math.min(popRank(t), 50) * 0.1;   // seri: yang lebih sering dibuka dulu
+    out.push({ t, sc });
+  });
+  return out.sort((a, b) => b.sc - a.sc).map((x) => x.t);
+}
+const searchFaq = (q) => { const W = toks(q); return W.length ? FAQ.filter((f) => { const h = toks(f.q + ' ' + f.a); return W.every((w) => has(h, w)); }) : []; };
+const hl = (text, q) => { let h = esc(text); normalize(q).split(/\s+/).filter((w) => w.length > 1).forEach((w) => { h = h.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'), '<mark>$1</mark>'); }); return h; };
+
+/* ========================= ROUTER ========================= */
+const href = (p) => (IS_STATIC ? '#' : '') + p;
+const tutPath = (t, step) => `/tutorial/${t.slug}${step > 1 ? '?langkah=' + step : ''}`;
+const catPath = (c) => `/kategori/${c.slug}`;
+function curUrl(){
+  if(IS_STATIC){ const h = location.hash.slice(1) || '/'; return new URL(h.startsWith('/') ? h : '/' + h, 'http://x'); }
+  return new URL(location.href);
+}
+function parseRoute(){
+  const u = curUrl(), p = u.pathname.replace(/\/+$/, '') || '/', m = p.split('/').filter(Boolean).map(decodeURIComponent);
+  if(m[0] === 'tutorial' && m[1]) return { v: 'tut', slug: m[1], step: parseInt(u.searchParams.get('langkah'), 10) || 1, done: u.searchParams.has('selesai') };
+  if(m[0] === 'kategori' && m[1]) return { v: 'cat', slug: m[1] };
+  if(m[0] === 'kategori') return { v: 'cats' };
+  if(m[0] === 'cari') return { v: 'search', q: u.searchParams.get('q') || '' };
+  return { v: 'home' };
+}
+function setUrl(path, replace){
+  if(IS_STATIC){ const h = '#' + path; if(location.hash !== h){ if(replace) history.replaceState(history.state, '', h); else history.pushState({ d: 1 }, '', h); } }
+  else if(location.pathname + location.search !== path){ if(replace) history.replaceState(history.state, '', path); else history.pushState({ d: 1 }, '', path); }
+}
+function go(path, opt = {}){ setUrl(path, opt.replace); render({ focus: true, scroll: opt.scroll }); }
+// link lama: #/k/<idKategori>[/<idTopik>/<n>]
+function legacy(){
+  const m = location.hash.match(/^#\/k\/([^/]+)(?:\/([^/]+)(?:\/(\d+))?)?/);
+  if(!m || !dataLoaded) return false;
+  const cat = CATS.find((c) => c.id === decodeURIComponent(m[1])), t = cat && m[2] && cat.topics.find((x) => x.id === decodeURIComponent(m[2]));
+  const path = t ? tutPath(t, +m[3] || 1) : cat ? catPath(cat) : '/';
+  if(IS_STATIC) history.replaceState(null, '', '#' + path); else history.replaceState(null, '', path);
+  return true;
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-link]');
+  if(a && !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey){
+    e.preventDefault(); closeMenu(); go(a.dataset.path || a.getAttribute('href').replace(/^#/, ''));
     return;
   }
-
-  // Mode pencarian: cari judul topik & isi langkahnya di semua kategori
-  const results = [];
-  CATEGORIES.forEach(cat => (cat.items || []).forEach(t => {
-    const hay = normalize(cat.title + ' ' + t.title + ' ' + (t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
-    if(q.split(/\s+/).every(w => hay.includes(w))) results.push({ cat, t });
-  }));
-
-  if(results.length === 0){
-    menuList.innerHTML = `<div class="state-note">Tidak ada tutorial untuk "${esc(searchInput.value.trim())}". Coba kata lain, atau usulkan tutorial baru di bawah.</div>`;
-    return;
-  }
-  const label = document.createElement('div');
-  label.className = 'list-label';
-  label.textContent = `${results.length} tutorial ditemukan`;
-  menuList.appendChild(label);
-  results.forEach(({ cat, t }) => {
-    const btn = document.createElement('button');
-    btn.className = 'row';
-    btn.innerHTML = rowHtml({
-      icon: cat.icon, tint: cat.tint, title: t.title,
-      subData: cat.title, sub: `${(t.slides || []).length} langkah`
-    });
-    btn.addEventListener('click', () => navigate(buildHash(cat.id, t.id, 1)));
-    menuList.appendChild(btn);
-  });
-}
-searchInput.addEventListener('input', renderMenu);
-
-/* ========================= LEVEL 2: TOPIK ========================= */
-function renderSubmenu(cat){
-  const items = cat.items || [];
-  $('submenu-title').textContent = cat.title;
-  $('submenu-sub').textContent = `${items.length} topik tutorial`;
-  submenuList.innerHTML = '';
-  if(items.length === 0){
-    submenuList.innerHTML = '<div class="state-note">Belum ada topik di kategori ini.</div>';
-    return;
-  }
-  items.forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'row';
-    btn.innerHTML = rowHtml({
-      icon: '📄', tint: cat.tint, title: t.title,
-      sub: `${(t.slides || []).length} langkah`
-    });
-    btn.addEventListener('click', () => navigate(buildHash(cat.id, t.id, 1)));
-    submenuList.appendChild(btn);
-  });
-}
-$('btn-submenu-back').addEventListener('click', () => goUp(''));
-
-/* ========================= LEVEL 3: SLIDE ========================= */
-function openTutorial(topic){
-  const fresh = currentTutorial !== topic && (!currentTutorial || currentTutorial.id !== topic.id);
-  currentTutorial = topic;
-  currentIndex = -1;
-  $('tut-title').textContent = topic.title;
-  buildSlides();
-  buildSteps();
-  buildProgress();
-  if(fresh) post('/api/view', { t: topicKey() }).catch(() => {});
-}
-function closeTutorial(){ goUp(buildHash(currentCategory.id)); }
-
-/** Penutup di langkah terakhir: disclaimer, Buka aplikasi, Membantu?. */
-function endHtml(){
-  return `<p class="slide-end-note">Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan. Materi ini bersifat edukasi, bukan ajakan membeli atau menjual.</p>`
-    + (APP_LINK ? `<a class="btn-app slide-app" href="${esc(APP_LINK)}" target="_blank" rel="noopener">Buka aplikasi${APP_NAME ? ' ' + esc(APP_NAME) : ''}</a>` : '')
-    + `<div class="fb live-only" data-fb><span>Apakah tutorial ini membantu?</span><button type="button" data-v="up">👍 Ya</button><button type="button" data-v="down">👎 Tidak</button></div>`;
-}
-/** Judul singkat satu langkah untuk daftar langkah: judulnya, atau kalimat pertama teksnya. */
-function stepTitle(s, i){
-  const t = String(s.title || slideText(s) || '').replace(/\*\*/g, '').split(/\n|(?<=[.!?])\s/)[0].trim();
-  return t ? (t.length > 72 ? t.slice(0, 70) + '…' : t) : `Langkah ${i + 1}`;
-}
-/* Daftar langkah: di HP lembar dari bawah (tombol "Langkah"), di laptop kolom kanan berisi teks langkah yang sedang dibuka. */
-const stepsBox = $('steps'), stepsList = $('steps-list'), stepsBg = $('steps-bg');
-function buildSteps(){
-  const slides = currentTutorial.slides || [];
-  stepsList.innerHTML = slides.map((s, i) => {
-    const raw = String(slideText(s) || '').trim(), same = !s.title && raw && raw.replace(/\*\*/g, '') === stepTitle(s, i);
-    const body = same ? '' : s.text !== undefined ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>` : (s.desc ? `<p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>` : '');
-    return `<li class="step"><button type="button" class="step-btn" data-step="${i}"><span class="step-n">${i + 1}</span><span class="step-t"${String(s.title || slideText(s) || '').trim() ? ' translate="no"' : ''}>${same ? formatDesc(raw) : esc(stepTitle(s, i))}</span></button>`
-      + `<div class="step-body">${body}${i === slides.length - 1 ? endHtml() : ''}</div></li>`;
-  }).join('');
-}
-function openSteps(open){
-  stepsBox.classList.toggle('open', open); stepsBg.classList.toggle('open', open);
-  $('btn-steps').setAttribute('aria-expanded', open);
-  if(open){ const a = stepsList.querySelector('.step.active .step-btn'); if(a){ a.scrollIntoView({ block:'nearest' }); a.focus({ preventScroll:true }); } }
-}
-$('btn-steps').addEventListener('click', () => openSteps(!stepsBox.classList.contains('open')));
-$('steps-close').addEventListener('click', () => { openSteps(false); $('btn-steps').focus(); });
-stepsBg.addEventListener('click', () => openSteps(false));
-stepsList.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-step]'); if(!b) return;
-  goToSlide(+b.dataset.step); openSteps(false);
+  const s = e.target.closest('[data-scroll]');
+  if(s){ e.preventDefault(); closeMenu(); scrollToSection(s.dataset.scroll); }
 });
-
-function buildSlides(){
-  const slides = currentTutorial.slides || [];
-  const total = slides.length;
-  slidesTrack.innerHTML = '';
-  slides.forEach((s, i) => {
-    const el = document.createElement('div');
-    el.className = 'slide';
-    el.setAttribute('role', 'group');
-    el.setAttribute('aria-label', `Langkah ${i + 1} dari ${total}`);
-    const img = safeUrl(s.image);
-    const alt = String(s.title || slideText(s) || '').trim() ? `Langkah ${i + 1}: ${stepTitle(s, i)}` : `Screenshot langkah ${i + 1}`;
-    const imgHtml = img
-      ? `<img translate="no" src="${esc(img)}" alt="${esc(alt)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom>`
-      : `<div class="slide-image-placeholder" aria-hidden="true"><div style="font-size:28px">🖼️</div>Gambar untuk langkah ini belum tersedia</div>`;
-    const textHtml = s.text !== undefined
-      ? `<p class="slide-desc" translate="no">${formatDesc(s.text)}</p>`
-      : `<h3 class="slide-title" translate="no">${esc(s.title)}</h3><p class="slide-desc" translate="no">${formatDesc(s.desc)}</p>`;
-    const endNote = i === total - 1 ? endHtml() : '';
-    el.innerHTML = `
-      <div class="slide-image-wrap${img ? ' has-image' : ''}">${imgHtml}</div>
-      <div class="slide-text">${textHtml}${endNote}</div>`;
-    slidesTrack.appendChild(el);
-    const imgEl = el.querySelector('img[data-zoom]');
-    if(imgEl) watchImage(imgEl);
-  });
+addEventListener('popstate', () => render({ focus: true }));   // juga untuk mode # (export): popstate ikut terpicu saat hash berubah
+function scrollToSection(id){
+  const doIt = () => { const el = $(id); if(!el) return; el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); const f = el.querySelector('input, summary'); if(f && id === 'ask') setTimeout(() => f.focus({ preventScroll: true }), 350); };
+  if(parseRoute().v !== 'home'){ go('/'); setTimeout(doIt, 60); } else doIt();
 }
+// di dalam Tool Hub: beri tahu dashboard alamat yang sedang dibuka (tombol "Bagikan link" di hub)
+const tellHub = () => { if(window.parent !== window && HUB_URL) try{ parent.postMessage({ hubShareUrl: location.href }, new URL(HUB_URL).origin); }catch(_){} };
 
-/* Gambar yang baru disetujui butuh ±2–3 menit sampai worker tutorial selesai di-deploy ulang.
-   Kalau gagal dimuat, tampilkan keterangan lalu coba lagi otomatis. */
-function watchImage(img){
-  let tries = 0;
-  const original = img.src;
-  img.addEventListener('error', () => {
-    const wrap = img.closest('.slide-image-wrap');
-    if(tries === 0 && wrap){
-      img.style.display = 'none';
-      const note = document.createElement('div');
-      note.className = 'slide-image-placeholder';
-      note.innerHTML = '<div style="font-size:26px">⏳</div>Gambar sedang disiapkan, tunggu sebentar';
-      wrap.appendChild(note);
-      img._note = note;
-    }
-    if(tries++ < 20) setTimeout(() => { img.src = original + (original.includes('?') ? '&' : '?') + 'r=' + tries; }, 15000);
-  });
-  img.addEventListener('load', () => {
-    if(img._note){ img._note.remove(); img._note = null; img.style.display = ''; }
-  });
+/* ========================= ANALITIK =========================
+   Hanya nama event & id topik/jumlah; teks pencarian/pertanyaan TIDAK dikirim.
+   tutorial_open & helpful dikirim ke D1 (statistik admin), sisanya disiapkan di window.dataLayer. */
+function track(ev, p = {}){
+  try{ (window.dataLayer = window.dataLayer || []).push({ event: ev, ...p }); }catch(_){}
 }
-
-function buildProgress(){
-  progressRow.innerHTML = '';
-  (currentTutorial.slides || []).forEach(() => {
-    const seg = document.createElement('div');
-    seg.className = 'progress-seg';
-    seg.innerHTML = '<i></i>';
-    progressRow.appendChild(seg);
-  });
-}
-
-function goToSlide(index, animate = true){
-  const total = (currentTutorial.slides || []).length;
-  const max = Math.max(0, total - 1);
-  currentIndex = Math.max(0, Math.min(max, index));
-  slidesTrack.style.transition = animate ? '' : 'none';
-  slidesTrack.style.transform = `translateX(-${currentIndex * 100}%)`;
-  if(!animate) requestAnimationFrame(() => { slidesTrack.style.transition = ''; });
-
-  [...progressRow.children].forEach((seg, i) => {
-    seg.classList.toggle('done', i < currentIndex);
-    seg.classList.toggle('active', i === currentIndex);
-  });
-  [...slidesTrack.children].forEach((slide, i) => {
-    slide.inert = i !== currentIndex;
-    if(i === currentIndex) slide.scrollTop = 0;
-    // muat gambar langkah ini dan tetangganya (juga saat lompat lewat daftar langkah)
-    if(Math.abs(i - currentIndex) <= 1){
-      const im = slide.querySelector('img[loading="lazy"]');
-      if(im) im.loading = 'eager';
-    }
-  });
-  [...stepsList.children].forEach((li, i) => {
-    li.classList.toggle('done', i < currentIndex);
-    li.classList.toggle('active', i === currentIndex);
-    li.querySelector('.step-btn').setAttribute('aria-current', i === currentIndex ? 'step' : 'false');
-  });
-  const act = stepsList.children[currentIndex];
-  if(act && stepsBox.offsetParent && getComputedStyle(stepsBox).position === 'static') act.scrollIntoView({ block:'nearest', behavior: animate ? 'smooth' : 'auto' });
-  viewport.classList.toggle('at-start', currentIndex === 0);
-  viewport.classList.toggle('at-end', currentIndex === max);
-  $('tut-step-label').textContent = `Langkah ${currentIndex + 1} dari ${total}`;
-  btnPrev.disabled = currentIndex === 0;
-  btnNext.textContent = currentIndex === max ? 'Selesai' : 'Lanjut';
-
-  // simpan posisi langkah di link tanpa menambah riwayat "back"
-  const h = buildHash(currentCategory.id, currentTutorial.id, currentIndex + 1);
-  if(location.hash !== h) history.replaceState(history.state, '', h);
-}
-
-function next(){
-  const max = (currentTutorial.slides || []).length - 1;
-  if(currentIndex >= max) closeTutorial();
-  else goToSlide(currentIndex + 1);
-}
-function prev(){ if(currentIndex > 0) goToSlide(currentIndex - 1); }
-
-btnNext.addEventListener('click', next);
-btnPrev.addEventListener('click', prev);
-$('zone-next').addEventListener('click', () => {
-  if(currentIndex < (currentTutorial.slides || []).length - 1) goToSlide(currentIndex + 1);
-});
-$('zone-prev').addEventListener('click', prev);
-// zona ketuk menutupi tepi slide: ketukan di atas tombol Membantu? / Buka aplikasi diteruskan ke tombolnya
-['zone-prev', 'zone-next'].forEach(id => $(id).addEventListener('click', (e) => {
-  const t = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.closest && el.closest('[data-fb] button, [data-fb] textarea, .slide-app'));
-  if(!t) return;
-  e.stopImmediatePropagation();
-  const el = t.closest('[data-fb] button, [data-fb] textarea, .slide-app');
-  if(el.tagName === 'TEXTAREA') el.focus(); else el.click();
-}, true));
-$('btn-back').addEventListener('click', closeTutorial);
-
-document.addEventListener('keydown', (e) => {
-  if(lightbox.classList.contains('open')){
-    if(e.key === 'Escape') closeLightbox();
-    return;
-  }
-  if(stepsBox.classList.contains('open') && e.key === 'Escape'){ openSteps(false); $('btn-steps').focus(); return; }
-  if(e.target.matches('input, textarea')) return;
-  if(tutScreen.dataset.pos === 'current'){
-    if(e.key === 'ArrowRight') { e.preventDefault(); if(currentIndex < currentTutorial.slides.length - 1) goToSlide(currentIndex + 1); }
-    else if(e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
-    else if(e.key === 'Escape') closeTutorial();
-  }else if(submenuScreen.dataset.pos === 'current' && e.key === 'Escape'){
-    goUp('');
-  }
-});
-
-/* ---------- geser (swipe) — horizontal saja, scroll vertikal tetap normal ---------- */
-let startX = 0, startY = 0, deltaX = 0, dragging = false, axis = null;
-
-function dragStart(x, y){ dragging = true; axis = null; startX = x; startY = y; deltaX = 0; }
-function dragMove(x, y){
-  if(!dragging) return;
-  const dx = x - startX, dy = y - startY;
-  if(!axis){
-    if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-    axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    if(axis === 'x') slidesTrack.style.transition = 'none';
-  }
-  if(axis !== 'x') return;
-  deltaX = dx;
-  const total = currentTutorial.slides.length;
-  // efek "karet" di langkah pertama/terakhir
-  const atEdge = (currentIndex === 0 && dx > 0) || (currentIndex === total - 1 && dx < 0);
-  const offset = atEdge ? dx * 0.3 : dx;
-  slidesTrack.style.transform = `translateX(${-currentIndex * viewport.clientWidth + offset}px)`;
-}
-function dragEnd(){
-  if(!dragging) return;
-  dragging = false;
-  if(axis !== 'x') return;
-  slidesTrack.style.transition = '';
-  const threshold = viewport.clientWidth * 0.18;
-  if(deltaX < -threshold) goToSlide(currentIndex + 1);
-  else if(deltaX > threshold) goToSlide(currentIndex - 1);
-  else goToSlide(currentIndex);
-  suppressClick = Math.abs(deltaX) > 8;
-}
-let suppressClick = false;
-viewport.addEventListener('click', (e) => {
-  if(suppressClick){ e.stopPropagation(); e.preventDefault(); suppressClick = false; }
-}, true);
-
-viewport.addEventListener('touchstart', e => dragStart(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
-viewport.addEventListener('touchmove', e => dragMove(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
-viewport.addEventListener('touchend', dragEnd);
-viewport.addEventListener('touchcancel', dragEnd);
-viewport.addEventListener('mousedown', e => { if(e.button === 0){ dragStart(e.clientX, e.clientY); e.preventDefault(); } });
-window.addEventListener('mousemove', e => { if(dragging) dragMove(e.clientX, e.clientY); });
-window.addEventListener('mouseup', dragEnd);
-
-/* ---------- perbesar gambar ---------- */
-const lightbox = $('lightbox');
-const lightboxImg = $('lightbox-img');
-let lightboxReturnFocus = null;
-slidesTrack.addEventListener('click', (e) => {
-  const img = e.target.closest('img[data-zoom]');
-  if(!img) return;
-  lightboxReturnFocus = document.activeElement;
-  lightboxImg.src = img.src;
-  lightboxImg.alt = img.alt;
-  lightbox.classList.add('open');
-  $('lightbox-close').focus();
-});
-function closeLightbox(){
-  lightbox.classList.remove('open');
-  lightboxImg.removeAttribute('src');
-  if(lightboxReturnFocus) lightboxReturnFocus.focus();
-}
-$('lightbox-close').addEventListener('click', closeLightbox);
-lightbox.addEventListener('click', (e) => { if(e.target === lightbox || e.target.classList.contains('lightbox-body')) closeLightbox(); });
-
-/* ---------- bagikan link tutorial ---------- */
-const toast = $('toast');
-let toastTimer = null;
-function showToast(msg){
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
-}
-$('btn-share').addEventListener('click', async () => {
-  const url = location.origin + location.pathname + buildHash(currentCategory.id, currentTutorial.id, 1);
-  const title = `Tutorial${APP_NAME ? ' ' + APP_NAME : ''}: ${currentTutorial.title}`;
-  if(navigator.share){
-    try{ await navigator.share({ title, url }); return; }catch(err){ if(err.name === 'AbortError') return; }
-  }
-  try{
-    await navigator.clipboard.writeText(url);
-    showToast('Link tutorial disalin');
-  }catch(_){
-    prompt('Salin link ini:', url);
-  }
-});
-
-/* ========================= STATISTIK, MEMBANTU?, BUKA APLIKASI ========================= */
-// API kecil di worker tutorial (D1); file offline hasil export tidak memanggilnya
 function post(path, body){
   if(IS_STATIC) return Promise.resolve(null);
   return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    .then(r => r.json().catch(() => ({})).then(j => { if(!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
+    .then((r) => r.json().catch(() => ({})).then((j) => { if(!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; }));
 }
-function topicKey(){ return currentCategory && currentTutorial ? `${currentCategory.id}/${currentTutorial.id}` : ''; }
-// "Membantu?" ada di slide (HP) dan di daftar langkah (laptop)
+
+/* ========================= KOMPONEN ========================= */
+const thumbHtml = (t) => `<div class="thumb">${t.thumb ? `<img src="${esc(t.thumb)}" alt="" loading="lazy" decoding="async">` : ic('image')}</div>`;
+const tCard = (t, cls = '', showCat = true) => `<a class="tcard ${cls}" href="${esc(href(tutPath(t)))}" data-link>${thumbHtml(t)}<div class="tcard-b">${showCat ? `<span class="cat" translate="no">${esc(t.cat.title)}</span>` : ''}<h3 translate="no">${esc(t.title)}</h3>${t.desc ? `<p translate="no">${esc(t.desc)}</p>` : ''}<span class="meta">${ic('list', 'ic ic-sm')}${t.steps.length} langkah</span></div></a>`;
+const cCard = (c) => `<a class="ccard" href="${esc(href(catPath(c)))}" data-link><span class="ccard-ic"${c.tint && !(window.tutIcon && window.tutIcon(c.icon)) ? ` style="background:${c.tint}"` : ''}>${catIcon(c)}</span><h3 translate="no">${esc(c.title)}</h3>${c.desc ? `<p translate="no">${esc(c.desc)}</p>` : ''}<span class="meta">${c.topics.length} topik</span></a>`;
+const lCard = (t) => `<a class="lcard" href="${esc(href(tutPath(t)))}" data-link>${thumbHtml(t)}<span><b translate="no">${esc(t.title)}</b><small>Lihat tutorial →</small></span></a>`;
+const emptyHtml = (title, text, extra = '') => `<div class="empty">${ic('search')}<b>${title}</b><span>${text}</span>${extra}</div>`;
+const chipsHtml = (list) => list.length ? `<div class="chips">${list.map((t) => `<a class="chip" href="${esc(href(tutPath(t)))}" data-link translate="no">${esc(t.title)}</a>`).join('')}</div>` : '';
+
+/* Kotak cari dengan saran langsung (combobox). Bisa dipasang di beberapa tempat sekaligus. */
+let sbN = 0;
+function searchBox({ big = false, value = '', placeholder = 'Cari tutorial, mis. top up, beli saham' } = {}){
+  const id = 'sb' + (++sbN);
+  return `<form class="sbox${big ? ' big' : ''}" role="search" data-sbox action="/cari">
+    <div class="sfield">${ic('search')}<label class="sr-only" for="${id}">Cari tutorial</label>
+      <input id="${id}" type="search" name="q" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-l">
+      <button type="button" class="sclear" aria-label="Hapus pencarian"${value ? '' : ' hidden'}>${ic('x', 'ic ic-sm')}</button></div>
+    <ul class="suggest" id="${id}-l" role="listbox" hidden></ul></form>`;
+}
+function suggestFor(input){
+  const form = input.closest('[data-sbox]'), list = form.querySelector('.suggest'), q = input.value.trim();
+  form.querySelector('.sclear').hidden = !q;
+  if(q.length < 2){ list.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+  const res = searchTopics(q).slice(0, 6);
+  list.innerHTML = res.map((t, i) => `<li role="option" id="${list.id}-${i}" data-path="${esc(tutPath(t))}" aria-selected="false"><span>${ic('book', 'ic ic-sm')}</span><span><span class="s-t" translate="no">${hl(t.title, q)}</span><br><span class="s-c" translate="no">${esc(t.cat.title)} · ${t.steps.length} langkah</span></span></li>`).join('')
+    + `<li role="option" id="${list.id}-all" data-path="/cari?q=${encodeURIComponent(q)}" aria-selected="false"><span>${ic('search', 'ic ic-sm')}</span><span class="s-all">${res.length ? 'Lihat semua hasil' : 'Tidak ada saran — cari'} “${esc(q)}”</span></li>`;
+  list.hidden = false; input.setAttribute('aria-expanded', 'true'); input.removeAttribute('aria-activedescendant');
+}
+function closeSuggest(form){ const l = form.querySelector('.suggest'), i = form.querySelector('input'); l.hidden = true; i.setAttribute('aria-expanded', 'false'); i.removeAttribute('aria-activedescendant'); }
+let searchT = null;
+document.addEventListener('input', (e) => {
+  if(!e.target.matches('[data-sbox] input')) return;
+  suggestFor(e.target);
+  clearTimeout(searchT); searchT = setTimeout(() => { const q = e.target.value.trim(); if(q.length > 1) track('tutorial_search', { results: searchTopics(q).length }); }, 1200);
+});
+document.addEventListener('keydown', (e) => {
+  if(!e.target.matches('[data-sbox] input')) return;
+  const form = e.target.closest('[data-sbox]'), list = form.querySelector('.suggest'), opts = [...list.querySelectorAll('li')];
+  if(e.key === 'Escape'){ if(!list.hidden){ e.preventDefault(); closeSuggest(form); } return; }
+  if(list.hidden || !opts.length || !['ArrowDown', 'ArrowUp'].includes(e.key)) return;
+  e.preventDefault();
+  let i = opts.findIndex((o) => o.getAttribute('aria-selected') === 'true');
+  i = e.key === 'ArrowDown' ? (i + 1) % opts.length : (i <= 0 ? opts.length - 1 : i - 1);
+  opts.forEach((o, k) => o.setAttribute('aria-selected', String(k === i)));
+  e.target.setAttribute('aria-activedescendant', opts[i].id); opts[i].scrollIntoView({ block: 'nearest' });
+});
+document.addEventListener('submit', (e) => {
+  const form = e.target.closest('[data-sbox]'); if(!form) return;
+  e.preventDefault();
+  const input = form.querySelector('input'), sel = form.querySelector('.suggest li[aria-selected="true"]'), q = input.value.trim();
+  closeSuggest(form);
+  if(sel){ if(sel.dataset.path.startsWith('/tutorial/')) track('search_result_click', { from: 'suggest' }); go(sel.dataset.path); return; }
+  if(q) go('/cari?q=' + encodeURIComponent(q));
+});
+document.addEventListener('mousedown', (e) => {   // mousedown: sebelum input kehilangan fokus
+  const li = e.target.closest('.suggest li'); if(!li) return;
+  e.preventDefault(); closeSuggest(li.closest('[data-sbox]'));
+  if(li.dataset.path.startsWith('/tutorial/')) track('search_result_click', { from: 'suggest' });
+  go(li.dataset.path);
+});
 document.addEventListener('click', (e) => {
-  const fb = e.target.closest('[data-fb]'); if(!fb) return;
-  const b = e.target.closest('button'); if(!b) return;
-  if(b.dataset.v === 'up'){ post('/api/fb', { t: topicKey(), v: 'up' }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih! Senang bisa membantu.</span>'; return; }
-  if(b.dataset.v === 'down'){
-    fb.innerHTML = '<span>Apa yang kurang jelas? (opsional)</span><textarea maxlength="300" placeholder="Mis. tombolnya tidak ketemu, langkah 3 berbeda di aplikasi saya. Jangan tulis data pribadi."></textarea><button type="button" class="fb-send" data-send="1">Kirim</button>';
-    fb.querySelector('textarea').focus(); return;
-  }
-  if(b.dataset.send){ post('/api/fb', { t: topicKey(), v: 'down', note: fb.querySelector('textarea').value }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih, masukanmu dipakai untuk memperbaiki tutorial ini.</span>'; }
+  const c = e.target.closest('.sclear');
+  if(c){ const f = c.closest('[data-sbox]'), i = f.querySelector('input'); i.value = ''; c.hidden = true; closeSuggest(f); i.focus(); if(parseRoute().v === 'cat') filterCat(''); }
+  document.querySelectorAll('[data-sbox]').forEach((f) => { if(!f.contains(e.target)) closeSuggest(f); });
 });
 
-/* ========================= TANYA ASISTEN & FAQ ========================= */
+/* ========================= HALAMAN ========================= */
+const main = $('main');
+let mounted = null;   // tutorial yang sedang tampil (supaya pindah langkah tidak menggambar ulang)
+
+function viewHome(){
+  document.title = CENTER;
+  const pop = popular(6), chips = popular(5);
+  const find = (re) => TOPICS.find((t) => re.test(t.title));
+  // shortcut: banner pemula memilih topik dari judulnya (login & isi saldo); ganti dengan pilihan Admin bila perlu kurasi
+  const starters = [find(/log\s*-?\s*in/i), find(/top\s*-?\s*up|isi saldo|setor/i)].filter(Boolean);
+  return `
+  <section class="hero"><div class="wrap">
+    <h1 tabindex="-1" data-focus translate="no">${esc(CENTER)}</h1>
+    <p>Panduan langkah demi langkah memakai aplikasi${APP_NAME ? ' ' + esc(APP_NAME) : ''}, lengkap dengan gambar layar.</p>
+    ${searchBox({ big: true })}
+    <div id="hero-chips">${heroChips(chips)}</div>
+  </div></section>
+  <div class="wrap">
+    ${starters.length ? `<section class="banner" aria-labelledby="bn-h"><span class="banner-ic">${ic('rocket')}</span><div class="banner-b"><h2 id="bn-h">Baru mulai${APP_NAME ? ' pakai ' + esc(APP_NAME) : ''}?</h2><p>Mulai dari langkah dasar ini dulu.</p></div>
+      <div class="banner-a">${starters.map((t, i) => `<a class="btn ${i ? '' : 'btn-pri'}" href="${esc(href(tutPath(t)))}" data-link translate="no">${esc(t.title)}</a>`).join('')}</div></section>` : ''}
+    <section class="sec" aria-labelledby="cat-h"><div class="sec-h"><div><h2 id="cat-h">Jelajahi kategori</h2><p>${TOPICS.length} tutorial di ${CATS.length} kategori</p></div></div>
+      <div class="grid">${CATS.map(cCard).join('')}</div></section>
+    <section class="sec" id="popular" aria-labelledby="pop-h"${pop.length < 2 ? ' hidden' : ''}><div class="sec-h"><div><h2 id="pop-h">Tutorial populer</h2><p>Paling sering dibuka pengguna</p></div></div>
+      <div class="grid stack" id="pop-grid">${pop.map((t) => tCard(t, 'row-m')).join('')}</div></section>
+    <section class="sec live-only" id="ask" aria-labelledby="ask-h"><div class="ask">
+      <div class="ask-i"><span class="ask-ic">${ic('spark')}</span><div><h2 id="ask-h">Tanya asisten</h2><p>Tulis pertanyaanmu. Asisten menjawab dari isi tutorial di sini dan menunjukkan tutorial yang tepat.</p></div></div>
+      <div><form class="ask-f" id="ask-form"><div class="sfield">${ic('spark')}<label class="sr-only" for="ask-q">Pertanyaan untuk asisten</label><input id="ask-q" maxlength="300" placeholder="Mis. bagaimana cara top up RDN?" autocomplete="off"></div><button class="btn btn-pri" id="ask-btn">Tanya</button></form>
+        <p class="ask-note">Jawaban disusun AI dari isi tutorial. Bukan saran investasi. Jangan tulis PIN, password, OTP, atau data pribadi.</p>
+        <div id="ask-out" aria-live="polite"></div></div>
+    </div></section>
+    <section class="sec" id="faq" aria-labelledby="faq-h"${FAQ.length ? '' : ' hidden'}><div class="sec-h"><div><h2 id="faq-h">Pertanyaan yang sering ditanyakan</h2></div></div>
+      <div class="faq" id="faq-list">${faqHtml(FAQ)}</div></section>
+  </div>`;
+}
+const heroChips = (L) => L.length ? `<div class="chips"><span class="chips-l">Populer:</span>${L.map((t) => `<a class="chip" href="${esc(href(tutPath(t)))}" data-link translate="no">${esc(t.title)}</a>`).join('')}</div>` : '';
+// data "populer" datang belakangan: isi bagiannya saja (tanpa menggambar ulang beranda / mengubah posisi gulir)
+function fillPopular(){
+  const sec = $('popular'); if(!sec) return;
+  const pop = popular(6);
+  $('pop-grid').innerHTML = pop.map((t) => tCard(t, 'row-m')).join(''); sec.hidden = pop.length < 2;
+  $('hero-chips').innerHTML = heroChips(popular(5));
+}
+const faqHtml = (L) => L.map((f) => `<details><summary translate="no">${esc(f.q)}${ic('right')}</summary><div class="faq-a" translate="no">${esc(f.a)}</div></details>`).join('');
+// satu FAQ terbuka pada satu waktu (lebih rapi di HP)
+document.addEventListener('toggle', (e) => { const d = e.target; if(d.tagName === 'DETAILS' && d.open && d.closest('.faq')) d.closest('.faq').querySelectorAll('details[open]').forEach((x) => { if(x !== d) x.open = false; }); }, true);
+
+function viewCats(){
+  document.title = `Kategori · ${CENTER}`;
+  return `<div class="wrap"><div class="page-h"><nav class="crumb" aria-label="Lokasi"><a href="${href('/')}" data-link>Tutorial Center</a>${ic('right', 'ic ic-sm')}<span>Kategori</span></nav>
+    <h1 tabindex="-1" data-focus>Semua kategori</h1><p>${TOPICS.length} tutorial di ${CATS.length} kategori</p></div>
+    <div class="grid" style="margin-top:20px">${CATS.map(cCard).join('')}</div></div>`;
+}
+
+function viewCat(cat){
+  document.title = `${cat.title} · ${CENTER}`;
+  return `<div class="wrap"><div class="page-h"><nav class="crumb" aria-label="Lokasi"><a href="${href('/')}" data-link>Tutorial Center</a>${ic('right', 'ic ic-sm')}<a href="${href('/kategori')}" data-link>Kategori</a>${ic('right', 'ic ic-sm')}<span translate="no">${esc(cat.title)}</span></nav>
+    <div class="cat-h"><span class="ccard-ic">${catIcon(cat, 26)}</span><div><h1 tabindex="-1" data-focus translate="no">${esc(cat.title)}</h1>${cat.desc ? `<p translate="no">${esc(cat.desc)}</p>` : ''}</div></div></div>
+    <div class="toolbar"><span class="count" id="cat-count">${cat.topics.length} topik</span>
+      <form class="sbox" data-filter onsubmit="return false"><div class="sfield">${ic('search')}<label class="sr-only" for="cat-q">Saring tutorial di kategori ini</label><input id="cat-q" type="search" placeholder="Saring di ${esc(cat.title)}" autocomplete="off"><button type="button" class="sclear" aria-label="Hapus saringan" hidden>${ic('x', 'ic ic-sm')}</button></div></form></div>
+    <div class="grid stack" id="cat-grid">${cat.topics.map((t) => tCard(t, 'row-m', false)).join('')}</div>
+    <div id="cat-empty" hidden>${emptyHtml('Tidak ada tutorial yang cocok', 'Coba kata lain, atau cari di semua kategori.', `<div class="chips"><a class="chip" href="${href('/cari')}" data-link id="cat-all">Cari di semua kategori</a></div>`)}</div>
+    ${cat.topics.length ? '' : emptyHtml('Belum ada tutorial', 'Kategori ini belum berisi tutorial.')}</div>`;
+}
+function filterCat(q){
+  const cat = bySlug(CATS, parseRoute().slug); if(!cat) return;
+  const res = q.trim() ? searchTopics(q).filter((t) => t.cat === cat) : cat.topics;
+  $('cat-grid').innerHTML = res.map((t) => tCard(t, 'row-m', false)).join('');
+  $('cat-count').textContent = q.trim() ? `${res.length} dari ${cat.topics.length} topik` : `${cat.topics.length} topik`;
+  $('cat-empty').hidden = res.length > 0 || !cat.topics.length;
+  const all = $('cat-all'); if(all){ all.setAttribute('href', href('/cari?q=' + encodeURIComponent(q))); }
+}
+document.addEventListener('input', (e) => { if(e.target.id === 'cat-q'){ e.target.closest('form').querySelector('.sclear').hidden = !e.target.value; filterCat(e.target.value); } });
+
+function viewSearch(q){
+  document.title = q ? `Cari “${q}” · ${CENTER}` : `Cari · ${CENTER}`;
+  const res = q ? searchTopics(q) : [], fq = q ? searchFaq(q) : [], sugg = popular(5);
+  return `<div class="wrap"><div class="page-h"><nav class="crumb" aria-label="Lokasi"><a href="${href('/')}" data-link>Tutorial Center</a>${ic('right', 'ic ic-sm')}<span>Cari</span></nav>
+    <h1 tabindex="-1" data-focus>${q ? `Hasil untuk “${esc(q)}”` : 'Cari tutorial'}</h1></div>
+    <div class="toolbar">${searchBox({ value: q })}${q ? `<span class="count">${res.length} tutorial${fq.length ? ` · ${fq.length} FAQ` : ''}</span>` : ''}</div>
+    ${!q ? `<p class="count">Ketik kata kunci, misalnya “top up”, “beli saham”, atau “reset password”.</p>${chipsHtml(sugg)}`
+      : res.length || fq.length ? `<div class="grid stack">${res.map((t) => tCard(t, 'row-m')).join('')}</div>
+        ${fq.length ? `<section class="sec"><div class="sec-h"><h2>Dari FAQ</h2></div><div class="faq">${faqHtml(fq)}</div></section>` : ''}`
+      : emptyHtml(`Tidak ada tutorial untuk “${esc(q)}”`, 'Coba kata lain yang lebih umum, atau tanyakan ke asisten.', `${chipsHtml(sugg)}<div class="chips live-only"><button type="button" class="btn btn-sm" data-scroll="ask">${ic('spark', 'ic ic-sm')}Tanya asisten</button></div>`)}
+  </div>`;
+}
+
+/* ---------- penampil tutorial ---------- */
+let T = null, cur = 0, isDone = false;
+function viewTut(t){
+  const n = t.steps.length, stepsHtml = `<ol class="steps">${t.steps.map((s, i) => `<li data-i="${i}"><button type="button" class="st" data-step="${i}"><span class="st-n">${i + 1}</span><span class="st-t" translate="no">${s.title ? esc(stepLabel(s, i)) : fmt(stepLabel(s, i))}</span></button></li>`).join('')}</ol>`;
+  return `<div class="tut" data-tut="${esc(t.id)}">
+    <div class="tbar"><button type="button" class="icon-btn" data-back aria-label="Kembali ke ${esc(t.cat.title)}">${ic('aleft')}</button><h1 tabindex="-1" data-focus-m translate="no">${esc(t.title)}</h1>
+      <button type="button" class="icon-btn" id="btn-steps" aria-label="Daftar langkah" aria-expanded="false" aria-controls="sheet">${ic('list')}</button></div>
+    <div class="wrap t-in">
+      <nav class="crumb" aria-label="Lokasi"><a href="${href('/')}" data-link>Tutorial Center</a>${ic('right', 'ic ic-sm')}<a href="${esc(href(catPath(t.cat)))}" data-link translate="no">${esc(t.cat.title)}</a></nav>
+      <div class="tut-h"><div><h1 tabindex="-1" data-focus translate="no">${esc(t.title)}</h1>${t.desc ? `<p translate="no">${esc(t.desc)}</p>` : ''}</div>
+        <div class="tut-act"><button type="button" class="btn btn-sm live-only hub-only" id="btn-konten" title="Khusus tim: jadikan carousel, story, atau teks WhatsApp">Konten</button>
+          <button type="button" class="btn btn-sm live-only" data-share>${ic('share', 'ic ic-sm')}Bagikan</button></div></div>
+      <div class="tut-grid">
+        <aside class="side" aria-labelledby="side-h"><h2 id="side-h">Daftar langkah</h2>${stepsHtml}<div class="side-f">${n} langkah</div></aside>
+        <section class="stage" id="stage">
+          ${n ? `<div class="stage-flex" id="stage-run">
+            <div class="media" id="media"><div class="track" id="track">${t.steps.map((s, i) => `<div class="slide" role="group" aria-roledescription="langkah" aria-label="Langkah ${i + 1} dari ${n}">${s.image
+              ? `<img src="${esc(s.image)}" alt="${esc(`Langkah ${i + 1}: ${stepLabel(s, i)}`)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom translate="no">`
+              : `<div class="ph">${ic('image')}Gambar untuk langkah ini belum tersedia</div>`}</div>`).join('')}</div>
+              <button type="button" class="zoom-hint" id="zoom-btn">${ic('zoom', 'ic ic-sm')}Perbesar</button></div>
+            <div class="meta-row"><span id="m-step"></span><span id="m-pct"></span></div>
+            <div class="segs" aria-hidden="true">${t.steps.map(() => '<i></i>').join('')}</div>
+            <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+            <div class="body" id="body" aria-live="polite"></div>
+          </div>
+          <div id="stage-done" hidden></div>` : emptyHtml('Tutorial ini belum berisi langkah', 'Silakan pilih tutorial lain.')}
+          <div class="tnav" id="tnav"${n ? '' : ' hidden'}><button type="button" class="btn" id="btn-prev">${ic('aleft', 'ic ic-sm')}Kembali</button><button type="button" class="btn btn-pri" id="btn-next">Lanjut${ic('aright', 'ic ic-sm')}</button></div>
+        </section>
+      </div>
+    </div></div>`;
+}
+function mountTut(t){
+  T = t; cur = -1; isDone = false; mounted = t.id;
+  $('sheet-steps').innerHTML = main.querySelector('.side .steps').innerHTML;
+  document.title = `${t.title} · ${CENTER}`;
+  track('tutorial_open', { topic: t.key });
+  post('/api/view', { t: t.key }).catch(() => {});
+}
+function goStep(i, { animate = true, url = true } = {}){
+  if(!T || !T.steps.length) return;
+  const n = T.steps.length;
+  i = Math.max(0, Math.min(n - 1, i));
+  const changed = i !== cur || isDone; cur = i; isDone = false;
+  $('stage-run').hidden = false; $('stage-done').hidden = true; $('tnav').classList.remove('off');
+  const track_ = $('track');
+  track_.style.transition = animate ? '' : 'none';
+  track_.style.transform = `translateX(-${i * 100}%)`;
+  if(!animate) requestAnimationFrame(() => { track_.style.transition = ''; });
+  [...track_.children].forEach((sl, k) => { sl.inert = k !== i; if(Math.abs(k - i) <= 1){ const im = sl.querySelector('img[loading="lazy"]'); if(im) im.loading = 'eager'; } });
+  const s = T.steps[i], pct = Math.round((i + 1) / n * 100);
+  $('m-step').textContent = `Langkah ${i + 1} dari ${n}`; $('m-pct').textContent = `${pct}%`;
+  $('bar').style.width = pct + '%';
+  main.querySelectorAll('.segs i').forEach((x, k) => x.classList.toggle('on', k <= i));
+  $('body').innerHTML = (s.title ? `<h2 translate="no">${esc(s.title)}</h2>${s.text ? `<p translate="no">${fmt(s.text)}</p>` : ''}` : `<h2 translate="no">${fmt(s.text || `Langkah ${i + 1}`)}</h2>`)
+    + (s.tip ? `<div class="tip">${ic('bulb')}<span translate="no">${fmt(s.tip)}</span></div>` : '');
+  $('zoom-btn').hidden = !s.image;
+  stepStates(i, false);
+  $('btn-prev').disabled = i === 0;
+  $('btn-next').innerHTML = i === n - 1 ? `Selesai${ic('check', 'ic ic-sm')}` : `Lanjut${ic('aright', 'ic ic-sm')}`;
+  if(url) setUrl(tutPath(T, i + 1), true);
+  if(changed) track('tutorial_step_view', { topic: T.key, step: i + 1 });
+}
+function stepStates(i, done){
+  document.querySelectorAll('.steps li').forEach((li) => {
+    const k = +li.dataset.i; li.classList.toggle('done', done || k < i); li.classList.toggle('cur', !done && k === i);
+    const b = li.querySelector('.st'); b.setAttribute('aria-current', !done && k === i ? 'step' : 'false');
+    b.querySelector('.st-n').innerHTML = done || k < i ? ic('check', 'ic ic-sm') : String(k + 1);
+  });
+  const a = main.querySelector('.side .cur'); if(a && a.offsetParent) a.scrollIntoView({ block: 'nearest' });
+}
+function related(t){
+  return t.cat.topics.filter((x) => x !== t).sort((a, b) => popRank(a) - popRank(b)).slice(0, 3);
+}
+function showDone({ url = true } = {}){
+  isDone = true; cur = T.steps.length - 1;
+  $('stage-run').hidden = true; $('tnav').classList.add('off'); stepStates(0, true);
+  const rel = related(T);
+  $('stage-done').innerHTML = `<div class="done-card"><div class="done-ic">${ic('checkc')}</div><h2 tabindex="-1" id="done-h">Tutorial selesai</h2>
+    <p>Kamu sudah menyelesaikan <b translate="no">${esc(T.title)}</b>. Sekarang coba langsung di aplikasi.</p>
+    <div class="done-a">${APP_LINK ? `<a class="btn btn-pri" href="${esc(APP_LINK)}" target="_blank" rel="noopener" data-open-app>${ic('ext', 'ic ic-sm')}${esc(APP_BTN)}</a>` : ''}<button type="button" class="btn" data-restart>${ic('redo', 'ic ic-sm')}Ulangi dari awal</button></div>
+    <div class="fb live-only" data-fb><span>Apakah tutorial ini membantu?</span><div class="fb-b"><button type="button" class="btn btn-sm" data-v="up">${ic('up', 'ic ic-sm')}Ya</button><button type="button" class="btn btn-sm" data-v="down">${ic('down', 'ic ic-sm')}Tidak</button></div></div>
+    ${rel.length ? `<div class="related"><h3>Tutorial terkait</h3><div class="ans-cards">${rel.map(lCard).join('')}</div></div>` : ''}
+    <p class="legal">Semua investasi memiliki risiko. Materi ini bersifat edukasi penggunaan aplikasi, bukan ajakan membeli atau menjual.</p></div>`;
+  $('stage-done').hidden = false;
+  if(url) setUrl(`/tutorial/${T.slug}?selesai`, true);
+  track('tutorial_completed', { topic: T.key });
+  setTimeout(() => { const h = $('done-h'); if(h) h.focus({ preventScroll: true }); }, 50);
+  scrollTo({ top: 0 });
+}
+const next = () => { if(!T) return; if(cur >= T.steps.length - 1) showDone(); else goStep(cur + 1); };
+const prev = () => { if(T && cur > 0) goStep(cur - 1); };
+document.addEventListener('click', (e) => {
+  if(!main.querySelector('[data-tut]')) return;
+  if(e.target.closest('#btn-next')) next();
+  else if(e.target.closest('#btn-prev')) prev();
+  else if(e.target.closest('[data-restart]')){ goStep(0); scrollTo({ top: 0 }); }
+  else if(e.target.closest('[data-back]')) back();
+  else if(e.target.closest('#btn-steps')) openSheet(true);
+  else if(e.target.closest('[data-share]')) share();
+  else if(e.target.closest('[data-open-app]')) track('open_app_click', { from: 'completion' });
+  else if(e.target.closest('#zoom-btn')){ const im = $('track').children[cur].querySelector('img'); if(im) openLb(im); }
+  const st = e.target.closest('[data-step]'); if(st){ goStep(+st.dataset.step); openSheet(false); }
+});
+// kembali ke halaman sebelumnya di situs ini, atau ke kategorinya
+function back(){ if(history.state && history.state.d) history.back(); else go(catPath(T.cat), { replace: true }); }
+
+/* lembar daftar langkah (HP) */
+const sheet = $('sheet'), sheetBg = $('sheet-bg');
+function openSheet(open){
+  sheet.classList.toggle('open', open); sheetBg.classList.toggle('open', open);
+  const b = $('btn-steps'); if(b) b.setAttribute('aria-expanded', String(open));
+  if(open){ const a = sheet.querySelector('.cur .st') || sheet.querySelector('.st'); if(a) setTimeout(() => { a.scrollIntoView({ block: 'nearest' }); a.focus({ preventScroll: true }); }, 30); }
+  else if(b && sheet.contains(document.activeElement)) b.focus();
+}
+$('sheet-x').addEventListener('click', () => openSheet(false));
+sheetBg.addEventListener('click', () => openSheet(false));
+
+/* geser antar langkah (sentuh & mouse) — horizontal saja, gulir vertikal tetap normal */
+let drag = null, suppress = false;
+function dStart(x, y){ if(!$('media') || isDone) return; drag = { x, y, dx: 0, axis: null }; }
+function dMove(x, y){
+  if(!drag) return;
+  const dx = x - drag.x, dy = y - drag.y;
+  if(!drag.axis){ if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return; drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; if(drag.axis === 'x') $('track').style.transition = 'none'; }
+  if(drag.axis !== 'x') return;
+  drag.dx = dx;
+  const n = T.steps.length, edge = (cur === 0 && dx > 0) || (cur === n - 1 && dx < 0);
+  $('track').style.transform = `translateX(${-cur * $('media').clientWidth + (edge ? dx * 0.3 : dx)}px)`;
+}
+function dEnd(){
+  if(!drag) return;
+  const d = drag; drag = null;
+  if(d.axis !== 'x') return;
+  $('track').style.transition = '';
+  const th = $('media').clientWidth * 0.18;
+  if(d.dx < -th && cur < T.steps.length - 1) goStep(cur + 1); else if(d.dx > th) goStep(cur - 1); else goStep(cur, { url: false });
+  suppress = Math.abs(d.dx) > 8;
+}
+main.addEventListener('touchstart', (e) => { if(e.target.closest('#media')) dStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+main.addEventListener('touchmove', (e) => { if(drag) dMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+main.addEventListener('touchend', dEnd); main.addEventListener('touchcancel', dEnd);
+main.addEventListener('mousedown', (e) => { if(e.button === 0 && e.target.closest('#media') && !e.target.closest('button')){ dStart(e.clientX, e.clientY); e.preventDefault(); } });
+addEventListener('mousemove', (e) => { if(drag) dMove(e.clientX, e.clientY); });
+addEventListener('mouseup', dEnd);
+main.addEventListener('click', (e) => {
+  if(suppress){ suppress = false; e.stopPropagation(); e.preventDefault(); return; }
+  const im = e.target.closest('img[data-zoom]'); if(im) openLb(im);
+}, true);
+
+/* lightbox: klik/ketuk untuk memperbesar, cubit (pinch) & geser saat diperbesar, ketuk dua kali / roda mouse untuk zoom */
+const lb = $('lb'), lbImg = $('lb-img'), lbBody = $('lb-body');
+let lbRet = null, Z = { s: 1, x: 0, y: 0 }, ptrs = new Map(), z0 = null, moved = false;
+const applyZ = () => { lbImg.style.transform = `translate(${Z.x}px,${Z.y}px) scale(${Z.s})`; lbBody.classList.toggle('zoomed', Z.s > 1); };
+const resetZ = () => { Z = { s: 1, x: 0, y: 0 }; applyZ(); };
+function openLb(img){
+  lbRet = document.activeElement; lbImg.src = img.src; lbImg.alt = img.alt; $('lb-cap').textContent = T ? `Langkah ${cur + 1} dari ${T.steps.length}` : '';
+  resetZ(); lb.classList.add('open'); document.body.style.overflow = 'hidden'; $('lb-x').focus();
+}
+function closeLb(){ lb.classList.remove('open'); lbImg.removeAttribute('src'); document.body.style.overflow = ''; if(lbRet) lbRet.focus(); }
+$('lb-x').addEventListener('click', closeLb);
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+lbBody.addEventListener('pointerdown', (e) => { lbBody.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); z0 = { Z: { ...Z }, p: [...ptrs.values()].map((p) => ({ ...p })) }; moved = false; });
+lbBody.addEventListener('pointermove', (e) => {
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const P = [...ptrs.values()];
+  if(P.length === 2 && z0.p.length === 2){ Z.s = Math.min(5, Math.max(1, z0.Z.s * dist(P[0], P[1]) / (dist(z0.p[0], z0.p[1]) || 1))); moved = true; applyZ(); }
+  else if(P.length === 1 && Z.s > 1){ Z.x = z0.Z.x + P[0].x - z0.p[0].x; Z.y = z0.Z.y + P[0].y - z0.p[0].y; if(Math.abs(P[0].x - z0.p[0].x) + Math.abs(P[0].y - z0.p[0].y) > 4) moved = true; applyZ(); }
+});
+const pEnd = (e) => { ptrs.delete(e.pointerId); z0 = { Z: { ...Z }, p: [...ptrs.values()].map((p) => ({ ...p })) }; if(Z.s <= 1.02) resetZ(); };
+lbBody.addEventListener('pointerup', pEnd); lbBody.addEventListener('pointercancel', pEnd);
+lbBody.addEventListener('dblclick', () => { if(Z.s > 1) resetZ(); else { Z = { s: 2.5, x: 0, y: 0 }; applyZ(); } });
+lbBody.addEventListener('wheel', (e) => { e.preventDefault(); Z.s = Math.min(5, Math.max(1, Z.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); if(Z.s <= 1.02) resetZ(); else applyZ(); }, { passive: false });
+lbBody.addEventListener('click', (e) => { if(e.target === lbBody && !moved && Z.s === 1) closeLb(); });
+
+document.addEventListener('keydown', (e) => {
+  if(lb.classList.contains('open')){ if(e.key === 'Escape') closeLb(); return; }
+  if(sheet.classList.contains('open')){ if(e.key === 'Escape') openSheet(false); return; }
+  if(e.key === 'Escape' && !$('menu-pop').hidden){ closeMenu(); $('menu-btn').focus(); return; }
+  if(e.target.matches('input, textarea, select') || !T || !main.querySelector('[data-tut]') || isDone) return;
+  if(e.key === 'ArrowRight'){ e.preventDefault(); if(cur < T.steps.length - 1) goStep(cur + 1); }
+  else if(e.key === 'ArrowLeft'){ e.preventDefault(); prev(); }
+});
+
+/* bagikan link tutorial */
+const toast = $('toast'); let toastT = null;
+function showToast(m){ toast.textContent = m; toast.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove('show'), 2200); }
+async function share(){
+  const url = location.origin + tutPath(T), title = `Tutorial${APP_NAME ? ' ' + APP_NAME : ''}: ${T.title}`;
+  if(navigator.share){ try{ await navigator.share({ title, url }); return; }catch(err){ if(err.name === 'AbortError') return; } }
+  try{ await navigator.clipboard.writeText(url); showToast('Link tutorial disalin'); }catch(_){ prompt('Salin link ini:', url); }
+}
+
+/* "Membantu?" */
+document.addEventListener('click', (e) => {
+  const fb = e.target.closest('[data-fb]'); if(!fb || !T) return;
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.v === 'up'){ post('/api/fb', { t: T.key, v: 'up' }).catch(() => {}); track('tutorial_helpful_yes', { topic: T.key }); fb.innerHTML = '<span class="thx">Terima kasih! Senang bisa membantu.</span>'; return; }
+  if(b.dataset.v === 'down'){
+    track('tutorial_helpful_no', { topic: T.key });
+    fb.innerHTML = '<span>Apa yang kurang jelas? (opsional)</span><textarea maxlength="300" aria-label="Masukan" placeholder="Mis. tombolnya tidak ketemu, langkah 3 berbeda di aplikasi saya. Jangan tulis data pribadi."></textarea><button type="button" class="btn btn-pri btn-sm" data-send="1">Kirim</button>';
+    fb.querySelector('textarea').focus(); return;
+  }
+  if(b.dataset.send){ post('/api/fb', { t: T.key, v: 'down', note: fb.querySelector('textarea').value }).catch(() => {}); fb.innerHTML = '<span class="thx">Terima kasih, masukanmu dipakai untuk memperbaiki tutorial ini.</span>'; }
+});
+
+/* ========================= ASISTEN =========================
+   Browser memilih potongan tutorial yang paling cocok (retrieve), AI menjawab hanya dari potongan itu (/api/ask),
+   lalu halaman menampilkan kartu tutorial yang dipakai. Bila AI tidak tersedia: hasil pencarian biasa, diberi label jelas. */
 const STOP = new Set(['cara','bagaimana','gimana','apa','apakah','yang','dan','atau','di','ke','dari','untuk','saya','aku','bisa','tidak','dengan','ini','itu','kok','mau','ingin','tolong','kenapa','mengapa','kalau','jika','sudah','belum','ada','nya']);
-const words = (s) => normalize(s).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w));
-/** Potongan tutorial yang paling cocok dengan pertanyaan (judul bobot 3, isi langkah bobot 1), maks. 4. */
+const words = (s) => normalize(s).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
 function retrieve(q){
   const W = words(q); if(!W.length) return [];
   const out = [];
-  CATEGORIES.forEach(c => (c.items || []).forEach(t => {
-    const title = words(t.title + ' ' + c.title), body = words((t.slides || []).map(s => (s.title || '') + ' ' + slideText(s)).join(' '));
-    let sc = 0; W.forEach(w => { if(title.some(x => x.startsWith(w) || w.startsWith(x))) sc += 3; if(body.some(x => x.startsWith(w))) sc += 1; });
-    if(sc) out.push({ sc, c, t });
-  }));
-  return out.sort((a, b) => b.sc - a.sc).slice(0, 4).map(({ c, t }) => ({
-    t: `${c.id}/${t.id}`, title: t.title, cat: c,
-    text: (t.slides || []).map((s, i) => `${i + 1}. ${[s.title, slideText(s)].filter(Boolean).join(': ')}`).join('\n').replace(/\*\*/g, '').slice(0, 1500),
-  }));
+  TOPICS.forEach((t) => {
+    const title = words(t.title + ' ' + t.cat.title + ' ' + t.keywords.join(' ')), body = words(t.desc + ' ' + t.steps.map((s) => s.title + ' ' + s.text + ' ' + s.tip).join(' '));
+    let sc = 0; W.forEach((w) => { if(title.some((x) => x.startsWith(w) || w.startsWith(x))) sc += 3; if(body.some((x) => x.startsWith(w))) sc += 1; });
+    if(sc) out.push({ sc, t });
+  });
+  return out.sort((a, b) => b.sc - a.sc).slice(0, 4).map(({ t }) => ({ t: t.key, title: t.title, topic: t,
+    text: t.steps.map((s, i) => `${i + 1}. ${[s.title, s.text].filter(Boolean).join(': ')}${s.tip ? ` (Tip: ${s.tip})` : ''}`).join('\n').replace(/\*\*/g, '').slice(0, 1500) }));
 }
 const CONTACT = PROFILE.contact || {};
 const CS_LINK = CONTACT.whatsapp ? 'https://wa.me/' + String(CONTACT.whatsapp).replace(/[^\d]/g, '').replace(/^0/, '62') : '';
-$('ask-form').addEventListener('submit', async (e) => {
+document.addEventListener('submit', async (e) => {
+  if(e.target.id !== 'ask-form') return;
   e.preventDefault();
-  const q = $('ask-q').value.trim(), out = $('ask-out'); if(q.length < 4) return;
-  const ctx = retrieve(q), btn = $('ask-btn');
-  btn.disabled = true; out.innerHTML = '<div class="ans">Mencari jawaban…</div>';
+  const q = $('ask-q').value.trim(), out = $('ask-out'), btn = $('ask-btn'); if(q.length < 4){ $('ask-q').focus(); return; }
+  const ctx = retrieve(q);
+  track('ai_question_submitted', { ctx: ctx.length });
+  btn.disabled = true; out.innerHTML = `<div class="ans"><div class="sk" style="height:14px;width:60%;margin-bottom:8px"></div><div class="sk" style="height:14px;width:85%"></div></div>`;
+  const fallback = (why) => { const R = searchTopics(q).slice(0, 4), L = R.length ? R : ctx.map((x) => x.topic);
+    return `<div class="ans"><span class="ans-l">${ic('search', 'ic ic-sm')}Hasil pencarian (bukan jawaban AI)</span><div>${esc(String(why).replace(/[.!?]?$/, '.'))}${L.length ? ' Tutorial yang mungkin cocok:' : ' Belum ada tutorial yang cocok.'}${!L.length && CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : ''}</div>${L.length ? `<div class="ans-cards">${L.map(lCard).join('')}</div>` : ''}</div>`; };
   try{
     const r = await post('/api/ask', { q, ctx: ctx.map(({ t, title, text }) => ({ t, title, text })) });
-    const links = (r.topics || []).map(t => ctx.find(x => x.t === t)).filter(Boolean);
-    const none = !r.found || !r.answer;
-    out.innerHTML = `<div class="ans"${none ? '' : ' translate="no"'}>${none ? 'Belum ada tutorial untuk pertanyaan ini.' + (CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : '') : esc(r.answer).replace(/\n/g, '<br>')}</div>`
-      + links.map(x => `<button type="button" class="tl" translate="no" data-go="${esc(x.t)}">📄 ${esc(x.title)}</button>`).join('');
-  }catch(err){ out.innerHTML = `<div class="ans">${esc(err.message || 'Asisten belum bisa menjawab.')}</div>`; }
+    const links = (r.topics || []).map((k) => ctx.find((x) => x.t === k)).filter(Boolean).map((x) => x.topic);
+    out.innerHTML = !r.found || !r.answer
+      ? `<div class="ans"><span class="ans-l">${ic('spark', 'ic ic-sm')}Asisten</span><div>Belum ada tutorial untuk pertanyaan ini.${CS_LINK ? ` <a href="${esc(CS_LINK)}" target="_blank" rel="noopener">Hubungi layanan nasabah</a>.` : ''}</div></div>`
+      : `<div class="ans"><span class="ans-l">${ic('spark', 'ic ic-sm')}Jawaban asisten (AI)</span><div translate="no">${esc(r.answer).replace(/\n/g, '<br>')}</div>${links.length ? `<div class="ans-cards">${links.map(lCard).join('')}</div>` : ''}</div>`;
+  }catch(err){ out.innerHTML = fallback((err && err.message) || 'Asisten sedang tidak tersedia.'); }
   finally{ btn.disabled = false; }
 });
-$('ask-out').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-go]'); if(!b) return;
-  const [c, t] = b.dataset.go.split('/'); navigate(buildHash(c, t, 1));
-});
-if(!IS_STATIC) fetch('/api/faq').then(r => r.ok ? r.json() : []).then(L => {
-  if(!Array.isArray(L) || !L.length) return;
-  $('faq-list').innerHTML = L.map(x => `<details><summary>${esc(x.q)}</summary><p>${esc(x.a)}</p></details>`).join('');
-  $('faq-box').hidden = false;
-}).catch(() => {});
-if(!IS_STATIC) fetch('/api/popular').then(r => r.ok ? r.json() : []).then(L => { POP = Array.isArray(L) ? L.filter(x => typeof x === 'string') : []; if(dataLoaded) renderPopular(); }).catch(() => {});
-if(APP_LINK){ const a = $('btn-app'); a.href = APP_LINK; a.textContent = `Buka aplikasi${APP_NAME ? ' ' + APP_NAME : ''}`; a.hidden = false; }
+
+/* ========================= RENDER ========================= */
+const skeleton = () => `<div class="wrap" style="padding-top:32px"><div class="sk" style="height:40px;max-width:420px;margin:0 auto 16px"></div><div class="sk" style="height:56px;max-width:640px;margin:0 auto 40px"></div>
+  <div class="grid">${'<div class="sk" style="height:150px"></div>'.repeat(6)}</div></div>`;
+function setNav(v){
+  document.querySelectorAll('[data-nav]').forEach((a) => { if(a.dataset.nav === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+}
+function render({ focus = false } = {}){
+  if(!dataLoaded){ main.innerHTML = skeleton(); return; }
+  if(legacy()) focus = false;
+  const r = parseRoute();
+  closeMenu(); openSheet(false); if(lb.classList.contains('open')) closeLb();
+  document.querySelectorAll('[data-sbox]').forEach(closeSuggest);
+  // tutorial yang sama: cukup pindah langkah
+  if(r.v === 'tut' && mounted && T && main.querySelector(`[data-tut="${CSS.escape(T.id)}"]`) && bySlug(TOPICS, r.slug) === T){
+    if(r.done) showDone({ url: false }); else goStep(r.step - 1, { url: false });
+    tellHub(); return;
+  }
+  mounted = null; T = null;
+  let html = '', inTut = false;
+  if(r.v === 'tut'){
+    const t = bySlug(TOPICS, r.slug);
+    if(t){ html = viewTut(t); inTut = true; }
+    else html = `<div class="wrap" style="padding-top:32px">${emptyHtml('Tutorial tidak ditemukan', 'Mungkin sudah diperbarui atau dipindah. Coba cari judulnya.', `<div class="chips"><a class="chip" href="${href('/cari?q=' + encodeURIComponent(r.slug.split('-').slice(0, -1).join(' ')))}" data-link>Cari tutorial serupa</a><a class="chip" href="${href('/')}" data-link>Ke beranda</a></div>`)}</div>`;
+  }else if(r.v === 'cat'){
+    const c = bySlug(CATS, r.slug);
+    html = c ? viewCat(c) : `<div class="wrap" style="padding-top:32px">${emptyHtml('Kategori tidak ditemukan', 'Pilih dari daftar kategori.', `<div class="chips"><a class="chip" href="${href('/kategori')}" data-link>Semua kategori</a></div>`)}</div>`;
+  }else if(r.v === 'cats') html = viewCats();
+  else if(r.v === 'search') html = viewSearch(r.q);
+  else html = viewHome();
+  main.innerHTML = html;
+  document.body.classList.toggle('in-tut', inTut);
+  $('hdr').classList.toggle('in-tut', inTut);
+  setNav(r.v === 'home' ? 'home' : r.v === 'cats' || r.v === 'cat' ? 'cats' : r.v === 'search' ? 'search' : '');
+  // kotak cari di header: semua halaman kecuali beranda & halaman cari (sudah punya kotak besar)
+  $('hdr-search').innerHTML = r.v === 'home' || r.v === 'search' ? '' : searchBox({ placeholder: 'Cari tutorial' });
+  if(inTut){
+    const t = bySlug(TOPICS, r.slug); mountTut(t);
+    if(r.done) showDone({ url: false }); else goStep(r.step - 1, { animate: false });
+  }
+  if(!r.done) scrollTo({ top: 0 });
+  if(focus){ const h = main.querySelector(inTut && matchMedia('(max-width:959px)').matches ? '[data-focus-m]' : '[data-focus]'); if(h) h.focus({ preventScroll: true }); }
+  tellHub();
+}
+
+/* ========================= HEADER & MENU ========================= */
+function closeMenu(){ $('menu-pop').hidden = true; $('menu-btn').setAttribute('aria-expanded', 'false'); }
+$('menu-btn').addEventListener('click', () => { const p = $('menu-pop'), o = p.hidden; p.hidden = !o; $('menu-btn').setAttribute('aria-expanded', String(o)); if(o) p.querySelector('a, button').focus(); });
+document.addEventListener('click', (e) => { if(!e.target.closest('#menu-pop, #menu-btn')) closeMenu(); });
+$('skip').addEventListener('click', (e) => { e.preventDefault(); const h = main.querySelector('[data-focus]') || main; h.focus(); });
+{
+  $('brand-name').textContent = CENTER;
+  if(APP_NAME){ document.title = CENTER; }
+  const b = PROFILE.brand || {}, strip = (t) => String(t || '').trim().replace(/\.+$/, ''), line = [strip(b.company), strip(b.license)].filter(Boolean).join('. ');
+  if(line){ const el = $('brand-license'); el.textContent = line + '.'; el.hidden = false; }
+  if(APP_LINK) ['hdr-app', 'menu-app'].forEach((id) => { const a = $(id); a.href = APP_LINK; a.lastChild.nodeType === 3 ? a.lastChild.textContent = APP_BTN : a.textContent = APP_BTN; a.hidden = false; a.addEventListener('click', () => track('open_app_click', { from: 'header' })); });
+  if(IS_STATIC) document.querySelectorAll('a[data-link]').forEach((a) => a.setAttribute('href', href(a.getAttribute('href'))));
+  document.querySelectorAll('.static-only').forEach((x) => { x.hidden = !IS_STATIC; });
+  document.body.classList.add('has-bnav');
+  fillIcons();
+}
 
 /* ========================= JADIKAN KONTEN (khusus tim, di dalam Tool Hub) ========================= */
-if(window.parent !== window) document.documentElement.classList.add('in-hub');
-const KW = { feed: [1080, 1350, 'Carousel feed 4:5'], story: [1080, 1920, 'Story 9:16'] };
-function loadImg(src){ return new Promise(ok => { if(!src){ ok(null); return; } const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; }); }
+const KW = { feed: [1080, 1350], story: [1080, 1920] };
+function loadImg(src){ return new Promise((ok) => { if(!src){ ok(null); return; } const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; }); }
 function wrapLines(ctx, text, maxW){
-  const out = []; String(text || '').replace(/\*\*/g, '').split('\n').forEach(par => {
-    let line = ''; par.split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if(ctx.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t; }); out.push(line);
-  }); return out;
+  const out = []; plain(text).split('\n').forEach((par) => { let line = ''; par.split(' ').forEach((w) => { const t = line ? line + ' ' + w : w; if(ctx.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t; }); out.push(line); }); return out;
 }
 async function slidePng(kind, page){
   const [W, H] = KW[kind], cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const x = cv.getContext('2d'), pad = 72, green = '#1a5c3a';
-  x.fillStyle = '#f4f8f5'; x.fillRect(0, 0, W, H);
-  x.fillStyle = green; x.fillRect(0, 0, W, 150);
-  x.fillStyle = '#fff'; x.font = 'bold 40px Segoe UI, Arial, sans-serif'; x.textBaseline = 'middle';
+  const x = cv.getContext('2d'), pad = 72, F = 'Inter, Segoe UI, Arial, sans-serif';
+  x.fillStyle = '#F7F9F8'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#1F634F'; x.fillRect(0, 0, W, 150);
+  x.fillStyle = '#fff'; x.font = `bold 40px ${F}`; x.textBaseline = 'middle';
   x.fillText(APP_NAME ? `Tutorial ${APP_NAME}` : 'Tutorial', pad, 75);
-  if(page.tag){ x.font = 'bold 34px Segoe UI, Arial, sans-serif'; x.textAlign = 'right'; x.fillText(page.tag, W - pad, 75); x.textAlign = 'left'; }
+  if(page.tag){ x.font = `bold 34px ${F}`; x.textAlign = 'right'; x.fillText(page.tag, W - pad, 75); x.textAlign = 'left'; }
   x.textBaseline = 'alphabetic';
   let y = 230;
-  x.fillStyle = '#14201a'; x.font = `bold ${page.big ? 76 : 50}px Segoe UI, Arial, sans-serif`;
-  wrapLines(x, page.title, W - pad * 2).slice(0, 4).forEach(l => { x.fillText(l, pad, y); y += page.big ? 92 : 64; });
+  x.fillStyle = '#202624'; x.font = `bold ${page.big ? 76 : 50}px ${F}`;
+  wrapLines(x, page.title, W - pad * 2).slice(0, 4).forEach((l) => { x.fillText(l, pad, y); y += page.big ? 92 : 64; });
   const textH = page.text ? 260 : 0, imgTop = y + 20, imgBot = H - 120 - textH;
   if(page.img && imgBot - imgTop > 200){
     const s = Math.min((W - pad * 2) / page.img.width, (imgBot - imgTop) / page.img.height), w = page.img.width * s, h = page.img.height * s, ix = (W - w) / 2;
     x.save(); x.shadowColor = 'rgba(0,0,0,.18)'; x.shadowBlur = 30; x.fillStyle = '#fff'; x.fillRect(ix, imgTop, w, h); x.restore();
     x.drawImage(page.img, ix, imgTop, w, h); y = imgTop + h + 60;
   }
-  if(page.text){ x.fillStyle = '#14201a'; x.font = '38px Segoe UI, Arial, sans-serif'; wrapLines(x, page.text, W - pad * 2).slice(0, 6).forEach(l => { x.fillText(l, pad, y); y += 50; }); }
-  x.fillStyle = '#5f7268'; x.font = '24px Segoe UI, Arial, sans-serif';
-  wrapLines(x, page.foot || 'Semua investasi memiliki risiko. Materi edukasi penggunaan aplikasi, bukan ajakan membeli atau menjual.', W - pad * 2).slice(0, 2).forEach((l, i) => x.fillText(l, pad, H - 70 + i * 30));
-  return new Promise(ok => { try{ cv.toBlob(b => ok(b), 'image/png'); }catch(e){ ok(null); } });
+  if(page.text){ x.fillStyle = '#202624'; x.font = `38px ${F}`; wrapLines(x, page.text, W - pad * 2).slice(0, 6).forEach((l) => { x.fillText(l, pad, y); y += 50; }); }
+  x.fillStyle = '#66736D'; x.font = `24px ${F}`;
+  wrapLines(x, 'Semua investasi memiliki risiko. Materi edukasi penggunaan aplikasi, bukan ajakan membeli atau menjual.', W - pad * 2).slice(0, 2).forEach((l, i) => x.fillText(l, pad, H - 70 + i * 30));
+  return new Promise((ok) => { try{ cv.toBlob((b) => ok(b), 'image/png'); }catch(e){ ok(null); } });
 }
 function saveBlob(b, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-const slugify = (s) => normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'tutorial';
 async function makeImages(kind){
-  const T = currentTutorial, S = T.slides || [], n = S.length;
-  const pages = [{ title: T.title, text: `Panduan ${n} langkah${APP_NAME ? ' di aplikasi ' + APP_NAME : ''}. Geser untuk mulai →`, big: true, tag: currentCategory.title }];
-  for(let i = 0; i < n; i++) pages.push({ title: S[i].title || `Langkah ${i + 1}`, text: slideText(S[i]), img: await loadImg(safeUrl(S[i].image)), tag: `${i + 1}/${n}` });
+  const S = T.steps, n = S.length;
+  const pages = [{ title: T.title, text: `Panduan ${n} langkah${APP_NAME ? ' di aplikasi ' + APP_NAME : ''}. Geser untuk mulai →`, big: true, tag: T.cat.title }];
+  for(let i = 0; i < n; i++) pages.push({ title: S[i].title || `Langkah ${i + 1}`, text: S[i].text, img: await loadImg(S[i].image), tag: `${i + 1}/${n}` });
   pages.push({ title: APP_NAME ? `Coba sekarang di ${APP_NAME}` : 'Coba sekarang', text: (APP_LINK ? 'Unduh / buka aplikasi lewat link di bio. ' : '') + 'Simpan postingan ini supaya mudah dicari lagi.', big: true });
   let ok = 0;
-  for(let i = 0; i < pages.length; i++){ const b = await slidePng(kind, pages[i]); if(b){ saveBlob(b, `${slugify(T.title)}-${kind}-${String(i + 1).padStart(2, '0')}.png`); ok++; await new Promise(r => setTimeout(r, 300)); } }
+  for(let i = 0; i < pages.length; i++){ const b = await slidePng(kind, pages[i]); if(b){ saveBlob(b, `${slugify(T.title).slice(0, 40)}-${kind}-${String(i + 1).padStart(2, '0')}.png`); ok++; await new Promise((r) => setTimeout(r, 300)); } }
   showToast(ok ? `${ok} gambar diunduh` : 'Gambar gagal dibuat');
 }
 function waText(){
-  const T = currentTutorial, url = location.origin + location.pathname + buildHash(currentCategory.id, T.id, 1);
-  return [`*Cara ${T.title}*${APP_NAME ? ' di ' + APP_NAME : ''}`, '', ...(T.slides || []).map((s, i) => `${i + 1}. ${[s.title, slideText(s)].filter(Boolean).join(': ').replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/\n+/g, ' ')}`), '', `Panduan bergambar: ${url}`].join('\n');
+  const url = location.origin + tutPath(T);
+  return [`*Cara ${T.title}*${APP_NAME ? ' di ' + APP_NAME : ''}`, '', ...T.steps.map((s, i) => `${i + 1}. ${[s.title, s.text].filter(Boolean).join(': ').replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/\n+/g, ' ')}`), '', `Panduan bergambar: ${url}`].join('\n');
 }
-$('btn-konten').addEventListener('click', () => {
-  if(!currentTutorial) return;
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('#btn-konten') || !T) return;
   const bg = document.createElement('div'); bg.className = 'kn-bg';
-  bg.innerHTML = `<div class="kn" role="dialog" aria-modal="true" aria-label="Jadikan konten"><h3>Jadikan konten</h3><small><span translate="no">${esc(currentTutorial.title)}</span> · ${(currentTutorial.slides || []).length} langkah</small>
-    <button type="button" data-k="feed">🖼️ Carousel feed 4:5 (PNG)</button><button type="button" data-k="story">📱 Story 9:16 (PNG)</button><button type="button" data-k="wa">💬 Salin teks WhatsApp</button>
+  bg.innerHTML = `<div class="kn" role="dialog" aria-modal="true" aria-label="Jadikan konten"><h3>Jadikan konten</h3><small><span translate="no">${esc(T.title)}</span> · ${T.steps.length} langkah</small>
+    <button type="button" data-k="feed">Carousel feed 4:5 (PNG)</button><button type="button" data-k="story">Story 9:16 (PNG)</button><button type="button" data-k="wa">Salin teks WhatsApp</button>
     <small>Gambar = sampul + tiap langkah + penutup. Cek ulang isi & sensor data pribadi sebelum diunggah.</small><button type="button" class="pri" data-k="x">Tutup</button></div>`;
-  document.body.appendChild(bg);
-  bg.addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-k]'); if(e.target === bg || (b && b.dataset.k === 'x')){ bg.remove(); return; } if(!b) return;
+  document.body.appendChild(bg); bg.querySelector('button').focus();
+  bg.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-k]'); if(ev.target === bg || (b && b.dataset.k === 'x')){ bg.remove(); $('btn-konten').focus(); return; } if(!b) return;
     if(b.dataset.k === 'wa'){ const t = waText(); try{ await navigator.clipboard.writeText(t); showToast('Teks WhatsApp disalin'); }catch(_){ prompt('Salin teks ini:', t); } return; }
     b.disabled = true; const o = b.textContent; b.textContent = 'Menyiapkan gambar…';
     await makeImages(b.dataset.k); b.disabled = false; b.textContent = o;
@@ -1215,44 +1147,42 @@ async function loadCategories(projectId){
     const r = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/categories?orderBy=order&pageSize=100${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
     if(!r.ok) throw new Error('Firestore HTTP ' + r.status);
     const j = await r.json();
-    (j.documents || []).forEach(d => out.push({ id: d.name.split('/').pop(), ...fsMap(d.fields) }));
+    (j.documents || []).forEach((d) => out.push({ id: d.name.split('/').pop(), ...fsMap(d.fields) }));
     page = j.nextPageToken || '';
   }while(page);
   return out;
 }
+let lastJson = '';
 function setData(list){
-  CATEGORIES = (list || []).map(c => ({ ...c, items: Array.isArray(c.items) ? c.items : [] }));
-  dataLoaded = true;
-  renderMenu();
-  // kalau tutorial yang sedang dibuka sudah dihapus admin, applyRoute akan kembali ke menu
-  if(currentTutorial){
-    const cat = CATEGORIES.find(c => c.id === currentCategory?.id);
-    const fresh = cat && cat.items.find(t => t.id === currentTutorial.id);
-    if(fresh && JSON.stringify(fresh) !== JSON.stringify(currentTutorial)){
-      const keep = currentIndex;
-      currentCategory = cat;
-      openTutorial(fresh);
-      goToSlide(keep, false);
-    }
-  }
-  applyRoute();
+  const j = JSON.stringify(list || []);
+  if(j === lastJson) return;   // simpanan HP sama dengan data server: tidak perlu menggambar ulang
+  const keep = T && !isDone ? cur : null;
+  lastJson = j; build(list); dataLoaded = true; mounted = null;
+  render();
+  if(keep != null && T) goStep(keep, { animate: false });
 }
-
 function showLoadError(){
-  menuList.innerHTML = `
-    <div class="state-note">
-      Tutorial belum bisa dimuat. Periksa koneksi internet kamu, lalu coba lagi.<br>
-      <button type="button" onclick="location.reload()">Muat ulang</button>
-    </div>`;
+  main.innerHTML = `<div class="wrap" style="padding-top:40px">${emptyHtml('Tutorial belum bisa dimuat', 'Periksa koneksi internet kamu, lalu coba lagi.', '<div class="chips"><button type="button" class="btn btn-pri btn-sm" onclick="location.reload()">Muat ulang</button></div>')}</div>`;
 }
-
+render();
+if(!IS_STATIC){
+  fetch('/api/faq').then((r) => r.ok ? r.json() : []).then((L) => {
+    FAQ = Array.isArray(L) ? L.filter((x) => x && x.q && x.a) : [];
+    document.querySelectorAll('.nav-faq').forEach((b) => { b.hidden = !FAQ.length; });
+    if(FAQ.length && dataLoaded && parseRoute().v === 'home'){ $('faq-list').innerHTML = faqHtml(FAQ); $('faq').hidden = false; fillIcons(main); }
+  }).catch(() => {});
+  fetch('/api/popular').then((r) => r.ok ? r.json() : []).then((L) => {
+    POP = Array.isArray(L) ? L.filter((x) => typeof x === 'string') : [];
+    if(dataLoaded && parseRoute().v === 'home') fillPopular();
+  }).catch(() => {});
+}
 if(IS_STATIC){
   setData(STATIC_DATA);
 }else{
   try{
     // kunjungan ulang: tampil langsung dari simpanan di HP, lalu diperbarui dari server
     try{ const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if(Array.isArray(c) && c.length) setData(c); }catch(e){}
-    const { firebaseConfig } = await import('./firebase-config.js');
+    const { firebaseConfig } = await import('/firebase-config.js');
     const list = await loadCategories(firebaseConfig.projectId);
     setData(list);
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(list)); }catch(e){}
