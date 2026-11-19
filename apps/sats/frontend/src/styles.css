@@ -104,7 +104,7 @@ kbd { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border: 1px s
 .select { display: inline-flex; align-items: center; gap: 8px; color: var(--mu); font-size: 13px; }
 .index-select select { min-width: 190px; }
 .index-note { margin-top: -8px; }
-.select select { height: 40px; padding: 0 10px; background: var(--bg); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; }
+.select select, .select input { height: 40px; padding: 0 10px; background: var(--bg); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; font: inherit; }
 
 /* ---------- tables */
 .table-wrap { overflow-x: auto; }
@@ -1043,3 +1043,13 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 }
 .more-link { position: relative; }
 .more-link::after { content: ""; position: absolute; inset: -12px 0; }
+/* Dividen */
+button.code.linkish { background: none; border: 0; padding: 0; cursor: pointer; }
+.div-conf.tinggi { color: var(--buy); }
+.div-conf.sedang { color: var(--ac); }
+.div-conf.rendah { color: var(--dim); }
+tr.div-open > td { background: var(--s2); }
+.div-hist { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; padding: 4px 0; }
+.div-hist .table { width: auto; }
+.div-pay { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 18px; font-size: 12.5px; max-width: 560px; }
+.select input[type="search"] { width: 150px; }

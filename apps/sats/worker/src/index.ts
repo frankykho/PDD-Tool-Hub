@@ -21,10 +21,13 @@
  *   GET /api/screener                          technical metrics of every stock + SATS state + index membership
  *   GET /api/history/:code                     ±6 years of daily Yahoo data, passed through (Strategy Lab parses it in the browser)
  *   GET/POST /api/analyst/:code                AI analysis of one stock (src/analyst.ts)
+ *   GET /api/dividends                         dividend history summary + estimate of every payer (weekly, run-dividends.ts)
+ *   GET /api/dividends/:code                   per fiscal year history + payments of one stock
  *   GET/POST /api/watchlist                    the logged-in user's watchlist (needs login)
  */
 import { STRATEGIES, isStrategyId, type StrategyId } from "./strategies/types";
 import { FUND_DDL } from "./fundamentals/schema";
+import { DIV_DDL } from "./fundamentals/dividends";
 import { accessEnabled, authEnabled, ensureAuthSchema, googleEnabled, handleGoogleAuth, handleHubAuth, handlePasswordAuth, hubEnabled, hubUrl, identify, loadMe, passwordEnabled, type AuthEnv, type Me } from "./auth";
 import { profile } from "../../../../shared/profile.js";
 import { shariaCached } from "../../../../shared/sharia.js";
@@ -184,14 +187,14 @@ const withPf = (a: Agg | null) => ({
   profit_factor: a && a.sum_loss ? (a.sum_win ?? 0) / (a.sum_loss as number) : null,
 });
 
-let fundReady = false;
+let tablesReady = false;
 
 async function handle(url: URL, env: Env): Promise<Response> {
   const db = env.screener_db;
-  if (!fundReady) {
-    // the weekly fundamentals job rebuilds it; make sure joins never fail before its first run
-    await db.prepare(FUND_DDL).run().catch(() => undefined);
-    fundReady = true;
+  if (!tablesReady) {
+    // the weekly fundamentals job rebuilds these; make sure joins never fail before its first run
+    await db.batch([db.prepare(FUND_DDL), db.prepare(DIV_DDL)]).catch(() => undefined);
+    tablesReady = true;
   }
   const path = url.pathname.replace(/\/+$/, "");
 
@@ -233,6 +236,29 @@ async function handle(url: URL, env: Env): Promise<Response> {
   if (owners) return owners;
   const flow = await flowRoute(db, path, url, json);
   if (flow) return flow;
+
+  if (path === "/api/dividends") {
+    const { results } = await db
+      .prepare(
+        `SELECT d.code, s.name, d.as_of, d.last_date, d.last_amount, d.fy_last, d.dps_last, d.payout, d.eps_ttm, d.est_dps, d.est_paid,
+                d.streak, d.dps_cagr3, d.confidence, t.close,
+                ROUND(d.dps_last * 100.0 / t.close, 2) AS hist_yield, ROUND(d.est_dps * 100.0 / t.close, 2) AS est_yield,
+                (SELECT GROUP_CONCAT(m.index_code) FROM index_members m WHERE m.code = d.code) AS indexes
+         FROM div_latest d
+         JOIN stocks s ON s.code = d.code
+         LEFT JOIN tech_latest t ON t.code = d.code
+         ORDER BY d.code`,
+      )
+      .all();
+    return json({ asOf: (results[0] as { as_of?: string } | undefined)?.as_of ?? null, rows: results }, 200, 3600);
+  }
+  const divMatch = path.match(/^\/api\/dividends\/([A-Za-z0-9]{2,6})$/);
+  if (divMatch) {
+    const code = divMatch[1].toUpperCase();
+    const row = await db.prepare("SELECT history FROM div_latest WHERE code = ?").bind(code).first<{ history: string }>();
+    if (!row) return json({ error: "no dividend data" }, 404);
+    return json({ code, history: JSON.parse(row.history) }, 200, 3600);
+  }
 
   if (path === "/api/breadth") {
     const { results } = await db

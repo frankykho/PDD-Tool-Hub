@@ -499,7 +499,36 @@ export interface AnalystResponse {
   quota: { used: number; limit: number };
 }
 
+/** Dividen (mingguan, /api/dividends): riwayat & perkiraan dividen berikutnya. */
+export type DivConfidence = "tinggi" | "sedang" | "rendah";
+export interface DivListRow {
+  code: string;
+  name: string;
+  as_of: string;
+  last_date: string;
+  last_amount: number;
+  fy_last: number;
+  dps_last: number;
+  payout: number | null;
+  eps_ttm: number | null;
+  est_dps: number | null;
+  est_paid: number;
+  streak: number;
+  dps_cagr3: number | null;
+  confidence: DivConfidence | null;
+  close: number | null;
+  hist_yield: number | null;
+  est_yield: number | null;
+  indexes: string | null;
+}
+export interface DivHistory {
+  years: Array<{ fy: number; dps: number; eps: number | null; payout: number | null }>;
+  payments: Array<{ date: string; amount: number }>;
+}
+
 export const api = {
+  dividends: () => get<{ asOf: string | null; rows: DivListRow[] }>("/api/dividends"),
+  dividendHistory: (code: string) => get<{ code: string; history: DivHistory }>(`/api/dividends/${encodeURIComponent(code)}`),
   analyst: (code: string) => get<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`),
   makeAnalysis: (code: string) => post<AnalystResponse>(`/api/analyst/${encodeURIComponent(code)}`, {}),
   lab: () => get<{ rows: LabRow[] }>("/api/lab"),

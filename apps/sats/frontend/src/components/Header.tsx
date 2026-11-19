@@ -10,7 +10,7 @@ export default function Header({
   me,
   pendingCount = 0,
 }: {
-  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "patterns" | "owners" | "flow" | "radar" | "backtest" | "warrant" | "admin";
+  active: "dashboard" | "today" | "market" | "lab" | "stock" | "track" | "screener" | "patterns" | "owners" | "dividends" | "flow" | "radar" | "backtest" | "warrant" | "admin";
   me?: Me;
   pendingCount?: number;
 }) {
@@ -26,7 +26,7 @@ export default function Header({
   const adminActive = active === "track" || active === "lab" || active === "admin";
   // HP: menu bawah cukup 4 halaman utama + "Lainnya" (sisanya tidak muat dan dulu tersembunyi di bilah yang digeser)
   const SEC = [
-    ["#/pemegang", "owners", "Pemegang"], ["#/frekuensi", "flow", "Frekuensi"], ["#/radar", "radar", "Radar"],
+    ["#/pemegang", "owners", "Pemegang"], ["#/dividen", "dividends", "Dividen"], ["#/frekuensi", "flow", "Frekuensi"], ["#/radar", "radar", "Radar"],
     ["#/backtest", "backtest", "Backtest"], ["#/waran", "warrant", "Waran"], ["#/pasar", "market", "Pasar"],
   ] as const;
   const lainActive = adminActive || SEC.some(([, k]) => k === active);
@@ -109,6 +109,10 @@ export default function Header({
         <a className="nav-sec" href="#/pemegang" aria-current={active === "owners" ? "page" : undefined} title="Pemegang saham ≥ 1% dan jaringannya">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="18" r="2.5" /><circle cx="19" cy="18" r="2.5" /><path d="M11 7.2L6.3 15.8M13 7.2l4.7 8.6M7.5 18h9" /></svg>
           <span>Pemegang</span>
+        </a>
+        <a className="nav-sec" href="#/dividen" aria-current={active === "dividends" ? "page" : undefined} title="Riwayat & perkiraan dividen semua saham">
+          <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.4 0-2.6-.6-3-1.6M12 6.5V8M12 16v1.5" /></svg>
+          <span>Dividen</span>
         </a>
         <a className="nav-sec" href="#/frekuensi" aria-current={active === "flow" ? "page" : undefined} title="Frequency Analyzer & HAKA/HAKI">
           <svg className="nav-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20V14M9 20V8M14 20V11M19 20V4" /></svg>
