@@ -1053,3 +1053,7 @@ tr.div-open > td { background: var(--s2); }
 .div-hist .table { width: auto; }
 .div-pay { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 18px; font-size: 12.5px; max-width: 560px; }
 .select input[type="search"] { width: 150px; }
+/* tabel lebar: tinggi setinggi layar supaya scrollbar samping selalu terlihat; judul & kolom saham tetap di tempat */
+.div-wrap { max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); overflow: auto; overscroll-behavior: contain; }
+.div-wrap .table th:first-child { position: sticky; left: 0; z-index: 3; }
+.div-wrap .table tr:not(.div-open) > td:first-child { position: sticky; left: 0; z-index: 1; background: var(--s1); }

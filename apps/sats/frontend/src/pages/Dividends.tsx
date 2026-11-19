@@ -167,7 +167,7 @@ export default function Dividends() {
         ) : rows.length === 0 ? (
           <div className="state">Tidak ada saham yang cocok dengan filter.</div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap div-wrap">
             <table className="table">
               <thead>
                 <tr>
