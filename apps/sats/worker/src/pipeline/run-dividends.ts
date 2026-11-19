@@ -87,7 +87,8 @@ async function main() {
     ...rows.map(({ code, s }) => {
       const v: Record<string, string> = {
         code: q(code), as_of: q(today), last_date: q(s.last_date), last_amount: n(s.last_amount), fy_last: n(s.fy_last),
-        dps_last: n(s.dps_last), payout: n(s.payout), eps_ttm: n(s.eps_ttm), est_dps: n(s.est_dps), est_paid: n(s.est_paid),
+        dps_last: n(s.dps_last), payout: n(s.payout), payout_min: n(s.payout_min), payout_max: n(s.payout_max), eps_ttm: n(s.eps_ttm),
+        est_dps: n(s.est_dps), est_low: n(s.est_low), est_high: n(s.est_high), est_paid: n(s.est_paid),
         streak: n(s.streak), dps_cagr3: n(s.dps_cagr3), confidence: q(s.confidence), history: q(JSON.stringify(s.history)),
       };
       return `INSERT INTO div_latest (${cols.join(", ")}) VALUES (${cols.map((c) => v[c]).join(", ")});`;
@@ -99,7 +100,7 @@ async function main() {
 
   for (const c of ["BBRI", "TLKM", "ADRO", "ITMG", "BBCA"]) {
     const r = rows.find((x) => x.code === c)?.s;
-    if (r) console.log(`  ${c.padEnd(5)} TB${r.fy_last} DPS ${r.dps_last} payout ${r.payout ?? "—"}% EPS ${r.eps_ttm ?? "—"} → perkiraan ${r.est_dps ?? "—"} (${r.confidence ?? "—"}) · ${r.streak} th`);
+    if (r) console.log(`  ${c.padEnd(5)} TB${r.fy_last} DPS ${r.dps_last} payout ${r.payout ?? "—"}% EPS ${r.eps_ttm ?? "—"} → perkiraan ${r.est_low ?? "—"} / ${r.est_dps ?? "—"} / ${r.est_high ?? "—"} (${r.confidence ?? "—"}) · ${r.streak} th`);
   }
 }
 

@@ -12,9 +12,13 @@ export interface DivSummary {
   last_amount: number;
   fy_last: number; // tahun buku terakhir yang dianggap lengkap
   dps_last: number;
-  payout: number | null; // % acuan (median 3 TB, 0–100)
+  payout: number | null; // % base: rata-rata 3 TB (tiap TB dibatasi 0–100)
+  payout_min: number | null; // % pesimis: terendah 3 TB
+  payout_max: number | null; // % optimis: tertinggi 3 TB
   eps_ttm: number | null; // rupiah, 12 bulan terakhir
-  est_dps: number | null;
+  est_dps: number | null; // base
+  est_low: number | null; // pesimis
+  est_high: number | null; // optimis
   est_paid: number; // dividen tahun buku berjalan yang sudah dibayar (interim)
   streak: number;
   dps_cagr3: number | null; // %
@@ -34,10 +38,6 @@ export const fiscalYear = (date: string) => {
 export const targetFy = (today: string) => new Date(Date.parse(today) - 270 * 86400_000).getUTCFullYear();
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
-const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-};
 
 export function summarize(input: { payments: Payment[]; annualEps: Record<number, number>; epsTtm: number | null; today: string }): DivSummary | null {
   const payments = input.payments.filter((p) => p.amount > 0).sort((a, b) => b.date.localeCompare(a.date));
@@ -60,13 +60,16 @@ export function summarize(input: { payments: Payment[]; annualEps: Record<number
   const recent = recentYears.map((y) => y.payout as number);
   // ≥ 3 ex-date dalam satu TB: interim pertengahan tahun mungkin masuk TB yang salah, payout kurang bisa dipercaya
   const crowded = recentYears.some((y) => payments.filter((p) => fiscalYear(p.date) === y.fy).length >= 3);
-  const payout = recent.length ? Math.min(100, Math.max(0, median(recent))) : null;
+  // tiap TB dibatasi 0–100 dulu, supaya satu dividen spesial tidak mendongkrak rata-rata
+  const capped = recent.map((p) => Math.min(100, Math.max(0, p)));
+  const payout = capped.length ? capped.reduce((a, b) => a + b, 0) / capped.length : null;
 
   let streak = 0;
   while (streak < 10 && d(fyLast - streak) > 0) streak += 1;
   const eps = input.epsTtm;
   const paysLately = d(fyLast) > 0 || d(fyLast - 1) > 0;
-  const est = eps != null && eps > 0 && payout != null && paysLately ? r2((payout / 100) * eps) : null;
+  const estAt = (p: number | null) => (eps != null && eps > 0 && p != null && paysLately ? r2((p / 100) * eps) : null);
+  const est = estAt(payout);
   const confidence: Confidence | null =
     est == null ? null : crowded ? "rendah" : streak >= 3 && recent.length >= 3 && Math.max(...recent) - Math.min(...recent) <= 30 ? "tinggi" : streak >= 2 ? "sedang" : "rendah";
   const base = d(fyLast - 3);
@@ -77,8 +80,12 @@ export function summarize(input: { payments: Payment[]; annualEps: Record<number
     fy_last: fyLast,
     dps_last: d(fyLast),
     payout: payout == null ? null : r2(payout),
+    payout_min: capped.length ? r2(Math.min(...capped)) : null,
+    payout_max: capped.length ? r2(Math.max(...capped)) : null,
     eps_ttm: eps == null ? null : r2(eps),
     est_dps: est,
+    est_low: capped.length ? estAt(Math.min(...capped)) : null,
+    est_high: capped.length ? estAt(Math.max(...capped)) : null,
     est_paid: d(tfy),
     streak,
     dps_cagr3: base > 0 && d(fyLast) > 0 ? r2(((d(fyLast) / base) ** (1 / 3) - 1) * 100) : null,
@@ -95,8 +102,12 @@ export const DIV_COLUMNS: Array<[keyof DivSummary | "code" | "as_of", "TEXT" | "
   ["fy_last", "INTEGER"],
   ["dps_last", "REAL"],
   ["payout", "REAL"],
+  ["payout_min", "REAL"],
+  ["payout_max", "REAL"],
   ["eps_ttm", "REAL"],
   ["est_dps", "REAL"],
+  ["est_low", "REAL"],
+  ["est_high", "REAL"],
   ["est_paid", "REAL"],
   ["streak", "INTEGER"],
   ["dps_cagr3", "REAL"],

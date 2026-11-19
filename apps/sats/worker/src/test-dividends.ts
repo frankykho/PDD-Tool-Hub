@@ -18,8 +18,13 @@ const eps = { 2022: 338, 2023: 398, 2024: 398, 2025: 376 };
 const b = summarize({ payments: bbri, annualEps: eps, epsTtm: 422, today: "2026-11-19" })!;
 assert.equal(b.fy_last, 2025);
 near(b.dps_last, 346, 0.001, "DPS TB 2025 = 137 + 209");
-near(b.payout, 86.28, 0.01, "median payout 80,2 / 86,3 / 92,0");
-near(b.est_dps, 364.1, 0.1, "86,28% × 422");
+// 3 skenario dari payout TB 2023–2025 (80,15 / 86,28 / 92,02): pesimis = terendah, base = rata-rata, optimis = tertinggi
+near(b.payout_min, 80.15, 0.01, "payout terendah");
+near(b.payout, 86.15, 0.01, "payout rata-rata");
+near(b.payout_max, 92.02, 0.01, "payout tertinggi");
+near(b.est_low, 338.23, 0.05, "80,15% × 422");
+near(b.est_dps, 363.55, 0.05, "86,15% × 422");
+near(b.est_high, 388.32, 0.05, "92,02% × 422");
 assert.equal(b.streak, 4, "TB 2022–2025");
 assert.equal(b.confidence, "tinggi");
 assert.equal(b.est_paid, 0);
@@ -35,6 +40,8 @@ assert.equal(bi.est_paid, 140);
 // rugi: tanpa perkiraan, riwayat tetap ada
 const loss = summarize({ payments: bbri, annualEps: eps, epsTtm: -5, today: "2026-11-19" })!;
 assert.equal(loss.est_dps, null);
+assert.equal(loss.est_low, null);
+assert.equal(loss.est_high, null);
 assert.equal(loss.confidence, null);
 assert.ok(loss.history.years.length >= 4);
 
@@ -44,20 +51,25 @@ assert.equal(once.streak, 1);
 assert.equal(once.dps_cagr3, null);
 assert.equal(once.confidence, "rendah");
 near(once.est_dps, 52.5, 0.001, "25% × 210");
+assert.equal(once.est_low, once.est_high, "satu tahun: tiga skenario sama");
 
 // tidak bagi dividen 2 TB terakhir: tanpa perkiraan
 const stopped = summarize({ payments: P([["2022-05-01", 50]]), annualEps: { 2021: 200 }, epsTtm: 210, today: "2026-11-19" })!;
 assert.equal(stopped.est_dps, null);
 assert.equal(stopped.streak, 0);
 
-// dividen spesial: median meredam; payout dibatasi 100
+// dividen spesial: payout tiap TB dibatasi 100 sebelum dirata-rata
 const sp = summarize({ payments: P([["2024-05-01", 40], ["2025-05-01", 45], ["2026-05-01", 250]]), annualEps: { 2023: 100, 2024: 100, 2025: 100 }, epsTtm: 100, today: "2026-11-19" })!;
 assert.equal(sp.fy_last, 2025);
-// payout TB 2023–2025 = 40, 45, 250 → median 45
-near(sp.payout, 45, 0.001, "median 40/45/250");
+// payout TB 2023–2025 = 40, 45, 250 → 40, 45, 100
+near(sp.payout, 61.67, 0.01, "rata-rata 40/45/100");
+assert.equal(sp.payout_min, 40);
+assert.equal(sp.payout_max, 100);
+near(sp.est_high, 100, 0.001, "optimis 100% × 100");
 assert.equal(sp.confidence, "sedang", "rentang payout > 30 poin");
 const big = summarize({ payments: P([["2024-05-01", 300], ["2025-05-01", 300]]), annualEps: { 2023: 100, 2024: 100 }, epsTtm: 100, today: "2026-11-19" })!;
 assert.equal(big.payout, 100);
+assert.equal(big.payout_min, 100);
 
 // pertumbuhan 3 th
 const g = summarize({ payments: P([["2023-05-01", 100], ["2024-05-01", 110], ["2025-05-01", 120], ["2026-05-01", 133.1]]), annualEps: {}, epsTtm: 500, today: "2026-11-19" })!;

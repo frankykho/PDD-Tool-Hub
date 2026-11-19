@@ -25,10 +25,11 @@ Satu menu insight di SATS: daftar **semua saham** yang pernah membagi dividen, b
   (final, atau interim yang dibayar Januari). Contoh BBRI: 2024-01-02 → TB 2023, 2025-12-30 → TB 2025, 2026-04-21 → TB 2025.
 - **DPS tahun buku** = jumlah semua pembayaran untuk tahun buku itu.
 - **Payout ratio TB** = DPS TB ÷ EPS TB (hanya bila EPS > 0).
-- **Payout acuan** = median payout 3 tahun buku terakhir yang punya data, dibatasi 0–100%.
-- **Perkiraan DPS berikutnya** = payout acuan × EPS 12 bulan terakhir (laporan kuartal terbaru).
+- **Payout 3 skenario** (3 tahun buku terakhir yang punya data, tiap TB dibatasi 0–100% dulu): pesimis = terendah,
+  base = rata-rata, optimis = tertinggi. (Revisi 2026-11-19 atas permintaan user; sebelumnya satu angka: median.)
+- **Perkiraan DPS berikutnya** (per skenario) = payout skenario × EPS 12 bulan terakhir (laporan kuartal terbaru).
   Bila sebagian DPS tahun buku berjalan sudah dibayar (interim), ditampilkan juga "sisa perkiraan" = perkiraan − interim.
-- **Perkiraan yield** = perkiraan DPS ÷ harga penutupan terakhir (`tech_latest`).
+- **Perkiraan yield** (pesimis / base / optimis) = perkiraan DPS skenario ÷ harga penutupan terakhir (`tech_latest`).
 - **Yield historis** = DPS tahun buku terakhir yang lengkap ÷ harga.
 - **Konsistensi** = jumlah tahun buku berturut-turut (sampai yang terakhir) dengan dividen > 0, dari maks. 10.
 - **Pertumbuhan DPS 3 th** = (DPS TB terakhir ÷ DPS 3 TB sebelumnya)^(1/3) − 1.
@@ -46,12 +47,12 @@ Satu menu insight di SATS: daftar **semua saham** yang pernah membagi dividen, b
 - `GET /api/dividends` — semua baris tanpa `history`, digabung nama saham, harga terakhir, keanggotaan indeks & syariah. Cache 1 jam.
 - `GET /api/dividends/:code` — `history` satu saham.
 - Halaman `#/dividen`, menu "Dividen" di Header. Kolom: Kode/Nama, Harga, Dividen terakhir, Yield historis, Payout,
-  Perkiraan DPS, Perkiraan yield, Konsistensi, Pertumbuhan 3 th, Keyakinan. Filter: indeks (LQ45, KOMPAS100, …), syariah,
+  Yield pesimis / base / optimis (DPS di bawahnya), Konsistensi, Pertumbuhan 3 th, Keyakinan. Filter: indeks (LQ45, KOMPAS100, …), syariah,
   keyakinan minimal, cari kode. Klik baris → riwayat per tahun buku + daftar pembayaran. Penjelasan rumus lewat ikon info
   (komponen `Info` yang sudah ada). Teks EN masuk `i18n.ts`.
 
 ## Diputuskan oleh saya (bisa dikoreksi)
-- Median 3 tahun (bukan rata-rata) supaya satu dividen spesial tidak mendongkrak perkiraan.
+- Payout tiap tahun dibatasi 100% sebelum dirata-rata, supaya satu dividen spesial tidak mendongkrak skenario base.
 - Payout dibatasi 100% untuk perkiraan.
 - Daftar hanya berisi saham yang membagi dividen minimal sekali dalam 10 tahun.
 - Akses halaman sama dengan Screener (semua pengguna yang login).

@@ -194,6 +194,8 @@ async function handle(url: URL, env: Env): Promise<Response> {
   if (!tablesReady) {
     // the weekly fundamentals job rebuilds these; make sure joins never fail before its first run
     await db.batch([db.prepare(FUND_DDL), db.prepare(DIV_DDL)]).catch(() => undefined);
+    // kolom skenario ditambahkan belakangan: tabel lama (sebelum job mingguan membangun ulang) diberi kolomnya, error "duplicate column" diabaikan
+    for (const c of ["payout_min", "payout_max", "est_low", "est_high"]) await db.prepare(`ALTER TABLE div_latest ADD COLUMN ${c} REAL`).run().catch(() => undefined);
     tablesReady = true;
   }
   const path = url.pathname.replace(/\/+$/, "");
@@ -240,9 +242,10 @@ async function handle(url: URL, env: Env): Promise<Response> {
   if (path === "/api/dividends") {
     const { results } = await db
       .prepare(
-        `SELECT d.code, s.name, d.as_of, d.last_date, d.last_amount, d.fy_last, d.dps_last, d.payout, d.eps_ttm, d.est_dps, d.est_paid,
+        `SELECT d.code, s.name, d.as_of, d.last_date, d.last_amount, d.fy_last, d.dps_last, d.payout, d.payout_min, d.payout_max, d.eps_ttm, d.est_dps, d.est_low, d.est_high, d.est_paid,
                 d.streak, d.dps_cagr3, d.confidence, t.close,
                 ROUND(d.dps_last * 100.0 / t.close, 2) AS hist_yield, ROUND(d.est_dps * 100.0 / t.close, 2) AS est_yield,
+                ROUND(d.est_low * 100.0 / t.close, 2) AS est_yield_low, ROUND(d.est_high * 100.0 / t.close, 2) AS est_yield_high,
                 (SELECT GROUP_CONCAT(m.index_code) FROM index_members m WHERE m.code = d.code) AS indexes
          FROM div_latest d
          JOIN stocks s ON s.code = d.code

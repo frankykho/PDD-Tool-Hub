@@ -510,8 +510,12 @@ export interface DivListRow {
   fy_last: number;
   dps_last: number;
   payout: number | null;
+  payout_min: number | null;
+  payout_max: number | null;
   eps_ttm: number | null;
   est_dps: number | null;
+  est_low: number | null;
+  est_high: number | null;
   est_paid: number;
   streak: number;
   dps_cagr3: number | null;
@@ -519,6 +523,8 @@ export interface DivListRow {
   close: number | null;
   hist_yield: number | null;
   est_yield: number | null;
+  est_yield_low: number | null;
+  est_yield_high: number | null;
   indexes: string | null;
 }
 export interface DivHistory {

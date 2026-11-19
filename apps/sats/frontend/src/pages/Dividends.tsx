@@ -14,15 +14,16 @@ const pct = (v: number | null | undefined) => (v == null ? "—" : `${nf2.format
 const CONF_RANK: Record<DivConfidence, number> = { tinggi: 3, sedang: 2, rendah: 1 };
 const NOTE = "Keputusan dividen ditentukan RUPS. Perkiraan berdasar kebiasaan masa lalu, bukan rekomendasi.";
 
-type Key = "est_yield" | "hist_yield" | "est_dps" | "dps_last" | "payout" | "streak" | "dps_cagr3" | "last_date" | "close" | "confidence";
+type Key = "est_yield" | "est_yield_low" | "est_yield_high" | "hist_yield" | "dps_last" | "payout" | "streak" | "dps_cagr3" | "last_date" | "close" | "confidence";
 const COLS: Array<{ key: Key; label: string; info: string }> = [
   { key: "close", label: "Harga", info: "Harga penutupan terakhir." },
   { key: "last_date", label: "Dividen terakhir", info: "Nominal per lembar dan tanggal ex-dividen terakhir (Yahoo Finance, sudah disesuaikan stock split). Pembeli pada atau sesudah tanggal ex tidak mendapat dividen itu." },
   { key: "dps_last", label: "DPS TB terakhir", info: "Total dividen per lembar untuk tahun buku terakhir (interim + final). Ex-date Okt–Des dihitung untuk tahun itu, Jan–Sep untuk tahun sebelumnya." },
   { key: "hist_yield", label: "Yield historis", info: "DPS tahun buku terakhir ÷ harga sekarang." },
-  { key: "payout", label: "Payout", info: "Bagian laba yang dibagikan: DPS ÷ EPS tiap tahun buku, diambil median 3 tahun buku terakhir (maks. 100%) supaya dividen spesial tidak mendongkrak." },
-  { key: "est_dps", label: "Perkiraan DPS", info: "Payout × EPS 12 bulan terakhir (laporan kuartal terbaru). Kosong bila perusahaan rugi atau tidak membagi dividen 2 tahun buku terakhir." },
-  { key: "est_yield", label: "Perkiraan yield", info: "Perkiraan DPS ÷ harga sekarang." },
+  { key: "payout", label: "Payout", info: "Bagian laba yang dibagikan: DPS ÷ EPS tiap tahun buku, 3 tahun buku terakhir. Angka besar = rata-rata; di bawahnya terendah–tertinggi. Tiap tahun dibatasi maks. 100% supaya dividen spesial tidak mendongkrak." },
+  { key: "est_yield_low", label: "Yield pesimis", info: "Payout terendah 3 tahun buku × EPS 12 bulan terakhir ÷ harga. Di bawahnya perkiraan DPS. Kosong bila perusahaan rugi atau tidak membagi dividen 2 tahun buku terakhir." },
+  { key: "est_yield", label: "Yield base", info: "Payout rata-rata 3 tahun buku × EPS 12 bulan terakhir ÷ harga. Di bawahnya perkiraan DPS." },
+  { key: "est_yield_high", label: "Yield optimis", info: "Payout tertinggi 3 tahun buku × EPS 12 bulan terakhir ÷ harga. Di bawahnya perkiraan DPS." },
   { key: "streak", label: "Konsistensi", info: "Jumlah tahun buku berturut-turut membagi dividen (maks. 10)." },
   { key: "dps_cagr3", label: "Tumbuh 3 th", info: "Pertumbuhan DPS per tahun selama 3 tahun buku terakhir." },
   { key: "confidence", label: "Keyakinan", info: "Tinggi: ≥ 3 tahun berturut-turut dan payout stabil (selisih ≤ 30 poin). Sedang: ≥ 2 tahun. Rendah: selebihnya, atau ada ≥ 3 pembagian dalam satu tahun buku (pembagian bisa masuk tahun buku yang salah)." },
@@ -215,13 +216,22 @@ export default function Dividends() {
                         <div className="dim small">{`TB ${r.fy_last}`}</div>
                       </td>
                       <td className="num mono">{pct(r.hist_yield)}</td>
-                      <td className="num mono">{pct(r.payout)}</td>
                       <td className="num mono">
-                        {rp(r.est_dps)}
-                        {r.est_dps != null && r.est_paid > 0 && <div className="dim small">interim sudah {rp(r.est_paid)}</div>}
+                        {pct(r.payout)}
+                        {r.payout_min != null && r.payout_max !== r.payout_min && <div className="dim small">{`${nf2.format(r.payout_min)}–${nf2.format(r.payout_max ?? 0)}%`}</div>}
+                      </td>
+                      <td className="num mono">
+                        {pct(r.est_yield_low)}
+                        <div className="dim small">{rp(r.est_low)}</div>
                       </td>
                       <td className="num mono">
                         <b>{pct(r.est_yield)}</b>
+                        <div className="dim small">{rp(r.est_dps)}</div>
+                        {r.est_dps != null && r.est_paid > 0 && <div className="dim small">interim sudah {rp(r.est_paid)}</div>}
+                      </td>
+                      <td className="num mono">
+                        {pct(r.est_yield_high)}
+                        <div className="dim small">{rp(r.est_high)}</div>
                       </td>
                       <td className="num mono">{`${r.streak} th`}</td>
                       <td className={`num mono ${r.dps_cagr3 == null ? "" : r.dps_cagr3 >= 0 ? "buy" : "sell"}`}>{fmtPct(r.dps_cagr3)}</td>
