@@ -260,6 +260,10 @@ main{ display:block; min-height:calc(100vh - var(--hdr) - 200px); outline:0; }
 .zoom-hint{ position:absolute; right:10px; bottom:10px; display:grid; place-items:center; width:36px; height:36px; padding:0; border-radius:var(--r-full); border:0; background:color-mix(in srgb,var(--surf) 92%,transparent); color:var(--sub); box-shadow:var(--sh); }
 .zoom-hint span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 .zoom-hint:hover{ color:var(--ink); }
+/* petunjuk geser: sekali per perangkat, layar sentuh saja (swipeHint) */
+.swipe-hint{ position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:2; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:var(--r-full); background:rgba(16,24,20,.78); color:#fff; font-size:13px; font-weight:500; white-space:nowrap; pointer-events:none; }
+.media.peek .track{ animation:peek 1.3s var(--ease) .4s 2; }
+@keyframes peek{ 0%,100%{ transform:translateX(calc(var(--at) * -100%)); } 45%{ transform:translateX(calc(var(--at) * -100% - 56px)); } }
 .meta-row{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; font-size:12.5px; color:var(--sub); font-weight:500; letter-spacing:.04em; }
 .bar{ height:6px; border-radius:var(--r-full); background:var(--soft-2); overflow:hidden; }
 .bar i{ display:block; height:100%; width:0; background:var(--pri); border-radius:inherit; transition:width .35s var(--ease); }
@@ -829,7 +833,7 @@ function goStep(i, { animate = true, url = true } = {}){
   if(!T || !T.steps.length) return;
   const n = T.steps.length;
   i = Math.max(0, Math.min(n - 1, i));
-  const changed = i !== cur || isDone; cur = i; isDone = false;
+  const changed = i !== cur || isDone; cur = i; isDone = false; hideHint();
   $('stage-run').hidden = false; $('stage-done').hidden = true; $('tnav').classList.remove('off');
   const track_ = $('track');
   track_.style.transition = animate ? '' : 'none';
@@ -848,6 +852,19 @@ function goStep(i, { animate = true, url = true } = {}){
   $('btn-next').innerHTML = i === n - 1 ? `Selesai${ic('check', 'ic ic-sm')}` : `Lanjut${ic('aright', 'ic ic-sm')}`;
   if(url) setUrl(tutPath(T, i + 1), true);
   if(changed) track('tutorial_step_view', { topic: T.key, step: i + 1 });
+}
+// pertama kali membuka tutorial di layar sentuh: gambar "mengintip" ke kiri + label, hilang saat disentuh / pindah langkah
+const HINT_KEY = 'tutorial-swipe-hint';
+function hideHint(){ const m = $('media'); if(m){ m.classList.remove('peek'); m.querySelector('.swipe-hint')?.remove(); } }
+function swipeHint(){
+  const m = $('media');
+  if(!m || !matchMedia('(pointer:coarse)').matches || cur >= T.steps.length - 1) return;
+  try{ if(localStorage.getItem(HINT_KEY)) return; localStorage.setItem(HINT_KEY, '1'); }catch(_){ return; }
+  m.insertAdjacentHTML('beforeend', `<div class="swipe-hint" aria-hidden="true">${ic('aleft', 'ic ic-sm')}Geser untuk langkah berikutnya</div>`);
+  $('track').style.setProperty('--at', cur);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) m.classList.add('peek');
+  m.addEventListener('touchstart', hideHint, { once: true, passive: true });
+  setTimeout(hideHint, 4500);
 }
 function stepStates(i, done){
   document.querySelectorAll('.steps li').forEach((li) => {
@@ -1067,7 +1084,7 @@ function render({ focus = false } = {}){
   $('hdr-search').innerHTML = r.v === 'home' || r.v === 'search' ? '' : searchBox({ placeholder: 'Cari tutorial' });
   if(inTut){
     const t = bySlug(TOPICS, r.slug); mountTut(t);
-    if(r.done) showDone({ url: false }); else goStep(r.step - 1, { animate: false });
+    if(r.done) showDone({ url: false }); else { goStep(r.step - 1, { animate: false }); swipeHint(); }
   }
   if(!r.done) scrollTo({ top: 0 });
   if(focus){ const h = main.querySelector(inTut && matchMedia('(max-width:959px)').matches ? '[data-focus-m]' : '[data-focus]'); if(h) h.focus({ preventScroll: true }); }

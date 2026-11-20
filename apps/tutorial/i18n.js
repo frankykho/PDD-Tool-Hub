@@ -326,6 +326,7 @@ export default {
   "Lihat semua hasil": "See all results",
   "Langkah {a} dari {b}": "Step {a} of {b}",
   "Perbesar": "Zoom in",
+  "Geser untuk langkah berikutnya": "Swipe for the next step",
   "Tutorial selesai": "Tutorial complete",
   "Kamu sudah menyelesaikan": "You have completed",
   "Sekarang coba langsung di aplikasi": "Now try it in the app",
