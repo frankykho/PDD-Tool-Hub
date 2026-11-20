@@ -8,14 +8,18 @@
 // - "/img/<id>"  -> gambar berita lewat worker ini (hotlink media sering diblokir; ikut di-cache)
 // - GET  /api/items?view=pick|pub|skip|all, /api/market, /api/sources
 // - POST /api/item {id, action: save|publish|unpublish|skip|restore, title, summary, why, no_img}, /api/ai {id}, /api/collect
+// - Bahan Live IG mingguan (tabel mn_live, hitungan di live.js): GET /api/live?week=; POST /api/live/build {week?, part:
+//   all|script|backup|groups}, /api/live/save {week, field, value}, /api/live/upload {week, images:[{mime,b64}]}, /api/live/clear {week}
 // Jadwal: apps/cron memanggil scheduled() tiap :20/:50 UTC; tiap jalan membaca 3 sumber bergiliran (batas CPU), menghitung
 // ulang skor, memperbarui data pasar (TradingView) pada jam bursa, dan meringkas maks. 2 berita teratas dengan AI.
 // Data pasar IHSG/sektor/penggerak/komoditas dibaca dari tabel recaps Market Recap (binding RECAP_DB, hanya baca).
 import { title, profileScript, profile } from "../../shared/profile.js";
 import { themeHead } from "../../shared/theme.js";
 import EN from "./i18n.js";
-import { ai, AiError } from "../../shared/ai.js";
+import { ai, aiVision, AiError } from "../../shared/ai.js";
 import { withCron } from "../../shared/cron.js";
+import { macroItems, macroUrls } from "../../shared/macro.js";
+import { weekOf, buildWeek, weekNumbers, weekMovers, hypeStocks, weekNews, parseJsonLoose, mergeQuestions, flags, factsText, SCRIPT_RULES, BACKUP_RULES, OCR_RULES, GROUP_RULES } from "./live.js";
 import { SOURCES, parseRss, parseList, classify, cleanTitle, score, sentiment, article, AI_RULES, parseAi, idOf, marketFrom, overview, FIN, FIN_RULES, parseFin, finText } from "./news.js";
 import { HUB_FEED, hubFeedAllowed } from "../../shared/hubfeed.js";
 import { BG_MODEL, BG_DAILY, BG_THEMES, BG_LABEL, bgTheme, bgPrompt, SCENE_RULES, imageB64 } from "./banner.js";
@@ -96,6 +100,9 @@ export async function ensure(env) {
   // latar banner KISI (ilustrasi AI): per tema (status usul → ok setelah disetujui tim) atau khusus satu berita (item_id)
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_bg (id TEXT PRIMARY KEY, theme TEXT, item_id TEXT, status TEXT, img TEXT, prompt TEXT,
     made_by TEXT, made_at TEXT)`).run();
+  // bahan live IG per minggu (week = Senin); kolom selain week/model/updated_* berisi JSON (script: teks)
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mn_live (week TEXT PRIMARY KEY, data TEXT, news TEXT, weekend TEXT, script TEXT, backup TEXT,
+    questions TEXT, groups TEXT, model TEXT, updated_by TEXT, updated_at TEXT)`).run();
   ready = true;
 }
 const getMeta = async (env, k) => { try { const r = await env.DB.prepare("SELECT v FROM mn_meta WHERE k=?").bind(k).first(); return r ? JSON.parse(r.v) : null; } catch { return null; } };
@@ -175,6 +182,164 @@ async function recapLatest(env) {
   } catch { return null; }
 }
 export async function market(env) { return overview(await recapLatest(env), await getMeta(env, "mkt")); }
+
+/* =========================================================
+   BAHAN LIVE IG MINGGUAN (rancangan: docs/superpowers/specs/2026-11-20-bahan-live-ig-design.md)
+   ========================================================= */
+const LIVE_JSON = ["data", "news", "weekend", "backup", "questions", "groups"];
+const wibMs = (day, hm = "00:00") => Date.parse(`${day}T${hm}:00+07:00`);
+const addDay = (day, n) => ymd(new Date(Date.parse(day + "T00:00:00Z") + n * 864e5));
+async function liveRow(env, week) {
+  const r = await env.DB.prepare("SELECT * FROM mn_live WHERE week=?").bind(week).first();
+  if (!r) return null;
+  for (const k of LIVE_JSON) r[k] = r[k] ? JSON.parse(r[k]) : null;
+  return r;
+}
+async function liveSave(env, week, set, who) {
+  const row = { ...set, updated_by: who, updated_at: nowIso() }, k = Object.keys(row);
+  const v = k.map((c) => (LIVE_JSON.includes(c) && row[c] != null ? JSON.stringify(row[c]) : row[c]));
+  await env.DB.prepare(`INSERT INTO mn_live (week,${k.join(",")}) VALUES (?,${k.map(() => "?").join(",")}) ON CONFLICT(week) DO UPDATE SET ${k.map((c) => `${c}=excluded.${c}`).join(",")}`)
+    .bind(week, ...v).run();
+}
+/** Berita (bukan yang diabaikan) dengan waktu terbit di [from, to). */
+async function newsBetween(env, from, to) {
+  const L = (await env.DB.prepare(`SELECT id,url,src,title,ai_title,at,tickers,ckey,score,summary,why FROM mn_items INDEXED BY mn_items_seen
+    WHERE seen_at>=? AND status<>'abaikan' AND julianday(COALESCE(NULLIF(at,''),seen_at))>=julianday(?) AND julianday(COALESCE(NULLIF(at,''),seen_at))<julianday(?)`)
+    .bind(new Date(from - 2 * 864e5).toISOString(), new Date(from).toISOString(), new Date(to).toISOString()).all()).results || [];
+  return L.map((x) => ({ ...x, tickers: x.tickers ? x.tickers.split(",").filter(Boolean) : [] }));
+}
+async function tvWeek() {
+  const r = await fetch("https://scanner.tradingview.com/indonesia/scan", { method: "POST", headers: { "content-type": "application/json", ...UA }, signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ columns: ["name", "close", "Perf.W", "market_cap_basic", "relative_volume_10d_calc", "Value.Traded"], range: [0, 2000], filter: [{ left: "type", operation: "equal", right: "stock" }] }) });
+  if (!r.ok) throw new Error("TradingView HTTP " + r.status);
+  return ((await r.json()).data || []).map((x) => x.d);
+}
+async function nextAgenda(env, fri) {
+  const u = macroUrls(env);
+  if (!u) return [];
+  const get = (url, js) => fetch(url, { signal: AbortSignal.timeout(15000) }).then((r) => (r.ok ? (js ? r.json() : r.text()) : null)).catch(() => null);
+  const [js, cal] = await Promise.all([get(u.js), get(u.cal, true)]);
+  return macroItems(js, cal).filter((x) => x.d > fri && x.d <= addDay(fri, 7)).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 8).map(({ d, t, time, country }) => ({ d, t, time, country }));
+}
+/** Angka & berita minggu itu (tanpa AI). null = belum ada rekap penutupan; {error} = rekap Jumat belum ada. prev = baris tersimpan. */
+async function liveData(env, week, prev) {
+  const { mon, fri } = weekOf(week);
+  const recs = ((await env.RECAP_DB.prepare("SELECT data FROM recaps WHERE session='close' AND date>=? AND date<=? ORDER BY date").bind(mon, fri).all()).results || []).map((r) => JSON.parse(r.data));
+  if (!recs.length) return null;
+  if (Date.now() < wibMs(addDay(fri, 1)) && recs[recs.length - 1].date < fri) return { error: "Rekap penutupan Jumat belum ada. Coba lagi setelah ±17.20–17.50 WIB (atau besok bila Jumat libur bursa)." };
+  const numbers = weekNumbers(recs), items = await newsBetween(env, wibMs(mon), wibMs(addDay(fri, 1)));
+  // Perf.W TradingView = 5 hari bursa terakhir: hanya cocok sampai bursa buka lagi (Senin 09.00 WIB sesudahnya)
+  let rows = null;
+  if (Date.now() < wibMs(addDay(fri, 3), "09:00")) rows = await tvWeek().catch(() => null);
+  // disusun ulang setelah bursa buka lagi: penggerak & saham ramai dari TradingView yang tersimpan tetap dipakai
+  const keepTv = !rows && prev && prev.data && prev.data.movers && prev.data.movers.approx === false;
+  const movers = keepTv ? prev.data.movers : rows ? { ...weekMovers(rows.map((d) => d.slice(0, 4)), numbers.ihsg.open), approx: false } : { ...numbers.moversDaily, approx: true };
+  const hype = keepTv ? prev.data.hype : rows ? hypeStocks(items, rows.map((d) => [d[0], d[1], d[2], d[4], d[5]]))
+    : hypeStocks(items, [...new Set(items.flatMap((x) => x.tickers))].map((c) => [c, null, 0, 0, 1e9])).filter((x) => x.mentions).map((x) => ({ ...x, pct: null, relVol: null }));
+  // berita > 7 hari sudah dihapus prune(): daftar lama yang lebih lengkap dipertahankan
+  const news = weekNews(items, 5), keepNews = prev && prev.news && prev.news.length > news.length;
+  return { data: { mon, fri, numbers, movers, hype, agenda: await nextAgenda(env, fri), at: nowIso() }, news: keepNews ? prev.news : news };
+}
+// bentuk data dari AI & dari suntingan tim dirapikan di satu tempat
+const str = (v, n) => String(v ?? "").slice(0, n);
+const normBackup = (L) => (Array.isArray(L) ? L : []).filter((x) => x && x.q).slice(0, 40).map((x) => ({ q: str(x.q, 300), points: (Array.isArray(x.points) ? x.points : []).map((p) => str(p, 400)).slice(0, 6) }));
+const normGroups = (L, n) => (Array.isArray(L) ? L : []).filter((g) => g && g.title).slice(0, 40).map((g) => ({ title: str(g.title, 160), ids: (Array.isArray(g.ids) ? g.ids : []).map(Number).filter((i) => i >= 1 && i <= n),
+  layak: g.layak !== false, alasan: str(g.alasan, 300), points: (Array.isArray(g.points) ? g.points : []).map((p) => str(p, 400)).slice(0, 6) }));
+async function liveAi(env, part, row) {
+  if (!(await aiTake(env))) throw new AiError(`Batas AI harian Market News (${aiLimit(env)}x) sudah tercapai. Coba lagi besok pukul 07.00 WIB.`);
+  const facts = factsText(row.data, row.news || [], row.weekend || []);
+  if (part === "script") {
+    const r = await ai(env, SCRIPT_RULES, "DATA:\n" + facts, 2500);
+    if (String(r.text).trim().length < 200) throw new AiError("AI tidak menulis naskah. Coba susun ulang.");
+    return { script: r.text.trim(), model: r.model };
+  }
+  if (part === "backup") {
+    const r = await ai(env, BACKUP_RULES, "DATA:\n" + facts, 2500, undefined, { json: true });
+    const L = parseJsonLoose(r.text);
+    const backup = normBackup(L);
+    if (!backup.length) throw new AiError("Jawaban AI untuk pertanyaan cadangan tidak terbaca. Coba susun ulang.");
+    return { backup, model: r.model };
+  }
+  // groups: kelompokkan pertanyaan follower
+  const Q = row.questions || [];
+  if (!Q.length) return { groups: [] };
+  const list = Q.map((x, i) => `${i + 1}. @${x.akun || "?"}: ${x.q}`).join("\n");
+  const r = await ai(env, GROUP_RULES, `PERTANYAAN:\n${list}\n\nDATA:\n${facts}`, 3000, undefined, { json: true });
+  const L = parseJsonLoose(r.text);
+  const groups = normGroups(L, Q.length);
+  if (!groups.length) throw new AiError("Jawaban AI untuk pengelompokan pertanyaan tidak terbaca. Coba susun ulang.");
+  return { groups, model: r.model };
+}
+async function liveGet(env, week) {
+  const weeks = ((await env.DB.prepare("SELECT week FROM mn_live ORDER BY week DESC LIMIT 26").all()).results || []).map((r) => r.week);
+  const row = await liveRow(env, week);
+  if (!row) return { week, empty: true, weeks, suggest: buildWeek() };
+  return { ...row, questions: row.questions || [], groups: row.groups || [], weeks, suggest: buildWeek(),
+    flags: { script: flags(row.script), backup: (row.backup || []).flatMap((x) => flags([x.q, ...x.points].join("\n"))) } };
+}
+async function liveRoute(env, path, b, who) {
+  const week = /^\d{4}-\d{2}-\d{2}$/.test(b.week || "") ? weekOf(b.week).mon : buildWeek();
+  const ok = (extra = {}) => json({ ok: true, week, ...extra });
+  try {
+    if (path === "/api/live/build") {
+      const part = String(b.part || "all");
+      if (part === "all") {
+        const d = await liveData(env, week, await liveRow(env, week));
+        if (!d) return json({ error: "Belum ada rekap penutupan Market Recap untuk minggu ini." }, 400);
+        if (d.error) return json({ error: d.error }, 400);
+        await liveSave(env, week, d, who);
+        const row = await liveRow(env, week);
+        await liveSave(env, week, await liveAi(env, "script", row), who);   // naskah tersimpan walau cadangan gagal
+        await liveSave(env, week, await liveAi(env, "backup", row), who);
+        return ok();
+      }
+      const row = await liveRow(env, week);
+      if (!row) return json({ error: "Bahan minggu ini belum disusun. Klik Susun bahan dulu." }, 400);
+      if (!["script", "backup", "groups"].includes(part)) return json({ error: "Bagian tidak dikenal." }, 400);
+      if (part === "script") {
+        // berita sejak penutupan Jumat (16.00 WIB) sampai sekarang ikut sebagai "berita akhir pekan"
+        // Jumat 16.00 s/d Senin 09.00 sesudahnya, tanpa berita yang sudah ada di daftar minggu itu
+        const from = wibMs(row.data.fri, "16:00"), to = Math.min(Date.now() + 60e3, wibMs(addDay(row.data.fri, 3), "09:00")), seen = new Set((row.news || []).map((x) => x.id));
+        if (to > from) { row.weekend = weekNews((await newsBetween(env, from, to)).filter((x) => !seen.has(x.id)), 4); await liveSave(env, week, { weekend: row.weekend }, who); }
+      }
+      await liveSave(env, week, await liveAi(env, part, row), who);
+      return ok();
+    }
+    if (path === "/api/live/save" || path === "/api/live/clear") {
+      const row = await liveRow(env, week), v = b.value;
+      if (!row) return json({ error: "Bahan minggu ini belum disusun." }, 400);
+      if (path === "/api/live/clear") await liveSave(env, week, { questions: null, groups: null }, who);
+      else if (b.field === "script" && typeof v === "string") await liveSave(env, week, { script: v.slice(0, 20000) }, who);
+      else if (b.field === "backup" && Array.isArray(v)) await liveSave(env, week, { backup: normBackup(v) }, who);
+      else if (b.field === "groups" && Array.isArray(v)) await liveSave(env, week, { groups: normGroups(v, (row.questions || []).length) }, who);
+      else return json({ error: "Kolom tidak bisa disunting." }, 400);
+      return ok();
+    }
+    if (path === "/api/live/upload") {
+      const imgs = Array.isArray(b.images) ? b.images : [];
+      if (!imgs.length || imgs.length > 10) return json({ error: "Unggah 1–10 screenshot sekaligus." }, 400);
+      if (imgs.some((im) => !/^image\/(jpeg|png|webp)$/.test(im && im.mime) || typeof im.b64 !== "string")) return json({ error: "Format gambar harus JPG/PNG/WebP." }, 400);
+      // batas CPU Workers: halaman mengirim satu screenshot per permintaan
+      if (imgs.reduce((a, im) => a + im.b64.length, 0) > 1.5e6) return json({ error: "Gambar terlalu besar (maks. ±1 MB per kiriman)." }, 400);
+      const row = await liveRow(env, week);
+      if (!row) return json({ error: "Susun bahan minggu ini dulu, baru unggah pertanyaan." }, 400);
+      if (!(await aiTake(env))) return json({ error: `Batas AI harian Market News (${aiLimit(env)}x) sudah tercapai.` }, 429);
+      const r = await aiVision(env, OCR_RULES, "Salin semua pertanyaan di screenshot ini.", imgs.map((im) => ({ mime: im.mime, b64: im.b64 })), 3000);
+      const got = parseJsonLoose(r.text);
+      if (!Array.isArray(got)) return json({ error: "AI tidak bisa membaca pertanyaan dari screenshot ini. Coba gambar yang lebih jelas." }, 503);
+      const before = (row.questions || []).length;
+      row.questions = mergeQuestions(row.questions, got);
+      await liveSave(env, week, { questions: row.questions }, who);
+      let warn = "";
+      if (b.group !== false) try { await liveSave(env, week, await liveAi(env, "groups", row), who); } catch (e) { warn = e.message; }
+      return ok({ added: row.questions.length - before, total: row.questions.length, warn });
+    }
+  } catch (e) {
+    if (e instanceof AiError) return json({ error: e.message }, 503);
+    throw e;
+  }
+  return json({ error: "Tidak ditemukan" }, 404);
+}
 
 /* =========================================================
    AI: banner & ringkasan dari isi artikel
@@ -434,6 +599,7 @@ export default withCron({
 
       if (request.method === "GET") {
         if (path === "/api/market") return json(await market(env));
+        if (path === "/api/live") { const w = url.searchParams.get("week"); return json(await liveGet(env, /^\d{4}-\d{2}-\d{2}$/.test(w || "") ? weekOf(w).mon : buildWeek())); }
         if (path === "/api/bg") return json({ bgs: await bgList(env), themes: Object.keys(BG_THEMES).map((k) => ({ k, label: BG_LABEL[k] || k })), day: (await getMeta(env, "bg_day")) || {}, limit: BG_DAILY });
         if (path === "/api/fin") return json({ rows: await finRows(env, Number(url.searchParams.get("days")) || 30), notify: { telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID), webhook: !!env.NOTIFY_WEBHOOK } });
         if (path === "/api/sources") return json({ src: (await getMeta(env, "src")) || {}, ai: (await getMeta(env, "ai_day")) || {}, aiLimit: aiLimit(env) });
@@ -479,6 +645,7 @@ export default withCron({
           else return json({ error: "Status tidak dikenal." }, 400);
           return json({ ok: true });
         }
+        if (path.startsWith("/api/live/")) return liveRoute(env, path, b, who);
         const x = b.id ? await env.DB.prepare("SELECT * FROM mn_items WHERE id=?").bind(String(b.id)).first() : null;
         if (!x) return json({ error: "Berita tidak ditemukan." }, 404);
         if (path === "/api/ai") {

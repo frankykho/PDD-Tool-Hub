@@ -346,7 +346,7 @@ function renderPublic(){
 }
 
 /* ---------- halaman tim ---------- */
-var view=(function(){try{var v=new URLSearchParams(location.search).get("view");return/^(pick|pub|fin|skip|all)$/.test(v)?v:"pick"}catch(e){return"pick"}})(),items=[],mk=null,srcSt={},fin=[],finN={},fq="";
+var view=(function(){try{var v=new URLSearchParams(location.search).get("view");return/^(pick|pub|fin|live|skip|all)$/.test(v)?v:"pick"}catch(e){return"pick"}})(),items=[],mk=null,srcSt={},fin=[],finN={},fq="";
 /* ---------- laporan keuangan (angka dibaca AI dari berita kinerja) ---------- */
 var fm=function(v,c){if(v==null)return"–";var n=function(x,d){return Math.abs(x).toLocaleString("id-ID",{maximumFractionDigits:d})},neg=v<0?"−":"";
   return c==="USD"?neg+(Math.abs(v)>=1000?"US$"+n(v/1000,2)+" M":"US$"+n(v,1)+" jt"):neg+(Math.abs(v)>=1000?"Rp"+n(v/1000,2)+" T":"Rp"+n(v,1)+" M")};
@@ -417,6 +417,73 @@ function bgView(){
       +(L.length?'<div style="display:flex;gap:8px;flex-wrap:wrap">'+L.map(function(b){return'<div style="width:200px;display:grid;gap:4px"><img src="/bg/'+esc(b.id)+'" alt="" loading="lazy" style="width:200px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:2px solid '+(b.status==="ok"?"var(--g)":"var(--line)")+'">'
         +'<div class="small">'+(b.status==="ok"?'<span class="up">● Disetujui</span>':'<span class="muted">○ Usulan</span>')
         +(ed?" "+(b.status==="ok"?'<button class="btn sm" type="button" data-bgset="'+esc(b.id)+'|usul">Batalkan</button>':'<button class="btn sm pri" type="button" data-bgset="'+esc(b.id)+'|ok">Setujui</button>')+' <button class="btn sm dng" type="button" data-bgset="'+esc(b.id)+'|hapus">Hapus</button>':"")+"</div></div>"}).join("")+"</div>":'<div class="muted small">Belum ada latar.</div>')+"</div>"}).join("")+"</div>"}
+/* ---------- Bahan Live IG mingguan (rekap minggu lalu, naskah, pertanyaan cadangan, pertanyaan follower) ---------- */
+var LV=null,lvWk=(function(){try{return QS.get("week")||""}catch(e){return""}})();
+var pc=function(v){return v==null?"–":(v>0?"+":v<0?"−":"")+nf(Math.abs(v),2)+"%"};
+var rpM=function(v){return"Rp"+nf(Math.abs(v)/1e9,1)+" M"};
+function dshort(s){return new Date(s+"T00:00:00Z").toLocaleDateString("id-ID",{day:"numeric",month:"short",timeZone:"UTC"})}
+function keyText(D){var N=D.numbers||{},I=N.ihsg||{},M=D.movers||{},o=[];
+  o.push("REKAP "+dshort(D.mon)+" – "+dshort(D.fri)+" ("+(N.days||[]).length+" hari bursa)");
+  o.push("IHSG "+nf(I.open,2)+" → "+nf(I.close,2)+" ("+pc(I.pct)+"), tertinggi "+nf(I.high,2)+", terendah "+nf(I.low,2));
+  if(N.foreign)o.push("Asing: net "+(N.foreign.net>=0?"beli ":"jual ")+rpM(N.foreign.net)+" ("+N.foreign.days+" hari ada data)");
+  if((N.sectors||[]).length)o.push("Sektor terkuat: "+N.sectors.slice(0,2).map(function(s){return s.name+" "+pc(s.pct)}).join(", ")+(N.sectors.length>2?" · terlemah: "+N.sectors.slice(2).slice(-2).reverse().map(function(s){return s.name+" "+pc(s.pct)}).join(", "):""));
+  var mv=function(L){return(L||[]).map(function(x){return x.code+" "+(x.pts>0?"+":"")+nf(x.pts,1)}).join(", ")||"–"};
+  o.push("Penggerak naik"+(M.approx?" (perkiraan)":"")+": "+mv(M.up));o.push("Penekan"+(M.approx?" (perkiraan)":"")+": "+mv(M.down));
+  if((D.hype||[]).length)o.push("Paling ramai: "+D.hype.map(function(x){return x.code+(x.pct!=null?" "+pc(x.pct):"")+(x.mentions?" · "+x.mentions+" berita":"")+(x.relVol?" · vol "+nf(x.relVol,1)+"x":"")}).join("; "));
+  var nw=function(L,t){if((L||[]).length)o.push(t+"\n"+L.map(function(x){return"- "+x.title+" ("+x.src+(x.media>1?", "+x.media+" media":"")+")"+(x.why?" — "+x.why:"")}).join("\n"))};
+  nw(LV.news,"Berita paling ramai:");nw(LV.weekend,"Berita akhir pekan:");
+  if((D.agenda||[]).length)o.push("Agenda minggu depan:\n"+D.agenda.map(function(a){return"- "+dshort(a.d)+(a.time?" "+a.time:"")+" "+(a.country||"")+" "+a.t}).join("\n"));
+  return o.join("\n")}
+function backupText(L){return(L||[]).map(function(x){return"T: "+x.q+"\n"+x.points.map(function(p){return"- "+p}).join("\n")}).join("\n\n")}
+function parseBackup(s){return s.split(/\n\s*\n/).map(function(b){var ls=b.split("\n").map(function(l){return l.trim()}).filter(Boolean);if(!ls.length)return null;
+  return{q:ls[0].replace(/^T:\s*/,""),points:ls.slice(1).map(function(l){return l.replace(/^[-•]\s*/,"")})}}).filter(function(x){return x&&x.q})}
+function flagList(L){return(L||[]).length?'<div class="why" style="border-color:var(--r)"><b>Cek kepatuhan</b>'+L.map(function(f){return"<div>“"+esc(f.match)+"” — "+esc(f.msg)+"</div>"}).join("")+"</div>":""}
+function groupsHtml(){var Q=LV.questions||[],G=LV.groups||[],used={};
+  var one=function(i){var x=Q[i-1];return x?'<li><b>@'+esc(x.akun||"?")+"</b> "+esc(x.q)+"</li>":""};
+  var h=G.map(function(g){g.ids.forEach(function(i){used[i]=1});
+    return'<div class="card" style="padding:10px 14px;display:grid;gap:6px"><div><b>'+esc(g.title)+'</b> <span class="'+(g.layak?"up":"dn")+' small">'+(g.layak?"● layak dijawab":"○ tidak untuk dijawab")+'</span> <span class="muted small">'+g.ids.length+" pertanyaan"+(g.alasan?" · "+esc(g.alasan):"")+"</span></div>"
+      +'<ul class="small" style="margin:0;padding-left:18px">'+g.ids.map(one).join("")+"</ul>"
+      +(g.points.length?'<div class="small"><span class="muted">Poin jawaban:</span><ul style="margin:2px 0 0;padding-left:18px">'+g.points.map(function(p){return"<li>"+esc(p)+"</li>"}).join("")+"</ul></div>":"")+"</div>"}).join("");
+  var rest=Q.map(function(_,i){return i+1}).filter(function(i){return!used[i]});
+  return h+(rest.length?'<div class="small"><span class="muted">Belum dikelompokkan:</span><ul style="margin:2px 0 0;padding-left:18px">'+rest.map(one).join("")+"</ul></div>":"")}
+function liveView(){
+  var ed=C.canEdit,w=LV.week,weeks=(LV.weeks||[]).slice();if(weeks.indexOf(w)<0)weeks.unshift(w);if(LV.suggest&&weeks.indexOf(LV.suggest)<0)weeks.unshift(LV.suggest);weeks.sort().reverse();
+  var head='<div class="card" style="display:grid;gap:10px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="muted small" for="lvWeek">Minggu</label><select id="lvWeek" style="border:1px solid var(--line);border-radius:9px;padding:6px 8px;background:var(--card)">'
+   +weeks.map(function(k){var f=new Date(Date.parse(k+"T00:00:00Z")+4*864e5).toISOString().slice(0,10);return'<option value="'+k+'"'+(k===w?" selected":"")+">"+dshort(k)+" – "+dshort(f)+"</option>"}).join("")+"</select><span style=\"flex:1\"></span>"
+   +(ed?'<button class="btn sm pri" type="button" data-live="all">'+(LV.empty?"Susun bahan minggu ini":"Susun ulang semua")+"</button>"+(LV.empty?"":'<button class="btn sm" type="button" data-live="script">Susun ulang naskah</button><button class="btn sm" type="button" data-live="backup">Susun ulang pertanyaan cadangan</button>'):"")+"</div>"
+   +'<p class="muted small" style="margin:0">Bahan live IG mingguan dari rekap Market Recap, berita minggu itu, dan data TradingView. Susun Jumat sore setelah penutupan (±17.20 WIB); Senin pagi klik “Susun ulang naskah” supaya berita akhir pekan ikut. Naskah & jawaban tidak boleh berisi rekomendasi beli/jual atau target harga.</p>'
+   +(LV.updated_at?'<p class="muted small" style="margin:0">Terakhir diubah '+esc(ago(LV.updated_at))+(LV.updated_by?" oleh "+esc(LV.updated_by):"")+(LV.model?" · AI: "+esc(LV.model):"")+"</p>":"")+"</div>";
+  if(LV.empty)return head+'<div class="card empty">Bahan minggu ini belum disusun.'+(ed?" Klik “Susun bahan minggu ini” (±30–60 detik).":"")+"</div>";
+  var kt=keyText(LV.data),bt=backupText(LV.backup);
+  return head
+   +'<div class="card" style="display:grid;gap:8px"><div style="display:flex;align-items:center;gap:8px"><b>1. Angka kunci</b><span style="flex:1"></span><button class="btn sm" type="button" data-copy="'+esc(kt)+'" data-what="Angka kunci">Salin</button></div><pre class="small" style="white-space:pre-wrap;margin:0;font-family:inherit">'+esc(kt)+"</pre>"
+   +(LV.data.movers&&LV.data.movers.approx?'<p class="muted small" style="margin:0">Penggerak = jumlah 5 teratas harian (perkiraan), karena bahan disusun setelah bursa buka lagi.</p>':"")+"</div>"
+   +'<div class="card" style="display:grid;gap:8px"><div style="display:flex;align-items:center;gap:8px"><b>2. Naskah siap baca</b><span class="muted small">±'+(LV.script||"").split(/\s+/).filter(Boolean).length+' kata</span><span style="flex:1"></span>'+(ed?'<button class="btn sm" type="button" data-livesave="script">Simpan</button>':"")+'<button class="btn sm" type="button" data-livecopy="lvScript">Salin</button></div>'
+   +flagList(LV.flags&&LV.flags.script)+'<textarea id="lvScript" rows="16" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--card);font:inherit;line-height:1.55"'+(ed?"":" readonly")+">"+esc(LV.script||"")+"</textarea></div>"
+   +'<div class="card" style="display:grid;gap:8px"><div style="display:flex;align-items:center;gap:8px"><b>3. Pertanyaan cadangan</b><span class="muted small">'+(LV.backup||[]).length+' pertanyaan</span><span style="flex:1"></span>'+(ed?'<button class="btn sm" type="button" data-livesave="backup">Simpan</button>':"")+'<button class="btn sm" type="button" data-livecopy="lvBackup">Salin</button></div><p class="muted small" style="margin:0">Format: baris “T:” lalu poin “- ”; antar-pertanyaan dipisah baris kosong.</p>'
+   +flagList(LV.flags&&LV.flags.backup)+'<textarea id="lvBackup" rows="14" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--card);font:inherit;line-height:1.55"'+(ed?"":" readonly")+">"+esc(bt)+"</textarea></div>"
+   +'<div class="card" style="display:grid;gap:10px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>4. Pertanyaan follower</b><span class="muted small">'+(LV.questions||[]).length+" pertanyaan</span><span style=\"flex:1\"></span>"
+   +(ed?'<input type="file" id="lvFiles" accept="image/*" multiple aria-label="Pilih screenshot"><button class="btn sm pri" type="button" id="bLiveUp">Baca screenshot</button>'+((LV.questions||[]).length?'<button class="btn sm" type="button" data-live="groups">Kelompokkan ulang</button><button class="btn sm dng" type="button" id="bLiveClear">Hapus pertanyaan</button>':""):"")+"</div>"
+   +'<p class="muted small" style="margin:0">Screenshot jawaban stiker pertanyaan IG (maks. 10 sekaligus; unggahan berikutnya digabung). Gambar dikirim ke layanan AI pihak ketiga untuk dibaca, lalu tidak disimpan; yang disimpan hanya teks pertanyaan & nama akun. Cek ulang hasil bacaan sebelum dipakai.</p>'
+   +((LV.questions||[]).length?groupsHtml():"")+"</div>";
+}
+/* screenshot -> JPEG lebar ≤ 1080 px (base64) supaya ringan dikirim */
+function shrink(file){return new Promise(function(ok,no){var im=new Image(),u=URL.createObjectURL(file);im.onload=function(){var s=Math.min(1,1080/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
+  c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok({mime:"image/jpeg",b64:c.toDataURL("image/jpeg",.85).split(",")[1]})};im.onerror=function(){no(Error(file.name+" bukan gambar"))};im.src=u})}
+document.addEventListener("change",function(e){if(e.target.id==="lvWeek"){lvWk=e.target.value;loadTeam()}});
+document.addEventListener("click",function(e){var t=e.target.closest("button");if(!t||!LV)return;var d=t.dataset,w=LV.week;
+  var run=function(p,body,busy,msg){var old=t.textContent;t.disabled=true;t.textContent=busy;return api(p,{method:"POST",body:JSON.stringify(Object.assign({week:w},body))}).then(function(j){toast(typeof msg==="function"?msg(j):msg,5000);lvWk=w;return loadTeam()}).catch(function(x){toast(x.message,7000);t.disabled=false;t.textContent=old})};
+  if(d.live){if(d.live==="all"&&!LV.empty&&!confirm("Susun ulang semua? Naskah & pertanyaan cadangan yang sudah disunting akan diganti."))return;
+    run("/api/live/build",{part:d.live},"AI menyusun… (±30–60 dtk)",{all:"Bahan siap. Cek angka & naskah sebelum dipakai.",script:"Naskah disusun ulang",backup:"Pertanyaan cadangan disusun ulang",groups:"Pertanyaan dikelompokkan ulang"}[d.live]);return}
+  if(d.livesave){var v=d.livesave==="script"?$("lvScript").value:parseBackup($("lvBackup").value);run("/api/live/save",{field:d.livesave,value:v},"Menyimpan…","Tersimpan");return}
+  if(d.livecopy){var tx=$(d.livecopy).value;(navigator.clipboard?navigator.clipboard.writeText(tx).then(function(){toast("Disalin")},function(){prompt("Salin:",tx)}):prompt("Salin:",tx));return}
+  if(t.id==="bLiveClear"){if(confirm("Hapus semua pertanyaan follower minggu ini (termasuk nama akun)?"))run("/api/live/clear",{},"Menghapus…","Pertanyaan dihapus");return}
+  if(t.id==="bLiveUp"){var fs=[].slice.call(($("lvFiles")||{}).files||[]);if(!fs.length)return toast("Pilih screenshot dulu");if(fs.length>10)return toast("Maksimal 10 screenshot sekaligus");
+    t.disabled=true;var added=0,total=0,i=0;
+    var next=function(){if(i>=fs.length)return Promise.resolve();var k=i++;t.textContent="AI membaca "+(k+1)+"/"+fs.length+"…";
+      return shrink(fs[k]).then(function(im){return api("/api/live/upload",{method:"POST",body:JSON.stringify({week:w,images:[im],group:k===fs.length-1})})}).then(function(j){added+=j.added;total=j.total;if(j.warn)toast(j.warn,7000);return next()})};
+    next().then(function(){toast(added+" pertanyaan baru terbaca (total "+total+")",5000);lvWk=w;return loadTeam()}).catch(function(x){toast(x.message,7000);t.disabled=false;t.textContent="Baca screenshot";if(added){lvWk=w;loadTeam()}})}
+});
 // urutan daftar tim: hype (skor) atau terbaru (waktu terbit berita)
 var srt="hype",SORTS=/^(pick|skip|all)$/;
 function sorter(a,b){var t=function(x){return Date.parse(x.at||x.seen_at)||0};return srt==="new"?t(b)-t(a):(b.score||0)-(a.score||0)||t(b)-t(a)}
@@ -429,16 +496,16 @@ function renderTeam(){
    +'<p class="muted small" style="margin:-6px 0 0">Berita makro, pasar, dan emiten dari CNBC Indonesia, Kontan, IDX Channel, Bloomberg Technoz, Bisnis.com, EmitenNews, dan Investor Daily. Diurutkan menurut skor hype: berapa media yang memberitakan, aksi korporasi, rilis data ekonomi, dan saham yang ikut naik. Berita teratas diringkas AI otomatis; tim mengecek lalu menerbitkan.</p>'
    +'<details class="src card" style="padding:10px 14px"><summary>Apa itu skor hype? (maks. 25)</summary><p class="small" style="margin:8px 0 4px">Skor hype menunjukkan seberapa ramai sebuah berita diberitakan. Makin tinggi, makin ramai. Nilainya jumlah dari:</p><ul class="small" style="margin:0;padding-left:18px">'+HYPE.map(function(t){return"<li>"+t+"</li>"}).join("")+"</ul></details>"
    +market(mk)
-   +'<div class="fbar"><div class="tabs"><span class="muted small flab">Tampilan</span>'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 24 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
-   +"</div>"+(view==="fin"||view==="bg"?"":'<div class="tabs"><span class="muted small flab">Kategori</span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
+   +'<div class="fbar"><div class="tabs"><span class="muted small flab">Tampilan</span>'+[["pick","Pilihan"],["pub","Terbit"],["fin","Laporan Keuangan"],["live","Live IG"],["bg","Latar banner"],["skip","Diabaikan"],["all","Semua 24 jam"]].map(function(v){return'<button class="chip'+(view===v[0]?" on":"")+'" type="button" data-view="'+v[0]+'">'+v[1]+"</button>"}).join("")
+   +"</div>"+(view==="fin"||view==="bg"||view==="live"?"":'<div class="tabs"><span class="muted small flab">Kategori</span>'+[["","Semua"],["makro","Makro"],["pasar","Pasar"],["emiten","Emiten"]].map(function(c){return'<button class="chip'+(cat===c[0]?" on":"")+'" type="button" data-cat="'+c[0]+'">'+c[1]+"</button>"}).join("")+"</div>")
    +(SORTS.test(view)?'<div class="tabs"><span class="muted small flab">Urutkan</span>'+[["hype","🔥 Hype"],["new","Terbaru"]].map(function(o){return'<button class="chip'+(srt===o[0]?" on":"")+'" type="button" data-sort="'+o[0]+'" aria-pressed="'+(srt===o[0])+'">'+o[1]+"</button>"}).join("")+"</div>":"")+"</div>"
    +'<details class="src card" style="padding:10px 14px"><summary>Sumber berita: '+ok+" dari "+(C.sources||[]).length+" terbaca terakhir"+(srcSt.ai&&srcSt.ai.n!=null?" · AI hari ini "+srcSt.ai.n+"/"+srcSt.aiLimit:"")+'</summary><div class="srcs">'
    +(C.sources||[]).map(function(s){var v=(srcSt.src||{})[s.id];return"<div>"+(v?(v.ok?'<span class="up">●</span> ':'<span class="dn">●</span> '):"○ ")+esc(s.name)+' <span class="muted">'+esc(s.id)+" · "+(v?(v.ok?v.n+" berita relevan":esc(v.err||"gagal"))+", "+esc(ago(v.at)):"belum dibaca")+"</span></div>"}).join("")+"</div></details>"
-   +(view==="fin"?finView():view==="bg"?bgView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
+   +(view==="fin"?finView():view==="bg"?bgView():view==="live"?liveView():'<div class="list">'+(L.length?L.map(teamCard).join(""):'<div class="card empty">'+(view==="pick"?"Belum ada berita pilihan. Klik “Ambil berita sekarang”, atau tunggu jadwal otomatis (tiap 30 menit).":"Kosong.")+"</div>")+"</div>");
   fillBans();prep(L.filter(function(x){return x.status==="terbit"}));
 }
 function loadTeam(){
-  return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):view==="bg"?Promise.resolve([]):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}}),api("/api/bg").catch(function(){return null})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];if(r[3])BG=r[3];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
+  return Promise.all([view==="fin"?api("/api/fin").then(function(j){fin=j.rows;finN=j.notify;return[]}):view==="live"?api("/api/live"+(lvWk?"?week="+lvWk:"")).then(function(j){LV=j;return[]}):view==="bg"?Promise.resolve([]):api("/api/items?view="+view),api("/api/market").catch(function(){return null}),api("/api/sources").catch(function(){return{}}),api("/api/bg").catch(function(){return null})]).then(function(r){items=r[0];mk=r[1];srcSt=r[2];if(r[3])BG=r[3];renderTeam()}).catch(function(e){$("app").innerHTML='<div class="card empty">Gagal memuat: '+esc(e.message)+"</div>"})}
 function vals(card){var o={};card.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.type==="checkbox"?el.checked:el.dataset.f==="title"?el.value.replace(/\s+/g," ").trim():el.value});return o}
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("ttl"))e.preventDefault()});
 

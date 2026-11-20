@@ -70,6 +70,52 @@ async function groq(env, system, user, maxTokens, opts = {}) {
   return null;
 }
 
+/** Baca gambar (mis. screenshot): images = [{ mime, b64 }]. Urutan: Claude (ANTHROPIC_API_KEY) -> Gemini (GEMINI_API_KEY)
+ *  -> Workers AI (model vision). Groq tidak dipakai untuk gambar. Hasil { text, model }; semua gagal = AiError. */
+export const VISION_MODELS = ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/google/gemma-3-12b-it'];
+export async function aiVision(env, system, text, images, maxTokens, model = env.CLAUDE_MODEL || 'claude-sonnet-5-5') {
+  if (env.ANTHROPIC_API_KEY) {
+    const content = [...images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.mime, data: im.b64 } })), { type: 'text', text }];
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new AiError('Claude API: ' + ((j.error && j.error.message) || 'HTTP ' + r.status));
+    return { text: (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim(), model: j.model || model };
+  }
+  const errs = [];
+  if (env.GEMINI_API_KEY) {
+    for (const m of [...new Set([env.GEMINI_MODEL, ...GEMINI_MODELS].filter(Boolean))]) {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST',
+          headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [...images.map((im) => ({ inline_data: { mime_type: im.mime, data: im.b64 } })), { text }] }],
+            generationConfig: { maxOutputTokens: maxTokens + 4000, temperature: 0.2 } }), signal: AbortSignal.timeout(90000) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { errs.push(`${m}: ${(j.error && (j.error.status || j.error.message)) || 'HTTP ' + r.status}`); continue; }
+        const c = (j.candidates || [])[0] || {};
+        const out = cleanAi(((c.content && c.content.parts) || []).filter((p) => !p.thought).map((p) => p.text || '').join(''));
+        if (out) return { text: out, model: m };
+        errs.push(`${m}: jawaban kosong`);
+      } catch (e) { errs.push(`${m}: ${e && e.message || e}`); }
+    }
+  }
+  if (!env.AI) throw new AiError('AI pembaca gambar tidak tersedia: ' + (errs.join('; ') || 'tidak ada key/binding AI'));
+  const content = [{ type: 'text', text }, ...images.map((im) => ({ type: 'image_url', image_url: { url: `data:${im.mime};base64,${im.b64}` } }))];
+  for (const m of VISION_MODELS) {
+    try {
+      const out = cleanAi(pickText(await env.AI.run(m, { messages: [{ role: 'system', content: system }, { role: 'user', content }], max_tokens: maxTokens })));
+      if (out) return { text: out, model: m.replace('@cf/', '') };
+      errs.push(`${m}: jawaban kosong`);
+    } catch (e) {
+      const msg = e && e.message || String(e);
+      if (/4006|neuron|allocation|quota/i.test(msg)) throw new AiError('Kuota AI gratis hari ini sudah habis. Kuota terisi lagi pukul 07.00 WIB.');
+      errs.push(`${m}: ${msg}`);
+    }
+  }
+  throw new AiError('AI gagal membaca gambar: ' + errs.join('; '));
+}
+
 /** Urutan penyedia: Claude (ANTHROPIC_API_KEY) -> Gemini (GEMINI_API_KEY, gratis) -> Groq (GROQ_API_KEY, gratis)
  *  -> Workers AI (binding AI, gratis 10.000 neuron/hari).
  *  opts: temperature (bawaan: model masing-masing; Gemini 0.8), json = Gemini menjawab JSON murni (untuk ekstraksi data). */
