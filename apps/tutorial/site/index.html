@@ -256,7 +256,9 @@ main{ display:block; min-height:calc(100vh - var(--hdr) - 200px); outline:0; }
 .slide img{ display:block; max-width:100%; max-height:100%; width:auto; height:auto; min-height:0; object-fit:contain; border-radius:14px; box-shadow:0 1px 3px rgba(16,32,24,.08),0 8px 24px rgba(16,32,24,.10); cursor:zoom-in; background:var(--surf); }
 .slide .ph{ display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--faint); font-size:13.5px; text-align:center; }
 .slide .ph .ic{ width:32px; height:32px; }
-.zoom-hint{ position:absolute; right:12px; bottom:12px; display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:var(--r-full); border:0; background:color-mix(in srgb,var(--surf) 92%,transparent); color:var(--sub); font-size:12.5px; font-weight:500; box-shadow:var(--sh); }
+/* tombol perbesar: ikon bulat saja (tulisan untuk pembaca layar) supaya tidak menutupi isi screenshot */
+.zoom-hint{ position:absolute; right:10px; bottom:10px; display:grid; place-items:center; width:36px; height:36px; padding:0; border-radius:var(--r-full); border:0; background:color-mix(in srgb,var(--surf) 92%,transparent); color:var(--sub); box-shadow:var(--sh); }
+.zoom-hint span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 .zoom-hint:hover{ color:var(--ink); }
 .meta-row{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; font-size:12.5px; color:var(--sub); font-weight:500; letter-spacing:.04em; }
 .bar{ height:6px; border-radius:var(--r-full); background:var(--soft-2); overflow:hidden; }
@@ -274,6 +276,16 @@ main{ display:block; min-height:calc(100vh - var(--hdr) - 200px); outline:0; }
 .tnav{ display:grid; grid-template-columns:1fr 1.6fr; gap:12px; margin-top:24px; }
 .tnav .btn{ min-height:48px; }
 .tnav.off{ display:none; }
+/* desktop, screenshot tegak (layar HP): gambar di kiri setinggi layar, teks + tombol di kanan.
+   Tutorial bergambar mendatar diberi kelas .wide (lihat mountTut) dan memakai susunan atas-bawah. */
+@media (min-width:960px){
+  .tut:not(.wide) .stage{ display:grid; grid-template-columns:minmax(0,auto) minmax(280px,1fr); grid-template-rows:auto auto auto auto 1fr; column-gap:32px; }
+  .tut:not(.wide) .stage-flex{ display:contents; }
+  .tut:not(.wide) .media{ grid-area:1/1/-1/2; height:clamp(440px, calc(100vh - var(--hdr) - 170px), 760px); aspect-ratio:5/8; max-width:100%; }
+  .tut:not(.wide) .meta-row,.tut:not(.wide) .bar,.tut:not(.wide) .body,.tut:not(.wide) .tnav{ grid-column:2; }
+  .tut:not(.wide) .meta-row{ margin-top:4px; }
+  .tut:not(.wide) #stage-done{ grid-area:1/1/-1/-1; }
+}
 
 .done-card{ text-align:center; padding:36px 24px; background:var(--surf); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh); }
 .done-ic{ width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:var(--pri-soft); color:var(--pri); display:grid; place-items:center; }
@@ -302,14 +314,16 @@ main{ display:block; min-height:calc(100vh - var(--hdr) - 200px); outline:0; }
   .meta-row{ order:-2; margin:4px 0 8px; text-transform:none; letter-spacing:0; font-size:13px; }
   .bar{ display:none; }
   .segs{ display:flex; order:-1; margin-bottom:12px; }
-  .media{ height:min(56vh,500px); min-height:260px; }
-  .slide{ padding:14px; }
+  /* gambar mengisi sisa layar di antara progres + teks langkah dan tombol bawah (56 bar atas + 12 jarak + 96 tombol);
+     contain:size supaya ukuran asli gambar tidak ikut memanjangkan baris */
+  .stage-flex{ display:grid; grid-template-rows:auto auto minmax(260px,1fr) auto; min-height:calc(100vh - 164px - var(--safe-b)); min-height:calc(100dvh - 164px - var(--safe-b)); }
+  .media{ height:auto; min-height:260px; contain:size; }
+  .slide{ padding:8px; }
   .body{ margin-top:16px; }
   .body h2{ font-size:19px; }
   .body p{ font-size:15px; }
   .tnav{ position:fixed; left:0; right:0; bottom:0; z-index:36; margin:0; padding:12px 16px calc(12px + var(--safe-b)); background:var(--surf); border-top:1px solid var(--line); }
   .tnav.off{ display:none; }
-  .stage-flex{ display:flex; flex-direction:column; }
   .hdr.in-tut{ display:none; }
   .done-card{ margin:8px 0 0; padding:28px 16px; }
 }
@@ -789,7 +803,7 @@ function viewTut(t){
             <div class="media" id="media"><div class="track" id="track">${t.steps.map((s, i) => `<div class="slide" role="group" aria-roledescription="langkah" aria-label="Langkah ${i + 1} dari ${n}">${s.image
               ? `<img src="${esc(s.image)}" alt="${esc(`Langkah ${i + 1}: ${stepLabel(s, i)}`)}" ${i < 2 ? '' : 'loading="lazy"'} decoding="async" data-zoom translate="no">`
               : `<div class="ph">${ic('image')}Gambar untuk langkah ini belum tersedia</div>`}</div>`).join('')}</div>
-              <button type="button" class="zoom-hint" id="zoom-btn">${ic('zoom', 'ic ic-sm')}Perbesar</button></div>
+              <button type="button" class="zoom-hint" id="zoom-btn" title="Perbesar">${ic('zoom', 'ic ic-sm')}<span>Perbesar</span></button></div>
             <div class="meta-row"><span id="m-step"></span><span id="m-pct"></span></div>
             <div class="segs" aria-hidden="true">${t.steps.map(() => '<i></i>').join('')}</div>
             <div class="bar" aria-hidden="true"><i id="bar"></i></div>
@@ -807,6 +821,9 @@ function mountTut(t){
   document.title = `${t.title} · ${CENTER}`;
   track('tutorial_open', { topic: t.key });
   post('/api/view', { t: t.key }).catch(() => {});
+  // gambar pertama mendatar (mis. screenshot web) -> susunan atas-bawah di desktop
+  const im = main.querySelector('.slide img'), tut = main.querySelector('.tut');
+  if(im && tut){ const f = () => tut.classList.toggle('wide', im.naturalWidth > im.naturalHeight); im.complete ? f() : im.addEventListener('load', f, { once: true }); }
 }
 function goStep(i, { animate = true, url = true } = {}){
   if(!T || !T.steps.length) return;
