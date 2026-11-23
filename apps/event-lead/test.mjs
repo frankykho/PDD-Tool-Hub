@@ -84,8 +84,9 @@ assert.equal(normPhone("8123456789"), "628123456789");
 assert.equal(normPhone("62 812 3456 789"), "628123456789");
 assert.equal(normPhone("12345"), "");
 assert.equal(normPhone("0212345678"), "", "nomor rumah (bukan HP) ditolak");
-const REG = { name: "Budi Santoso", phone: "0812-3456-789", email: "budi@mail.test", is_client: "0", consent: "1" };
-assert.deepEqual(cleanReg(REG), { name: "Budi Santoso", phone: "628123456789", email: "budi@mail.test", is_client: 0, client_code: "" });
+const REG = { name: "Budi Santoso", phone: "0812-3456-789", is_client: "0", consent: "1" };
+assert.deepEqual(cleanReg(REG), { name: "Budi Santoso", phone: "628123456789", email: "", is_client: 0, client_code: "" }, "email tidak wajib");
+assert.equal(cleanReg({ ...REG, email: "Budi@Mail.test" }).email, "budi@mail.test");
 assert.equal(cleanReg({ ...REG, consent: "" }).error, "Persetujuan data pribadi wajib dicentang.");
 assert.equal(cleanReg({ ...REG, is_client: "1" }).error, "Kode nasabah belum diisi.");
 assert.equal(cleanReg({ ...REG, is_client: "1", client_code: " AB123 " }).client_code, "AB123");
@@ -119,8 +120,9 @@ assert.match(p.html, /Seminar Reksa Dana/); assert.match(p.html, /Selasa, 3 Nove
 assert.match(p.html, /\/brand\/ikisi-color\.png/, "logo iKISI");
 assert.match(p.html, /name="website"/, "kolom jebakan");
 assert.match(p.html, /<label id="cc" hidden>/); assert.match(p.html, /\[hidden\]\{display:none!important\}/, "kode nasabah tersembunyi sampai memilih Ya");
-assert.match(p.html, /Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara/, "teks persetujuan bawaan");
-for (const f of ["name", "phone", "email", "is_client", "client_code", "consent"]) assert.match(p.html, new RegExp(`name="${f}"`), "isian " + f);
+assert.match(p.html, /Saya setuju nama, nomor HP, dan kode nasabah saya dipakai penyelenggara/, "teks persetujuan bawaan (tanpa email)");
+assert.doesNotMatch(p.html, /name="email"/, "email tidak ditanya");
+for (const f of ["name", "phone", "is_client", "client_code", "consent"]) assert.match(p.html, new RegExp(`name="${f}"`), "isian " + f);
 assert.equal((await page("/d/tidakada123")).status, 404);
 assert.match((await page("/d/tidakada123")).html, /Acara tidak ditemukan\./);
 
@@ -128,7 +130,7 @@ p = await submit("/d/" + E1.code, REG);
 assert.equal(p.status, 200); assert.match(p.html, /Terima kasih/);
 assert.equal(people(E1.id).length, 1);
 let row = people(E1.id)[0];
-assert.equal(row.phone, "628123456789"); assert.equal(row.status, "terdaftar"); assert.equal(row.src, "form"); assert.equal(row.consent_ver, 1); assert.ok(row.consent_at);
+assert.equal(row.phone, "628123456789"); assert.equal(row.status, "terdaftar"); assert.equal(row.src, "form"); assert.equal(row.consent_ver, 2); assert.ok(row.consent_at); assert.equal(row.email, "");
 assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(E1.id).n_reg, 1, "angka pendaftar ikut dihitung");
 // nomor sama, ditulis lain -> data lama diperbarui, bukan peserta ganda
 p = await submit("/d/" + E1.code, { ...REG, phone: "+62 812 3456 789", name: "Budi S." });
@@ -274,15 +276,17 @@ assert.match(wo, /di online/); assert.match(wo, /https:\/\/zoom\.test\/j\/1/, "l
 assert.equal(waText("{nama} {link}", { mode: "online", online_url: "https://z.test" }, { name: "A" }), "A https://z.test", "link tidak ditulis dua kali");
 // persetujuan data: hanya admin; versi naik saat diganti
 assert.equal((await call("/api/settings", { ck: SARI })).status, 403);
-assert.equal((await call("/api/settings", { ck: ADM })).j.consent.ver, 1);
+assert.equal((await call("/api/settings", { ck: ADM })).j.consent.ver, 2);
+assert.deepEqual((await call("/api/settings", { ck: ADM })).j.versions.map((v) => v.ver), [1, 2], "versi lama (dengan email) tetap terbaca");
 r = await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan baru dari legal." } });
-assert.equal(r.status, 200); assert.equal(r.j.consent.ver, 2);
+assert.equal(r.status, 200); assert.equal(r.j.consent.ver, 3);
 assert.match((await page("/d/" + E1.code)).html, /Teks persetujuan baru dari legal\./);
 // setiap versi teks tetap tersimpan: versi yang disetujui peserta bisa dibaca lagi
 await call("/api/settings", { ck: ADM, body: { consent: "Versi tiga." } });
 const vers = (await call("/api/settings", { ck: ADM })).j.versions;
-assert.deepEqual(vers.map((v) => [v.ver, v.text.slice(0, 20)]), [[1, "Saya setuju nama, no"], [2, "Teks persetujuan bar"], [3, "Versi tiga."]]);
-assert.ok(vers[1].at, "kapan versi itu mulai berlaku");
+assert.deepEqual(vers.map((v) => [v.ver, v.text.slice(0, 26)]), [[1, "Saya setuju nama, nomor HP"], [2, "Saya setuju nama, nomor HP"], [3, "Teks persetujuan baru dari"], [4, "Versi tiga."]]);
+assert.match(vers[0].text, /email/); assert.doesNotMatch(vers[1].text, /email/);
+assert.ok(vers[2].at, "kapan versi itu mulai berlaku");
 await call("/api/settings", { ck: ADM, body: { consent: "Teks persetujuan baru dari legal." } });
 assert.equal((await call("/api/settings", { ck: ADM, body: { consent: " " } })).status, 400);
 

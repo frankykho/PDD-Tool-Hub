@@ -146,13 +146,13 @@ export function normPhone(s) {
   else if (d.startsWith("8")) d = "62" + d;
   return /^628\d{7,11}$/.test(d) ? d : "";
 }
-/** Isian daftar -> { name, phone, email, is_client, client_code } atau { error }. consent: false = tambah manual oleh Sales (tanpa centang, email boleh kosong). */
+/** Isian daftar -> { name, phone, email, is_client, client_code } atau { error }. consent: false = tambah manual oleh Sales (tanpa centang). Email tidak ditanya di form publik; boleh kosong, kalau diisi harus benar. */
 export function cleanReg(b, { consent = true } = {}) {
   const s = (v, n) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
   const name = s(b.name, 80), phone = normPhone(b.phone), email = lower(s(b.email, 120)), ic = String(b.is_client ?? "");
   if (!name) return { error: "Nama belum diisi." };
   if (!phone) return { error: "Nomor HP (WhatsApp) belum benar." };
-  if (consent ? !EMAIL.test(email) : email && !EMAIL.test(email)) return { error: "Email belum benar." };
+  if (email && !EMAIL.test(email)) return { error: "Email belum benar." };
   if (ic !== "1" && ic !== "0") { if (consent) return { error: "Pilih apakah sudah menjadi nasabah KISI." }; }
   const is_client = ic === "1" ? 1 : 0, client_code = is_client ? s(b.client_code, 30) : "";
   if (is_client && !client_code) return { error: "Kode nasabah belum diisi." };
@@ -257,8 +257,12 @@ const tzOf = (ev) => (TZ[ev.tz] ? ev.tz : "WIB");
 export const jam = (ev) => [ev.time_start, ev.time_end].filter(Boolean).map((t) => t.replace(":", ".")).join("–") + (ev.time_start ? " " + tzOf(ev) : "");
 /** Jam setempat di tanggal acara -> milidetik. */
 const evMs = (ev, t) => Date.parse(`${ev.date}T${t || "00:00"}:00${TZ[tzOf(ev)]}`);
-const CONSENT_DEFAULT = { ver: 1, text: "Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara untuk menghubungi saya terkait acara ini. Data disimpan paling lama 12 bulan setelah acara." };
+// v1 dari masa form masih menanyakan email; tetap ada di riwayat karena peserta lama menyetujui teks itu
+const CONSENT_V1 = { ver: 1, text: "Saya setuju nama, nomor HP, email, dan kode nasabah saya dipakai penyelenggara untuk menghubungi saya terkait acara ini. Data disimpan paling lama 12 bulan setelah acara.", at: "" };
+const CONSENT_DEFAULT = { ver: 2, text: "Saya setuju nama, nomor HP, dan kode nasabah saya dipakai penyelenggara untuk menghubungi saya terkait acara ini. Data disimpan paling lama 12 bulan setelah acara.", at: "" };
 export const getConsent = async (env) => { const c = await cfgGet(env, "consent"); return c && c.text ? c : CONSENT_DEFAULT; };
+// semua versi; sebelum admin pernah mengganti teks: dua versi bawaan
+const consentVers = async (env) => (await cfgGet(env, "consents")) || ((await cfgGet(env, "consent")) ? [await getConsent(env)] : [CONSENT_V1, CONSENT_DEFAULT]);
 
 const te = new TextEncoder();
 const hmac = async (env, s) => btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", await crypto.subtle.importKey("raw", te.encode(env.SSO_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), te.encode("form:" + s)))))
@@ -318,7 +322,6 @@ async function regFields(env, v = {}) {
   const c = await getConsent(env), ck = (x) => (String(v.is_client ?? "") === x ? " checked" : "");
   return `<label>Nama lengkap<input type="text" name="name" required maxlength="80" autocomplete="name" value="${esc(v.name)}"></label>`
     + `<label>Nomor HP (WhatsApp)<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" placeholder="08xx" value="${esc(v.phone)}"></label>`
-    + `<label>Email<input type="email" name="email" required maxlength="120" autocomplete="email" value="${esc(v.email)}"></label>`
     + `<fieldset><legend>Sudah menjadi nasabah KISI?</legend><label class="opt"><input type="radio" name="is_client" value="1" required${ck("1")}> Ya, sudah</label>`
     + `<label class="opt"><input type="radio" name="is_client" value="0"${ck("0")}> Belum</label></fieldset>`
     + `<label id="cc"${String(v.is_client) === "1" ? "" : " hidden"}>Kode nasabah<input type="text" name="client_code" maxlength="30" value="${esc(v.client_code)}"></label>`
@@ -562,7 +565,7 @@ async function saveConsent(env, b) {
   if (!text) return { error: "Teks persetujuan belum diisi." };
   const cur = await getConsent(env), c = { ver: cur.ver + 1, text, at: iso(env) };
   // semua versi disimpan (cfg consents): peserta menyimpan nomor versi yang ia setujui, teksnya harus tetap bisa dibaca
-  const V = (await cfgGet(env, "consents")) || [{ ver: cur.ver, text: cur.text, at: cur.at || "" }];
+  const V = await consentVers(env);
   await env.DB.batch([cfgPut(env, "consent", c), cfgPut(env, "consents", [...V, c])]);
   return { consent: c };
 }
@@ -644,7 +647,7 @@ export default {
         if (path === "/api/settings") {
           if (!me.adm) return json({ error: "Khusus admin." }, 403);
           const c = await getConsent(env);
-          return json({ consent: c, versions: (await cfgGet(env, "consents")) || [{ ver: c.ver, text: c.text, at: c.at || "" }] });
+          return json({ consent: c, versions: await consentVers(env) });
         }
         if (path === "/api/planner-items") {
           // Sales / GI coordinator: cabangnya sendiri; Head regional & admin: cabang yang dipilih di form; lainnya: kegiatan Edukasi miliknya
