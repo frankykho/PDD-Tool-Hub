@@ -230,9 +230,9 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
 
 /* ---------- Excel ---------- */
 const attr = (a, n) => (a.match(new RegExp(`(?:^|\\s)${n}="([^"]*)"`)) || [])[1];
-const tText = (x) => [...x.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => xmlUnesc(m[1])).join("");
+const tText = (x) => [...x.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>/]*)?>([\s\S]*?)<\/t>/g)].map((m) => xmlUnesc(m[1])).join("");
 const CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-const inlineCell = (a, text) => `<c${/\st="[^"]*"/.test(a) ? a.replace(/\st="[^"]*"/, ' t="inlineStr"') : `${a} t="inlineStr"`}><is><t xml:space="preserve">${xmlEsc(text)}</t></is></c>`;
+const inlineCell = (a, text) => `<c${/\st="[^"]*"/.test(a) ? a.replace(/\st="[^"]*"/, ' t="inlineStr"') : `${a} t="inlineStr"`}><is><t xml:space="preserve">${xmlEsc(String(text).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]/g, ""))}</t></is></c>`;
 
 function sharedStrings(files) {
   return [...(files["xl/sharedStrings.xml"] || "").matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map((m) => tText(m[1]));
@@ -264,16 +264,17 @@ export function xlsxCells(files) {
   return out;
 }
 
-// shortcut: teks sel dicocokkan penuh dengan `from`; sel rich text tetap bisa diganti tapi formatnya hilang
+// shortcut: sel ditulis ulang sebagai teks polos, jadi format rich text sel yang diubah hilang; upgrade bila perlu menjaga run
 export function applyXlsx(files, edits) {
   const sst = sharedStrings(files), out = { ...files }, applied = [];
   for (const ed of edits) {
     if (typeof out[ed.path] !== "string") continue;
     let done = false;
     out[ed.path] = out[ed.path].replace(CELL, (all, a, body) => {
-      if (done || attr(a, "r") !== ed.ref || cellText(a, body, sst) !== ed.from) return all;
+      const cur = attr(a, "r") === ed.ref && !done && ed.from ? cellText(a, body, sst) : null;
+      if (cur == null || !cur.includes(ed.from)) return all;
       done = true;
-      return inlineCell(a, ed.to);
+      return inlineCell(a, cur.replace(ed.from, () => ed.to));
     });
     if (done) applied.push(ed.id);
   }
@@ -282,7 +283,7 @@ export function applyXlsx(files, edits) {
 
 function registerSheet(files, name, path, xml) {
   const names = sheetList(files).map((s) => s.name.toLowerCase());
-  const base = (String(name).replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").trim() || "Sheet").slice(0, 31).trim();
+  const base = (String(name).replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").replace(/^'+|'+$/g, "").trim() || "Sheet").slice(0, 31).trim();
   let nm = base;
   for (let i = 2; names.includes(nm.toLowerCase()); i++) nm = base.slice(0, 31 - ` ${i}`.length).trim() + ` ${i}`;
   const wb = files["xl/workbook.xml"], rels = files["xl/_rels/workbook.xml.rels"];
@@ -311,6 +312,7 @@ export function copySheetTranslated(files, path, name, translated) {
     .replace(/<tableParts\b[\s\S]*?<\/tableParts>|<tableParts\b[^>]*\/>/g, "")
     .replace(/<hyperlink\b[^>]*\sr:id="[^"]*"[^>]*\/>/g, "").replace(/<hyperlinks>\s*<\/hyperlinks>/g, "")
     .replace(/\stabSelected="1"/g, "")
+    .replace(/<(oleObjects|controls|extLst)\b[\s\S]*?<\/\1>/g, "").replace(/(<pageSetup\b[^>]*?)\sr:id="[^"]*"/g, "$1").replace(/\sxr:uid="[^"]*"/g, "")
     .replace(CELL, (all, a, body) => {
       const ref = attr(a, "r");
       return translated.has(ref) && cellText(a, body, sst) != null ? inlineCell(a, translated.get(ref)) : all;

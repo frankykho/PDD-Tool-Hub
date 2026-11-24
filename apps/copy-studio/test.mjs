@@ -401,7 +401,7 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   const Y = structuredClone(X);
   Y["xl/workbook.xml"] = `<workbook><sheets><sheet r:id="rId1" sheetId="1" name="A &amp; B"/></sheets></workbook>`;
   Y["xl/sharedStrings.xml"] = `<sst><si><r><t>Adver</t></r><r><rPr><b/></rPr><t xml:space="preserve">tisement </t></r><rPh sb="0" eb="1"><t>ふりがな</t></rPh><r><t>Co</t></r></si></sst>`;
-  Y["xl/worksheets/sheet1.xml"] = `<worksheet><sheetData><row r="1"><c r="A1" s="2"/><c s="4" t="s" r="B1"><v>0</v></c><c r="C1" t="inlineStr"><is><t>Hai</t></is></c></row></sheetData><drawing r:id="rId9"/><tableParts count="1"><tablePart r:id="rId8"/></tableParts></worksheet>`;
+  Y["xl/worksheets/sheet1.xml"] = `<worksheet><sheetData><row r="1" xr:uid="{AAA}"><c r="A1" s="2"/><c s="4" t="s" r="B1"><v>0</v></c><c r="C1" t="inlineStr"><is><t>Hai</t></is></c></row></sheetData><pageSetup orientation="landscape" r:id="rId1"/><oleObjects><oleObject r:id="rId5"/></oleObjects><controls><control r:id="rId6"/></controls><drawing r:id="rId9"/><tableParts count="1"><tablePart r:id="rId8"/></tableParts><extLst><ext uri="x"><x14:id xmlns:x14="y">{GUID}</x14:id></ext></extLst></worksheet>`;
   Y["xl/worksheets/_rels/sheet1.xml.rels"] = `<Relationships><Relationship Id="rId9" Type="drawing" Target="../drawings/drawing1.xml"/></Relationships>`;
   assert.deepEqual(O.xlsxCells(Y).map((c) => [c.sheet, c.ref, c.text]), [["A & B", "B1", "Advertisement Co"], ["A & B", "C1", "Hai"]]);
   const yr = O.applyXlsx(Y, [{ id: 1, path: "xl/worksheets/sheet1.xml", ref: "B1", from: "Advertisement Co", to: "Z" }]);
@@ -410,6 +410,11 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   const yc = O.copySheetTranslated(Y, "xl/worksheets/sheet1.xml", "A & B", new Map([["C1", "Hello"]]));
   const copy = yc["xl/worksheets/sheet2.xml"];
   assert.doesNotMatch(copy, /<drawing|<tableParts|<legacyDrawing/);
+  assert.doesNotMatch(copy, /r:id=|<oleObjects|<controls|<extLst|xr:uid/, "tidak ada r:id menggantung, GUID, extLst");
+  assert.match(copy, /<pageSetup orientation="landscape"\/>/);
+  assert.equal(O.applyXlsx(Y, [{ id: 1, path: "xl/worksheets/sheet1.xml", ref: "B1", from: "tisement", to: "$&\u0001X" }]).files["xl/worksheets/sheet1.xml"].match(/<t xml:space="preserve">([^<]*)</)[1], "Adver$&amp;X Co", "substring, tanpa pola $, karakter kontrol dibuang");
+  assert.equal(O.xlsxCells({ ...Y, "xl/sharedStrings.xml": "<sst><si><t xml:space=\"preserve\"/><t>Q</t></si></sst>" })[0].text, "Q");
+  assert.equal(O.xlsxCells(O.addSheet(X, "'Hi'", [["a"]])).at(-1).sheet, "Hi");
   assert.equal(yc["xl/worksheets/_rels/sheet2.xml.rels"], undefined, "rel gambar/tabel tidak disalin");
   assert.match(yc["xl/workbook.xml"], /name="A &amp; B 2"/, "nama unik");
   assert.match(yc["xl/workbook.xml"], /sheetId="2"/);
