@@ -512,6 +512,8 @@ assert.match(pb, /Sahamology[\s\S]*Kuliah Saham/); assert.match(pb, /BYD Denza D
 assert.match(prompt("cw_brief", { program: CW_DEFAULT.program, type: "media" }).user, /350 kata/);
 const rb = parse("cw_brief", '{"sns":[{"partner":"Sahamology","frames":[{"label":"Slide 1","lines":["KOMPETISI DIMULAI!",""]}]}]}');
 assert.deepEqual(rb.sns[0].frames[0].lines, ["KOMPETISI DIMULAI!"]);
+assert.match(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /Slide 1:\nx/);
+assert.doesNotMatch(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /::/);
 assert.match(CW.briefText(rb, { format: "carousel", platform: "IG", date: "1 September" }), /^Sahamology: IG Carousel[\s\S]*Posting tanggal 1 September[\s\S]*Slide 1:\nKOMPETISI DIMULAI![\s\S]*● Sahamology tidak terafiliasi/);
 }
 
