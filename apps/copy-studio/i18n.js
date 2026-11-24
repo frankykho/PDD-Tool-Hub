@@ -11,6 +11,7 @@ export default {
   "Unggah .docx": "Upload .docx", "atau tempel naskah IGS di bawah": "or paste the IGS draft below", "Naskah IGS": "IGS draft", "Judul IGS": "IGS title", "Paragraf penutup": "Closing paragraph",
   "Tanpa penutup": "No closing", "Branding iKISI/KISI": "iKISI/KISI branding", "Promo program": "Program promo", "Nama program": "Program name", "Link": "Link",
   "Buat artikel": "Create article", "Pilih judul": "Choose a title", "Perbaikan yang disarankan": "Suggested fixes", "Artikel akhir": "Final article", "Tag:": "Tags:",
+  "Angka tidak ada di naskah IGS:": "Numbers not in the IGS draft:", "Pilihan penutup berubah. Klik Buat artikel lagi.": "Closing choice changed. Click Create article again.", "Teks akhir sudah Anda ubah. Terapkan ulang perbaikan dan hapus suntingan Anda?": "You edited the final text. Re-apply fixes and discard your edits?",
   "Tidak ada perbaikan.": "No fixes.", "Salin": "Copy", "Unduh .docx": "Download .docx", "Tersalin": "Copied",
   "Isi dulu naskah IGS.": "Enter the IGS draft first.", "File .docx tidak bisa dibaca.": "The .docx file could not be read.", "Gagal membuat artikel.": "Failed to create the article.",
   "Angka dari naskah asli hilang atau berubah:": "Numbers from the original draft are missing or changed:", "Gagal memuat tab Copywriter. Coba lagi.": "Failed to load the Copywriter tab. Try again.",

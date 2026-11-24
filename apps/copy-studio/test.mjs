@@ -351,6 +351,10 @@ assert.equal(art.text.split("Dimuat oleh Tim Investment Growth Specialist KISI."
 assert.ok(art.text.indexOf("Ikuti KISI Challenge.") < art.text.indexOf("Dimuat oleh"));
 assert.ok(art.text.includes(CW.PRIZE_DISC) && art.text.endsWith(CW.DISC_ARTICLE));
 assert.deepEqual(art.tags, ["IEU-CEPA", "kisi", "iKISI", "Behind The Candle"]);
+assert.deepEqual(CW.extraNumbers(IGS, IGS + " Hadiah Rp25 juta"), ["25"]);
+assert.deepEqual(CW.extraNumbers(IGS, IGS), []);
+assert.ok(!CW.buildArticle({ body: IGS, closing: "Ikuti KISI Challenge.", close: "none" }).text.includes("Ikuti KISI"));
+assert.ok(CW.buildArticle({ body: "Behind The Candle - Isi", close: "none" }).text.startsWith("Behind The Candle - Isi"));
 assert.equal(prompt("cw_article", { text: " " }), null);
 const pa = prompt("cw_article", { text: IGS, title: "Deal Indonesia-Eropa", close: "brand" }).user;
 assert.match(pa, /Deal Indonesia-Eropa/); assert.match(pa, /Jangan mengarang angka/); assert.match(pa, /penutup/i);
