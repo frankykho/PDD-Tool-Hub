@@ -395,7 +395,7 @@ function initPr(cs) {
     const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl: { free } }) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
     R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
-    if (!R.quote.speaker) { if (R.quote.text) R.missing.push("kutipan narasumber"); R.quote = { text: "", speaker: "", ai: false }; } // tanpa narasumber, kutipan dibuang
+    if (R.quote.text && !R.quote.speaker) { R.quote.speaker = "[nama narasumber], [jabatan] KISI"; R.missing.push("nama & jabatan narasumber"); } // kutipan tetap dipakai, narasumber diisi penanda
     $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
     $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
     $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");
