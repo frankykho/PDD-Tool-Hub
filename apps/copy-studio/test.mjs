@@ -454,6 +454,19 @@ assert.match(pa, /Deal Indonesia-Eropa/); assert.match(pa, /Jangan mengarang ang
 assert.doesNotMatch(prompt("cw_article", { text: IGS, close: "none" }).user, /paragraf penutup/i);
 const ra = parse("cw_article", '{"titles":["A","B"],"edits":[{"from":"x","to":"y","why":"typo"},{"from":"z","to":"z"},{"to":"q"}],"tags":["t1"],"closing":""}');
 assert.deepEqual(ra.edits, [{ from: "x", to: "y", why: "typo" }]);
+const nf = CW.numberFormatFindings([{ loc: "p3", text: "- 277,500,000 Termyn I" }, { loc: "p4", text: "188.700.000 dan 377.400.000 naik 90,4%" }]);
+assert.deepEqual(nf.map((x) => [x.loc, x.from, x.to]), [["p3", "277,500,000", "277.500.000"]]);
+assert.equal(CW.parseIdr("2.543.204.033"), 2543204033);
+assert.equal(CW.parseIdr("2,543,204,033"), 2543204033);
+assert.equal(CW.parseIdr("abc"), null);
+const rows = [["Prize", 2363404000], ["Uni", 34333333], ["Meta", 45000000], ["Google", 45000000], ["DBL", 55466700], ["IDX", 0], ["Grand Total", 2543204033]].map(([label, value], i) => ({ loc: "r" + i, label, value }));
+assert.deepEqual(CW.totalFindings(rows), []);
+rows[6].value = 2543204000;
+assert.match(CW.totalFindings(rows)[0].why, /2\.543\.204\.033/);
+assert.deepEqual(CW.totalFindings([{ loc: "a", label: "A", value: 5 }, { loc: "b", label: "Total", value: 5 }, { loc: "c", label: "B", value: 7 }, { loc: "d", label: "Total", value: 7 }]), []);
+assert.deepEqual(CW.langFindings([{ loc: "e1", text: "run from 1 October to 30 November 2026" }], [{ loc: "i1", text: "berlangsung 1 Oktober–30 November 2026" }]), []);
+assert.deepEqual(CW.langFindings([{ loc: "e1", text: "Total 555,000,000" }], [{ loc: "i1", text: "Total 555.000.000" }]), []);
+assert.equal(CW.langFindings([{ loc: "e1", text: "Total 555.000.000" }], [{ loc: "i1", text: "Total 550.000.000" }])[0].loc, "i1");
 }
 
 console.log("semua cek lolos");

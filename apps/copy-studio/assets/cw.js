@@ -41,6 +41,28 @@ export function buildArticle({ body, title, closing, close, tags }) {
   return { title, text: parts.join("\n\n"), tags: [...(tags || []), ...FIXED_TAGS].filter((t) => { const k = t.toLowerCase(); return !seen.has(k) && seen.add(k); }) };
 }
 
+/* ---- Cek tanpa AI: format angka, total tabel, konsistensi EN-ID ---- */
+const dots = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+export const parseIdr = (s) => { const t = String(s).trim(); return /^\d{1,3}([.,]\d{3})+$|^\d+$/.test(t) ? +t.replace(/[.,]/g, "") : null; };
+export function numberFormatFindings(units) {
+  const hits = [];
+  for (const u of units) for (const m of String(u.text).matchAll(/(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)(?![.,]?\d)/g)) hits.push({ loc: u.loc, from: m[1], dot: m[1].includes(".") });
+  const nd = hits.filter((h) => h.dot).length, useDot = nd >= hits.length - nd;
+  return hits.filter((h) => h.dot !== useDot).map((h) => ({ kind: "angka", loc: h.loc, from: h.from, to: h.from.replace(/[.,]/g, useDot ? "." : ","), why: "Format angka tidak seragam (mayoritas pakai " + (useDot ? "titik" : "koma") + ")" }));
+}
+export function totalFindings(rows) {
+  const out = []; let sum = 0;
+  for (const r of rows) {
+    if (/^(grand\s*)?total$/i.test(String(r.label).trim())) { if (sum !== r.value) out.push({ kind: "hitungan", loc: r.loc, from: dots(r.value), to: "", why: "Jumlah baris = " + dots(sum) }); sum = 0; }
+    else sum += r.value;
+  }
+  return out;
+}
+export function langFindings(enUnits, idUnits) {
+  const key = (t) => numbers(t).map((x) => x.replace(/[.,]/g, "")).sort().join("|");
+  return idUnits.flatMap((u, i) => enUnits[i] && key(enUnits[i].text) !== key(u.text) ? [{ kind: "konsistensi", loc: u.loc, from: numbers(u.text).join(", "), to: "", why: "Angka berbeda dari versi Inggris: " + numbers(enUnits[i].text).join(", ") }] : []);
+}
+
 function initArticle(cs) {
   const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
