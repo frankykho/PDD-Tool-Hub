@@ -23,7 +23,7 @@
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
 // - "/api/kisi/sync" (POST {from,to}) -> artikel kisi.co.id (API publik api-compro.kisi.co.id) dibuat / dilengkapi di Planner + YTD website;
 //   dipanggil saat Laporan Copywriter disusun. "/api/cw/cfg" (GET ?k= / POST {k,v}) -> angka laporan yang diketik (tabel cfg)
-// - "/api/sm/trend" (GET ?m=YYYY-MM[&img=1]) tren kompetitor dari ci_content (Content Insight) & "/api/sm/plan" (POST {m, note}) draf rencana konten bulan depan (AI)
+// - "/api/sm/trend" (GET ?m=YYYY-MM[&img=1]) tren kompetitor dari ci_content (Content Insight) & "/api/sm/plan" (POST {m, note}) draf rencana konten bulan depan (AI) & "/api/sm/tr" (GET ?m= / POST {m, v}) rencana tersimpan; laporan Tren & Rencana
 // - "/api/sm/followers" (GET ?to=YYYY-MM 18 bulan / POST {month?, ig?, tt?}) & "/api/sm/cfg" (GET ?m= / POST {m, v}) ->
 //   Laporan Social Media Specialist: followers per bulan dan isian form per bulan (tabel cfg).
 //   Postingan yang dibuat impor (bookmark / CSV) bertanda auto = 1 dan tidak ikut Laporan Kegiatan & Monthly Report.
@@ -853,7 +853,8 @@ async function smFollowers(env, b, to) {
 }
 /** Isian form, bentuknya dicek persis (teks di kolom angka bisa jadi XSS di form):
  *  ser/ve/de = larik <= 20 baris {n, s?: teks <= 60, c: angka|null}; reg/ads/yt/tt/ttAds = {kunci: angka bulat >= 0 | null}; ttNote = teks <= 120;
- *  plan = rencana konten bulan depan, larik <= 20 baris {t judul <= 100, i ide <= 400, p pilar <= 40, f format <= 20, r tren <= 120}; planNote = arahan AI <= 300. */
+ *  plan & planNote hanya untuk laporan Tren & Rencana (sm_tr, lihat trCfg): plan = rencana konten bulan berikutnya, larik <= 20 baris
+ *  {t judul <= 100, i ide <= 400, p pilar <= 40, f format <= 20, r tren <= 120}; planNote = arahan AI <= 300. */
 export function smValid(v) {
   const obj = (x) => !!x && typeof x === "object" && !Array.isArray(x), txt = (x, n) => typeof x === "string" && x.length <= n;
   const row = (r) => obj(r) && txt(r.n, 60) && (r.s === undefined || txt(r.s, 60)) && (r.c === undefined || okNum(r.c)) && Object.keys(r).every((k) => ["n", "s", "c"].includes(k));
@@ -862,6 +863,15 @@ export function smValid(v) {
   const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120), plan: (x) => Array.isArray(x) && x.length <= 20 && x.every(prow), planNote: (x) => txt(x, 300) };
   F.ve = F.de = F.ser; F.reg = F.ads = F.yt = F.tt = F.ttAds = nums;
   return obj(v) && JSON.stringify(v).length <= 24000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
+}
+/** GET/POST /api/sm/tr: rencana laporan Tren & Rencana per bulan (sm_tr:YYYY-MM {plan, planNote}); terpisah dari isian Laporan SMS supaya tidak saling menimpa. */
+async function trCfg(env, m, v) {
+  await ensure(env);
+  if (!YM.test(String(m || ""))) return { error: "Bulan belum benar." };
+  if (v === undefined) return { v: await cfgGet(env, "sm_tr:" + m) };
+  if (!smValid(v) || !Object.keys(v).every((k) => k === "plan" || k === "planNote")) return { error: "Isian rencana tidak sah." };
+  await cfgPut(env, "sm_tr:" + m, v);
+  return { ok: true };
 }
 async function smCfg(env, m, v) {
   await ensure(env);
@@ -958,7 +968,7 @@ export async function smPlan(env, b, call = ai) {
   const t = await smTrend(env, m);
   if (t.error) return t;
   if (!t.posts) return { error: "Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight." };
-  const nx = ymShift(m, 1), v = (await cfgGet(env, "sm_n:" + m)) || {};
+  const nx = ymShift(m, 1), sv = await smCfg(env, m), v = sv.v || sv.prev || {};
   const { system, user } = planPrompt(env, t, { next: nx, moments: (await moments(env, nx + "-01", nx + "-31")).slice(0, 30),
     series: (v.ser || []).map((x) => x.n).filter(Boolean), note: String(b.note || "").trim().slice(0, 300) });
   try {
@@ -1836,6 +1846,7 @@ export default {
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, url.searchParams.get("k")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/followers") { const r = await smFollowers(env, {}, url.searchParams.get("to") || ""); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/cfg") { const r = await smCfg(env, url.searchParams.get("m")); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/tr") { const r = await trCfg(env, url.searchParams.get("m")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/trend") { const r = await smTrend(env, url.searchParams.get("m"), url.searchParams.has("img")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
@@ -1860,6 +1871,7 @@ export default {
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, b.k, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/followers") { const r = await smFollowers(env, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/cfg") { const r = await smCfg(env, b.m, b.v ?? null); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/tr") { const r = await trCfg(env, b.m, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/plan") { const r = await smPlan(env, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),

@@ -1320,16 +1320,19 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.match(all, /3,415,684/); assert.match(all, /No TikTok Ads in October/); assert.match(all, /Summary of Design/); assert.match(all, /Every Tuesday - Friday/);
   const P = D.blocks.filter((b) => b.t === "posts");
   assert.ok(P.length >= 1, "kartu postingan IG ikut"); assert.deepEqual(P[P.length - 1].items[0].m.map((x) => x[0]), ["Likes", "Comments", "Shares", "Views", "Saves", "Reposts"]);
-  assert.doesNotMatch(all, /Competitor Trends|Content Plan/, "tanpa tren & rencana: tidak ada halaman kosong");
-  // tren kompetitor & rencana bulan depan: sebelum kartu postingan IG
+  assert.doesNotMatch(all, /Competitor Trends|Content Plan/, "tren & rencana punya laporan sendiri");
+  // laporan Tren & Rencana Konten (terpisah)
+  const tdoc = new Function(pg.match(/function trendDoc\(R\)\{[\s\S]*?\n\}\n/)[0] + "return trendDoc")();
   const tr = { posts: 4, accounts: 2, base: 2, pillars: [{ n: "Promo", now: 50, avg: 50, chg: 0 }, { n: "Edukasi", now: 25, avg: 50, chg: -25 }], topics: [{ n: "Saham", now: 100, avg: null, chg: null }],
     formats: [{ n: "Reels", posts: 1, ratio: 5 }, { n: "Carousel", posts: 2, ratio: null }], top: [{ account: "sekuritas_x", format: "Reels", pillar: "Edukasi", d: "2026-10-05", likes: 500, comments: 3, ratio: 5, cap: "Cara  baca\nlaporan keuangan", img: "data:image/png;base64,AA" }] };
-  const D2 = doc({ div: "Digital Marketing", mon: "October", yr: "2026", c, imgs: {}, tr, next: "November 2026", plan: [{ t: "Bedah laporan keuangan", i: "Carousel 5 slide", p: "Edukasi", f: "Carousel", r: "Edukasi laporan keuangan menonjol" }, { t: "", i: "baris kosong" }] });
+  const D2 = tdoc({ div: "Digital Marketing", mon: "October", yr: "2026", tr, next: "November 2026", plan: [{ t: "Bedah laporan keuangan", i: "Carousel 5 slide", p: "Edukasi", f: "Carousel", r: "Edukasi laporan keuangan menonjol" }, { t: "", i: "baris kosong" }] });
   const all2 = JSON.stringify(D2.blocks), pg2 = D2.blocks.filter((b) => b.t === "page").map((b) => b.h2);
-  assert.ok(pg2.indexOf("Competitor Trends") < pg2.indexOf("Content Plan") && pg2.indexOf("Content Plan") < pg2.indexOf("Instagram Posts"), "urutan: tren, rencana, lalu lampiran postingan IG");
+  assert.deepEqual(pg2, ["Competitor Trends", "Content Plan"], "hanya tren & rencana"); assert.equal(D2.head, "Digital Marketing | Content Trends & Plan | October 2026");
   assert.match(all2, /4 posts from 2 accounts · compared with 2 month\(s\) only/); assert.match(all2, /"-25\.0 pts"/); assert.match(all2, /"5\.0×"/); assert.match(all2, /@sekuritas_x · Cara baca laporan keuangan/);
   assert.match(all2, /November 2026 · 1 new contents based on trends/, "baris rencana tanpa judul tidak ikut"); assert.match(all2, /Bedah laporan keuangan/);
-  assert.equal(D2.blocks.filter((b) => b.t === "sum").length, 6);
+  assert.equal(D2.blocks.filter((b) => b.t === "sum").length, 2);
+  assert.deepEqual(tdoc({ div: "D", mon: "October", yr: "2026", tr: { ...tr, posts: 0 }, plan: [] }).blocks, [], "tanpa data: tanpa halaman");
+  assert.match(pg, /tr:\{data:trendData,doc:trendDoc,name:"Tren & Rencana Konten"\}/); assert.match(pg, /data-t="tr"/);
   // postingan otomatis tidak ikut Laporan Kegiatan & Monthly Report
   assert.match(pg.match(/async function repData\(\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
   assert.match(pg.match(/async function monData\(div\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
@@ -1370,7 +1373,16 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal(x.posts, 4, "tanggal kosong (bookmark) memakai tanggal disimpan"); assert.equal(x.top[0].img, undefined, "gambar hanya bila diminta");
   x = (await call("/api/sm/trend?img=1&m=2026-10", { ck: SMS })).j; assert.equal(x.top[0].img, "data:image/jpeg;base64,AA");
   assert.equal((await call("/api/sm/trend?m=2026-13", { ck: SMS })).status, 400);
-  await call("/api/sm/cfg", { ck: SMS, body: { m: "2026-10", v: { ser: [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }] } } });
+  // seri rutin untuk AI: isian Laporan SMS bulan terakhir yang ada (di sini September)
+  await call("/api/sm/cfg", { ck: SMS, body: { m: "2026-09", v: { ser: [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }] } } });
+  // rencana tersimpan terpisah dari isian Laporan SMS
+  const smBefore = (await call("/api/sm/cfg?m=2026-10", { ck: SMS })).j.v;
+  assert.equal((await call("/api/sm/tr", { ck: SMS, body: { m: "2026-10", v: { plan, planNote: "fokus pemula" } } })).status, 200);
+  assert.deepEqual((await call("/api/sm/tr?m=2026-10", { ck: SMS })).j.v, { plan, planNote: "fokus pemula" });
+  assert.deepEqual((await call("/api/sm/cfg?m=2026-10", { ck: SMS })).j.v, smBefore, "isian Laporan SMS tidak tersentuh");
+  assert.equal((await call("/api/sm/tr", { ck: SMS, body: { m: "2026-10", v: { plan, ser: [] } } })).status, 400, "hanya plan & planNote");
+  assert.equal((await call("/api/sm/tr", { ck: SMS, body: { m: "2026-10" } })).status, 400);
+  env.DB.db.prepare("DELETE FROM cfg WHERE k = 'sm_n:2026-10'").run();   // Oktober belum diisi -> pakai September
   let seen = null;
   const fake = async (e, system, user) => { seen = { system, user }; return { text: '{"items":[{"judul":"Bedah laporan keuangan","ide":"Carousel","pilar":"Edukasi","format":"Carousel","tren":"Edukasi LK"}]}' }; };
   x = await smPlan(env, { m: "2026-10", note: "fokus pemula" }, fake);
@@ -1383,7 +1395,9 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   // halaman: form rencana tersimpan lewat /api/sm/cfg dan ikut deck
   const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
   for (const id of ["rSmTr", "rSmPn", "rSmAi", "rSmPl"]) assert.match(pg, new RegExp(`id="${id}"`), id);
-  assert.match(pg.match(/async function smData\(\)\{[\s\S]*?\n\}\n/)[0], /api\("\/api\/sm\/trend\?img=1&m="\+m\)\.catch/, "tren gagal: deck tetap jadi");
+  const td = pg.match(/async function trendData\(\)\{[\s\S]*?\n\}\n/)[0];
+  assert.match(td, /dataset\.m!==m/, "rencana hanya disimpan ke bulan yang sedang dimuat"); assert.match(td, /api\("\/api\/sm\/tr",\{m,v\}\)/);
+  assert.doesNotMatch(pg.match(/async function smData\(\)\{[\s\S]*?\n\}\n/)[0], /sm\/trend/, "Laporan SMS tidak memuat tren");
   delete env.FUND_DB;
 }
 

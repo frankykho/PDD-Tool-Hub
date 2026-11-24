@@ -587,7 +587,8 @@ const D = {
   "+ Baris": "+ Row",
   "Nama seri": "Series name",
   // Laporan SMS: tren kompetitor & rencana konten bulan depan
-  "Tren kompetitor & rencana konten bulan depan (dari Content Insight)": "Competitor trends & next month's content plan (from Content Insight)",
+  "Tren & Rencana Konten": "Content Trends & Plan", "Tren kompetitor bulan ini (dari Content Insight)": "Competitor trends this month (from Content Insight)", "Rencana konten bulan berikutnya": "Content plan for the next month",
+  "Isian bulan ini baru dimuat. Periksa rencananya, lalu klik lagi.": "This month's inputs were just loaded. Check the plan, then click again.", "Isian rencana tidak sah.": "The plan inputs are not valid.",
   "Arahan untuk AI (opsional)": "Instructions for AI (optional)", "mis. bulan depan ada promo SBN, fokus investor pemula": "e.g. SBN promo next month, focus on beginner investors",
   "Buat draf rencana dengan AI": "Draft the plan with AI", "+ Konten": "+ Content", "Judul konten": "Content title", "Ide / isi konten": "Idea / content", "Pilar": "Pillar", "Tren yang mendasari": "Underlying trend",
   "Menghitung tren…": "Calculating trends…", "AI menyusun rencana…": "AI is drafting the plan…", "Ganti rencana yang sudah ada dengan draf baru dari AI?": "Replace the current plan with a new AI draft?",

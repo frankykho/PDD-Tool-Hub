@@ -482,7 +482,7 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
 <dialog id="rep">
   <div class="dlg">
     <h2>Laporan</h2>
-    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="sm">Laporan Social Media Specialist</button><button type="button" data-t="cw">Laporan Copywriter</button></div></div>
+    <div class="fld"><div class="seg" id="rType" role="group" aria-label="Jenis laporan"><button type="button" data-t="keg">Kegiatan tim</button><button type="button" data-t="prog">Program partnership</button><button type="button" data-t="mon">Monthly Report</button><button type="button" data-t="gal">🏛️ Kerja sama galeri</button><button type="button" data-t="sm">Laporan Social Media Specialist</button><button type="button" data-t="cw">Laporan Copywriter</button><button type="button" data-t="tr">Tren &amp; Rencana Konten</button></div></div>
     <div class="fld"><span class="lbl">Periode</span>
       <div class="acts" style="margin:0 0 6px"><button type="button" class="btn sm" data-per="0">Bulan ini</button><button type="button" class="btn sm" data-per="-1">Bulan lalu</button><button type="button" class="btn sm" data-per="q">3 bulan terakhir</button></div>
       <div class="grid2"><input class="f" type="date" id="rFrom" aria-label="Dari tanggal"><input class="f" type="date" id="rTo" aria-label="Sampai tanggal"></div></div>
@@ -527,12 +527,16 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <div id="rSmVe"></div><button type="button" class="btn sm" data-smadd="ve">+ Baris</button>
       <span class="lbl">Summary of Design</span>
       <div id="rSmDe"></div><button type="button" class="btn sm" data-smadd="de">+ Baris</button>
-      <span class="lbl">Tren kompetitor &amp; rencana konten bulan depan (dari Content Insight)</span>
+      <p class="muted small" id="rSmNoteMsg" style="margin:6px 0 0"></p>
+    </div>
+    <!-- Tren & Rencana Konten: tren kompetitor dari Content Insight (bulan dipilih) + rencana konten bulan berikutnya. Tersimpan per bulan. -->
+    <div class="fld sm-f" id="rTrF" hidden>
+      <span class="lbl">Tren kompetitor bulan ini (dari Content Insight)</span>
       <p class="muted small" id="rSmTr" style="margin:0 0 8px"></p>
       <label for="rSmPn">Arahan untuk AI (opsional)</label><input class="f" id="rSmPn" maxlength="300" placeholder="mis. bulan depan ada promo SBN, fokus investor pemula">
       <div style="margin:8px 0"><button type="button" class="btn sm" id="rSmAi">Buat draf rencana dengan AI</button> <span class="muted small" id="rSmAiMsg" role="status"></span></div>
-      <div id="rSmPl"></div><button type="button" class="btn sm" data-smadd="plan">+ Konten</button>
-      <p class="muted small" id="rSmNoteMsg" style="margin:6px 0 0"></p>
+      <span class="lbl">Rencana konten bulan berikutnya</span>
+      <div id="rSmPl"></div><button type="button" class="btn sm" id="rTrAdd">+ Konten</button>
     </div>
     <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
     <div id="repErr"></div>
@@ -1451,10 +1455,10 @@ const KEG=["edukasi","artikel","konten","program","aktivitas","ops","produk","ca
 let RT="keg";
 function setRT(t){
   RT=t;[...$("rType").children].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
-  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rCwF").hidden=t!=="cw";$("rSmF").hidden=t!=="sm";$("rCwNote").textContent="";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
+  $("rXls").hidden=t!=="gal";$("rProgF").hidden=t!=="prog";$("rWhoF").hidden=t!=="keg"&&t!=="gal"&&t!=="cw";$("rKindsF").hidden=t!=="keg";$("rCwF").hidden=t!=="cw";$("rSmF").hidden=t!=="sm";$("rTrF").hidden=t!=="tr";$("rCwNote").textContent="";$("rBrF").hidden=(t!=="keg"&&t!=="gal")||!BR.length;
   // semua laporan (PDF & PPT) memakai template divisi yang sama: 16:9, logo, "Divisi Report | periode", sampul judul besar
   const pdf=" PDF & PPT memakai template laporan divisi (16:9). Untuk PDF, di jendela cetak pilih <b>Simpan sebagai PDF</b> dan aktifkan <b>Background graphics</b>.";
-  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="sm"||t==="cw";
+  $("rTeamF").hidden=t==="prog"||t==="gal"||t==="sm"||t==="cw"||t==="tr";
   // Laporan Copywriter: pilihan Orang = anggota ber-role Copywriter (tidak mengikuti Tim); anggota lain bisa dipilih satu per satu
   // (mencoba laporan, atau pekerjaan copywriting yang PIC-nya bukan Copywriter)
   if(t==="cw"){const op=u=>`<option value="${esc(u.email)}">${esc(u.name)}</option>`,oth=USERS.filter(u=>u.role!=="copy");
@@ -1462,13 +1466,14 @@ function setRT(t){
   else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
   $("rHelp").innerHTML=(t==="sm"?"Laporan Social Media Specialist bergaya deck Canva (English), satu bulan: followers 18 bulan, Instagram (seri, regular, iklan), YouTube Shorts, TikTok, ringkasan video editing & desain, lalu kartu semua postingan IG. Angka postingan diambil dari tombol bookmark Angka IG / Angka TikTok ke Planner di tab Performa; angka abu-abu di form adalah hitungan otomatis, isi kolomnya untuk mengganti. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
     :t==="cw"?"Laporan Copywriter bergaya deck Canva (English): ringkasan, detail artikel, narasumber di media, dan galeri kampanye. Artikel kisi.co.id beserta views-nya diambil otomatis saat laporan dibuat; views YouTube dari halaman videonya. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
+    :t==="tr"?"Tren &amp; Rencana Konten (English): tren konten kompetitor bulan yang dipilih dari Content Insight (porsi pilar &amp; topik dibanding 3 bulan sebelumnya, format, postingan yang menonjol), lalu rencana konten bulan berikutnya. Draf rencana bisa dibuat AI dari tren itu, lalu diedit; rencana tersimpan per bulan."
     :t==="mon"?"Monthly Report satu tim: ringkasan, lalu per role hasil program, kegiatan kalender, dan aktivitas anggotanya."
     :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
     :"Laporan memakai kolom <b>Hasil</b> dari setiap kegiatan."+(BR.length?" Memilih regional / cabang membuat laporan hanya berisi kegiatan cabang di sana.":""))+pdf;
 }
 // Laporan SMS & Copywriter: bawaannya bulan lalu (laporan bulanan dibuat setelah bulannya selesai)
-$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="sm"||b.dataset.t==="cw")$("rep").querySelector('[data-per="-1"]').click()});
+$("rType").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;setRT(b.dataset.t);if(b.dataset.t==="sm"||b.dataset.t==="cw"||b.dataset.t==="tr")$("rep").querySelector('[data-per="-1"]').click()});
 function openRep(){
   $("rFrom").value=cur;$("rTo").value=monthEnd(cur);
   $("rProg").innerHTML='<option value="">Semua program di periode ini</option>'+PROGS.map(p=>`<option value="${esc(p.id)}">🤝 ${esc(p.title)} (${fmtShort(p.date)})</option>`).join("");
@@ -1503,8 +1508,8 @@ $("rep").addEventListener("click",e=>{const b=e.target.closest("[data-per]");if(
   const t=todayIso().slice(0,8)+"01",p=b.dataset.per;
   if(p==="q"){const d=D(t);d.setUTCMonth(d.getUTCMonth()-2);$("rFrom").value=iso(d);$("rTo").value=monthEnd(t)}
   else{const d=D(t);d.setUTCMonth(d.getUTCMonth()+(+p));$("rFrom").value=iso(d);$("rTo").value=monthEnd(iso(d))}
-  cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message})});
-["rFrom","rTo"].forEach(id=>$(id).addEventListener("change",()=>{cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message})}));
+  cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message});trLoad().catch(e=>{$("rSmAiMsg").textContent="✗ "+e.message})});
+["rFrom","rTo"].forEach(id=>$(id).addEventListener("change",()=>{cwLoad().catch(()=>{});smLoad().catch(e=>{$("rSmNoteMsg").textContent="✗ "+e.message});trLoad().catch(e=>{$("rSmAiMsg").textContent="✗ "+e.message})}));
 async function repData(){
   const from=$("rFrom").value,to=$("rTo").value;
   if(!from||!to||from>to)throw new Error("Periode belum benar.");
@@ -2393,21 +2398,6 @@ function smDoc(R){
      {h2:"",nohead:1,big:1,cols:two(60,40),rows:[["Total Cost Ads",n(c.ttAds.cost)],["Total Post with Ads",n(c.ttAds.posts)],["Account Reach with Ads",n(c.ttAds.reach)]].map(r=>Object.assign(r,{tot:1})),note:c.ttNote}]]});
   const list=(h2,L,t)=>({h2,nohead:1,cols:two(65,35),rows:[...L.map(x=>[x.n,n(x.c)]),Object.assign(["Total",n(t)],{tot:1})]});
   B.push({t:"sum",cols:[[list("Summary of Video Editing",c.ve,c.veTotal)],[list("Summary of Design",c.de,c.deTotal)]]});
-  // tren kompetitor & rencana konten bulan depan (bahan presentasi bulanan)
-  const TR=R.tr,pp=x=>x===null?"-":x.toFixed(1)+"%",chg=x=>x===null?"-":(x>0?"+":"")+x.toFixed(1)+" pts",ra=x=>x===null?"-":x.toFixed(1)+"×";
-  if(TR&&TR.posts){
-    const sh=(h2,l,L)=>({h2,cols:[[l,40],["This month",20,1],["Prev. 3 months",22,1],["Change",18,1]],rows:L.slice(0,8).map(x=>[x.n,pp(x.now),pp(x.avg),chg(x.chg)])});
-    B.push({t:"page",h2:"Competitor Trends",sub:`${R.mon} ${R.yr} · ${TR.posts} posts from ${TR.accounts} accounts`+(TR.base<3?` · compared with ${TR.base} month(s) only`:"")});
-    B.push({t:"sum",cols:[[sh("Content Pillars","Pillar",TR.pillars)],[sh("Topics","Topic",TR.topics),
-      {h2:"Formats",cols:[["Format",40],["Posts",25,1],["Engagement vs usual",35,1]],rows:TR.formats.map(x=>[x.n,n(x.posts),ra(x.ratio)]),note:"Engagement = likes + comments, compared with each account's own median."}]]});
-    if(TR.top.length)B.push({t:"posts",cols:3,h3:"Standout competitor posts (engagement at least 2× the account's usual)",
-      items:TR.top.map(x=>({img:x.img||"",date:day(x.d),title:"@"+x.account+(x.cap?" · "+x.cap.replace(/\s+/g," ").slice(0,90):""),ch:[x.format,x.pillar].filter(Boolean).join(" / "),m:[["Likes",n(x.likes)],["Comments",n(x.comments)],["vs usual",ra(x.ratio)]]}))});
-  }
-  const PL=(R.plan||[]).filter(x=>x.t);
-  if(PL.length){
-    B.push({t:"page",h2:"Content Plan",sub:`${R.next} · ${PL.length} new contents based on trends`});
-    B.push({t:"sum",cols:[[{h2:"",cols:[["Content",22],["Idea",38],["Pillar",12],["Format",10],["Trend",18]],rows:PL.map(x=>[x.t,x.i||"",x.p||"",x.f||"",x.r||""])}]]});
-  }
   const P=c.igPosts,M=[["Likes","m_likes"],["Comments","m_comments"],["Shares","m_shares"],["Views","m_views"],["Saves","m_saves"],["Reposts","m_reposts"]];
   if(P.length){
     const card=i=>({img:(R.imgs||{})[i.id]||"",date:day(i.date),title:i.title,ch:i.channel||"",m:M.map(([l,k])=>[l,n(i[k]??null)])});
@@ -2437,8 +2427,6 @@ function smForm(){
     if(el.dataset.pct){const t=el.value.replace(",",".").replace(/[^\d.]/g,"");v[a][b]=t===""||isNaN(+t)?null:Math.round(+t*100)}else v[a][b]=smInt(el.value)});
   const rows=id=>[...$(id).children].map(r=>{const g=k=>r.querySelector(`[data-r="${k}"]`);return {n:g("n").value.trim().slice(0,60),...(g("s")?{s:g("s").value.trim().slice(0,60)}:{}),c:smInt(g("c").value)}}).filter(x=>x.n).slice(0,20);
   v.ser=rows("rSmSer");v.ve=rows("rSmVe");v.de=rows("rSmDe");v.ttNote=$("rSmNote").value.trim().slice(0,120);
-  v.plan=[...$("rSmPl").children].map(r=>{const o={};r.querySelectorAll("[data-p]").forEach(el=>{const t=el.value.trim().slice(0,+el.maxLength);if(t)o[el.dataset.p]=t});return o}).filter(x=>x.t).slice(0,20);
-  v.planNote=$("rSmPn").value.trim().slice(0,300);
   return v;
 }
 function smFolTable(m){
@@ -2462,11 +2450,11 @@ async function smLoad(){
   // bulan baru: daftar baris ikut bulan sebelumnya (tanpa angka), atau bawaan
   Object.entries(SM_BOX).forEach(([k,id])=>{const L=v[k]||(pv[k]||SM_DEF[k]).map(x=>({n:x.n,s:x.s,c:null}));$(id).innerHTML=L.map(x=>smRowHtml(k,x)).join("")});
   $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(v[a]||{})[b];el.value=x==null?"":el.dataset.pct?String(x/100):String(x)});
-  $("rSmNote").value=v.ttNote||"";smPlanRows(v.plan||[]);$("rSmPn").value=v.planNote||"";$("rSmAiMsg").textContent="";smTrText(m);
+  $("rSmNote").value=v.ttNote||"";
   smFolTable(m);$("rSmF").dataset.m=m;await smHint();
 }
 $("rSmF").addEventListener("click",e=>{
-  const a=e.target.closest("[data-smadd]");if(a){if(a.dataset.smadd==="plan")$("rSmPl").insertAdjacentHTML("beforeend",smPlanRow({}));else $(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
+  const a=e.target.closest("[data-smadd]");if(a){$(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
   const d=e.target.closest("[data-smdel]");if(d){d.closest(".sm-row").remove();smHint().catch(()=>{})}});
 $("rSmF").addEventListener("input",e=>{if(e.target.closest("#rSmFol"))e.target.dataset.d="1";
   else if(e.target.closest("#rSmSer")&&e.target.dataset.r==="n"){clearTimeout(smT);smT=setTimeout(()=>smHint().catch(()=>{}),400)}});
@@ -2478,11 +2466,51 @@ const smTrLine=t=>{if(!t.posts)return T("Belum ada postingan kompetitor di bulan
     +" "+T("{k} postingan menonjol.").replace("{k}",t.top.length)};
 async function smTrText(m){$("rSmTr").textContent=T("Menghitung tren…");try{const t=await api("/api/sm/trend?m="+m);if(smMonth()===m)$("rSmTr").textContent=smTrLine(t)}catch(x){if(smMonth()===m)$("rSmTr").textContent=x.message}}
 $("rSmAi").onclick=async()=>{
-  const m=smMonth(),say=t=>$("rSmAiMsg").textContent=t;if(!m||$("rSmF").dataset.m!==m)return say(T("Isian bulan ini belum termuat. Coba lagi."));
-  if(smForm().plan.length&&!confirm(T("Ganti rencana yang sudah ada dengan draf baru dari AI?")))return;
+  const m=smMonth(),say=t=>$("rSmAiMsg").textContent=t;if(!m||$("rTrF").dataset.m!==m)return say(T("Isian bulan ini belum termuat. Coba lagi."));
+  if(trForm().plan.length&&!confirm(T("Ganti rencana yang sudah ada dengan draf baru dari AI?")))return;
   const b=$("rSmAi");b.disabled=true;say(T("AI menyusun rencana…"));
-  try{const r=await api("/api/sm/plan",{m,note:$("rSmPn").value.trim()});if(smMonth()!==m)return;smPlanRows(r.items);await api("/api/sm/cfg",{m,v:smForm()});say(T("{n} konten. Tersimpan; edit seperlunya.").replace("{n}",r.items.length))}
+  try{const r=await api("/api/sm/plan",{m,note:$("rSmPn").value.trim()});if(smMonth()!==m)return;smPlanRows(r.items);await api("/api/sm/tr",{m,v:trForm()});say(T("{n} konten. Tersimpan; edit seperlunya.").replace("{n}",r.items.length))}
   catch(x){say(x.message)}finally{b.disabled=false}};
+/* ---------- Tren & Rencana Konten (laporan sendiri): tren kompetitor bulan dipilih + rencana konten bulan berikutnya (sm_tr:YYYY-MM) ---------- */
+const trForm=()=>({plan:[...$("rSmPl").children].map(r=>{const o={};r.querySelectorAll("[data-p]").forEach(el=>{const t=el.value.trim().slice(0,+el.maxLength);if(t)o[el.dataset.p]=t});return o}).filter(x=>x.t).slice(0,20),
+  planNote:$("rSmPn").value.trim().slice(0,300)});
+async function trLoad(){
+  const m=smMonth();if(RT!=="tr"||!m)return;
+  delete $("rTrF").dataset.m;$("rSmAiMsg").textContent="";smTrText(m);
+  const v=(await api("/api/sm/tr?m="+m)).v||{};if(smMonth()!==m)return;
+  smPlanRows(v.plan||[]);$("rSmPn").value=v.planNote||"";$("rTrF").dataset.m=m;
+}
+$("rTrAdd").onclick=()=>$("rSmPl").insertAdjacentHTML("beforeend",smPlanRow({}));
+$("rSmPl").addEventListener("click",e=>{const d=e.target.closest("[data-smdel]");if(d)d.closest(".sm-row").remove()});
+async function trendData(){
+  const m=smMonth();if(!m)throw new Error("Pilih bulan dulu.");
+  const from=m+"-01";$("rFrom").value=from;$("rTo").value=monthEnd(from);
+  // isian di form harus milik bulan ini (jangan timpa rencana bulan lain)
+  if($("rTrF").dataset.m!==m){await trLoad();throw new Error("Isian bulan ini baru dimuat. Periksa rencananya, lalu klik lagi.")}
+  const v=trForm();await api("/api/sm/tr",{m,v});
+  const tr=await api("/api/sm/trend?img=1&m="+m),mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4),nd=new Date(Date.UTC(+yr,+m.slice(5,7),1));
+  if(!tr.posts&&!v.plan.length)throw new Error("Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight.");
+  return {mon,yr,per:mon+" "+yr,tag:"",tr,plan:v.plan,next:CW_MON[nd.getUTCMonth()]+" "+nd.getUTCFullYear()};
+}
+// deck: Competitor Trends (porsi pilar & topik, format, kartu postingan menonjol) + Content Plan. Murni (dites di test.mjs).
+function trendDoc(R){
+  const B=[],n=x=>x===null||x===undefined?"-":Number(x).toLocaleString("en-US"),MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],day=d=>MN[+d.slice(5,7)-1]+" "+(+d.slice(8,10));
+  const TR=R.tr,pp=x=>x===null?"-":x.toFixed(1)+"%",chg=x=>x===null?"-":(x>0?"+":"")+x.toFixed(1)+" pts",ra=x=>x===null?"-":x.toFixed(1)+"×";
+  if(TR&&TR.posts){
+    const sh=(h2,l,L)=>({h2,cols:[[l,40],["This month",20,1],["Prev. 3 months",22,1],["Change",18,1]],rows:L.slice(0,8).map(x=>[x.n,pp(x.now),pp(x.avg),chg(x.chg)])});
+    B.push({t:"page",h2:"Competitor Trends",sub:`${R.mon} ${R.yr} · ${TR.posts} posts from ${TR.accounts} accounts`+(TR.base<3?` · compared with ${TR.base} month(s) only`:"")});
+    B.push({t:"sum",cols:[[sh("Content Pillars","Pillar",TR.pillars)],[sh("Topics","Topic",TR.topics),
+      {h2:"Formats",cols:[["Format",40],["Posts",25,1],["Engagement vs usual",35,1]],rows:TR.formats.map(x=>[x.n,n(x.posts),ra(x.ratio)]),note:"Engagement = likes + comments, compared with each account's own median."}]]});
+    if(TR.top.length)B.push({t:"posts",cols:3,h3:"Standout competitor posts (engagement at least 2× the account's usual)",
+      items:TR.top.map(x=>({img:x.img||"",date:day(x.d),title:"@"+x.account+(x.cap?" · "+x.cap.replace(/\s+/g," ").slice(0,90):""),ch:[x.format,x.pillar].filter(Boolean).join(" / "),m:[["Likes",n(x.likes)],["Comments",n(x.comments)],["vs usual",ra(x.ratio)]]}))});
+  }
+  const PL=(R.plan||[]).filter(x=>x.t);
+  if(PL.length){
+    B.push({t:"page",h2:"Content Plan",sub:`${R.next} · ${PL.length} new contents based on trends`});
+    B.push({t:"sum",cols:[[{h2:"",cols:[["Content",22],["Idea",38],["Pillar",12],["Format",10],["Trend",18]],rows:PL.map(x=>[x.t,x.i||"",x.p||"",x.f||"",x.r||""])}]]});
+  }
+  return {div:R.div,per:R.mon+" "+R.yr,head:R.div+" | Content Trends & Plan | "+R.mon+" "+R.yr,plain:true,raw:true,blocks:B};
+}
 async function smData(){
   const m=smMonth();if(!m)throw new Error("Pilih bulan dulu.");
   const from=m+"-01",to=monthEnd(from);$("rFrom").value=from;$("rTo").value=to;
@@ -2493,10 +2521,8 @@ async function smData(){
   SMF=(await api("/api/sm/followers?to="+m)).months||{};SMI=null;
   const c=smCalc(await smItems(m),{month:m,fol:SMF,v}),imgs={};
   for(let k=0;k<c.igPosts.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+c.igPosts.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
-  const mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4),nd=new Date(Date.UTC(+yr,+m.slice(5,7),1));
-  // tren gagal (mis. Content Insight belum ada datanya): deck tetap jadi, tanpa halaman tren
-  const tr=await api("/api/sm/trend?img=1&m="+m).catch(()=>null);
-  return {mon,yr,per:mon+" "+yr,tag:"",c,imgs,tr,plan:v.plan,next:CW_MON[nd.getUTCMonth()]+" "+nd.getUTCFullYear()};
+  const mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4);
+  return {mon,yr,per:mon+" "+yr,tag:"",c,imgs};
 }
 /* ---------- Laporan Copywriter (gaya deck Canva copywriter, label English seperti deck-nya) ---------- */
 // hitungan murni (dites di test.mjs): L = kegiatan periode yang sudah difilter orang; o = periode, kampanye, angka diketik, YTD
@@ -2592,7 +2618,7 @@ function cwDoc(R){
   });
   return {div:R.div,per:R.per,head:`${R.div} | ${R.per}`,plain:true,raw:true,blocks:B};
 }
-const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},sm:{data:smData,doc:smDoc,name:"Laporan Social Media Specialist"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
+const REP={keg:{data:repData,doc:kegDoc,name:"Laporan Kegiatan"},gal:{data:galData,doc:galDoc,name:"Laporan Kerja Sama Galeri"},prog:{data:progData,doc:progDoc,name:"Laporan Program Partnership"},mon:{data:monData,doc:monDoc,name:"Monthly Report"},tr:{data:trendData,doc:trendDoc,name:"Tren & Rencana Konten"},sm:{data:smData,doc:smDoc,name:"Laporan Social Media Specialist"},cw:{data:cwData,doc:cwDoc,name:"Laporan Copywriter"}};
 const repDiv=()=>{const tk=$("rTeam").value,d=$("rDiv").value.trim()||teamName(tk)||"Product & Digital Development";if(d!==teamName(tk))store("pl_div:"+tk,d);else try{localStorage.removeItem("pl_div:"+tk)}catch(e){}return d};
 // nama file PDF & PPT = judul laporan (+ filter regional / cabang / orang / program) + periode, mis. "Laporan Kegiatan - Regional Jakarta - Oktober 2026";
 // Monthly Report: "<divisi> Report - <periode>". Karakter yang tidak boleh di nama file dibuang.
