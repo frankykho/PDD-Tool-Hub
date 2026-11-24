@@ -366,6 +366,10 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   const cnt = (re) => (e4.match(re) || []).length;
   assert.equal(cnt(/w14:paraId="1A"/g), 1); assert.equal(cnt(/w:name="x"/g), 1);
   const docIds = [...e4.matchAll(/<wp:docPr id="(\d+)"/g)].map((m) => m[1]); assert.equal(new Set(docIds).size, 2);
+  const D5 = '<w:body><w:p><w:commentRangeStart w:id="3"/><w:r><w:rPr><w:b/><w:rPrChange w:id="7" w:author="a" w:date="d"><w:rPr/></w:rPrChange></w:rPr><w:t>Isi</w:t></w:r><w:commentRangeEnd w:id="3"/><w:r><w:commentReference w:id="3"/></w:r></w:p><w:sectPr/></w:body>';
+  const e5 = O.insertEnglish(D5, new Map(), T);
+  const cn = (re) => (e5.match(re) || []).length;
+  assert.equal(cn(/w:id="7"/g), 1); assert.equal(cn(/w:id="3"/g), 3, "komentar hanya di asli"); assert.equal(cn(/commentRangeStart/g), 1); assert.equal(cn(/commentReference/g), 1);
   const wids = [...e4.matchAll(/<w:(?:ins|del|bookmarkStart) [^>]*w:id="(\d+)"/g)].map((m) => m[1]); assert.equal(new Set(wids).size, wids.length);
   assert.equal(O.docxParagraphs(O.applyDocx(D2, [{ id: 1, p: 0, from: "bar\tbaz", to: "B\nB" }, { id: 2, p: 0, from: "Foo", to: "Fu" }], { ...T, track: false }).xml)[0].text, "Fu B\nB Foo");
 }

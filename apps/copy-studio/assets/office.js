@@ -208,6 +208,8 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
   const marker = (t) => `<w:p>${ins(`<w:r><w:t>${t}</w:t></w:r>`)}</w:p>`;
   let n = 0;
   const copy = (blk) => blk.replace(PARA, (p) => {
+    // komentar tetap hanya di asli
+    p = p.replace(/<w:comment(?:RangeStart|RangeEnd)\b[^>]*\/>/g, "").replace(/<w:r(?:\s[^>]*)?>(?:(?!<\/w:r>)[\s\S])*?<w:commentReference\b[^>]*\/>[\s\S]*?<\/w:r>/g, "");
     const i = n++, m = p.match(/^(<w:p(?:\s[^>]*?)?)\/?>([\s\S]*?)(?:<\/w:p>)?$/), o = m[1] + ">";
     const toks = tokens(p.endsWith("/>") ? "" : m[2]);
     if (translated.has(i)) {
@@ -222,6 +224,6 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
   const blocks = (marker("ENGLISH") + bodyBlocks(documentXml).map(copy).join("") + marker("INDONESIA"))
     .replace(/\sw14:(?:paraId|textId)="[^"]*"/g, "").replace(/<w:bookmark(?:Start|End)\b[^>]*\/>/g, "")
     .replace(/(<wp:docPr\b[^>]*?\sid=")\d+"/g, (_, a) => `${a}${++dp}"`)
-    .replace(/(<w:(?:ins|del|moveFrom|moveTo)\s[^>]*?w:id=")\d+"/g, (_, a) => `${a}${id++}"`);
+    .replace(/(<w:(?:ins|del|moveFrom|moveTo|[pr]PrChange|sectPrChange|tblPrChange|trPrChange|tcPrChange|numberingChange)\s[^>]*?w:id=")\d+"/g, (_, a) => `${a}${id++}"`);
   return documentXml.replace("<w:body>", () => `<w:body>${blocks}`);
 }
