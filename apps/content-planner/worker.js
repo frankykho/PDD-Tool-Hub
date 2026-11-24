@@ -912,11 +912,15 @@ export function trendCalc(rows, m) {
   const fm = {};
   scored.forEach((r) => { const f = r.format || "Lainnya"; (fm[f] = fm[f] || { n: f, posts: 0, R: [] }).posts++; if (r.ratio !== null) fm[f].R.push(r.ratio); });
   const formats = Object.values(fm).map((x) => ({ n: x.n, posts: x.posts, ratio: x.R.length ? r1(median(x.R)) : null })).sort((p, q) => q.posts - p.posts);
-  const top = scored.filter((r) => r.ratio !== null && r.ratio >= 2).sort((p, q) => q.ratio - p.ratio).slice(0, 6)
-    .map((r) => ({ id: r.id, account: r.account, format: r.format || "", pillar: r.pillar || "", topic: r.topic || "", d: r.d, likes: num(r.likes), comments: num(r.comments), ratio: r1(r.ratio), cap: String(r.cap || "").slice(0, 300), url: r.url || "" }));
-  return { month: m, posts: now.length, accounts: new Set(now.map((r) => r.account)).size, base, pillars: shift("pillar"), topics: shift("topic"), formats, top };
+  const card = (r) => ({ id: r.id, account: r.account, format: r.format || "", pillar: r.pillar || "", topic: r.topic || "", d: r.d, likes: num(r.likes), comments: num(r.comments), ratio: r.ratio === null ? null : r1(r.ratio), cap: String(r.cap || "").slice(0, 300), url: r.url || "" });
+  const top = scored.filter((r) => r.ratio !== null && r.ratio >= 2).sort((p, q) => q.ratio - p.ratio).slice(0, 6).map(card);
+  // contoh konten per pilar (urut porsi bulan ini): maks. 3, yang paling di atas biasanya akunnya dulu, lalu engagement, lalu terbaru
+  const pillars = shift("pillar"), by = (k) => (r) => (r[k] === null ? -1 : r[k]);
+  const ex = pillars.filter((x) => x.now > 0).map((x) => ({ n: x.n, share: x.now, items: scored.filter((r) => (r.pillar || "Lainnya") === x.n)
+    .sort((p, q) => by("ratio")(q) - by("ratio")(p) || by("eng")(q) - by("eng")(p) || String(q.d).localeCompare(String(p.d))).slice(0, 3).map(card) }));
+  return { month: m, posts: now.length, accounts: new Set(now.map((r) => r.account)).size, base, pillars, topics: shift("topic"), formats, top, ex };
 }
-/** GET /api/sm/trend?m=YYYY-MM[&img=1]: img = gambar (data URL) postingan menonjol untuk deck. */
+/** GET /api/sm/trend?m=YYYY-MM[&img=1]: img = gambar (data URL) postingan menonjol & contoh per pilar untuk deck. */
 async function smTrend(env, m, img) {
   if (!YM.test(String(m || ""))) return { error: "Bulan belum benar." };
   if (!env.FUND_DB) return { error: "Data Content Insight belum tersambung." };
@@ -927,9 +931,11 @@ async function smTrend(env, m, img) {
       .bind(ymShift(m, -3) + "-01", m + "-31").all()).results;
   } catch { return { error: "Belum ada data Content Insight." }; }
   const t = trendCalc(rows, m);
-  if (img && t.top.length) {
-    const I = (await env.FUND_DB.prepare(`SELECT id, image_data FROM ci_content WHERE id IN (${t.top.map(() => "?").join(",")})`).bind(...t.top.map((x) => x.id)).all()).results;
-    t.top.forEach((x) => { const r = I.find((y) => y.id === x.id); x.img = r && /^data:image\//.test(r.image_data || "") ? r.image_data : ""; });
+  const cards = [...t.top, ...t.ex.flatMap((x) => x.items)], ids = [...new Set(cards.map((x) => x.id))];
+  if (img && ids.length) {
+    // maks. 6 + 9 pilar × 3 = 33 id (batas parameter D1: 100)
+    const I = (await env.FUND_DB.prepare(`SELECT id, image_data FROM ci_content WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
+    cards.forEach((x) => { const r = I.find((y) => y.id === x.id); x.img = r && /^data:image\//.test(r.image_data || "") ? r.image_data : ""; });
   }
   return t;
 }

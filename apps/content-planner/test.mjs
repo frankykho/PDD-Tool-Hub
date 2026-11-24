@@ -1324,10 +1324,14 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   // laporan Tren & Rencana Konten (terpisah)
   const tdoc = new Function(pg.match(/function trendDoc\(R\)\{[\s\S]*?\n\}\n/)[0] + "return trendDoc")();
   const tr = { posts: 4, accounts: 2, base: 2, pillars: [{ n: "Promo", now: 50, avg: 50, chg: 0 }, { n: "Edukasi", now: 25, avg: 50, chg: -25 }], topics: [{ n: "Saham", now: 100, avg: null, chg: null }],
-    formats: [{ n: "Reels", posts: 1, ratio: 5 }, { n: "Carousel", posts: 2, ratio: null }], top: [{ account: "sekuritas_x", format: "Reels", pillar: "Edukasi", d: "2026-10-05", likes: 500, comments: 3, ratio: 5, cap: "Cara  baca\nlaporan keuangan", img: "data:image/png;base64,AA" }] };
+    formats: [{ n: "Reels", posts: 1, ratio: 5 }, { n: "Carousel", posts: 2, ratio: null }], top: [{ account: "sekuritas_x", format: "Reels", pillar: "Edukasi", d: "2026-10-05", likes: 500, comments: 3, ratio: 5, cap: "Cara  baca\nlaporan keuangan", img: "data:image/png;base64,AA" }],
+    ex: [{ n: "Promo", share: 50, items: [{ account: "sekuritas_y", format: "Foto", pillar: "Promo", d: "2026-10-07", likes: 80, comments: null, ratio: null, cap: "Cashback 50rb" }] }, { n: "Event", share: 0, items: [] }] };
   const D2 = tdoc({ div: "Digital Marketing", mon: "October", yr: "2026", tr, next: "November 2026", plan: [{ t: "Bedah laporan keuangan", i: "Carousel 5 slide", p: "Edukasi", f: "Carousel", r: "Edukasi laporan keuangan menonjol" }, { t: "", i: "baris kosong" }] });
   const all2 = JSON.stringify(D2.blocks), pg2 = D2.blocks.filter((b) => b.t === "page").map((b) => b.h2);
-  assert.deepEqual(pg2, ["Competitor Trends", "Content Plan"], "hanya tren & rencana"); assert.equal(D2.head, "Digital Marketing | Content Trends & Plan | October 2026");
+  assert.deepEqual(pg2, ["Competitor Trends", "Content Examples by Pillar", "Content Plan"], "hanya tren, contoh per pilar & rencana");
+  const exb = D2.blocks.filter((b) => b.t === "posts" && /of posts/.test(b.h3 || ""));
+  assert.deepEqual(exb.map((b) => [b.h3, b.items.length]), [["Promo · 50.0% of posts", 1]], "pilar tanpa contoh tidak tampil");
+  assert.deepEqual(exb[0].items[0].m, [["Likes", "80"], ["Comments", "-"], ["vs usual", "-"]]); assert.equal(D2.head, "Digital Marketing | Content Trends & Plan | October 2026");
   assert.match(all2, /4 posts from 2 accounts · compared with 2 month\(s\) only/); assert.match(all2, /"-25\.0 pts"/); assert.match(all2, /"5\.0×"/); assert.match(all2, /@sekuritas_x · Cara baca laporan keuangan/);
   assert.match(all2, /November 2026 · 1 new contents based on trends/, "baris rencana tanpa judul tidak ikut"); assert.match(all2, /Bedah laporan keuangan/);
   assert.equal(D2.blocks.filter((b) => b.t === "sum").length, 2);
@@ -1351,6 +1355,10 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(t.pillars.map((x) => [x.n, x.now, x.avg, x.chg]), [["Promo", 50, 50, 0], ["Edukasi", 25, 50, -25], ["Market update", 25, 0, 25]], "porsi (%), bukan jumlah; bulan di luar jendela diabaikan");
   assert.deepEqual(t.formats.map((x) => [x.n, x.posts, x.ratio]), [["Carousel", 2, 1], ["Reels", 1, 5], ["Foto", 1, 1]], "postingan tanpa angka likes tetap dihitung jumlahnya");
   assert.deepEqual(t.top.map((x) => [x.id, x.ratio]), [["a10r", 5]], "menonjol = >= 2x median akun itu sendiri");
+  // contoh per pilar: urut porsi, maks. 3, yang di atas biasanya dulu; tanpa angka likes di akhir
+  assert.deepEqual(t.ex.map((x) => [x.n, x.share, x.items.map((i) => i.id)]), [["Promo", 50, ["a10f", "b10"]], ["Edukasi", 25, ["a10r"]], ["Market update", 25, ["b10n"]]]);
+  assert.equal(t.ex[2].items[0].ratio, null, "tanpa angka: rasio kosong, bukan 0");
+  assert.equal(trendCalc([1, 2, 3, 4, 5].map((k) => row("p" + k, "a", "2026-10-0" + k, "Promo", "Foto", k * 10)), "2026-10").ex[0].items.map((i) => i.id).join(), "p5,p4,p3", "maks. 3 per pilar");
   assert.equal(trendCalc(R.filter((r) => r.d >= "2026-10"), "2026-10").base, 0, "tanpa bulan pembanding");
   assert.equal(trendCalc(R.filter((r) => r.d >= "2026-10"), "2026-10").pillars[0].chg, null);
   assert.deepEqual(trendCalc([row("x", "x", "2026-10-01", "Promo", "Foto", 900)], "2026-10").top, [], "akun dengan < 3 postingan berangka tidak dinilai");
@@ -1372,6 +1380,7 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   let x = (await call("/api/sm/trend?m=2026-10", { ck: SMS })).j;
   assert.equal(x.posts, 4, "tanggal kosong (bookmark) memakai tanggal disimpan"); assert.equal(x.top[0].img, undefined, "gambar hanya bila diminta");
   x = (await call("/api/sm/trend?img=1&m=2026-10", { ck: SMS })).j; assert.equal(x.top[0].img, "data:image/jpeg;base64,AA");
+  assert.deepEqual(x.ex.map((e) => e.items.map((i) => i.img)), [["", ""], ["data:image/jpeg;base64,AA"], [""]], "gambar contoh per pilar ikut");
   assert.equal((await call("/api/sm/trend?m=2026-13", { ck: SMS })).status, 400);
   // seri rutin untuk AI: isian Laporan SMS bulan terakhir yang ada (di sini September)
   await call("/api/sm/cfg", { ck: SMS, body: { m: "2026-09", v: { ser: [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }] } } });

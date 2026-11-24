@@ -1466,7 +1466,7 @@ function setRT(t){
   else if($("rWho").dataset.cw){delete $("rWho").dataset.cw;repTeam(false)}
   $("rHelp").innerHTML=(t==="sm"?"Laporan Social Media Specialist bergaya deck Canva (English), satu bulan: followers 18 bulan, Instagram (seri, regular, iklan), YouTube Shorts, TikTok, ringkasan video editing & desain, lalu kartu semua postingan IG. Angka postingan diambil dari tombol bookmark Angka IG / Angka TikTok ke Planner di tab Performa; angka abu-abu di form adalah hitungan otomatis, isi kolomnya untuk mengganti. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
     :t==="cw"?"Laporan Copywriter bergaya deck Canva (English): ringkasan, detail artikel, narasumber di media, dan galeri kampanye. Artikel kisi.co.id beserta views-nya diambil otomatis saat laporan dibuat; views YouTube dari halaman videonya. Nama divisi tampil di kepala halaman (mis. Digital Marketing). PPT bisa diimpor ke Canva lewat Create → Import file."
-    :t==="tr"?"Tren &amp; Rencana Konten (English): tren konten kompetitor bulan yang dipilih dari Content Insight (porsi pilar &amp; topik dibanding 3 bulan sebelumnya, format, postingan yang menonjol), lalu rencana konten bulan berikutnya. Draf rencana bisa dibuat AI dari tren itu, lalu diedit; rencana tersimpan per bulan."
+    :t==="tr"?"Tren &amp; Rencana Konten (English): tren konten kompetitor bulan yang dipilih dari Content Insight (porsi pilar &amp; topik dibanding 3 bulan sebelumnya, format, postingan yang menonjol, contoh konten tiap pilar), lalu rencana konten bulan berikutnya. Draf rencana bisa dibuat AI dari tren itu, lalu diedit; rencana tersimpan per bulan."
     :t==="mon"?"Monthly Report satu tim: ringkasan, lalu per role hasil program, kegiatan kalender, dan aktivitas anggotanya."
     :t==="gal"?"Laporan rencana galeri investasi baru: tahap tiap rencana per regional, target peresmian, dan semua update progres pada periode itu. Rencana yang mulai lebih awal tetap ikut selama masih berproses."
     :t==="prog"?"Laporan program memakai detail, hasil bisnis &amp; biaya dari program, kegiatan yang dikaitkan ke program itu, dan tugas timnya. Pilih satu program, atau biarkan semua program yang berjalan di periode itu."
@@ -2501,8 +2501,14 @@ function trendDoc(R){
     B.push({t:"page",h2:"Competitor Trends",sub:`${R.mon} ${R.yr} · ${TR.posts} posts from ${TR.accounts} accounts`+(TR.base<3?` · compared with ${TR.base} month(s) only`:"")});
     B.push({t:"sum",cols:[[sh("Content Pillars","Pillar",TR.pillars)],[sh("Topics","Topic",TR.topics),
       {h2:"Formats",cols:[["Format",40],["Posts",25,1],["Engagement vs usual",35,1]],rows:TR.formats.map(x=>[x.n,n(x.posts),ra(x.ratio)]),note:"Engagement = likes + comments, compared with each account's own median."}]]});
-    if(TR.top.length)B.push({t:"posts",cols:3,h3:"Standout competitor posts (engagement at least 2× the account's usual)",
-      items:TR.top.map(x=>({img:x.img||"",date:day(x.d),title:"@"+x.account+(x.cap?" · "+x.cap.replace(/\s+/g," ").slice(0,90):""),ch:[x.format,x.pillar].filter(Boolean).join(" / "),m:[["Likes",n(x.likes)],["Comments",n(x.comments)],["vs usual",ra(x.ratio)]]}))});
+    const card=x=>({img:x.img||"",date:day(x.d),title:"@"+x.account+(x.cap?" · "+x.cap.replace(/\s+/g," ").slice(0,90):""),ch:[x.format,x.pillar].filter(Boolean).join(" / "),m:[["Likes",n(x.likes)],["Comments",n(x.comments)],["vs usual",ra(x.ratio)]]});
+    if(TR.top.length)B.push({t:"posts",cols:3,h3:"Standout competitor posts (engagement at least 2× the account's usual)",items:TR.top.map(card)});
+    // contoh konten tiap pilar (maks. 3 per pilar, urut porsi bulan ini)
+    const EX=(TR.ex||[]).filter(x=>x.items.length);
+    if(EX.length){
+      B.push({t:"page",h2:"Content Examples by Pillar",sub:`${R.mon} ${R.yr} · up to 3 competitor posts per pillar, highest engagement vs the account's usual first`});
+      EX.forEach(x=>B.push({t:"posts",cols:3,h3:x.n+" · "+pp(x.share)+" of posts",items:x.items.map(card)}));
+    }
   }
   const PL=(R.plan||[]).filter(x=>x.t);
   if(PL.length){
