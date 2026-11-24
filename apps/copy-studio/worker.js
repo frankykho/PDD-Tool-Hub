@@ -5,7 +5,7 @@
 // - POST /api/style        simpan panduan gaya (editor & admin)
 // - GET/POST /api/cw       data program & press release tab Copywriter (simpan: editor & admin; meta cw_program, cw_pr)
 // - GET  /api/quota        pemakaian AI hari ini {used, limit}
-// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix (batas per hari: COPY_AI_DAILY)
+// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
 // - POST /__hub/disclaimers teks disclaimer resmi dari Brand Kit (disimpan sebagai salinan; tombol "+ Izin & disclaimer")
@@ -318,6 +318,13 @@ Isi:
 Sertakan "Kinerja masa lalu tidak mencerminkan kinerja masa depan." bila menyebut return, dan pengingat risiko.
 Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{"subject":"","preheader":"","body":""},"push":{"title":"","body":""},"faq":[{"q":"","a":""}],"visual_brief":"","notes":""}` };
   }
+  if (kind === "cw_article") {
+    const text = str(b.text, 12000);
+    if (!text) return null;
+    const close = b.close === "brand" || b.close === "promo" ? b.close : "none", pr = b.promo && typeof b.promo === "object" ? b.promo : {};
+    const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100)}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil.\n`;
+    return { max: 3000, user: `Ini naskah berita dari tim IGS${str(b.title, 300) ? ` berjudul "${str(b.title, 300)}"` : ""} untuk diterbitkan sebagai artikel website KISI. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.\nTugas:\n1. Usulkan 3–5 judul dari judul IGS.\n2. Daftar perbaikan ejaan/kalimat sebagai "edits" (from = potongan persis dari naskah, to = perbaikan, why = alasan singkat). JANGAN menulis ulang isi; angka, nama, dan kutipan dilarang berubah.\n3. Beri 3–4 tag.\n${closeLine}Naskah:\n${text}\n\nFormat: {"titles":[""],"edits":[{"from":"","to":"","why":""}],"tags":[""],"closing":""}` };
+  }
   if (kind === "fix") {
     const text = str(b.text, 5000);
     if (!text) return null;
@@ -370,6 +377,11 @@ export function parse(kind, raw) {
     r.seconds = Math.round(r.words / YT_WPM * 60);
     return r;
   }
+  if (kind === "cw_article") return {
+    titles: list(j.titles, 5).map((x) => str(x, 200)).filter(Boolean),
+    edits: list(j.edits, 40).map((x) => ({ from: str(x && x.from, 500), to: str(x && x.to, 500), why: str(x && x.why, 200) })).filter((x) => x.from && x.from !== x.to),
+    tags: list(j.tags, 4).map((x) => str(x, 40)).filter(Boolean), closing: str(j.closing, 1200),
+  };
   if (kind === "fix") return { text: str(j.text, 6000) };
   if (kind === "kit") {
     const e = j.email && typeof j.email === "object" ? j.email : {}, p = j.push && typeof j.push === "object" ? j.push : {};
@@ -498,7 +510,7 @@ export default {
           const q = prompt(b.kind, b);
           if (!q) return json({ error: "Isi dulu brief atau teksnya." }, 400);
           if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 100))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
-          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "wn" ? 0.5 : 0.9 });
+          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "cw_article" ? 0.4 : b.kind === "wn" ? 0.5 : 0.9 });
           return json({ result: parse(b.kind, text), model });
         }
         if (path === "/api/transcribe") {

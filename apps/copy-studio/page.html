@@ -337,9 +337,27 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   <section data-tab="cw" class="stack" hidden>
     <div class="card stack">
       <label>Jenis tulisan
-        <select id="cwKind" translate="no"><option value="article">Artikel berita</option><option value="review">Cek wording file</option><option value="brief">Brief KISI Challenge</option><option value="pr">Press release</option></select></label>
+        <select id="cwKind"><option value="article">Artikel berita</option><option value="review">Cek wording file</option><option value="brief">Brief KISI Challenge</option><option value="pr">Press release</option></select></label>
     </div>
-    <div data-cw="article" class="card"></div>
+    <div data-cw="article" class="card stack">
+      <div class="row"><label class="btn">Unggah .docx<input type="file" id="caFile" accept=".docx" hidden></label><span class="muted small">atau tempel naskah IGS di bawah</span></div>
+      <label class="small muted" style="font-weight:600">Naskah IGS<textarea id="caText" class="big" maxlength="12000" translate="no"></textarea></label>
+      <label class="small muted" style="font-weight:600">Judul IGS<input type="text" id="caTitle" maxlength="300" translate="no"></label>
+      <div class="row">
+        <label>Paragraf penutup <select id="caClose"><option value="none">Tanpa penutup</option><option value="brand">Branding iKISI/KISI</option><option value="promo">Promo program</option></select></label>
+        <label class="grow" id="caPromoBox" hidden>Nama program <input type="text" id="caPName" maxlength="100" translate="no"></label>
+        <label class="grow" id="caPromoUrl" hidden>Link <input type="text" id="caPUrl" maxlength="200" translate="no"></label>
+      </div>
+      <div class="row"><button class="btn pri" id="caGo" type="button">Buat artikel</button></div>
+      <div id="caOut" class="stack" hidden>
+        <div><h3>Pilih judul</h3><div id="caTitles" class="stack" translate="no"></div></div>
+        <div><h3>Perbaikan yang disarankan</h3><div id="caEdits" class="stack" translate="no"></div></div>
+        <div><h3>Artikel akhir</h3><textarea id="caFinal" class="big" translate="no"></textarea></div>
+        <div class="muted small">Tag: <span id="caTags" translate="no"></span></div>
+        <div id="caWarn" class="stack"></div>
+        <div class="row"><button class="btn sm" id="caCopy" type="button">Salin</button><button class="btn sm" id="caDocx" type="button">Unduh .docx</button></div>
+      </div>
+    </div>
     <div data-cw="review" class="card" hidden></div>
     <div data-cw="brief" class="card" hidden></div>
     <div data-cw="pr" class="card" hidden></div>
@@ -452,7 +470,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     document.querySelectorAll("[data-tab]").forEach(function (s) { s.hidden = s.dataset.tab !== id; });
     nav.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("on", b.dataset.t === id); b.setAttribute("aria-selected", b.dataset.t === id); });
     try { localStorage.setItem("cs_tab", id); } catch (e) {}
-    if (id === "cw" && !show.cw) show.cw = import("/cw.js").then(function (m) { m.init(window.CS); });
+    if (id === "cw" && !show.cw) show.cw = import("/cw.js").then(function (m) { m.init(window.CS); }).catch(function () { show.cw = null; toast("Gagal memuat tab Copywriter. Coba lagi."); });
     // HP: baris tab digeser supaya tab yang aktif terlihat
     var on = nav.querySelector(".tab.on"); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   }

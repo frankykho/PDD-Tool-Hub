@@ -7,6 +7,13 @@ export default {
   "Cek Caption": "Caption Check", "Variasi A/B": "A/B Variations", "Teks Aplikasi": "App Text", "Paket Produk": "Product Kit",
   "Naskah Reels/TikTok": "Reels/TikTok Script", "Naskah Reels / TikTok": "Reels / TikTok Script", "Naskah YouTube": "YouTube Script", "Ubah Ukuran": "Resize", "Panduan Gaya": "Style Guide",
   "Copywriter": "Copywriter", "Jenis tulisan": "Type of writing", "Artikel berita": "News article", "Cek wording file": "File wording check", "Brief KISI Challenge": "KISI Challenge brief", "Press release": "Press release",
+  // ---- Copywriter: artikel berita ----
+  "Unggah .docx": "Upload .docx", "atau tempel naskah IGS di bawah": "or paste the IGS draft below", "Naskah IGS": "IGS draft", "Judul IGS": "IGS title", "Paragraf penutup": "Closing paragraph",
+  "Tanpa penutup": "No closing", "Branding iKISI/KISI": "iKISI/KISI branding", "Promo program": "Program promo", "Nama program": "Program name", "Link": "Link",
+  "Buat artikel": "Create article", "Pilih judul": "Choose a title", "Perbaikan yang disarankan": "Suggested fixes", "Artikel akhir": "Final article", "Tag:": "Tags:",
+  "Tidak ada perbaikan.": "No fixes.", "Salin": "Copy", "Unduh .docx": "Download .docx", "Tersalin": "Copied",
+  "Isi dulu naskah IGS.": "Enter the IGS draft first.", "File .docx tidak bisa dibaca.": "The .docx file could not be read.", "Gagal membuat artikel.": "Failed to create the article.",
+  "Angka dari naskah asli hilang atau berubah:": "Numbers from the original draft are missing or changed:", "Gagal memuat tab Copywriter. Coba lagi.": "Failed to load the Copywriter tab. Try again.",
   "Cara pakai": "How to use", "Langkah": "Steps", "Tips": "Tips",
   "Menulis…": "Writing…", "Memperbaiki…": "Fixing…", "Menyusun paket…": "Building kit…", "Memproses…": "Processing…", "Menulis naskah…": "Writing script…",
   "Gagal menyalin": "Copy failed", "Kosongkan": "Clear", "Salin semua": "Copy all", "Cek": "Check", "Unduh .txt": "Download .txt",

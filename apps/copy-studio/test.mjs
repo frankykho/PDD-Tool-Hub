@@ -211,7 +211,7 @@ assert.deepEqual(cw1.pr, { about: "A", contact: "B" });
 assert.equal((await (await call("/api/cw", { cookie: user })).json()).pr.contact, "B");
 assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('id="cwKind"') && page.includes('import("/cw.js")'));
 assert.ok(fs.existsSync(new URL("./assets/brand/kisi-color.png", import.meta.url)));
-for (const f of ["wrangler.jsonc", "wrangler.deploy.json"]) assert.match(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /"COPY_AI_DAILY": "100"/);
+for (const f of ["wrangler.jsonc", "wrangler.deploy.json"]) if (fs.existsSync(new URL("./" + f, import.meta.url))) assert.match(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /"COPY_AI_DAILY": "100"/);
 
 // AI: batas per hari
 assert.equal((await call("/api/ai", { cookie: user, json: { kind: "ab", brief: "" } })).status, 400);
@@ -334,6 +334,29 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.match(O.makeDocx([{ t: "li", runs: [{ text: "poin" }] }], {})["word/document.xml"], /• <\/w:t>[\s\S]*poin/);
   const fj = O.makeDocx([{ t: "img", img: { data: new Uint8Array([1]), w: 10, h: 10, ext: "jpg" } }], {});
   assert.ok(fj["word/media/image1.jpeg"] && !/undefined/.test(fj["[Content_Types].xml"]));
+}
+
+/* ---------- Copywriter: artikel berita ---------- */
+{
+const CW = await import("./assets/cw.js");
+const IGS = "Indonesia dan Uni Eropa resmi menandatangani IEU-CEPA pada 21 November 2026. Sebanyak 90,4% pos tarif mendapat bea masuk 0% pada 2027.\nDimuat oleh Tim Investment Growth Specialist KISI.";
+assert.deepEqual(CW.numbers("90,4% pos, 0% pada 2027"), ["90,4%", "0%", "2027"]);
+assert.deepEqual(CW.missingNumbers(IGS, IGS.replace("90,4%", "90%")), ["90,4%"]);
+assert.deepEqual(CW.missingNumbers(IGS, IGS), []);
+const ae = CW.applyEdits("Termyn I dan Termyn II", [{ from: "Termyn", to: "Termin" }, { from: "tidak ada", to: "x" }]);
+assert.equal(ae.text, "Termin I dan Termyn II"); assert.equal(ae.skipped.length, 1);
+const art = CW.buildArticle({ body: IGS, title: "Deal Indonesia-Eropa, Peluang Baru Buat Sektor Ini!", closing: "Ikuti KISI Challenge.", close: "promo", tags: ["IEU-CEPA", "kisi"] });
+assert.ok(art.text.startsWith("Behind The Candle – Indonesia"));
+assert.equal(art.text.split("Dimuat oleh Tim Investment Growth Specialist KISI.").length, 2, "byline tidak dobel");
+assert.ok(art.text.indexOf("Ikuti KISI Challenge.") < art.text.indexOf("Dimuat oleh"));
+assert.ok(art.text.includes(CW.PRIZE_DISC) && art.text.endsWith(CW.DISC_ARTICLE));
+assert.deepEqual(art.tags, ["IEU-CEPA", "kisi", "iKISI", "Behind The Candle"]);
+assert.equal(prompt("cw_article", { text: " " }), null);
+const pa = prompt("cw_article", { text: IGS, title: "Deal Indonesia-Eropa", close: "brand" }).user;
+assert.match(pa, /Deal Indonesia-Eropa/); assert.match(pa, /Jangan mengarang angka/); assert.match(pa, /penutup/i);
+assert.doesNotMatch(prompt("cw_article", { text: IGS, close: "none" }).user, /paragraf penutup/i);
+const ra = parse("cw_article", '{"titles":["A","B"],"edits":[{"from":"x","to":"y","why":"typo"},{"from":"z","to":"z"},{"to":"q"}],"tags":["t1"],"closing":""}');
+assert.deepEqual(ra.edits, [{ from: "x", to: "y", why: "typo" }]);
 }
 
 console.log("semua cek lolos");
