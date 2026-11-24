@@ -298,7 +298,7 @@ Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{
     const text = str(b.text, 12000);
     if (!text) return null;
     const close = b.close === "brand" || b.close === "promo" ? b.close : "none", pr = b.promo && typeof b.promo === "object" ? b.promo : {};
-    const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100)}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n`;
+    const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100) || "yang disebut di naskah (bila naskah tidak menyebut, tulis [perlu dilengkapi: nama program])"}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n`;
     return { max: 3000, user: `Ini naskah berita dari tim IGS${str(b.title, 300) ? ` berjudul "${str(b.title, 300)}"` : ""} untuk diterbitkan sebagai artikel website KISI. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.\nTugas:\n1. Usulkan 3–5 judul dari judul IGS.\n2. Daftar perbaikan ejaan/kalimat sebagai "edits" (from = potongan persis dari naskah, to = perbaikan, why = alasan singkat). JANGAN menulis ulang isi; angka, nama, dan kutipan dilarang berubah.\n3. Beri 3–4 tag.\n${closeLine}Naskah:\n${text}\n\nFormat: {"titles":[""],"edits":[{"from":"","to":"","why":""}],"tags":[""],"closing":""}` };
   }
   if (kind === "cw_brief") {
@@ -327,15 +327,15 @@ Format: {"asset_url":"","media":{"title":"","body":[""]}} (body = daftar paragra
   }
   if (kind === "cw_pr") {
     const h = b.hl && typeof b.hl === "object" ? b.hl : {}, f = (k, n) => str(h[k], n);
-    if (!f("event", 300) && !f("free", 4000)) return null;
-    const opener = (f("city", 60) || "<Kota>") + ", " + (f("date", 60) || "<tanggal>") + " – PT Korea Investment And Sekuritas Indonesia (KISI)";
-    const rows = [["Acara/pencapaian", "event", 300], ["Tanggal", "date", 60], ["Kota", "city", 60], ["Mitra", "partners", 500], ["Tamu (nama, gelar, jabatan)", "guests", 1500], ["Angka", "numbers", 800], ["Narasumber", "speaker", 300], ["Inti kutipan", "quote", 600], ["Kontak tambahan", "contact", 400], ["Link dokumentasi", "doc_url", 300], ["Catatan bebas", "free", 4000]].map(([l, k, n]) => (f(k, n) ? l + ": " + f(k, n) : "")).filter(Boolean).join("\n");
+    if (!f("event", 300) && !f("free", 12000)) return null;
+    const opener = (f("city", 60) || "<Kota>") + ", " + (f("date", 60) || "<tanggal>") + " – PT Korea Investment And Sekuritas Indonesia (KISI)" + (f("city", 60) && f("date", 60) ? "" : "; kota dan tanggal yang belum diisi diambil dari bahan, bila tidak ada tulis [perlu dilengkapi: kota/tanggal]");
+    const rows = [["Acara/pencapaian", "event", 300], ["Tanggal", "date", 60], ["Kota", "city", 60], ["Mitra", "partners", 500], ["Tamu (nama, gelar, jabatan)", "guests", 1500], ["Angka", "numbers", 800], ["Narasumber", "speaker", 300], ["Inti kutipan", "quote", 600], ["Kontak tambahan", "contact", 400], ["Link dokumentasi", "doc_url", 300], ["Catatan bebas", "free", 12000]].map(([l, k, n]) => (f(k, n) ? l + ": " + f(k, n) : "")).filter(Boolean).join("\n");
     return { max: 2500, user: `Tulis press release KISI dalam bahasa Indonesia dari highlight berikut. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.
 Aturan:
 1. Paragraf pertama dibuka dengan "${opener}" (kota dan tanggal ditulis tebal, b=true) lalu isi: apa, kapan, di mana, bersama siapa.
 2. Daftar tamu ditulis lengkap dengan gelar dan jabatan sesuai bahan. Nama, acara, dan angka ditulis tebal (b=true); istilah asing miring (i=true).
 3. Data yang kurang (nama, gelar, jabatan, tanggal, angka) JANGAN dikarang; tulis di "missing" sebagai daftar "perlu dilengkapi".
-4. Kutipan narasumber: pakai kutipan dari bahan bila ada (ai=false). Bila disusun dari inti kutipan, isi ai=true. Tanpa narasumber, quote.text dikosongkan.
+4. Kutipan narasumber: pakai kutipan dari bahan bila ada (ai=false). Kutipan yang disalin kata demi kata dari bahan WAJIB ai=false. Bila disusun dari inti kutipan, isi ai=true. Tanpa narasumber, quote.text dikosongkan.
 5. "closing" = 1–2 paragraf komitmen KISI, tanpa janji hasil. Jangan menulis bagian "Tentang KISI" dan Media Contact (ditambahkan otomatis).
 Highlight:
 ${rows}

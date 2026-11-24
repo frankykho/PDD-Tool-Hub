@@ -523,6 +523,13 @@ assert.ok(!page.includes('id="cwKind"') && !page.includes('id="prEvent"') && !pa
 assert.equal(CW.igsTitle("Judul pendek\nIsi naskah"), "Judul pendek");
 assert.equal(CW.igsTitle("\n  \nJudul  \nIsi"), "Judul");
 assert.equal(CW.igsTitle("x".repeat(121) + "\nIsi"), "");
+assert.deepEqual(CW.splitTitle("Judul"+"\n"+"  Isi 5%"), { title: "Judul", body: "Isi 5%" });
+assert.deepEqual(CW.splitTitle("x".repeat(121) + "\nIsi"), { title: "", body: "x".repeat(121) + "\nIsi" });
+const prL = prompt("cw_pr", { hl: { free: "a".repeat(10000) + "UJUNG" } }).user;
+assert.match(prL, /UJUNG/); assert.match(prL, /perlu dilengkapi: kota[/]tanggal/); assert.match(prL, /kata demi kata dari bahan WAJIB ai=false/);
+assert.doesNotMatch(prompt("cw_pr", { hl: { free: "x", city: "Jakarta", date: "1 Mei" } }).user, /kota[/]tanggal/);
+assert.match(prompt("cw_article", { text: "x", close: "promo", promo: { name: "", url: "" } }).user, /perlu dilengkapi: nama program/);
+assert.doesNotMatch(prompt("cw_article", { text: "x", close: "promo", promo: { name: "Kompetisi A" } }).user, /nama program/);
 assert.equal(CW.inputError("article", "", "  "), "Unggah file atau tempel teks dulu.");
 assert.equal(CW.inputError("article", "a.xlsx", ""), "File Excel/PDF hanya untuk Cek wording.");
 assert.equal(CW.inputError("review", "a.pdf", ""), "");

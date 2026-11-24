@@ -13,6 +13,11 @@ const extOf = (name) => ((String(name).match(/\.(docx|xlsx|pdf)$/i) || [])[1] ||
 // Baris pertama naskah = judul kerja IGS bila pendek.
 export const igsTitle = (text) => { const l = String(text).split("\n").map((x) => x.trim()).find(Boolean) || ""; return l.length <= 120 ? l : ""; };
 // Pesan galat input bersama (kosong = boleh lanjut).
+// Pisahkan judul kerja (baris pertama pendek) dari isi naskah.
+export function splitTitle(text) {
+  const t = igsTitle(text), lines = String(text).split("\n"), i = lines.findIndex((l) => l.trim());
+  return t ? { title: t, body: lines.slice(i + 1).join("\n").trim() } : { title: "", body: String(text).trim() };
+}
 export function inputError(goal, fileName, text) {
   const type = extOf(fileName);
   if (fileName && !type) return "Pilih file .docx, .xlsx, atau .pdf.";
@@ -239,6 +244,7 @@ function initReview(cs) {
     try { s = { ...(await read(f, type)), name: f.name.replace(/\.[^.]+$/, "") }; } catch (err) { throw new Error("File tidak bisa dibaca."); }
     if (!s.units.length) throw new Error("Unggah file atau tempel teks dulu.");
     S = s; F = mk(base(), false); trans = new Map(); partial = false; $("rvOut").hidden = true; $("rvBox").hidden = false; status(); await refreshQuota();
+    if (quota && estimateCalls(s.units, wantEn()) > quota.limit - quota.used && !confirm("Perkiraan permintaan AI melebihi sisa kuota hari ini; hasil bisa sebagian. Lanjutkan?")) { S = null; $("rvBox").hidden = true; return; }
     const lang = s.bi ? "mix" : "id", ids = new Set(s.units.map((u) => u.id)), found = [], cs1 = chunks(s.units); let n = 0;
     try {
       for (const c of cs1) { $("rvInfo").textContent = "Memeriksa " + ++n + "/" + cs1.length + "…"; found.push(...(await ask("cw_review", c, lang)).findings.filter((x) => ids.has(x.id)).map((x) => ({ kind: x.kind, loc: x.id, from: x.from, to: x.to, why: x.why }))); }
@@ -258,11 +264,11 @@ function initReview(cs) {
 }
 
 function initArticle(cs) {
-  let ai = null, src = "", last = "";
+  let ai = null, src = "", igs = "", last = "";
   const sync = () => { $("caPromoBox").hidden = $("caPromoUrl").hidden = $("caClose").value !== "promo"; };
   $("caClose").onchange = () => { sync(); if (ai) toast("Pilihan penutup berubah. Klik Buat lagi."); };
   sync();
-  const chosen = () => { const r = document.querySelector('input[name="caT"]:checked'); return r ? ai.titles[+r.value] : igsTitle(src); };
+  const chosen = () => { const r = document.querySelector('input[name="caT"]:checked'); return r ? ai.titles[+r.value] : igs; };
   const render = () => {
     const acc = [...document.querySelectorAll("#caEdits input:checked")].map((c) => ai.edits[+c.dataset.n]);
     const art = buildArticle({ body: applyEdits(src, acc).text, title: chosen(), closing: ai.closing, close: $("caClose").value, tags: ai.tags });
@@ -277,8 +283,8 @@ function initArticle(cs) {
   };
   $("caFinal").oninput = check;
   const go = async ({ text }) => {
-    src = text.trim();
-    const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_article", text: src, title: igsTitle(src), close: $("caClose").value, promo: { name: $("caPName").value, url: $("caPUrl").value } }) });
+    ({ title: igs, body: src } = splitTitle(text)); if (!src) throw new Error("Unggah file atau tempel teks dulu.");
+    const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_article", text: src, title: igs, close: $("caClose").value, promo: { name: $("caPName").value, url: $("caPUrl").value } }) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
     ai = j.result;
     $("caTitles").innerHTML = ai.titles.map((t, n) => '<label><input type="radio" name="caT" value="' + n + '"' + (n ? "" : " checked") + "> " + esc(t) + "</label>").join("");
@@ -389,7 +395,8 @@ function initPr(cs) {
     const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl: { free } }) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
     R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
-    if (R.quote.ai) R.quote = { text: "", speaker: "", ai: false }; // kutipan karangan AI dibuang; hanya kutipan dari file yang dipakai
+    if (!R.quote.speaker) { if (R.quote.text) R.missing.push("kutipan narasumber"); R.quote = { text: "", speaker: "", ai: false }; } // tanpa narasumber, kutipan dibuang
+    $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
     $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
     $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");
     $("prOut").hidden = false;
