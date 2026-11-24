@@ -36,7 +36,7 @@ export const PLATFORMS = {
 /** Aturan teks. long = hanya untuk teks panjang (bukan platform short). */
 export const RULES = [
   { id: "janji", level: "error", msg: "Menjanjikan keuntungan atau menyebut tanpa risiko. Ini dilarang untuk produk investasi.",
-    re: /\b(?:pasti|dijamin|terjamin|garansi|jaminan)\s+(?:untung|cuan|profit|naik|aman|balik modal|return|imbal hasil|keuntungan)\b|\b(?:tanpa|bebas|nol|zero)\s+risiko\b|\banti[- ]?rugi\b|\btidak\s+(?:akan\s+)?(?:pernah\s+)?rugi\b|\b100\s?%\s+(?:aman|untung|cuan)\b|\bcuan\s+(?:pasti|terus|tiap hari|setiap hari)\b|\bpasti\s+(?:cuan|untung|profit)\b/gi },
+    re: /\b(?<!\b(?:bukan|tidak|tanpa)\s+)(?:pasti|dijamin|terjamin|garansi|jaminan)\s+(?:untung|cuan|profit|naik|aman|balik modal|return|imbal hasil|keuntungan)\b|\b(?:tanpa|bebas|nol|zero)\s+risiko\b|\banti[- ]?rugi\b|\btidak\s+(?:akan\s+)?(?:pernah\s+)?rugi\b|\b100\s?%\s+(?:aman|untung|cuan)\b|\bcuan\s+(?:pasti|terus|tiap hari|setiap hari)\b|\bpasti\s+(?:cuan|untung|profit)\b/gi },
   // code: kode 4 huruf terakhir di temuan dicek ke stop (bukan kode saham) dan opts.allow (kode produk sendiri, mis. ETF)
   { id: "ajakan", level: "error", msg: "Ajakan transaksi saham tertentu atau target harga. Ini hanya boleh dari analis berizin, bukan konten marketing.",
     re: /\b(?:[Bb]eli|[Jj]ual|[Tt]ahan|[Aa]kumulasi|[Bb]orong|[Ss]erok|[Hh]ajar|[Bb]uy|[Ss]ell|[Hh]old|[Ee]ntry|[Aa]verage [Dd]own)\b[^.!?\n]{0,25}?\b[A-Z]{4}\b|\b[Tt]arget [Hh]arga\b|\b[Rr]ekomendasi\s+(?:beli|jual|saham)\b|\b(?:TP|SL)\s*:?\s*\d/g,

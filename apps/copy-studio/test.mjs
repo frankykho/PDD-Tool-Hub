@@ -559,4 +559,14 @@ assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"
   assert.equal(tf.length, 1); assert.equal(tf[0].kind, "konsistensi"); assert.equal(tf[0].loc, "p0");
 }
 
+/* ---------- cek kepatuhan dokumen (Cek wording) ---------- */
+// disclaimer resmi "bukan jaminan keuntungan" tidak boleh dianggap janji untung
+assert.ok(!ids("Hadiah adalah bentuk apresiasi aktivitas transaksi, bukan jaminan keuntungan investasi.").includes("janji"));
+assert.ok(ids("Ada jaminan keuntungan 10%").includes("janji"));
+{ const CWd = await import("./assets/cw.js");
+  const units = [{ id: "p0", text: "Hadiah utama BYD untuk trader saham terbaik. " + "x".repeat(220) }, { id: "p1", text: "S&K berlaku. Investasi mengandung risiko. Berizin dan diawasi OJK." }];
+  const f = CWd.docCompliance(units, (t) => checkCopy(t).issues);
+  assert.deepEqual(f.filter((x) => ["p0", "p1"].includes(x.loc)).map((x) => x.from.toLowerCase()), ["terbaik"], "per paragraf hanya kata terlarang");
+  assert.equal(f.filter((x) => x.loc === "dokumen").length, 0, "disclaimer sekali di dokumen sudah cukup");
+  assert.ok(CWd.docCompliance([{ id: "p0", text: "Menangkan hadiah saham. " + "x".repeat(220) }], (t) => checkCopy(t).issues).filter((x) => x.loc === "dokumen").length >= 2, "dokumen tanpa disclaimer tetap ditandai sekali"); }
 console.log("semua cek lolos");

@@ -68,6 +68,15 @@ export function totalFindings(rows) {
   }
   return out;
 }
+// Aturan "belum ada X" (izin OJK, S&K, pengingat risiko, disclaimer kinerja) dicek sekali untuk seluruh dokumen,
+// karena disclaimer cukup ditulis sekali; aturan kata/kalimat terlarang tetap per paragraf.
+const DOC_RULES = new Set(["izin", "snk", "risiko", "kinerja", "panjang", "hashtag"]);
+export function docCompliance(units, check) {
+  const out = [];
+  for (const u of units) for (const i of check(u.text)) if (!DOC_RULES.has(i.id)) out.push({ kind: "compliance", loc: u.id, from: i.match || "", to: "", why: i.msg });
+  for (const i of check(units.map((u) => u.text).join("\n"))) if (DOC_RULES.has(i.id)) out.push({ kind: "compliance", loc: "dokumen", from: i.match || "", to: "", why: i.msg });
+  return out;
+}
 export function langFindings(enUnits, idUnits) {
   const key = (t) => numbers(t).map((x) => x.replace(/[.,]/g, "")).sort().join("|");
   return idUnits.flatMap((u, i) => enUnits[i] && key(enUnits[i].text) !== key(u.text) ? [{ kind: "konsistensi", loc: u.loc, from: numbers(u.text).join(", "), to: "", why: "Angka berbeda dari versi Inggris: " + numbers(enUnits[i].text).join(", ") }] : []);
@@ -150,7 +159,7 @@ function initReview(cs) {
     if (S.bi) out.push(...numberFormatFindings(L(S.en)), ...numberFormatFindings(L(S.id)), ...langFindings(L(S.en), L(S.id)));
     else out.push(...numberFormatFindings(L(S.units)));
     if (S.rows) out.push(...totalFindings(S.rows));
-    for (const u of S.units) for (const i of window.Compliance ? window.Compliance.check(u.text, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : []) out.push({ kind: "compliance", loc: u.id, from: i.match || "", to: "", why: i.msg });
+    if (window.Compliance) out.push(...docCompliance(S.units, (t) => window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues));
     return out;
   };
   const mk = (a, ai) => a.map((f, n) => ({ ...f, key: (ai ? "a" : "b") + n, info: !f.to && INFO.includes(f.kind), on: !!f.to && sameNumbers(f.from, f.to), numChg: !!f.to && !sameNumbers(f.from, f.to) }));
