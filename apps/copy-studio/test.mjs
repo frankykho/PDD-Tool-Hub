@@ -209,7 +209,7 @@ assert.equal((await call("/api/cw", { cookie: user, json: { pr: { contact: "x" }
 const cw1 = await (await call("/api/cw", { cookie: editor, json: { pr: { about: "A", contact: "B" } } })).json();
 assert.deepEqual(cw1.pr, { about: "A", contact: "B" });
 assert.equal((await (await call("/api/cw", { cookie: user })).json()).pr.contact, "B");
-assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('id="cwKind"') && page.includes('import("/cw.js")'));
+assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('import("/cw.js")'));
 assert.ok(fs.existsSync(new URL("./assets/brand/kisi-color.png", import.meta.url)));
 for (const f of ["wrangler.jsonc", "wrangler.deploy.json"]) if (fs.existsSync(new URL("./" + f, import.meta.url))) assert.match(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /"COPY_AI_DAILY": "100"/);
 
@@ -516,7 +516,19 @@ assert.ok(!/tidak terafiliasi/.test(CW.snsDisclaimer("", "", "single")));
 assert.match(CW.briefText({ sns: [{ partner: "", frames: [{ label: "Slide 1", lines: ["x"] }] }], asset_url: "" }, { format: "carousel", platform: "IG" }), /^IG Carousel/);
 const cwx = await (await call("/api/cw", { cookie: user })).json();
 assert.equal(cwx.program, undefined); assert.equal(cwx.pr.contact, "B");
-for (const f of ["worker.js", "assets/cw.js"]) assert.doesNotMatch(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /Beyond Tomorrow|BYD Denza|Sahamology|Kuliah Saham|cleanProgram/, f);
+for (const f of ["worker.js", "assets/cw.js", "page.html"]) assert.doesNotMatch(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /Beyond Tomorrow|BYD Denza|Sahamology|Kuliah Saham|cleanProgram/, f);
+for (const id of ["cwFile", "cwPaste", "cwOpts", "cwGo", "cwSettings"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const g of ["article", "review", "pr", "brief"]) assert.ok(page.includes(`data-goal="${g}"`), g);
+assert.ok(!page.includes('id="cwKind"') && !page.includes('id="prEvent"') && !page.includes('id="bfProg"'), "formulir lama hilang");
+assert.equal(CW.igsTitle("Judul pendek\nIsi naskah"), "Judul pendek");
+assert.equal(CW.igsTitle("\n  \nJudul  \nIsi"), "Judul");
+assert.equal(CW.igsTitle("x".repeat(121) + "\nIsi"), "");
+assert.equal(CW.inputError("article", "", "  "), "Unggah file atau tempel teks dulu.");
+assert.equal(CW.inputError("article", "a.xlsx", ""), "File Excel/PDF hanya untuk Cek wording.");
+assert.equal(CW.inputError("review", "a.pdf", ""), "");
+assert.equal(CW.inputError("review", "", "teks"), "Cek wording perlu file Word, Excel, atau PDF.");
+assert.equal(CW.inputError("pr", "a.txt", ""), "Pilih file .docx, .xlsx, atau .pdf.");
+assert.equal(CW.inputError("brief", "a.docx", ""), "");
 const rb = parse("cw_brief", '{"sns":[{"partner":"Sahamology","frames":[{"label":"Slide 1","lines":["KOMPETISI DIMULAI!",""]}]}]}');
 assert.deepEqual(rb.sns[0].frames[0].lines, ["KOMPETISI DIMULAI!"]);
 assert.match(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /Slide 1:\nx/);
@@ -532,7 +544,7 @@ assert.ok(pbk.some((b) => b.runs && b.runs[0].text === "Tentang PT Korea Investm
 assert.ok(!pbk.some((b) => b.runs && /Media Contact/.test(b.runs[0].text)), "kontak kosong -> tanpa Media Contact");
 assert.ok(CW.prBlocks(rp, { about: "x", contact: "Nama\nTelp" }).some((b) => b.runs && /Media Contact/.test(b.runs[0].text)));
 { const nb = CW.prBlocks({ ...rp, title: "", quote: { text: "Q", speaker: "", ai: true } }, { about: "x", contact: "" }); assert.ok(!nb.some((b) => b.runs && b.runs.some((r) => /ujar/.test(r.text))), "tanpa narasumber -> tanpa ujar"); assert.ok(!nb.some((b) => b.runs && b.runs[0].b && !b.runs[0].i && b.runs[0].text === "")); assert.equal(nb[1].runs[0].text.startsWith("Jakarta"), true, "judul kosong dilewati"); }
-assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*brief KISI Challenge.*press release.*cek wording/i);
+assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*cek wording.*press release.*brief KISI Challenge/i);
 }
 
 /* ---------- review akhir: textbox, angka, konsistensi ---------- */

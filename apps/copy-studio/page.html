@@ -336,60 +336,58 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   <!-- ============ COPYWRITER ============ -->
   <section data-tab="cw" class="stack" hidden>
     <div class="card stack">
-      <label>Jenis tulisan
-        <select id="cwKind"><option value="article">Artikel berita</option><option value="review">Cek wording file</option><option value="brief">Brief KISI Challenge</option><option value="pr">Press release</option></select></label>
-    </div>
-    <div data-cw="article" class="card stack">
-      <div class="row"><label class="btn">Unggah .docx<input type="file" id="caFile" accept=".docx" hidden></label><span class="muted small">atau tempel naskah IGS di bawah</span></div>
-      <label class="small muted" style="font-weight:600">Naskah IGS<textarea id="caText" class="big" maxlength="12000" translate="no"></textarea></label>
-      <label class="small muted" style="font-weight:600">Judul IGS<input type="text" id="caTitle" maxlength="300" translate="no"></label>
-      <div class="row">
-        <label>Paragraf penutup <select id="caClose"><option value="none">Tanpa penutup</option><option value="brand">Branding iKISI/KISI</option><option value="promo">Promo program</option></select></label>
-        <label class="grow" id="caPromoBox" hidden>Nama program <input type="text" id="caPName" maxlength="100" translate="no"></label>
-        <label class="grow" id="caPromoUrl" hidden>Link <input type="text" id="caPUrl" maxlength="200" translate="no"></label>
+      <div class="row"><label class="btn">Unggah file<input type="file" id="cwFile" accept=".docx,.xlsx,.pdf" hidden></label><span class="muted small" id="cwName" translate="no"></span><a href="#" class="small" id="cwPasteLink">atau tempel teks</a></div>
+      <textarea id="cwPaste" class="big" maxlength="12000" translate="no" hidden></textarea>
+      <div class="row" id="cwGoals"><button class="btn" type="button" data-goal="article">Buat artikel</button><button class="btn" type="button" data-goal="review">Cek wording</button><button class="btn" type="button" data-goal="pr">Press release</button><button class="btn" type="button" data-goal="brief">Brief KISI Challenge</button></div>
+      <div id="cwOpts" class="stack">
+        <div data-opts="article" class="row" hidden>
+          <label>Paragraf penutup <select id="caClose"><option value="none">Tanpa penutup</option><option value="brand">Branding iKISI/KISI</option><option value="promo">Promo program</option></select></label>
+          <label class="grow" id="caPromoBox" hidden>Nama program <input type="text" id="caPName" maxlength="100" translate="no"></label>
+          <label class="grow" id="caPromoUrl" hidden>Link <input type="text" id="caPUrl" maxlength="200" translate="no"></label>
+        </div>
+        <div data-opts="review" hidden><label><input type="checkbox" id="rvEn"> Tambah versi Inggris</label></div>
+        <div data-opts="pr" class="row" hidden><label class="btn">Foto (opsional)<input type="file" id="prPhoto" accept="image/*" hidden></label><span class="muted small" id="prPhotoName" translate="no"></span></div>
+        <div data-opts="brief" class="stack" hidden>
+          <label>Jenis brief <select id="bfType"><option value="media">Artikel ke media</option><option value="sns">SNS per partner</option></select></label>
+          <div id="bfSns" class="stack" hidden>
+            <div class="row">
+              <label>Format <select id="bfFmt"><option value="single">Single post</option><option value="carousel">Carousel</option><option value="reels">Reels</option><option value="story">Story</option></select></label>
+              <label class="grow">Platform <input type="text" id="bfPlatSns" value="IG" maxlength="40" translate="no"></label>
+              <label class="grow">Tanggal posting <input type="text" id="bfDate" maxlength="60" translate="no"></label>
+            </div>
+            <label>Partner (pisahkan dengan koma; kosong = ambil dari file) <input type="text" id="bfPartners" maxlength="500" translate="no"></label>
+          </div>
+        </div>
       </div>
-      <div class="row"><button class="btn pri" id="caGo" type="button">Buat artikel</button></div>
-      <div id="caOut" class="stack" hidden>
-        <div><h3>Pilih judul</h3><div id="caTitles" class="stack" translate="no"></div></div>
-        <div><h3>Perbaikan yang disarankan</h3><div id="caEdits" class="stack" translate="no"></div></div>
-        <div><h3>Artikel akhir</h3><textarea id="caFinal" class="big" translate="no"></textarea></div>
-        <div class="muted small">Tag: <span id="caTags" translate="no"></span></div>
-        <div id="caWarn" class="stack"></div>
-        <div class="row"><button class="btn sm" id="caCopy" type="button">Salin</button><button class="btn sm" id="caDocx" type="button">Unduh .docx</button></div>
-      </div>
+      <div class="row"><button class="btn pri" id="cwGo" type="button">Buat</button><a href="#" class="small" id="cwSettings" hidden>Teks baku KISI</a></div>
     </div>
-    <div data-cw="review" class="card stack" hidden>
-      <div class="row"><label class="btn">Unggah .docx / .xlsx / .pdf<input type="file" id="rvFile" accept=".docx,.xlsx,.pdf" hidden></label><span class="muted small" id="rvName" translate="no"></span></div>
-      <label id="rvEnBox" hidden><input type="checkbox" id="rvEn"> Tambah versi Inggris</label>
+    <div class="card stack" id="cwBox" hidden>
+      <h3>Teks baku</h3>
+      <label class="small muted" style="font-weight:600">Tentang KISI<textarea id="prAbout" class="big" maxlength="3000" translate="no"></textarea></label>
+      <label class="small muted" style="font-weight:600">Media Contact (satu baris per kontak)<textarea id="prContact" maxlength="600" translate="no"></textarea></label>
+      <div class="row"><button class="btn sm" id="prSave" type="button">Simpan</button></div>
+    </div>
+    <div id="caOut" class="card stack" hidden>
+      <div><h3>Pilih judul</h3><div id="caTitles" class="stack" translate="no"></div></div>
+      <div><h3>Perbaikan yang disarankan</h3><div id="caEdits" class="stack" translate="no"></div></div>
+      <div><h3>Artikel akhir</h3><textarea id="caFinal" class="big" translate="no"></textarea></div>
+      <div class="muted small">Tag: <span id="caTags" translate="no"></span></div>
+      <div id="caWarn" class="stack"></div>
+      <div class="row"><button class="btn sm" id="caCopy" type="button">Salin</button><button class="btn sm" id="caDocx" type="button">Unduh .docx</button></div>
+    </div>
+    <div class="card stack" id="rvBox" hidden>
       <div class="muted small" id="rvInfo"></div>
-      <div class="row"><button class="btn pri" id="rvGo" type="button" disabled>Cek wording</button></div>
       <div id="rvOut" class="stack" hidden>
         <div id="rvList" class="stack"></div>
         <div class="row"><button class="btn sm" id="rvTrack" type="button" hidden>Unduh (Track Changes)</button><button class="btn sm" id="rvClean" type="button" hidden>Unduh versi bersih</button><button class="btn sm" id="rvXlsx" type="button" hidden>Unduh</button></div>
       </div>
     </div>
-    <div data-cw="brief" class="card stack" hidden>
-      <h3>Data program</h3>
-      <div id="bfProg" class="stack"></div>
-      <div class="row"><button class="btn sm" id="bfSave" type="button" hidden>Simpan</button><span class="muted small" id="bfRO" hidden>Hanya editor atau admin yang bisa mengubah data program.</span></div>
-      <h3>Brief</h3>
-      <label>Jenis brief <select id="bfType"><option value="media">Artikel ke media</option><option value="sns">SNS per partner</option></select></label>
-      <div id="bfSns" class="stack" hidden>
-        <div><div class="small muted" style="font-weight:600">Partner</div><div id="bfPartners" class="stack"></div></div>
-        <div class="row">
-          <label>Format <select id="bfFmt"><option value="single">Single post</option><option value="carousel">Carousel</option><option value="reels">Reels</option><option value="story">Story</option></select></label>
-          <label>Platform <select id="bfPlatSns"><option>IG</option><option>Telegram</option></select></label>
-          <label class="grow">Tanggal posting <input type="text" id="bfDate" maxlength="60" translate="no"></label>
-        </div>
-        <label>Highlight <input type="text" id="bfHi" maxlength="200" placeholder="mis. hadiah utama" translate="no"></label>
-      </div>
-      <div class="row"><button class="btn pri" id="bfGo" type="button">Buat brief</button></div>
-      <div id="bfOut" class="stack" hidden>
-        <textarea id="bfFinal" class="big" translate="no"></textarea>
-        <div class="row"><button class="btn sm" id="bfCopy" type="button">Salin</button><button class="btn sm" id="bfDocx" type="button">Unduh .docx</button></div>
-      </div>
+    <div id="bfOut" class="card stack" hidden>
+      <textarea id="bfFinal" class="big" translate="no"></textarea>
+      <div class="row"><button class="btn sm" id="bfCopy" type="button">Salin</button><button class="btn sm" id="bfDocx" type="button">Unduh .docx</button></div>
     </div>
-    <div data-cw="pr" class="card stack" hidden id="prPane"></div>
+    <div id="prOut" class="card stack" hidden><div id="prMissing" class="stack" translate="no"></div><div id="prPrev" class="stack" translate="no"></div>
+      <div class="row"><button class="btn sm" id="prCopy" type="button">Salin teks</button><button class="btn sm" id="prDocx" type="button">Unduh .docx</button></div></div>
   </section>
 
   <!-- ============ PANDUAN GAYA ============ -->

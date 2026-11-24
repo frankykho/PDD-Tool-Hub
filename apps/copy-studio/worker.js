@@ -139,10 +139,8 @@ export function cleanPr(b) { return { about: str(b && b.about, 3000), contact: s
 async function getCw(env) {
   await ensure(env);
   const out = { ...CW_DEFAULT };
-  for (const [k, f] of [["pr", cleanPr]]) {
-    const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("cw_" + k).first();
-    try { if (r) out[k] = f(JSON.parse(r.v)); } catch {}
-  }
+  const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("cw_pr").first();
+  try { if (r) out.pr = cleanPr(JSON.parse(r.v)); } catch {}
   return out;
 }
 const dayKey = (kind) => `${kind}:${new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)}`;
@@ -552,9 +550,7 @@ export default {
         if (path === "/api/cw") {
           if (!canEdit) return json({ error: "Hanya editor atau admin yang bisa mengubah data Copywriter." }, 403);
           const b = await request.json().catch(() => ({}));
-          for (const [k, f] of [["pr", cleanPr]]) {
-            if (b[k] && typeof b[k] === "object") await env.DB.prepare("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind("cw_" + k, JSON.stringify(f(b[k]))).run();
-          }
+          if (b.pr && typeof b.pr === "object") await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('cw_pr', ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(cleanPr(b.pr))).run();
           return json({ ok: true, ...(await getCw(env)) });
         }
         if (path === "/api/ai") {
