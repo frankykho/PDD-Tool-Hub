@@ -42,6 +42,25 @@ export function coverTop(iw, ih, w, h) {
   return { sx: (iw - sw) / 2, sy: 0, sw, sh };
 }
 
+export const HL_SCALE = 1.35;
+/**
+ * Kotak "menu yang disorot": area r (0..1 dari screenshot iw×ih) di HP p, diperbesar dan digeser keluar HP ke arah teks
+ * (tidak sampai menabrak kolom teks, tetap di dalam banner). Hasil: pusat, ukuran, rotasi (ikut HP).
+ */
+export function hlBox(L, p, iw, ih, r) {
+  const sw = p.w - 40, sh = p.h - 40, c = coverTop(iw, ih, sw, sh), k = sw / c.sw, rw = r.w * iw * k, rh = r.h * ih * k;
+  const mid = L.text.align === "center", toLeft = !mid && L.text.x < p.x;
+  // ruang kosong antara kolom teks dan tepi banner (susunan tengah: selebar banner)
+  const edge = mid ? 40 : toLeft ? L.text.x + L.text.w + 30 : L.text.x - 30, room = mid ? W - 80 : toLeft ? W - 40 - edge : edge - 40;
+  const s = Math.min(HL_SCALE, room / rw, (H * 0.6) / rh), w = rw * s, h = rh * s;
+  // pusat area di koordinat HP (pusat HP = 0,0), lalu diputar seperti HP-nya
+  const lx = -p.w / 2 + 20 + ((r.x + r.w / 2) * iw - c.sx) * k, ly = -p.h / 2 + 20 + ((r.y + r.h / 2) * ih - c.sy) * k, a = (p.rot * Math.PI) / 180;
+  let cx = p.x + p.w / 2 + lx * Math.cos(a) - ly * Math.sin(a), cy = p.y + p.h / 2 + lx * Math.sin(a) + ly * Math.cos(a);
+  if (!mid) { cx += (toLeft ? -1 : 1) * p.w * 0.25; cx = toLeft ? Math.max(cx, edge + w / 2) : Math.min(cx, edge - w / 2); }
+  cx = Math.min(Math.max(cx, 40 + w / 2), W - 40 - w / 2); cy = Math.min(Math.max(cy, 40 + h / 2), H - 40 - h / 2);
+  return { cx, cy, w, h, rot: p.rot };
+}
+
 /** Bungkus teks ke lebar w; huruf mengecil 2 px per langkah sampai muat di maxLines atau sampai minSize (lalu overflow). */
 export function fitText(measure, text, { w, size, minSize, maxLines }) {
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
@@ -73,8 +92,8 @@ export function fileName(title) {
 }
 
 export const THEMES = {
-  terang: { bg: "linear", stops: ["#ffffff", "#e8f4ee"], logo: "color", title: "#136F4A", desc: "#3a4a42", tagBg: "#136F4A", tagFg: "#ffffff", shadow: "rgba(0,0,0,.3)", rim: null },
-  gelap: { bg: "radial", stops: ["#1a6b48", "#0d3b28", "#08261a"], logo: "white", title: "#ffffff", desc: "rgba(255,255,255,.88)", tagBg: "#F5A623", tagFg: "#17251d", shadow: "rgba(0,0,0,.55)", rim: "rgba(255,255,255,.12)" },
+  terang: { bg: "linear", stops: ["#ffffff", "#e8f4ee"], logo: "color", title: "#136F4A", desc: "#3a4a42", tagBg: "#136F4A", tagFg: "#ffffff", shadow: "rgba(0,0,0,.3)", rim: null, hlGlow: "rgba(19,111,74,.5)", hlRim: "#136F4A" },
+  gelap: { bg: "radial", stops: ["#1a6b48", "#0d3b28", "#08261a"], logo: "white", title: "#ffffff", desc: "rgba(255,255,255,.88)", tagBg: "#F5A623", tagFg: "#17251d", shadow: "rgba(0,0,0,.55)", rim: "rgba(255,255,255,.12)", hlGlow: "rgba(72,232,150,.85)", hlRim: "rgba(140,255,195,.95)" },
 };
 const FONT = "Inter, Arial, sans-serif";
 const font = (w, s) => `${w} ${s}px ${FONT}`;
@@ -98,7 +117,20 @@ function drawPhone(ctx, p, img, T) {
   ctx.restore();
 }
 
-/** Gambar banner: latar -> logo -> label -> judul -> penjelasan -> HP. Hasil: kolom teks yang tidak muat. */
+// potongan screenshot yang diperbesar, menyala di atas HP
+function drawHl(ctx, b, img, r, T) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, x = -b.w / 2, y = -b.h / 2, rad = Math.min(28, b.h / 4);
+  ctx.save();
+  ctx.translate(b.cx, b.cy); ctx.rotate((b.rot * Math.PI) / 180);
+  ctx.shadowColor = T.hlGlow; ctx.shadowBlur = 70;
+  ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(x, y, b.w, b.h, rad); ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
+  ctx.save(); ctx.clip(); ctx.drawImage(img, r.x * iw, r.y * ih, r.w * iw, r.h * ih, x, y, b.w, b.h); ctx.restore();
+  ctx.strokeStyle = T.hlRim; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(x, y, b.w, b.h, rad); ctx.stroke();
+  ctx.restore();
+}
+
+/** Gambar banner: latar -> logo -> label -> judul -> penjelasan -> HP -> menu yang disorot. Hasil: kolom teks yang tidak muat. */
 export function draw(ctx, o) {
   const L = layoutFor(o.id, o.side), T = THEMES[o.theme] || THEMES.terang, overflow = [], mid = L.text.align === "center";
   const measureWith = (w) => (t, s) => { ctx.font = font(w, s); return ctx.measureText(t).width; };
@@ -146,6 +178,9 @@ export function draw(ctx, o) {
   if (L.desc && desc) { y += 28; block(desc, "desc", 400, 44, 1.4, 3, T.desc); }
   // HP
   for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
+  // menu yang disorot: o.hl = { shot: indeks screenshot (0 = HP 1), r: {x, y, w, h} 0..1 }
+  const hl = o.hl, hp = hl && hl.r && L.phones.find((p) => p.no - 1 === hl.shot), him = hp && (o.shots || [])[hl.shot];
+  if (him) drawHl(ctx, hlBox(L, hp, him.naturalWidth || him.width, him.naturalHeight || him.height, hl.r), him, hl.r, T);
   ctx.restore();
   return { overflow };
 }

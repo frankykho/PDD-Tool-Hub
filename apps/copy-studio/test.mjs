@@ -258,8 +258,33 @@ fcx = fakeCtx(); B.draw(fcx, { id: "tengah", side: "tengah", theme: "terang", lo
 assert.ok(!fcx.log.some((l) => l[0] === "fillText" && l[1] === "Tidak tampil"), "susunan tengah tanpa penjelasan");
 assert.deepEqual(B.draw(fakeCtx(), { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [], tag: "FITUR BARU", title: "Judul ".repeat(40), desc: "" }).overflow, ["title"]);
 
+// menu yang disorot: lebih besar dari aslinya, keluar HP ke arah teks tapi tidak menabrak kolom teks, tetap di dalam banner (semua susunan & HP)
+const menu = { x: 0, y: 0.3, w: 1, h: 0.08 };
+for (const c of B.combos()) {
+  const L = B.layoutFor(c.id, c.side);
+  for (const p of L.phones) for (const r of [menu, { x: 0.6, y: 0.9, w: 0.3, h: 0.05 }, { x: 0, y: 0, w: 1, h: 1 }]) {
+    const b = B.hlBox(L, p, 1080, 2340, r), tag = c.id + c.side + p.no;
+    assert.ok(b.cx - b.w / 2 >= 39.9 && b.cx + b.w / 2 <= 1920.1 - 40 && b.cy - b.h / 2 >= 39.9 && b.cy + b.h / 2 <= 1080.1 - 40, "di dalam banner " + tag);
+    if (c.side === "kanan") assert.ok(b.cx - b.w / 2 >= L.text.x + L.text.w + 29.9, "tidak menabrak teks " + tag);
+    if (c.side === "kiri") assert.ok(b.cx + b.w / 2 <= L.text.x - 29.9, "tidak menabrak teks " + tag);
+  }
+}
+{ const L = B.layoutFor("tegak", "kanan"), p = L.phones[0], b = B.hlBox(L, p, 1080, 2340, menu), sw = p.w - 40;
+  assert.ok(Math.abs(b.w - sw * B.HL_SCALE) < 1e-6, "menu selebar layar diperbesar " + B.HL_SCALE + "x");
+  assert.ok(b.cx < p.x + p.w / 2, "digeser ke arah teks (kiri)");
+  assert.ok(Math.abs(b.cy - (p.y + 20 + (0.34 * 2340) * (sw / 1080))) < 1e-6, "tinggi mengikuti letak menu di layar");
+  const bl = B.hlBox(B.layoutFor("tegak", "kiri"), B.layoutFor("tegak", "kiri").phones[0], 1080, 2340, menu);
+  assert.ok(bl.cx > B.layoutFor("tegak", "kiri").phones[0].x + p.w / 2, "versi kiri: digeser ke kanan"); }
+fcx = fakeCtx(); B.draw(fcx, { id: "dua", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot], hl: { shot: 1, r: menu }, tag: "", title: "Judul", desc: "" });
+let crop = fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot && l.length === 10);
+assert.equal(crop.length, 3, "2 layar + 1 sorotan"); assert.deepEqual(crop[2].slice(2, 6), [0, 0.3 * 2340, 1080, 0.08 * 2340], "potongan sesuai area");
+fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [null], hl: { shot: 0, r: menu }, title: "Judul" });
+assert.ok(!fcx.log.some((l) => l[0] === "drawImage" && l[1] === shot), "tanpa screenshot: tanpa sorotan");
+fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [shot], hl: { shot: 2, r: menu }, title: "Judul" });
+assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1, "HP ke-3 tidak ada di susunan 1 HP: tanpa sorotan");
+
 // kontrol banner di tab What's New
-for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick"]) assert.ok(page.includes(`id="${id}"`), id);
 assert.ok(page.includes('import("/banner.js")'));
 assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
 assert.ok(page.includes('"cs_wnb"'));
