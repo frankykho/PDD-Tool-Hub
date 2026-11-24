@@ -43,7 +43,8 @@ export function buildArticle({ body, title, closing, close, tags }) {
 
 /* ---- Cek tanpa AI: format angka, total tabel, konsistensi EN-ID ---- */
 const dots = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-export const parseIdr = (s) => { const t = String(s).trim(); return /^\d{1,3}([.,]\d{3})+$|^\d+$/.test(t) ? +t.replace(/[.,]/g, "") : null; };
+export const parseIdr = (s) => { const t = String(s).replace(/^\s*Rp\.?\s*/i, "").trim(); return /^\d{1,3}([.,]\d{3})+$|^\d+$/.test(t) ? +t.replace(/[.,]/g, "") : null; };
+// Panggil per bahasa: kirim unit satu bahasa saja per panggilan (jangan campur EN dan ID).
 export function numberFormatFindings(units) {
   const hits = [];
   for (const u of units) for (const m of String(u.text).matchAll(/(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)(?![.,]?\d)/g)) hits.push({ loc: u.loc, from: m[1], dot: m[1].includes(".") });
@@ -51,10 +52,12 @@ export function numberFormatFindings(units) {
   return hits.filter((h) => h.dot !== useDot).map((h) => ({ kind: "angka", loc: h.loc, from: h.from, to: h.from.replace(/[.,]/g, useDot ? "." : ","), why: "Format angka tidak seragam (mayoritas pakai " + (useDot ? "titik" : "koma") + ")" }));
 }
 export function totalFindings(rows) {
-  const out = []; let sum = 0;
+  const out = []; let grand = 0, sub = 0;
+  const check = (r, sum) => { if (sum !== r.value) out.push({ kind: "hitungan", loc: r.loc, from: dots(r.value), to: "", why: "Jumlah baris = " + dots(sum) }); };
   for (const r of rows) {
-    if (/^(grand\s*)?total$/i.test(String(r.label).trim())) { if (sum !== r.value) out.push({ kind: "hitungan", loc: r.loc, from: dots(r.value), to: "", why: "Jumlah baris = " + dots(sum) }); sum = 0; }
-    else sum += r.value;
+    const label = String(r.label).trim(), isSub = /^sub\s*-?\s*total$/i.test(label), isTot = /^(grand\s*)?total$/i.test(label);
+    if (!Number.isFinite(r.value)) continue;
+    if (isSub) { check(r, sub); sub = 0; } else if (isTot) { check(r, grand); grand = sub = 0; } else { grand += r.value; sub += r.value; }
   }
   return out;
 }

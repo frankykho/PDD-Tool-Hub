@@ -467,6 +467,12 @@ assert.deepEqual(CW.totalFindings([{ loc: "a", label: "A", value: 5 }, { loc: "b
 assert.deepEqual(CW.langFindings([{ loc: "e1", text: "run from 1 October to 30 November 2026" }], [{ loc: "i1", text: "berlangsung 1 Oktober–30 November 2026" }]), []);
 assert.deepEqual(CW.langFindings([{ loc: "e1", text: "Total 555,000,000" }], [{ loc: "i1", text: "Total 555.000.000" }]), []);
 assert.equal(CW.langFindings([{ loc: "e1", text: "Total 555.000.000" }], [{ loc: "i1", text: "Total 550.000.000" }])[0].loc, "i1");
+assert.deepEqual(CW.totalFindings([{ loc: "a", label: "A", value: null }, { loc: "b", label: "B", value: 5 }, { loc: "c", label: "Total", value: NaN }, { loc: "d", label: "Total", value: 5 }]), []);
+const sub = [["A", 10], ["B", 20], ["Subtotal", 30], ["C", 5], ["Sub-total", 5], ["Grand Total", 35]].map(([label, value], i) => ({ loc: "s" + i, label, value }));
+assert.deepEqual(CW.totalFindings(sub), []);
+sub[5].value = 70;
+const sf = CW.totalFindings(sub); assert.equal(sf.length, 1); assert.match(sf[0].why, /Jumlah baris = 35$/);
+assert.equal(CW.parseIdr("Rp1.000.000"), 1000000); assert.equal(CW.parseIdr("Rp 1.000"), 1000);
 }
 
 console.log("semua cek lolos");
