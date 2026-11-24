@@ -329,6 +329,11 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.deepEqual(O.docxParagraphs(f["word/document.xml"]).map((p) => p.text), ["Judul & <x>", "Jakarta – isi"]);
   const fl = O.makeDocx([{ t: "p", runs: [{ text: "x" }] }], { logo: { data: new Uint8Array([137, 80]), w: 200, h: 60 } });
   assert.ok(fl["word/media/logo.png"] && /header1\.xml/.test(fl["word/_rels/document.xml.rels"]));
+  assert.deepEqual(O.docxParagraphs('<w:body><w:p w:rsidR="1"/><w:p><w:r><w:t>A</w:t></w:r></w:p></w:body>'), [{ i: 0, text: "", inTable: false }, { i: 1, text: "A", inTable: false }]);
+  assert.equal(O.docxParagraphs('<w:body><w:p><w:r><w:t>a</w:t><w:br w:type="page"/><w:t>b</w:t></w:r></w:p></w:body>')[0].text, "a\nb");
+  assert.match(O.makeDocx([{ t: "li", runs: [{ text: "poin" }] }], {})["word/document.xml"], /• <\/w:t>[\s\S]*poin/);
+  const fj = O.makeDocx([{ t: "img", img: { data: new Uint8Array([1]), w: 10, h: 10, ext: "jpg" } }], {});
+  assert.ok(fj["word/media/image1.jpeg"] && !/undefined/.test(fj["[Content_Types].xml"]));
 }
 
 console.log("semua cek lolos");
