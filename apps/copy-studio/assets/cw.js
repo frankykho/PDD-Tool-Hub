@@ -82,7 +82,7 @@ function initArticle(cs) {
     } catch (err) { toast(err.message || "Gagal membuat artikel."); } finally { btn.disabled = false; }
   };
   $("caTitles").onchange = check;
-  $("caEdits").onchange = () => { if ($("caFinal").value !== last && !confirm("Teks akhir sudah Anda ubah. Terapkan ulang perbaikan dan hapus suntingan Anda?")) return; render(); };
+  $("caEdits").onchange = (e) => { if ($("caFinal").value !== last && !confirm("Teks akhir sudah Anda ubah. Terapkan ulang perbaikan dan hapus suntingan Anda?")) { e.target.checked = !e.target.checked; return; } render(); };
   $("caCopy").onclick = () => { navigator.clipboard.writeText(chosen() + "\n\n" + $("caFinal").value).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
   $("caDocx").onclick = async () => {
     const blocks = [{ t: "h1", runs: [{ text: chosen() }] }, ...$("caFinal").value.split("\n").filter(Boolean).map((l) => ({ t: "p", runs: [{ text: l }] })), { t: "p", runs: [{ text: "Tag: " + $("caTags").textContent }] }];
