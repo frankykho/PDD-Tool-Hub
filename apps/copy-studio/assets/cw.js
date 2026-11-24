@@ -7,16 +7,58 @@ export const libs = {
   jszip: once("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", () => window.JSZip),
   pdf: once(PDF, () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF.replace("pdf.min.js", "pdf.worker.min.js"); return window.pdfjsLib; }),
 };
+const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const extOf = (name) => ((String(name).match(/\.(docx|xlsx|pdf)$/i) || [])[1] || "").toLowerCase();
+// Baris pertama naskah = judul kerja IGS bila pendek.
+export const igsTitle = (text) => { const l = String(text).split("\n").map((x) => x.trim()).find(Boolean) || ""; return l.length <= 120 ? l : ""; };
+// Pesan galat input bersama (kosong = boleh lanjut).
+// Pisahkan judul kerja (baris pertama pendek) dari isi naskah.
+export function splitTitle(text) {
+  const t = igsTitle(text), lines = String(text).split("\n"), i = lines.findIndex((l) => l.trim());
+  return t ? { title: t, body: lines.slice(i + 1).join("\n").trim() } : { title: "", body: String(text).trim() };
+}
+export function inputError(goal, fileName, text) {
+  const type = extOf(fileName);
+  if (fileName && !type) return "Pilih file .docx, .xlsx, atau .pdf.";
+  if (fileName && type !== "docx" && goal !== "review") return "File Excel/PDF hanya untuk Cek wording.";
+  if (!fileName && !String(text).trim()) return "Unggah file atau tempel teks dulu.";
+  if (!fileName && goal === "review") return "Cek wording perlu file Word, Excel, atau PDF.";
+  return "";
+}
+const BUSY = { article: "Menulis…", review: "Mengecek…", pr: "Menulis…", brief: "Menulis…" };
+const FAIL = { article: "Gagal membuat artikel.", review: "Gagal memeriksa.", pr: "Gagal membuat press release.", brief: "Gagal membuat brief." };
 export function init(cs) {
-  initArticle(cs);
-  initReview(cs);
-  initBrief(cs);
-  initPr(cs);
-  const sel = document.getElementById("cwKind"), panes = document.querySelectorAll("[data-cw]");
-  const show = () => { panes.forEach((p) => { p.hidden = p.dataset.cw !== sel.value; }); try { localStorage.setItem("cs_cw", sel.value); } catch (e) {} };
-  try { const k = localStorage.getItem("cs_cw"); if (k && [...sel.options].some((o) => o.value === k)) sel.value = k; } catch (e) {}
-  sel.addEventListener("change", show);
-  show();
+  const flows = { article: initArticle(cs), review: initReview(cs), brief: initBrief(cs), pr: initPr(cs) }, btn = $("cwGo"), goals = document.querySelectorAll("[data-goal]");
+  let goal = "", file = null;
+  const pick = (g) => {
+    if (btn.disabled || g === goal) return; goal = g;
+    goals.forEach((b) => b.classList.toggle("pri", b.dataset.goal === g));
+    document.querySelectorAll("[data-opts]").forEach((o) => { o.hidden = o.dataset.opts !== g; });
+    Object.values(flows).forEach((f) => f.hide());
+    try { localStorage.setItem("cs_cw", g); } catch (e) {}
+  };
+  goals.forEach((b) => { b.onclick = () => pick(b.dataset.goal); });
+  $("cwFile").onchange = (e) => {
+    file = e.target.files[0] || null; e.target.value = ""; $("cwName").textContent = file ? file.name : "";
+    if (file) { $("cwPaste").value = ""; $("cwPaste").hidden = true; }
+  };
+  $("cwPasteLink").onclick = (e) => { e.preventDefault(); file = null; $("cwName").textContent = ""; $("cwPaste").hidden = false; $("cwPaste").focus(); };
+  btn.onclick = async () => {
+    const err = inputError(goal, file ? file.name : "", $("cwPaste").value); if (err) return toast(err);
+    if (file && file.size > 10 * 1024 * 1024) return toast("File terlalu besar. Maksimal 10 MB.");
+    const label = btn.textContent, f = file; btn.disabled = true; btn.textContent = BUSY[goal];
+    try {
+      let text = $("cwPaste").value.trim();
+      if (f && goal !== "review") {
+        try { text = O.docxParagraphs((await O.unzip(await libs.jszip(), f))["word/document.xml"]).map((p) => p.text).join("\n").trim(); } catch (e) { return toast("File .docx tidak bisa dibaca."); }
+        if (!text) return toast("Unggah file atau tempel teks dulu.");
+      }
+      await flows[goal].go({ text, file: f });
+    } catch (e) { toast(e.message || FAIL[goal]); } finally { btn.disabled = false; btn.textContent = label; }
+  };
+  let g = "article"; try { const k = localStorage.getItem("cs_cw"); if (k && flows[k]) g = k; } catch (e) {}
+  pick(g);
 }
 
 /* ---- Artikel berita (IGS -> website KISI) ---- */
@@ -68,6 +110,15 @@ export function totalFindings(rows) {
   }
   return out;
 }
+// Aturan "belum ada X" (izin OJK, S&K, pengingat risiko, disclaimer kinerja) dicek sekali untuk seluruh dokumen,
+// karena disclaimer cukup ditulis sekali; aturan kata/kalimat terlarang tetap per paragraf.
+const DOC_RULES = new Set(["izin", "snk", "risiko", "kinerja", "panjang", "hashtag"]);
+export function docCompliance(units, check) {
+  const out = [];
+  for (const u of units) for (const i of check(u.text)) if (!DOC_RULES.has(i.id)) out.push({ kind: "compliance", loc: u.id, from: i.match || "", to: "", why: i.msg });
+  for (const i of check(units.map((u) => u.text).join("\n"))) if (DOC_RULES.has(i.id)) out.push({ kind: "compliance", loc: "dokumen", from: i.match || "", to: "", why: i.msg });
+  return out;
+}
 export function langFindings(enUnits, idUnits) {
   const key = (t) => numbers(t).map((x) => x.replace(/[.,]/g, "")).sort().join("|");
   return idUnits.flatMap((u, i) => enUnits[i] && key(enUnits[i].text) !== key(u.text) ? [{ kind: "konsistensi", loc: u.loc, from: numbers(u.text).join(", "), to: "", why: "Angka berbeda dari versi Inggris: " + numbers(enUnits[i].text).join(", ") }] : []);
@@ -115,11 +166,9 @@ export function xlsxRows(files) {
 /* ---- Cek wording file (docx / xlsx / pdf) ---- */
 const INFO = ["hitungan", "konsistensi", "compliance"];
 function initReview(cs) {
-  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const stamp = () => ({ author: "Copy Studio", date: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") });
   let S = null, F = [], trans = new Map(), partial = false, quota = null;
-  const wantEn = () => $("rvEn").checked && !$("rvEnBox").hidden;
+  const wantEn = () => $("rvEn").checked && (S.type === "xlsx" || (S.type === "docx" && !S.bi));
   const status = () => {
     if (!S) { $("rvInfo").textContent = ""; return; }
     const n = estimateCalls(S.units, wantEn()), l = quota ? quota.limit - quota.used : null;
@@ -150,7 +199,7 @@ function initReview(cs) {
     if (S.bi) out.push(...numberFormatFindings(L(S.en)), ...numberFormatFindings(L(S.id)), ...langFindings(L(S.en), L(S.id)));
     else out.push(...numberFormatFindings(L(S.units)));
     if (S.rows) out.push(...totalFindings(S.rows));
-    for (const u of S.units) for (const i of window.Compliance ? window.Compliance.check(u.text, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : []) out.push({ kind: "compliance", loc: u.id, from: i.match || "", to: "", why: i.msg });
+    if (window.Compliance) out.push(...docCompliance(S.units, (t) => window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues));
     return out;
   };
   const mk = (a, ai) => a.map((f, n) => ({ ...f, key: (ai ? "a" : "b") + n, info: !f.to && INFO.includes(f.kind), on: !!f.to && sameNumbers(f.from, f.to), numChg: !!f.to && !sameNumbers(f.from, f.to) }));
@@ -183,16 +232,6 @@ function initReview(cs) {
   };
   $("rvList").onchange = (e) => { const n = e.target.dataset.n; if (n != null) { F[+n].on = e.target.checked; render(); } };
   const refreshQuota = () => fetch("/api/quota").then((r) => r.json()).then((q) => { quota = q; status(); }).catch(() => status());
-  $("rvFile").onchange = async (e) => {
-    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-    const type = ((f.name.match(/\.(docx|xlsx|pdf)$/i) || [])[1] || "").toLowerCase();
-    if (!type) return toast("Pilih file .docx, .xlsx, atau .pdf.");
-    if (f.size > 10 * 1024 * 1024) return toast("File terlalu besar. Maksimal 10 MB.");
-    try { S = { ...(await read(f, type)), name: f.name.replace(/\.[^.]+$/, "") }; } catch (err) { S = null; return toast("File tidak bisa dibaca."); }
-    F = mk(base(), false); trans = new Map(); partial = false;
-    $("rvName").textContent = f.name; $("rvEnBox").hidden = !(type === "xlsx" || (type === "docx" && !S.bi)); $("rvEn").checked = false;
-    status(); refreshQuota(); $("rvGo").disabled = false; render();
-  };
   $("rvEn").onchange = status;
   const ask = async (kind, units, lang) => {
     const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, units: units.map(({ id, text }) => ({ id, text })), lang }) });
@@ -200,16 +239,18 @@ function initReview(cs) {
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
     return j.result;
   };
-  $("rvGo").onclick = async () => {
-    if (!S) return; const s = S, btn = $("rvGo"); btn.disabled = true; $("rvFile").disabled = true; partial = false; trans = new Map();
+  const go = async (f) => {
+    const type = extOf(f.name); let s;
+    try { s = { ...(await read(f, type)), name: f.name.replace(/\.[^.]+$/, "") }; } catch (err) { throw new Error("File tidak bisa dibaca."); }
+    if (!s.units.length) throw new Error("Unggah file atau tempel teks dulu.");
+    S = s; F = mk(base(), false); trans = new Map(); partial = false; $("rvOut").hidden = true; $("rvBox").hidden = false; status(); await refreshQuota();
+    if (quota && estimateCalls(s.units, wantEn()) > quota.limit - quota.used && !confirm("Perkiraan permintaan AI melebihi sisa kuota hari ini; hasil bisa sebagian. Lanjutkan?")) { S = null; $("rvBox").hidden = true; return; }
     const lang = s.bi ? "mix" : "id", ids = new Set(s.units.map((u) => u.id)), found = [], cs1 = chunks(s.units); let n = 0;
     try {
       for (const c of cs1) { $("rvInfo").textContent = "Memeriksa " + ++n + "/" + cs1.length + "…"; found.push(...(await ask("cw_review", c, lang)).findings.filter((x) => ids.has(x.id)).map((x) => ({ kind: x.kind, loc: x.id, from: x.from, to: x.to, why: x.why }))); }
       if (wantEn()) { n = 0; for (const c of cs1) { $("rvInfo").textContent = "Menerjemahkan " + ++n + "/" + cs1.length + "…"; for (const it of (await ask("cw_translate", c)).items) if (ids.has(it.id)) trans.set(it.id, it.en); } }
     } catch (err) { if (err.quota) partial = "kuota"; else { if (found.length || trans.size) partial = "galat"; toast(err.message || "Gagal memeriksa."); } }
     found.push(...transFindings(s.units, trans));
-    $("rvFile").disabled = false; btn.disabled = false;
-    if (S !== s) return; // file diganti selama proses: abaikan hasil lama
     F = [...mk(base(), false), ...mk(found, true)];
     refreshQuota(); render();
   };
@@ -219,23 +260,15 @@ function initReview(cs) {
   $("rvTrack").onclick = () => save(true, " - review", "docx");
   $("rvClean").onclick = () => save(false, " - review (bersih)", "docx");
   $("rvXlsx").onclick = () => save(false, " - review", "xlsx");
+  return { go: ({ file }) => go(file), hide: () => { S = null; $("rvBox").hidden = $("rvOut").hidden = true; } };
 }
 
 function initArticle(cs) {
-  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  let ai = null, src = "", program = null, last = "";
+  let ai = null, src = "", igs = "", last = "";
   const sync = () => { $("caPromoBox").hidden = $("caPromoUrl").hidden = $("caClose").value !== "promo"; };
-  const fillPromo = () => { if (program && !$("caPName").value) { $("caPName").value = program.name || ""; $("caPUrl").value = program.event_url || ""; } };
-  $("caClose").onchange = () => { sync(); fillPromo(); if (ai) toast("Pilihan penutup berubah. Klik Buat artikel lagi."); };
-  fetch("/api/cw").then((r) => r.json()).then((j) => { program = j.program; fillPromo(); }).catch(() => {});
-  $("caFile").onchange = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    try { const files = await O.unzip(await libs.jszip(), f); $("caText").value = O.docxParagraphs(files["word/document.xml"]).map((p) => p.text).join("\n"); }
-    catch (err) { toast("File .docx tidak bisa dibaca."); }
-    e.target.value = "";
-  };
-  const chosen = () => { const r = document.querySelector('input[name="caT"]:checked'); return r ? ai.titles[+r.value] : $("caTitle").value.trim(); };
+  $("caClose").onchange = () => { sync(); if (ai) toast("Pilihan penutup berubah. Klik Buat lagi."); };
+  sync();
+  const chosen = () => { const r = document.querySelector('input[name="caT"]:checked'); return r ? ai.titles[+r.value] : igs; };
   const render = () => {
     const acc = [...document.querySelectorAll("#caEdits input:checked")].map((c) => ai.edits[+c.dataset.n]);
     const art = buildArticle({ body: applyEdits(src, acc).text, title: chosen(), closing: ai.closing, close: $("caClose").value, tags: ai.tags });
@@ -243,23 +276,20 @@ function initArticle(cs) {
     check();
   };
   const check = () => {
-    const t = $("caFinal").value, miss = missingNumbers(src, t), extra = extraNumbers(src + " " + $("caPName").value + " " + $("caPUrl").value, t + " " + chosen()), iss = window.Compliance ? window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : [];
+    const t = $("caFinal").value, miss = missingNumbers(src, t), extra = extraNumbers(igs + " " + src + " " + $("caPName").value + " " + $("caPUrl").value, t + " " + chosen()), iss = window.Compliance ? window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : [];
     $("caWarn").innerHTML = (miss.length ? '<div class="note small" style="color:#c0392b"><b>Angka dari naskah asli hilang atau berubah:</b> <span translate="no">' + esc(miss.join(", ")) + "</span></div>" : "") +
       (extra.length ? '<div class="note small" style="color:#c0392b"><b>Angka tidak ada di naskah IGS:</b> <span translate="no">' + esc(extra.join(", ")) + "</span></div>" : "") +
       iss.map((i) => '<div class="note small"><span translate="no">' + esc(i.msg) + "</span></div>").join("");
   };
   $("caFinal").oninput = check;
-  $("caGo").onclick = async () => {
-    src = $("caText").value.trim(); if (!src) return toast("Isi dulu naskah IGS.");
-    const btn = $("caGo"); btn.disabled = true;
-    try {
-      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_article", text: src, title: $("caTitle").value, close: $("caClose").value, promo: { name: $("caPName").value, url: $("caPUrl").value } }) });
-      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
-      ai = j.result;
-      $("caTitles").innerHTML = ai.titles.map((t, n) => '<label><input type="radio" name="caT" value="' + n + '"' + (n ? "" : " checked") + "> " + esc(t) + "</label>").join("");
-      $("caEdits").innerHTML = ai.edits.map((e, n) => '<label><input type="checkbox" data-n="' + n + '" checked> ' + esc(e.from) + " &rarr; " + esc(e.to) + (e.why ? ' <span class="muted small">(' + esc(e.why) + ")</span>" : "") + "</label>").join("") || '<span class="muted small" translate="yes">Tidak ada perbaikan.</span>';
-      $("caOut").hidden = false; render();
-    } catch (err) { toast(err.message || "Gagal membuat artikel."); } finally { btn.disabled = false; }
+  const go = async ({ text }) => {
+    ({ title: igs, body: src } = splitTitle(text)); if (!src) throw new Error("Unggah file atau tempel teks dulu.");
+    const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_article", text: src, title: igs, close: $("caClose").value, promo: { name: $("caPName").value, url: $("caPUrl").value } }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+    ai = j.result;
+    $("caTitles").innerHTML = ai.titles.map((t, n) => '<label><input type="radio" name="caT" value="' + n + '"' + (n ? "" : " checked") + "> " + esc(t) + "</label>").join("");
+    $("caEdits").innerHTML = ai.edits.map((e, n) => '<label><input type="checkbox" data-n="' + n + '" checked> ' + esc(e.from) + " &rarr; " + esc(e.to) + (e.why ? ' <span class="muted small">(' + esc(e.why) + ")</span>" : "") + "</label>").join("") || '<span class="muted small" translate="yes">Tidak ada perbaikan.</span>';
+    $("caOut").hidden = false; render();
   };
   $("caTitles").onchange = check;
   $("caEdits").onchange = (e) => { if ($("caFinal").value !== last && !confirm("Teks akhir sudah Anda ubah. Terapkan ulang perbaikan dan hapus suntingan Anda?")) { e.target.checked = !e.target.checked; return; } render(); };
@@ -268,6 +298,7 @@ function initArticle(cs) {
     const blocks = [{ t: "h1", runs: [{ text: chosen() }] }, ...$("caFinal").value.split("\n").filter(Boolean).map((l) => ({ t: "p", runs: [{ text: l }] })), { t: "p", runs: [{ text: "Tag: " + $("caTags").textContent }] }];
     const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks, {}))); a.download = "artikel.docx"; a.click();
   };
+  return { go, hide: () => { ai = null; $("caOut").hidden = true; } };
 }
 
 /* ---- Brief KISI Challenge ---- */
@@ -275,72 +306,36 @@ const FMT = { single: "Single Post", carousel: "Carousel", reels: "Reels", story
 export function snsDisclaimer(partner, assetUrl, format) {
   return [format === "single" ? "Tambahin tulisan kecil:" : "Tambahin tulisan kecil di setiap slide:", "Disclaimer:",
     "● " + PRIZE_DISC,
-    "● " + partner + " tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan (OJK).",
+    ...(partner ? ["● " + partner + " tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan (OJK)."] : []),
     "● PT Korea Investment And Sekuritas Indonesia Berizin dan Diawasi oleh Otoritas Jasa Keuangan.",
     "● Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan",
     ...(assetUrl ? ["Link aset: " + assetUrl] : [])].join("\n");
 }
-export function briefText(res, { format, platform, date, assetUrl }) {
-  return res.sns.map((s) => [s.partner + ": " + platform + " " + (FMT[format] || format), date ? "Posting tanggal " + date : "",
+export function briefText(res, { format, platform, date }) {
+  const assetUrl = res.asset_url;
+  return res.sns.map((s) => [(s.partner ? s.partner + ": " : "") + platform + " " + (FMT[format] || format), date ? "Posting tanggal " + date : "",
     ...s.frames.map((f) => (f.label ? f.label.replace(/:\s*$/, "") + ":\n" : "") + f.lines.join("\n")),
     snsDisclaimer(s.partner, assetUrl, format)].filter(Boolean).join("\n\n")).join("\n\n----------\n\n");
 }
 
-function initBrief(cs) {
-  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const can = !!cs.canEdit, ro = can ? "" : " readonly", lines = (v) => String(v || "").split("\n").map((x) => x.trim()).filter(Boolean);
-  let P = null;
-  const fld = (id, label, v) => '<label class="small muted" style="font-weight:600">' + label + '<input type="text" id="' + id + '" value="' + esc(v || "") + '"' + ro + ' translate="no"></label>';
-  const area = (id, label, v) => '<label class="small muted" style="font-weight:600">' + label + '<textarea id="' + id + '"' + ro + ' translate="no">' + esc(v || "") + "</textarea></label>";
-  const partnerBoxes = (list) => { $("bfPartners").innerHTML = list.map((x) => '<label><input type="checkbox" data-name="' + esc(x) + '" checked> <span translate="no">' + esc(x) + "</span></label>").join(""); };
-  const draw = () => {
-    const p = P, u = p.uni || {}, g = p.general || {};
-    $("bfProg").innerHTML = fld("bpName", "Nama program", p.name) + fld("bpTheme", "Tema", p.theme) + fld("bpPeriod", "Periode", p.period) + fld("bpPlat", "Platform", p.platforms) + fld("bpEvent", "Link event", p.event_url) + fld("bpAcc", "Link buka rekening", p.account_url) +
-      area("bpPrizes", "Hadiah (satu per baris: emoji | teks | * bila hadiah utama)", (p.prizes || []).map((x) => [x.emoji, x.text, x.main ? "*" : ""].join(" | ")).join("\n")) +
-      fld("bpGCount", "Kategori Umum: jumlah pemenang", g.count) + fld("bpGRule", "Kategori Umum: aturan", g.rule) + fld("bpUTotal", "Universitas: total hadiah", u.total) +
-      area("bpUTeams", "Universitas: kategori tim (satu per baris)", (u.teams || []).join("\n")) + area("bpUInd", "Universitas: kategori individu (satu per baris)", (u.individual || []).join("\n")) +
-      fld("bpPrev", "Capaian sebelumnya", p.previous) + area("bpPartners", "Partner (satu per baris)", (p.partners || []).join("\n")) + fld("bpAsset", "Link aset Drive", p.asset_url);
-    partnerBoxes(p.partners || []);
-    $("bfSave").hidden = !can; $("bfRO").hidden = can;
-  };
-  const read = () => {
-    const v = (id) => $(id).value.trim();
-    return { name: v("bpName"), theme: v("bpTheme"), period: v("bpPeriod"), platforms: v("bpPlat"), event_url: v("bpEvent"), account_url: v("bpAcc"),
-      prizes: lines($("bpPrizes").value).map((l) => { const a = l.split("|"); if (a.length < 3) return { emoji: "", text: l, main: false }; const m = a.pop().trim() === "*"; return { emoji: a.shift().trim(), text: a.join("|").trim(), main: m }; }),
-      general: { count: v("bpGCount"), rule: v("bpGRule") }, uni: { total: v("bpUTotal"), teams: lines($("bpUTeams").value), individual: lines($("bpUInd").value) },
-      previous: v("bpPrev"), partners: lines($("bpPartners").value), asset_url: v("bpAsset") };
-  };
-  fetch("/api/cw").then((r) => r.json()).then((j) => { P = j.program; draw(); }).catch(() => toast("Data program gagal dimuat."));
-  $("bfProg").addEventListener("input", (e) => { if (e.target.id === "bpPartners") partnerBoxes(lines(e.target.value)); });
-  $("bfSave").onclick = async () => {
-    try {
-      const r = await fetch("/api/cw", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ program: read() }) });
-      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
-      P = j.program || read(); draw(); toast("Tersimpan");
-    } catch (err) { toast(err.message || "Gagal menyimpan."); }
-  };
+function initBrief() {
   const sync = () => { $("bfSns").hidden = $("bfType").value !== "sns"; };
   $("bfType").onchange = sync; sync();
-  $("bfGo").onclick = async () => {
-    if (!P) return; const sns = $("bfType").value === "sns", btn = $("bfGo"); if (can) P = read();
-    const partners = [...document.querySelectorAll("#bfPartners input:checked")].map((c) => c.dataset.name);
-    if (sns && !partners.length) return toast("Pilih minimal satu partner.");
-    btn.disabled = true;
-    try {
-      const fmt = $("bfFmt").value, o = { format: fmt, platform: $("bfPlatSns").value, date: $("bfDate").value.trim(), assetUrl: P.asset_url };
-      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_brief", program: P, type: sns ? "sns" : "media", partners, format: fmt, platform: o.platform, date: o.date, highlight: $("bfHi").value }) });
-      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
-      if (sns ? !j.result.sns.length : !j.result.media.body.length) throw new Error("AI tidak menghasilkan brief. Coba lagi.");
-      $("bfFinal").value = sns ? briefText(j.result, o) : j.result.media.title + "\n\n" + j.result.media.body.join("\n\n");
-      $("bfOut").hidden = false;
-    } catch (err) { toast(err.message || "Gagal membuat brief."); } finally { btn.disabled = false; }
+  const go = async ({ text }) => {
+    const sns = $("bfType").value === "sns", partners = $("bfPartners").value.split(",").map((x) => x.trim()).filter(Boolean);
+    const fmt = $("bfFmt").value, o = { format: fmt, platform: $("bfPlatSns").value.trim() || "IG", date: $("bfDate").value.trim() };
+    const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_brief", text, type: sns ? "sns" : "media", partners, format: fmt, platform: o.platform, date: o.date }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+    if (sns ? !j.result.sns.length : !j.result.media.body.length) throw new Error("AI tidak menghasilkan brief. Coba lagi.");
+    $("bfFinal").value = sns ? briefText(j.result, o) : j.result.media.title + "\n\n" + j.result.media.body.join("\n\n");
+    $("bfOut").hidden = false;
   };
   $("bfCopy").onclick = () => { navigator.clipboard.writeText($("bfFinal").value).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
   $("bfDocx").onclick = async () => {
     const blocks = $("bfFinal").value.split("\n").map((l) => ({ t: "p", runs: [{ text: l }] }));
     const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks, {}))); a.download = "brief.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   };
+  return { go, hide: () => { $("bfOut").hidden = true; } };
 }
 
 /* ---- Press release (.docx berkop) ---- */
@@ -378,21 +373,7 @@ async function photoBytes(file) {
 }
 
 function initPr(cs) {
-  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const can = !!cs.canEdit, ro = can ? "" : " readonly";
-  const fld = (id, label, max) => '<label class="small muted" style="font-weight:600">' + label + '<input type="text" id="' + id + '" maxlength="' + max + '" translate="no"></label>';
-  $("prPane").innerHTML = "<h3>Teks baku</h3>" +
-    '<label class="small muted" style="font-weight:600">Tentang KISI<textarea id="prAbout" class="big" maxlength="3000"' + ro + ' translate="no"></textarea></label>' +
-    '<label class="small muted" style="font-weight:600">Media Contact (satu baris per kontak)<textarea id="prContact" maxlength="600"' + ro + ' translate="no"></textarea></label>' +
-    '<div class="row"><button class="btn sm" id="prSave" type="button"' + (can ? "" : " hidden") + '>Simpan</button><span class="muted small"' + (can ? " hidden" : "") + ">Hanya editor atau admin yang bisa mengubah teks baku.</span></div>" +
-    '<h3>Highlight</h3><div class="row">' + fld("prEvent", "Acara/pencapaian", 300) + fld("prDate", "Tanggal", 60) + fld("prCity", "Kota", 60) + "</div>" +
-    fld("prPartners", "Mitra", 500) + fld("prGuests", "Tamu (nama, gelar, jabatan)", 1500) + fld("prNumbers", "Angka", 800) + fld("prSpeaker", "Narasumber (nama, jabatan)", 300) + fld("prQuote", "Inti kutipan", 600) + fld("prContactX", "Kontak tambahan", 400) + fld("prDoc", "Link dokumentasi", 300) +
-    '<label class="small muted" style="font-weight:600">Catatan bebas<textarea id="prFree" maxlength="4000" translate="no"></textarea></label>' +
-    '<div class="row"><label class="btn">Foto (opsional)<input type="file" id="prPhoto" accept="image/*" hidden></label><span class="muted small" id="prPhotoName" translate="no"></span></div>' +
-    '<div class="row"><button class="btn pri" id="prGo" type="button">Buat press release</button></div>' +
-    '<div id="prOut" class="stack" hidden><div id="prQuoteWarn" class="small" hidden>Kutipan perlu disetujui narasumber</div><div id="prMissing" class="stack" translate="no"></div><div id="prPrev" class="stack" translate="no"></div>' +
-    '<div class="row"><button class="btn sm" id="prCopy" type="button">Salin teks</button><button class="btn sm" id="prDocx" type="button">Unduh .docx</button></div></div>';
+  if (cs.canEdit) { $("cwSettings").hidden = false; $("cwSettings").onclick = (e) => { e.preventDefault(); $("cwBox").hidden = !$("cwBox").hidden; }; }
   let R = null, photo = null;
   const txt = () => ({ about: $("prAbout").value, contact: $("prContact").value });
   fetch("/api/cw").then((r) => r.json()).then((j) => { $("prAbout").value = j.pr.about || ""; $("prContact").value = j.pr.contact || ""; }).catch(() => toast("Teks baku gagal dimuat."));
@@ -410,21 +391,15 @@ function initPr(cs) {
   };
   const blocks = () => prBlocks(R, { ...txt(), photo });
   const text = () => blocks().filter((b) => b.runs).map((b) => b.runs.map((r) => r.text).join("")).join("\n\n");
-  $("prGo").onclick = async () => {
-    const v = (id) => $(id).value.trim(), btn = $("prGo");
-    const hl = { event: v("prEvent"), date: v("prDate"), city: v("prCity"), partners: v("prPartners"), guests: v("prGuests"), numbers: v("prNumbers"), speaker: v("prSpeaker"), quote: v("prQuote"), contact: v("prContactX"), doc_url: v("prDoc"), free: v("prFree") };
-    if (!hl.event && !hl.free) return toast("Isi acara atau catatan bebas dulu.");
-    btn.disabled = true;
-    try {
-      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl }) });
-      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
-      R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
-      if (!hl.speaker && !hl.quote) R.quote = { text: "", speaker: "", ai: false }; // tanpa narasumber/kutipan dari pengguna, kutipan AI dibuang
-      $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
-      $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
-      $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");
-      $("prOut").hidden = false;
-    } catch (err) { toast(err.message || "Gagal membuat press release."); } finally { btn.disabled = false; }
+  const go = async ({ text: free }) => {
+    const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl: { free } }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+    R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
+    if (!R.quote.speaker) { if (R.quote.text) R.missing.push("kutipan narasumber"); R.quote = { text: "", speaker: "", ai: false }; } // tanpa narasumber, kutipan dibuang
+    $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
+    $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
+    $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");
+    $("prOut").hidden = false;
   };
   $("prCopy").onclick = () => { navigator.clipboard.writeText(text()).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
   $("prDocx").onclick = async () => {
@@ -433,4 +408,5 @@ function initPr(cs) {
       const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks(), logo ? { logo } : {}))); a.download = "press-release.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     } catch (err) { toast("Gagal membuat file."); }
   };
+  return { go, hide: () => { R = null; $("prOut").hidden = true; } };
 }

@@ -204,12 +204,12 @@ assert.deepEqual(q0, { used: 0, limit: 2 });               // env tes COPY_AI_DA
 const cw0 = await (await call("/api/cw", { cookie: user })).json();
 assert.equal(cw0.pr.contact, "");
 assert.match(cw0.pr.about, /kode broker BQ/);
-assert.ok(cw0.program.prizes.some((p) => p.main && /BYD Denza D9/.test(p.text)));
+assert.equal(cw0.program, undefined);
 assert.equal((await call("/api/cw", { cookie: user, json: { pr: { contact: "x" } } })).status, 403);
 const cw1 = await (await call("/api/cw", { cookie: editor, json: { pr: { about: "A", contact: "B" } } })).json();
 assert.deepEqual(cw1.pr, { about: "A", contact: "B" });
 assert.equal((await (await call("/api/cw", { cookie: user })).json()).pr.contact, "B");
-assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('id="cwKind"') && page.includes('import("/cw.js")'));
+assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('import("/cw.js")'));
 assert.ok(fs.existsSync(new URL("./assets/brand/kisi-color.png", import.meta.url)));
 for (const f of ["wrangler.jsonc", "wrangler.deploy.json"]) if (fs.existsSync(new URL("./" + f, import.meta.url))) assert.match(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /"COPY_AI_DAILY": "100"/);
 
@@ -504,12 +504,38 @@ assert.match(sd, /● Kuliah Saham tidak terafiliasi sebagai pegawai PT KISI dan
 assert.ok(sd.endsWith("Link aset: https://drive.example/x"));
 assert.ok(CW.snsDisclaimer("Sahamology", "", "carousel").startsWith("Tambahin tulisan kecil di setiap slide:"));
 assert.doesNotMatch(CW.snsDisclaimer("Sahamology", "", "carousel"), /Link aset/);
-const { CW_DEFAULT } = await import("./worker.js");
-assert.equal(prompt("cw_brief", { program: CW_DEFAULT.program, type: "sns", partners: [] }), null);
-assert.equal(prompt("cw_brief", { program: { ...CW_DEFAULT.program, name: "" }, type: "media" }), null);
-const pb = prompt("cw_brief", { program: CW_DEFAULT.program, type: "sns", partners: ["Sahamology", "Kuliah Saham"], format: "carousel", highlight: "hadiah utama" }).user;
-assert.match(pb, /Sahamology[\s\S]*Kuliah Saham/); assert.match(pb, /BYD Denza D9/); assert.match(pb, /berbeda/);
-assert.match(prompt("cw_brief", { program: CW_DEFAULT.program, type: "media" }).user, /350 kata/);
+const BR = "KISI Challenge: Tantangan Baru. Periode 1–31 Januari 2027. Hadiah utama mobil listrik. Partner: Komunitas A, Komunitas B. Link aset: https://drive.example/a";
+assert.equal(prompt("cw_brief", { text: " ", type: "media" }), null);
+const pb2 = prompt("cw_brief", { text: BR, type: "sns", partners: [], format: "carousel" }).user;
+assert.match(pb2, /Tantangan Baru/); assert.match(pb2, /perlu dilengkapi/); assert.match(pb2, /Jangan mengarang/);
+const pb3 = prompt("cw_brief", { text: BR, type: "sns", partners: ["Sahamology", "Kuliah Saham"], format: "carousel" }).user;
+assert.match(pb3, /Sahamology[\s\S]*Kuliah Saham/); assert.match(pb3, /berbeda/);
+assert.match(prompt("cw_brief", { text: BR, type: "media" }).user, /350 kata/);
+assert.equal(parse("cw_brief", '{"asset_url":"https://drive.example/a","sns":[]}').asset_url, "https://drive.example/a");
+assert.ok(!/tidak terafiliasi/.test(CW.snsDisclaimer("", "", "single")));
+assert.match(CW.briefText({ sns: [{ partner: "", frames: [{ label: "Slide 1", lines: ["x"] }] }], asset_url: "" }, { format: "carousel", platform: "IG" }), /^IG Carousel/);
+const cwx = await (await call("/api/cw", { cookie: user })).json();
+assert.equal(cwx.program, undefined); assert.equal(cwx.pr.contact, "B");
+for (const f of ["worker.js", "assets/cw.js", "page.html"]) assert.doesNotMatch(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /Beyond Tomorrow|BYD Denza|Sahamology|Kuliah Saham|cleanProgram/, f);
+for (const id of ["cwFile", "cwPaste", "cwOpts", "cwGo", "cwSettings"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const g of ["article", "review", "pr", "brief"]) assert.ok(page.includes(`data-goal="${g}"`), g);
+assert.ok(!page.includes('id="cwKind"') && !page.includes('id="prEvent"') && !page.includes('id="bfProg"'), "formulir lama hilang");
+assert.equal(CW.igsTitle("Judul pendek\nIsi naskah"), "Judul pendek");
+assert.equal(CW.igsTitle("\n  \nJudul  \nIsi"), "Judul");
+assert.equal(CW.igsTitle("x".repeat(121) + "\nIsi"), "");
+assert.deepEqual(CW.splitTitle("Judul"+"\n"+"  Isi 5%"), { title: "Judul", body: "Isi 5%" });
+assert.deepEqual(CW.splitTitle("x".repeat(121) + "\nIsi"), { title: "", body: "x".repeat(121) + "\nIsi" });
+const prL = prompt("cw_pr", { hl: { free: "a".repeat(10000) + "UJUNG" } }).user;
+assert.match(prL, /UJUNG/); assert.match(prL, /perlu dilengkapi: kota[/]tanggal/); assert.match(prL, /kata demi kata dari bahan WAJIB ai=false/);
+assert.doesNotMatch(prompt("cw_pr", { hl: { free: "x", city: "Jakarta", date: "1 Mei" } }).user, /kota[/]tanggal/);
+assert.match(prompt("cw_article", { text: "x", close: "promo", promo: { name: "", url: "" } }).user, /perlu dilengkapi: nama program/);
+assert.doesNotMatch(prompt("cw_article", { text: "x", close: "promo", promo: { name: "Kompetisi A" } }).user, /nama program/);
+assert.equal(CW.inputError("article", "", "  "), "Unggah file atau tempel teks dulu.");
+assert.equal(CW.inputError("article", "a.xlsx", ""), "File Excel/PDF hanya untuk Cek wording.");
+assert.equal(CW.inputError("review", "a.pdf", ""), "");
+assert.equal(CW.inputError("review", "", "teks"), "Cek wording perlu file Word, Excel, atau PDF.");
+assert.equal(CW.inputError("pr", "a.txt", ""), "Pilih file .docx, .xlsx, atau .pdf.");
+assert.equal(CW.inputError("brief", "a.docx", ""), "");
 const rb = parse("cw_brief", '{"sns":[{"partner":"Sahamology","frames":[{"label":"Slide 1","lines":["KOMPETISI DIMULAI!",""]}]}]}');
 assert.deepEqual(rb.sns[0].frames[0].lines, ["KOMPETISI DIMULAI!"]);
 assert.match(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /Slide 1:\nx/);
@@ -525,7 +551,7 @@ assert.ok(pbk.some((b) => b.runs && b.runs[0].text === "Tentang PT Korea Investm
 assert.ok(!pbk.some((b) => b.runs && /Media Contact/.test(b.runs[0].text)), "kontak kosong -> tanpa Media Contact");
 assert.ok(CW.prBlocks(rp, { about: "x", contact: "Nama\nTelp" }).some((b) => b.runs && /Media Contact/.test(b.runs[0].text)));
 { const nb = CW.prBlocks({ ...rp, title: "", quote: { text: "Q", speaker: "", ai: true } }, { about: "x", contact: "" }); assert.ok(!nb.some((b) => b.runs && b.runs.some((r) => /ujar/.test(r.text))), "tanpa narasumber -> tanpa ujar"); assert.ok(!nb.some((b) => b.runs && b.runs[0].b && !b.runs[0].i && b.runs[0].text === "")); assert.equal(nb[1].runs[0].text.startsWith("Jakarta"), true, "judul kosong dilewati"); }
-assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*brief KISI Challenge.*press release.*cek wording/i);
+assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*cek wording.*press release.*brief KISI Challenge/i);
 }
 
 /* ---------- review akhir: textbox, angka, konsistensi ---------- */
@@ -559,4 +585,14 @@ assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"
   assert.equal(tf.length, 1); assert.equal(tf[0].kind, "konsistensi"); assert.equal(tf[0].loc, "p0");
 }
 
+/* ---------- cek kepatuhan dokumen (Cek wording) ---------- */
+// disclaimer resmi "bukan jaminan keuntungan" tidak boleh dianggap janji untung
+assert.ok(!ids("Hadiah adalah bentuk apresiasi aktivitas transaksi, bukan jaminan keuntungan investasi.").includes("janji"));
+assert.ok(ids("Ada jaminan keuntungan 10%").includes("janji"));
+{ const CWd = await import("./assets/cw.js");
+  const units = [{ id: "p0", text: "Hadiah utama BYD untuk trader saham terbaik. " + "x".repeat(220) }, { id: "p1", text: "S&K berlaku. Investasi mengandung risiko. Berizin dan diawasi OJK." }];
+  const f = CWd.docCompliance(units, (t) => checkCopy(t).issues);
+  assert.deepEqual(f.filter((x) => ["p0", "p1"].includes(x.loc)).map((x) => x.from.toLowerCase()), ["terbaik"], "per paragraf hanya kata terlarang");
+  assert.equal(f.filter((x) => x.loc === "dokumen").length, 0, "disclaimer sekali di dokumen sudah cukup");
+  assert.ok(CWd.docCompliance([{ id: "p0", text: "Menangkan hadiah saham. " + "x".repeat(220) }], (t) => checkCopy(t).issues).filter((x) => x.loc === "dokumen").length >= 2, "dokumen tanpa disclaimer tetap ditandai sekali"); }
 console.log("semua cek lolos");
