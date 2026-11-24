@@ -1335,6 +1335,14 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.match(all2, /4 posts from 2 accounts · compared with 2 month\(s\) only/); assert.match(all2, /"-25\.0 pts"/); assert.match(all2, /"5\.0×"/); assert.match(all2, /@sekuritas_x · Cara baca laporan keuangan/);
   assert.match(all2, /November 2026 · 1 new contents based on trends/, "baris rencana tanpa judul tidak ikut"); assert.match(all2, /Bedah laporan keuangan/);
   assert.equal(D2.blocks.filter((b) => b.t === "sum").length, 2);
+  // rencana panjang: pemecah halaman PDF/PPT hanya memindahkan tabel utuh -> satu tabel per pilar, maks. 3 baris, tidak ada baris hilang
+  { const P24 = ["Market update", "Edukasi", "Promo", "Engagement", "Produk & fitur", "Event", "Momen & hari besar", "Brand & korporat"].flatMap((p) => [1, 2, 3].map((k) => ({ t: p + " " + k, i: "ide ".repeat(60), p, f: "Carousel", r: "tren" })));
+    const D3 = tdoc({ div: "D", mon: "October", yr: "2026", tr: { ...tr, posts: 0 }, next: "November 2026", plan: [...P24, { t: "Tanpa pilar" }, ...[1, 2, 3, 4, 5].map((k) => ({ t: "Edu ekstra " + k, p: "Edukasi" }))] });
+    const T3 = D3.blocks.filter((b) => b.t === "sum").flatMap((b) => b.cols.flat());
+    assert.ok(T3.every((t) => t.rows.length <= 3), "tabel maks. 3 baris");
+    assert.equal(T3.reduce((a, t) => a + t.rows.length, 0), 30, "semua baris ikut");
+    assert.deepEqual(T3.slice(0, 5).map((t) => [t.h2, t.rows.length]), [["Market update", 3], ["Edukasi", 3], ["Edukasi (cont.)", 3], ["Edukasi (cont.)", 2], ["Promo", 3]], "dikelompokkan per pilar, urutan kemunculan");
+    assert.equal(T3.at(-1).h2, "Other"); assert.deepEqual(T3[0].cols.map((c) => c[0]), ["Content", "Idea", "Format", "Trend"]); }
   assert.deepEqual(tdoc({ div: "D", mon: "October", yr: "2026", tr: { ...tr, posts: 0 }, plan: [] }).blocks, [], "tanpa data: tanpa halaman");
   assert.match(pg, /tr:\{data:trendData,doc:trendDoc,name:"Tren & Rencana Konten"\}/); assert.match(pg, /data-t="tr"/);
   // postingan otomatis tidak ikut Laporan Kegiatan & Monthly Report

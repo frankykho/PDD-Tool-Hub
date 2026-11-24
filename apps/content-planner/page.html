@@ -2513,7 +2513,10 @@ function trendDoc(R){
   const PL=(R.plan||[]).filter(x=>x.t);
   if(PL.length){
     B.push({t:"page",h2:"Content Plan",sub:`${R.next} · ${PL.length} new contents based on trends`});
-    B.push({t:"sum",cols:[[{h2:"",cols:[["Content",22],["Idea",38],["Pillar",12],["Format",10],["Trend",18]],rows:PL.map(x=>[x.t,x.i||"",x.p||"",x.f||"",x.r||""])}]]});
+    // satu tabel per pilar, maks. 3 baris: pemecah halaman PDF/PPT hanya memindahkan tabel utuh, tabel panjang terpotong di bawah halaman
+    const G=[];PL.forEach(x=>{const k=x.p||"Other";let g=G.find(g=>g.k===k);if(!g)G.push(g={k,L:[]});g.L.push(x)});
+    B.push({t:"sum",cols:[G.flatMap(g=>Array.from({length:Math.ceil(g.L.length/3)},(_,i)=>({h2:g.k+(i?" (cont.)":""),
+      cols:[["Content",25],["Idea",45],["Format",10],["Trend",20]],rows:g.L.slice(i*3,i*3+3).map(x=>[x.t,x.i||"",x.f||"",x.r||""])})))]});
   }
   return {div:R.div,per:R.mon+" "+R.yr,head:R.div+" | Content Trends & Plan | "+R.mon+" "+R.yr,plain:true,raw:true,blocks:B};
 }
