@@ -1320,9 +1320,71 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.match(all, /3,415,684/); assert.match(all, /No TikTok Ads in October/); assert.match(all, /Summary of Design/); assert.match(all, /Every Tuesday - Friday/);
   const P = D.blocks.filter((b) => b.t === "posts");
   assert.ok(P.length >= 1, "kartu postingan IG ikut"); assert.deepEqual(P[P.length - 1].items[0].m.map((x) => x[0]), ["Likes", "Comments", "Shares", "Views", "Saves", "Reposts"]);
+  assert.doesNotMatch(all, /Competitor Trends|Content Plan/, "tanpa tren & rencana: tidak ada halaman kosong");
+  // tren kompetitor & rencana bulan depan: sebelum kartu postingan IG
+  const tr = { posts: 4, accounts: 2, base: 2, pillars: [{ n: "Promo", now: 50, avg: 50, chg: 0 }, { n: "Edukasi", now: 25, avg: 50, chg: -25 }], topics: [{ n: "Saham", now: 100, avg: null, chg: null }],
+    formats: [{ n: "Reels", posts: 1, ratio: 5 }, { n: "Carousel", posts: 2, ratio: null }], top: [{ account: "sekuritas_x", format: "Reels", pillar: "Edukasi", d: "2026-10-05", likes: 500, comments: 3, ratio: 5, cap: "Cara  baca\nlaporan keuangan", img: "data:image/png;base64,AA" }] };
+  const D2 = doc({ div: "Digital Marketing", mon: "October", yr: "2026", c, imgs: {}, tr, next: "November 2026", plan: [{ t: "Bedah laporan keuangan", i: "Carousel 5 slide", p: "Edukasi", f: "Carousel", r: "Edukasi laporan keuangan menonjol" }, { t: "", i: "baris kosong" }] });
+  const all2 = JSON.stringify(D2.blocks), pg2 = D2.blocks.filter((b) => b.t === "page").map((b) => b.h2);
+  assert.ok(pg2.indexOf("Competitor Trends") < pg2.indexOf("Content Plan") && pg2.indexOf("Content Plan") < pg2.indexOf("Instagram Posts"), "urutan: tren, rencana, lalu lampiran postingan IG");
+  assert.match(all2, /4 posts from 2 accounts · compared with 2 month\(s\) only/); assert.match(all2, /"-25\.0 pts"/); assert.match(all2, /"5\.0×"/); assert.match(all2, /@sekuritas_x · Cara baca laporan keuangan/);
+  assert.match(all2, /November 2026 · 1 new contents based on trends/, "baris rencana tanpa judul tidak ikut"); assert.match(all2, /Bedah laporan keuangan/);
+  assert.equal(D2.blocks.filter((b) => b.t === "sum").length, 6);
   // postingan otomatis tidak ikut Laporan Kegiatan & Monthly Report
   assert.match(pg.match(/async function repData\(\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
   assert.match(pg.match(/async function monData\(div\)\{[\s\S]*?\n\}\n/)[0], /!i\.auto/);
+}
+
+// Laporan SMS: tren kompetitor (ci_content di FUND_DB) & draf rencana konten AI
+{
+  const { trendCalc, smValid, parsePlan, smPlan } = await import("./worker.js");
+  const row = (id, account, d, pillar, format, likes, topic = "Saham") => ({ id, account, d, pillar, format, likes, comments: likes === null ? null : 0, topic, cap: "caption " + id, url: "https://instagram.com/p/" + id });
+  const R = [
+    ...["07", "08", "09"].map((mm) => row("a" + mm, "a", `2026-${mm}-10`, "Edukasi", "Foto", 100)), ...["07", "08", "09"].map((mm) => row("b" + mm, "b", `2026-${mm}-11`, "Promo", "Carousel", 50)),
+    row("a10r", "a", "2026-10-05", "Edukasi", "Reels", 500), row("a10f", "a", "2026-10-06", "Promo", "Foto", 100),
+    row("b10", "b", "2026-10-07", "Promo", "Carousel", 50), row("b10n", "b", "2026-10-08", "Market update", "Carousel", null), row("old", "a", "2026-06-01", "Event", "Foto", 9999)];
+  const t = trendCalc(R, "2026-10");
+  assert.deepEqual([t.posts, t.accounts, t.base], [4, 2, 3]);
+  assert.deepEqual(t.pillars.map((x) => [x.n, x.now, x.avg, x.chg]), [["Promo", 50, 50, 0], ["Edukasi", 25, 50, -25], ["Market update", 25, 0, 25]], "porsi (%), bukan jumlah; bulan di luar jendela diabaikan");
+  assert.deepEqual(t.formats.map((x) => [x.n, x.posts, x.ratio]), [["Carousel", 2, 1], ["Reels", 1, 5], ["Foto", 1, 1]], "postingan tanpa angka likes tetap dihitung jumlahnya");
+  assert.deepEqual(t.top.map((x) => [x.id, x.ratio]), [["a10r", 5]], "menonjol = >= 2x median akun itu sendiri");
+  assert.equal(trendCalc(R.filter((r) => r.d >= "2026-10"), "2026-10").base, 0, "tanpa bulan pembanding");
+  assert.equal(trendCalc(R.filter((r) => r.d >= "2026-10"), "2026-10").pillars[0].chg, null);
+  assert.deepEqual(trendCalc([row("x", "x", "2026-10-01", "Promo", "Foto", 900)], "2026-10").top, [], "akun dengan < 3 postingan berangka tidak dinilai");
+  assert.deepEqual(trendCalc([], "2026-10").posts, 0);
+  // isian rencana: bentuk dicek
+  const plan = [{ t: "Judul", i: "Ide", p: "Edukasi", f: "Reels", r: "Tren" }];
+  assert.ok(smValid({ plan, planNote: "fokus pemula" })); assert.ok(smValid({ plan: [] }));
+  assert.ok(!smValid({ plan: [{ t: "x", z: "?" }] }), "kunci asing ditolak"); assert.ok(!smValid({ plan: [{ t: "x".repeat(101) }] })); assert.ok(!smValid({ plan: [{ t: 5 }] }));
+  assert.ok(!smValid({ plan: Array(21).fill({ t: "x" }) })); assert.ok(!smValid({ planNote: "x".repeat(301) }));
+  assert.deepEqual(parsePlan('```json\n{"items":[{"judul":" Bedah  LK ","ide":"i","pilar":"Edukasi","format":"reels","tren":"t"},{"judul":"","ide":"tanpa judul"}]}\n```'),
+    [{ t: "Bedah LK", i: "i", p: "Edukasi", f: "Reels", r: "t" }]);
+  // HTTP: tren dari FUND_DB + gambar postingan menonjol; draf AI memakai momen bulan depan & seri rutin
+  env.FUND_DB = d1();
+  const SMS = await cookie({ e: "sari@acme.test", n: "Sari", j: "sosmed" });
+  assert.equal((await call("/api/sm/trend?m=2026-10", { ck: SMS })).j.error, "Belum ada data Content Insight.");
+  env.FUND_DB.db.exec("CREATE TABLE ci_content (id TEXT PRIMARY KEY, url TEXT, platform TEXT, account TEXT, format TEXT, caption TEXT, posted_at TEXT, likes INTEGER, comments INTEGER, pillar TEXT, topic TEXT, image_data TEXT, saved_at TEXT)");
+  const ins = env.FUND_DB.db.prepare("INSERT INTO ci_content (id, url, account, format, caption, posted_at, likes, comments, pillar, topic, image_data, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  R.forEach((r) => ins.run(r.id, r.url, r.account, r.format, r.cap, r.id === "b10n" ? null : r.d, r.likes, r.comments, r.pillar, r.topic, r.id === "a10r" ? "data:image/jpeg;base64,AA" : null, r.d + "T00:00:00Z"));
+  let x = (await call("/api/sm/trend?m=2026-10", { ck: SMS })).j;
+  assert.equal(x.posts, 4, "tanggal kosong (bookmark) memakai tanggal disimpan"); assert.equal(x.top[0].img, undefined, "gambar hanya bila diminta");
+  x = (await call("/api/sm/trend?img=1&m=2026-10", { ck: SMS })).j; assert.equal(x.top[0].img, "data:image/jpeg;base64,AA");
+  assert.equal((await call("/api/sm/trend?m=2026-13", { ck: SMS })).status, 400);
+  await call("/api/sm/cfg", { ck: SMS, body: { m: "2026-10", v: { ser: [{ n: "BreakVest KISI", s: "Every Tuesday - Friday" }] } } });
+  let seen = null;
+  const fake = async (e, system, user) => { seen = { system, user }; return { text: '{"items":[{"judul":"Bedah laporan keuangan","ide":"Carousel","pilar":"Edukasi","format":"Carousel","tren":"Edukasi LK"}]}' }; };
+  x = await smPlan(env, { m: "2026-10", note: "fokus pemula" }, fake);
+  assert.deepEqual(x.items.map((i) => i.t), ["Bedah laporan keuangan"]);
+  assert.match(seen.user, /MOMEN BULAN DEPAN \(2026-11\)/); assert.match(seen.user, /SERI RUTIN \(jangan dimasukkan\): BreakVest KISI/); assert.match(seen.user, /fokus pemula/);
+  assert.match(seen.user, /Edukasi: 25% bulan ini, 50% rata-rata 3 bulan sebelumnya \(-25 poin\)/); assert.match(seen.system, /jangan menyebut nama kompetitor/i);
+  assert.match((await smPlan(env, { m: "2026-03" }, fake)).error, /Belum ada postingan kompetitor/);
+  assert.match((await smPlan(env, { m: "2026-10" }, async () => ({ text: "bukan json" }))).error, /tidak terbaca/);
+  assert.match((await smPlan(env, { m: "2026-10" }, async () => ({ text: '{"items":[]}' }))).error, /tidak memberi rencana/);
+  // halaman: form rencana tersimpan lewat /api/sm/cfg dan ikut deck
+  const pg = fs.readFileSync(new URL("./page.html", import.meta.url), "utf8");
+  for (const id of ["rSmTr", "rSmPn", "rSmAi", "rSmPl"]) assert.match(pg, new RegExp(`id="${id}"`), id);
+  assert.match(pg.match(/async function smData\(\)\{[\s\S]*?\n\}\n/)[0], /api\("\/api\/sm\/trend\?img=1&m="\+m\)\.catch/, "tren gagal: deck tetap jadi");
+  delete env.FUND_DB;
 }
 
 console.log("semua cek lolos");

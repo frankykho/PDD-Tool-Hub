@@ -104,7 +104,7 @@ dialog::backdrop{background:rgba(10,20,15,.45)}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.grid4 label,.sm-row label{font-size:12px;font-weight:600}.grid4 .f{margin-top:2px}
 .sm-f .lbl{margin-top:10px}.sm-fol{overflow-x:auto}.sm-fol table{border-collapse:collapse;font-size:11px}.sm-fol th,.sm-fol td{padding:2px;text-align:center;white-space:nowrap}.sm-fol input{width:68px;padding:4px;font-size:11px}
-.sm-row{display:flex;gap:6px;align-items:center;margin:0 0 6px}.sm-row .f{flex:1}.sm-row .f.n{flex:0 0 90px}
+.sm-row{display:flex;gap:6px;align-items:center;margin:0 0 6px}.sm-row .f{flex:1}.sm-row .f.n{flex:0 0 90px}.sm-plan{flex-wrap:wrap;padding:0 0 6px;border-bottom:1px solid var(--line,#e3e8e5)}.sm-plan .f{flex:1 1 120px}.sm-plan .f.wide{flex:2 1 240px}
 @media (max-width:640px){.grid4{grid-template-columns:1fr 1fr}}.grid3.g2w{grid-template-columns:1fr 2fr}
 .imptbl{width:100%;border-collapse:collapse}.imptbl th,.imptbl td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}.imptbl th{position:sticky;top:0;background:var(--card)}
 .gdoc{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center;margin:6px 0}.gdoc span{font-size:13px}
@@ -527,6 +527,11 @@ html[data-theme] dialog::backdrop{background:rgba(6,16,10,.3);-webkit-backdrop-f
       <div id="rSmVe"></div><button type="button" class="btn sm" data-smadd="ve">+ Baris</button>
       <span class="lbl">Summary of Design</span>
       <div id="rSmDe"></div><button type="button" class="btn sm" data-smadd="de">+ Baris</button>
+      <span class="lbl">Tren kompetitor &amp; rencana konten bulan depan (dari Content Insight)</span>
+      <p class="muted small" id="rSmTr" style="margin:0 0 8px"></p>
+      <label for="rSmPn">Arahan untuk AI (opsional)</label><input class="f" id="rSmPn" maxlength="300" placeholder="mis. bulan depan ada promo SBN, fokus investor pemula">
+      <div style="margin:8px 0"><button type="button" class="btn sm" id="rSmAi">Buat draf rencana dengan AI</button> <span class="muted small" id="rSmAiMsg" role="status"></span></div>
+      <div id="rSmPl"></div><button type="button" class="btn sm" data-smadd="plan">+ Konten</button>
       <p class="muted small" id="rSmNoteMsg" style="margin:6px 0 0"></p>
     </div>
     <div class="fld" id="rDivF"><label for="rDiv">Nama divisi (di sampul &amp; kepala halaman)</label><input class="f" id="rDiv" maxlength="80"></div>
@@ -2388,6 +2393,21 @@ function smDoc(R){
      {h2:"",nohead:1,big:1,cols:two(60,40),rows:[["Total Cost Ads",n(c.ttAds.cost)],["Total Post with Ads",n(c.ttAds.posts)],["Account Reach with Ads",n(c.ttAds.reach)]].map(r=>Object.assign(r,{tot:1})),note:c.ttNote}]]});
   const list=(h2,L,t)=>({h2,nohead:1,cols:two(65,35),rows:[...L.map(x=>[x.n,n(x.c)]),Object.assign(["Total",n(t)],{tot:1})]});
   B.push({t:"sum",cols:[[list("Summary of Video Editing",c.ve,c.veTotal)],[list("Summary of Design",c.de,c.deTotal)]]});
+  // tren kompetitor & rencana konten bulan depan (bahan presentasi bulanan)
+  const TR=R.tr,pp=x=>x===null?"-":x.toFixed(1)+"%",chg=x=>x===null?"-":(x>0?"+":"")+x.toFixed(1)+" pts",ra=x=>x===null?"-":x.toFixed(1)+"×";
+  if(TR&&TR.posts){
+    const sh=(h2,l,L)=>({h2,cols:[[l,40],["This month",20,1],["Prev. 3 months",22,1],["Change",18,1]],rows:L.slice(0,8).map(x=>[x.n,pp(x.now),pp(x.avg),chg(x.chg)])});
+    B.push({t:"page",h2:"Competitor Trends",sub:`${R.mon} ${R.yr} · ${TR.posts} posts from ${TR.accounts} accounts`+(TR.base<3?` · compared with ${TR.base} month(s) only`:"")});
+    B.push({t:"sum",cols:[[sh("Content Pillars","Pillar",TR.pillars)],[sh("Topics","Topic",TR.topics),
+      {h2:"Formats",cols:[["Format",40],["Posts",25,1],["Engagement vs usual",35,1]],rows:TR.formats.map(x=>[x.n,n(x.posts),ra(x.ratio)]),note:"Engagement = likes + comments, compared with each account's own median."}]]});
+    if(TR.top.length)B.push({t:"posts",cols:3,h3:"Standout competitor posts (engagement at least 2× the account's usual)",
+      items:TR.top.map(x=>({img:x.img||"",date:day(x.d),title:"@"+x.account+(x.cap?" · "+x.cap.replace(/\s+/g," ").slice(0,90):""),ch:[x.format,x.pillar].filter(Boolean).join(" / "),m:[["Likes",n(x.likes)],["Comments",n(x.comments)],["vs usual",ra(x.ratio)]]}))});
+  }
+  const PL=(R.plan||[]).filter(x=>x.t);
+  if(PL.length){
+    B.push({t:"page",h2:"Content Plan",sub:`${R.next} · ${PL.length} new contents based on trends`});
+    B.push({t:"sum",cols:[[{h2:"",cols:[["Content",22],["Idea",38],["Pillar",12],["Format",10],["Trend",18]],rows:PL.map(x=>[x.t,x.i||"",x.p||"",x.f||"",x.r||""])}]]});
+  }
   const P=c.igPosts,M=[["Likes","m_likes"],["Comments","m_comments"],["Shares","m_shares"],["Views","m_views"],["Saves","m_saves"],["Reposts","m_reposts"]];
   if(P.length){
     const card=i=>({img:(R.imgs||{})[i.id]||"",date:day(i.date),title:i.title,ch:i.channel||"",m:M.map(([l,k])=>[l,n(i[k]??null)])});
@@ -2406,6 +2426,9 @@ const smMonth=()=>($("rFrom").value||"").slice(0,7);
 const smRowHtml=(k,x)=>`<div class="sm-row"><input class="f" data-r="n" maxlength="60" value="${esc(x.n||"")}" placeholder="${esc(T(k==="ser"?"Nama seri":"Nama"))}" aria-label="${esc(T("Nama"))}">`
   +(k==="ser"?`<input class="f" data-r="s" maxlength="60" value="${esc(x.s||"")}" placeholder="${esc(T("Jadwal, mis. Every Monday"))}" aria-label="${esc(T("Jadwal"))}">`:"")
   +`<input class="f n" data-r="c" inputmode="numeric" value="${esc(x.c??"")}" aria-label="${esc(T("Jumlah"))}"><button type="button" class="btn sm" data-smdel aria-label="${esc(T("Hapus baris"))}">✕</button></div>`;
+const smPlanRow=x=>`<div class="sm-row sm-plan">${[["t","Judul konten",100],["i","Ide / isi konten",400],["p","Pilar",40],["f","Format",20],["r","Tren yang mendasari",120]].map(([k,l,n])=>
+  `<input class="f${k==="i"?" wide":""}" data-p="${k}" maxlength="${n}" value="${esc(x[k]||"")}" placeholder="${esc(T(l))}" aria-label="${esc(T(l))}">`).join("")}<button type="button" class="btn sm" data-smdel aria-label="${esc(T("Hapus baris"))}">✕</button></div>`;
+const smPlanRows=L=>{$("rSmPl").innerHTML=L.map(smPlanRow).join("")};
 const smItems=async m=>{if(!SMI||SMI.m!==m)SMI={m,L:await api(`/api/items?from=${m}-01&to=${monthEnd(m+"-01")}`)};return SMI.L};
 const smInt=x=>{const t=String(x??"").replace(/[^\d]/g,"");return t===""?null:Math.min(+t,9e12)};
 function smForm(){
@@ -2414,6 +2437,8 @@ function smForm(){
     if(el.dataset.pct){const t=el.value.replace(",",".").replace(/[^\d.]/g,"");v[a][b]=t===""||isNaN(+t)?null:Math.round(+t*100)}else v[a][b]=smInt(el.value)});
   const rows=id=>[...$(id).children].map(r=>{const g=k=>r.querySelector(`[data-r="${k}"]`);return {n:g("n").value.trim().slice(0,60),...(g("s")?{s:g("s").value.trim().slice(0,60)}:{}),c:smInt(g("c").value)}}).filter(x=>x.n).slice(0,20);
   v.ser=rows("rSmSer");v.ve=rows("rSmVe");v.de=rows("rSmDe");v.ttNote=$("rSmNote").value.trim().slice(0,120);
+  v.plan=[...$("rSmPl").children].map(r=>{const o={};r.querySelectorAll("[data-p]").forEach(el=>{const t=el.value.trim().slice(0,+el.maxLength);if(t)o[el.dataset.p]=t});return o}).filter(x=>x.t).slice(0,20);
+  v.planNote=$("rSmPn").value.trim().slice(0,300);
   return v;
 }
 function smFolTable(m){
@@ -2437,14 +2462,27 @@ async function smLoad(){
   // bulan baru: daftar baris ikut bulan sebelumnya (tanpa angka), atau bawaan
   Object.entries(SM_BOX).forEach(([k,id])=>{const L=v[k]||(pv[k]||SM_DEF[k]).map(x=>({n:x.n,s:x.s,c:null}));$(id).innerHTML=L.map(x=>smRowHtml(k,x)).join("")});
   $("rSmF").querySelectorAll("[data-k]").forEach(el=>{const [a,b]=el.dataset.k.split("."),x=(v[a]||{})[b];el.value=x==null?"":el.dataset.pct?String(x/100):String(x)});
-  $("rSmNote").value=v.ttNote||"";
+  $("rSmNote").value=v.ttNote||"";smPlanRows(v.plan||[]);$("rSmPn").value=v.planNote||"";$("rSmAiMsg").textContent="";smTrText(m);
   smFolTable(m);$("rSmF").dataset.m=m;await smHint();
 }
 $("rSmF").addEventListener("click",e=>{
-  const a=e.target.closest("[data-smadd]");if(a){$(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
+  const a=e.target.closest("[data-smadd]");if(a){if(a.dataset.smadd==="plan")$("rSmPl").insertAdjacentHTML("beforeend",smPlanRow({}));else $(SM_BOX[a.dataset.smadd]).insertAdjacentHTML("beforeend",smRowHtml(a.dataset.smadd,{}));return}
   const d=e.target.closest("[data-smdel]");if(d){d.closest(".sm-row").remove();smHint().catch(()=>{})}});
 $("rSmF").addEventListener("input",e=>{if(e.target.closest("#rSmFol"))e.target.dataset.d="1";
   else if(e.target.closest("#rSmSer")&&e.target.dataset.r==="n"){clearTimeout(smT);smT=setTimeout(()=>smHint().catch(()=>{}),400)}});
+// ringkasan tren di form (teks), dari /api/sm/trend
+const smTrLine=t=>{if(!t.posts)return T("Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight.");
+  const up=t.pillars.filter(x=>x.chg>0).sort((a,b)=>b.chg-a.chg).slice(0,3).map(x=>x.n+" +"+x.chg),f=t.formats.filter(x=>x.ratio!==null).sort((a,b)=>b.ratio-a.ratio)[0];
+  return T("{n} postingan kompetitor dari {a} akun.").replace("{n}",t.posts).replace("{a}",t.accounts)+(t.base<3?" "+T("Pembanding baru {b} bulan, jadi naik/turun belum bisa dipegang.").replace("{b}",t.base):"")
+    +(up.length?" "+T("Pilar naik (poin persen): {x}.").replace("{x}",up.join(", ")):"")+(f?" "+T("Format paling disukai: {f} ({r}× biasanya).").replace("{f}",f.n).replace("{r}",f.ratio):"")
+    +" "+T("{k} postingan menonjol.").replace("{k}",t.top.length)};
+async function smTrText(m){$("rSmTr").textContent=T("Menghitung tren…");try{const t=await api("/api/sm/trend?m="+m);if(smMonth()===m)$("rSmTr").textContent=smTrLine(t)}catch(x){if(smMonth()===m)$("rSmTr").textContent=x.message}}
+$("rSmAi").onclick=async()=>{
+  const m=smMonth(),say=t=>$("rSmAiMsg").textContent=t;if(!m||$("rSmF").dataset.m!==m)return say(T("Isian bulan ini belum termuat. Coba lagi."));
+  if(smForm().plan.length&&!confirm(T("Ganti rencana yang sudah ada dengan draf baru dari AI?")))return;
+  const b=$("rSmAi");b.disabled=true;say(T("AI menyusun rencana…"));
+  try{const r=await api("/api/sm/plan",{m,note:$("rSmPn").value.trim()});if(smMonth()!==m)return;smPlanRows(r.items);await api("/api/sm/cfg",{m,v:smForm()});say(T("{n} konten. Tersimpan; edit seperlunya.").replace("{n}",r.items.length))}
+  catch(x){say(x.message)}finally{b.disabled=false}};
 async function smData(){
   const m=smMonth();if(!m)throw new Error("Pilih bulan dulu.");
   const from=m+"-01",to=monthEnd(from);$("rFrom").value=from;$("rTo").value=to;
@@ -2455,8 +2493,10 @@ async function smData(){
   SMF=(await api("/api/sm/followers?to="+m)).months||{};SMI=null;
   const c=smCalc(await smItems(m),{month:m,fol:SMF,v}),imgs={};
   for(let k=0;k<c.igPosts.length;k+=100)Object.assign(imgs,await api("/api/imgs?ids="+c.igPosts.slice(k,k+100).map(x=>encodeURIComponent(x.id)).join(",")));
-  const mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4);
-  return {mon,yr,per:mon+" "+yr,tag:"",c,imgs};
+  const mon=CW_MON[+m.slice(5,7)-1],yr=m.slice(0,4),nd=new Date(Date.UTC(+yr,+m.slice(5,7),1));
+  // tren gagal (mis. Content Insight belum ada datanya): deck tetap jadi, tanpa halaman tren
+  const tr=await api("/api/sm/trend?img=1&m="+m).catch(()=>null);
+  return {mon,yr,per:mon+" "+yr,tag:"",c,imgs,tr,plan:v.plan,next:CW_MON[nd.getUTCMonth()]+" "+nd.getUTCFullYear()};
 }
 /* ---------- Laporan Copywriter (gaya deck Canva copywriter, label English seperti deck-nya) ---------- */
 // hitungan murni (dites di test.mjs): L = kegiatan periode yang sudah difilter orang; o = periode, kampanye, angka diketik, YTD

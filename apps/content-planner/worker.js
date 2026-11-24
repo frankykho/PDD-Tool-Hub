@@ -23,6 +23,7 @@
 // - "/api/linkmeta" (POST {id}) -> judul, nama media, topik & kategori dari halaman link kegiatan (hanya isian kosong)
 // - "/api/kisi/sync" (POST {from,to}) -> artikel kisi.co.id (API publik api-compro.kisi.co.id) dibuat / dilengkapi di Planner + YTD website;
 //   dipanggil saat Laporan Copywriter disusun. "/api/cw/cfg" (GET ?k= / POST {k,v}) -> angka laporan yang diketik (tabel cfg)
+// - "/api/sm/trend" (GET ?m=YYYY-MM[&img=1]) tren kompetitor dari ci_content (Content Insight) & "/api/sm/plan" (POST {m, note}) draf rencana konten bulan depan (AI)
 // - "/api/sm/followers" (GET ?to=YYYY-MM 18 bulan / POST {month?, ig?, tt?}) & "/api/sm/cfg" (GET ?m= / POST {m, v}) ->
 //   Laporan Social Media Specialist: followers per bulan dan isian form per bulan (tabel cfg).
 //   Postingan yang dibuat impor (bookmark / CSV) bertanda auto = 1 dan tidak ikut Laporan Kegiatan & Monthly Report.
@@ -851,14 +852,16 @@ async function smFollowers(env, b, to) {
   return { ok: true };
 }
 /** Isian form, bentuknya dicek persis (teks di kolom angka bisa jadi XSS di form):
- *  ser/ve/de = larik <= 20 baris {n, s?: teks <= 60, c: angka|null}; reg/ads/yt/tt/ttAds = {kunci: angka bulat >= 0 | null}; ttNote = teks <= 120. */
+ *  ser/ve/de = larik <= 20 baris {n, s?: teks <= 60, c: angka|null}; reg/ads/yt/tt/ttAds = {kunci: angka bulat >= 0 | null}; ttNote = teks <= 120;
+ *  plan = rencana konten bulan depan, larik <= 20 baris {t judul <= 100, i ide <= 400, p pilar <= 40, f format <= 20, r tren <= 120}; planNote = arahan AI <= 300. */
 export function smValid(v) {
   const obj = (x) => !!x && typeof x === "object" && !Array.isArray(x), txt = (x, n) => typeof x === "string" && x.length <= n;
   const row = (r) => obj(r) && txt(r.n, 60) && (r.s === undefined || txt(r.s, 60)) && (r.c === undefined || okNum(r.c)) && Object.keys(r).every((k) => ["n", "s", "c"].includes(k));
   const nums = (x) => obj(x) && Object.keys(x).length <= 12 && Object.entries(x).every(([k, n]) => /^\w{1,20}$/.test(k) && okNum(n));
-  const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120) };
+  const PL = { t: 100, i: 400, p: 40, f: 20, r: 120 }, prow = (r) => obj(r) && Object.entries(r).every(([k, x]) => PL[k] && txt(x, PL[k]));
+  const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120), plan: (x) => Array.isArray(x) && x.length <= 20 && x.every(prow), planNote: (x) => txt(x, 300) };
   F.ve = F.de = F.ser; F.reg = F.ads = F.yt = F.tt = F.ttAds = nums;
-  return obj(v) && JSON.stringify(v).length <= 8000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
+  return obj(v) && JSON.stringify(v).length <= 24000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
 }
 async function smCfg(env, m, v) {
   await ensure(env);
@@ -871,6 +874,97 @@ async function smCfg(env, m, v) {
   if (!smValid(v)) return { error: "Isian tidak sah: angka harus bilangan bulat 0 atau lebih, teks maks. 120 karakter." };
   await cfgPut(env, "sm_n:" + m, v);
   return { ok: true };
+}
+/* ---------- Laporan SMS: tren kompetitor (ci_content milik Content Insight, di FUND_DB = insight-db) & draf rencana konten bulan depan ---------- */
+const ymShift = (m, k) => { const [y, mo] = m.split("-").map(Number); return new Date(Date.UTC(y, mo - 1 + k, 1)).toISOString().slice(0, 7); };
+const median = (A) => { const s = [...A].sort((a, b) => a - b), h = s.length >> 1; return s.length ? (s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2) : null; };
+const r1 = (x) => Math.round(x * 10) / 10;
+/**
+ * Tren bulan m dari postingan kompetitor bulan m dan 3 bulan sebelumnya. rows = {id, account, format, pillar, topic, likes, comments, d: "YYYY-MM-DD", cap, url}.
+ * Pilar & topik dibandingkan sebagai PORSI (%) postingan, bukan jumlah: menambah akun yang dipantau tidak membuat semuanya tampak "naik".
+ * Engagement (likes + komentar) dibandingkan dengan median akun itu sendiri (min. 3 postingan berangka): akun besar tidak selalu menang.
+ * Murni (dites di test.mjs).
+ */
+export function trendCalc(rows, m) {
+  const prev = [1, 2, 3].map((k) => ymShift(m, -k)), num = (x) => (Number.isFinite(x) && x >= 0 ? x : null);
+  const R = rows.map((r) => ({ ...r, ym: String(r.d || "").slice(0, 7), eng: num(r.likes) === null ? null : r.likes + (num(r.comments) || 0) }));
+  const now = R.filter((r) => r.ym === m), old = R.filter((r) => prev.includes(r.ym)), base = prev.filter((p) => old.some((r) => r.ym === p)).length;
+  const share = (A, k) => { const o = {}; A.forEach((r) => { const n = r[k] || "Lainnya"; o[n] = (o[n] || 0) + 1; }); for (const n in o) o[n] = (o[n] / A.length) * 100; return o; };
+  const shift = (k) => {
+    const a = now.length ? share(now, k) : {}, b = old.length ? share(old, k) : {};
+    return [...new Set([...Object.keys(a), ...Object.keys(b)])].map((n) => ({ n, now: r1(a[n] || 0), avg: base ? r1(b[n] || 0) : null }))
+      .map((x) => ({ ...x, chg: x.avg === null ? null : r1(x.now - x.avg) })).sort((p, q) => q.now - p.now || (q.avg || 0) - (p.avg || 0));
+  };
+  const usual = {};
+  [...now, ...old].forEach((r) => { if (r.eng !== null) (usual[r.account] = usual[r.account] || []).push(r.eng); });
+  for (const a in usual) usual[a] = usual[a].length >= 3 ? median(usual[a]) : null;
+  const scored = now.map((r) => ({ ...r, ratio: r.eng !== null && usual[r.account] ? r.eng / usual[r.account] : null }));
+  const fm = {};
+  scored.forEach((r) => { const f = r.format || "Lainnya"; (fm[f] = fm[f] || { n: f, posts: 0, R: [] }).posts++; if (r.ratio !== null) fm[f].R.push(r.ratio); });
+  const formats = Object.values(fm).map((x) => ({ n: x.n, posts: x.posts, ratio: x.R.length ? r1(median(x.R)) : null })).sort((p, q) => q.posts - p.posts);
+  const top = scored.filter((r) => r.ratio !== null && r.ratio >= 2).sort((p, q) => q.ratio - p.ratio).slice(0, 6)
+    .map((r) => ({ id: r.id, account: r.account, format: r.format || "", pillar: r.pillar || "", topic: r.topic || "", d: r.d, likes: num(r.likes), comments: num(r.comments), ratio: r1(r.ratio), cap: String(r.cap || "").slice(0, 300), url: r.url || "" }));
+  return { month: m, posts: now.length, accounts: new Set(now.map((r) => r.account)).size, base, pillars: shift("pillar"), topics: shift("topic"), formats, top };
+}
+/** GET /api/sm/trend?m=YYYY-MM[&img=1]: img = gambar (data URL) postingan menonjol untuk deck. */
+async function smTrend(env, m, img) {
+  if (!YM.test(String(m || ""))) return { error: "Bulan belum benar." };
+  if (!env.FUND_DB) return { error: "Data Content Insight belum tersambung." };
+  const D = "COALESCE(posted_at, substr(saved_at, 1, 10))";
+  let rows;
+  try {
+    rows = (await env.FUND_DB.prepare(`SELECT id, account, format, pillar, topic, likes, comments, ${D} d, substr(caption, 1, 300) cap, url FROM ci_content WHERE ${D} BETWEEN ? AND ?`)
+      .bind(ymShift(m, -3) + "-01", m + "-31").all()).results;
+  } catch { return { error: "Belum ada data Content Insight." }; }
+  const t = trendCalc(rows, m);
+  if (img && t.top.length) {
+    const I = (await env.FUND_DB.prepare(`SELECT id, image_data FROM ci_content WHERE id IN (${t.top.map(() => "?").join(",")})`).bind(...t.top.map((x) => x.id)).all()).results;
+    t.top.forEach((x) => { const r = I.find((y) => y.id === x.id); x.img = r && /^data:image\//.test(r.image_data || "") ? r.image_data : ""; });
+  }
+  return t;
+}
+export const PLAN_FORMATS = ["Carousel", "Reels", "Foto", "Story", "Video"];
+/** Prompt draf rencana: tren bulan m, momen bulan depan, seri rutin (tidak dimasukkan), arahan SMS. Murni. */
+export function planPrompt(env, t, o) {
+  const p = profile(env), brand = p.brand.short || p.brand.name || "brand kami";
+  const pct = (x) => (x === null ? "-" : x + "%"), line = (x) => `- ${x.n}: ${pct(x.now)} bulan ini, ${pct(x.avg)} rata-rata 3 bulan sebelumnya${x.chg === null ? "" : ` (${x.chg > 0 ? "+" : ""}${x.chg} poin)`}`;
+  const system = `Kamu content strategist media sosial untuk ${brand}, perusahaan efek di Indonesia (saham, reksa dana, obligasi/SBN). Dari ringkasan tren konten kompetitor, susun rencana PEMBUATAN konten untuk bulan depan: 10 sampai 15 konten baru yang memanfaatkan tren itu.
+Aturan:
+- Setiap konten harus berangkat dari satu tren di data (topik/pilar yang naik, format yang engagement-nya tinggi, atau postingan kompetitor yang menonjol). Sebut trennya singkat di kolom "tren".
+- Jangan menyalin kompetitor dan jangan menyebut nama kompetitor. Ambil topiknya, beri sudut pandang ${brand} sendiri.
+- Jangan masukkan konten seri rutin yang sudah pasti jalan.
+- Patuhi aturan OJK: jangan menjanjikan keuntungan atau imbal hasil pasti. Angka pasar/produk/promo yang belum pasti tulis sebagai [isi angka].
+- Bahasa Indonesia, ringkas. "format" salah satu dari: ${PLAN_FORMATS.join(", ")}.
+Jawab HANYA JSON: {"items": [{"judul": "maks 80 karakter", "ide": "1-2 kalimat isi dan sudut konten", "pilar": "pilar konten", "format": "...", "tren": "tren yang mendasari, maks 100 karakter"}]}`;
+  const user = [`TREN KOMPETITOR ${t.month} (${t.posts} postingan dari ${t.accounts} akun; pembanding ${t.base} bulan):`,
+    "Porsi pilar konten:", ...t.pillars.slice(0, 8).map(line), "Porsi topik:", ...t.topics.slice(0, 6).map(line),
+    "Format (jumlah postingan; engagement dibanding biasanya akun itu):", ...t.formats.map((x) => `- ${x.n}: ${x.posts} postingan, ${x.ratio === null ? "-" : x.ratio + "x"}`),
+    t.top.length && "Postingan kompetitor yang menonjol (engagement jauh di atas biasanya akun itu):",
+    ...t.top.map((x) => `- ${x.format}, pilar ${x.pillar || "-"}, ${x.ratio}x biasanya: ${x.cap.replace(/\s+/g, " ").slice(0, 220)}`),
+    o.moments.length && `\nMOMEN BULAN DEPAN (${o.next}):\n${o.moments.map((x) => `- ${x.date}: ${x.name}`).join("\n")}`,
+    o.series.length && `\nSERI RUTIN (jangan dimasukkan): ${o.series.join(", ")}`,
+    o.note && `\nARAHAN DARI SOCIAL MEDIA SPECIALIST: ${o.note}`].filter(Boolean).join("\n");
+  return { system, user };
+}
+/** Jawaban AI -> baris rencana yang sah (bentuk smValid). Murni. */
+export function parsePlan(text) {
+  const o = JSON.parse(String(text).replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "")), cut = (x, n) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  return (Array.isArray(o && o.items) ? o.items : []).map((x) => ({ t: cut(x.judul, 100), i: cut(x.ide, 400), p: cut(x.pilar, 40),
+    f: PLAN_FORMATS.find((f) => f.toLowerCase() === cut(x.format, 20).toLowerCase()) || cut(x.format, 20), r: cut(x.tren, 120) })).filter((x) => x.t).slice(0, 20);
+}
+/** POST /api/sm/plan { m, note? } -> { items } (belum disimpan; browser menyimpannya lewat /api/sm/cfg). call = ai (tes: tiruan). */
+export async function smPlan(env, b, call = ai) {
+  const m = String(b.m || "");
+  const t = await smTrend(env, m);
+  if (t.error) return t;
+  if (!t.posts) return { error: "Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight." };
+  const nx = ymShift(m, 1), v = (await cfgGet(env, "sm_n:" + m)) || {};
+  const { system, user } = planPrompt(env, t, { next: nx, moments: (await moments(env, nx + "-01", nx + "-31")).slice(0, 30),
+    series: (v.ser || []).map((x) => x.n).filter(Boolean), note: String(b.note || "").trim().slice(0, 300) });
+  try {
+    const items = parsePlan((await call(env, system, user, 3000, undefined, { temperature: 0.6, json: true })).text);
+    return items.length ? { items } : { error: "AI tidak memberi rencana. Coba lagi." };
+  } catch (e) { return { error: e instanceof AiError ? e.message : "Jawaban AI tidak terbaca. Coba lagi." }; }
 }
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */
 async function ytRefresh(env, ids) {
@@ -1742,6 +1836,7 @@ export default {
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, url.searchParams.get("k")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/followers") { const r = await smFollowers(env, {}, url.searchParams.get("to") || ""); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/cfg") { const r = await smCfg(env, url.searchParams.get("m")); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/trend") { const r = await smTrend(env, url.searchParams.get("m"), url.searchParams.has("img")); return json(r, r.error ? 400 : 200); }
         if (path === "/api/logs") { const r = await listLogs(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/wa") { const r = await listWa(env, from, to); return json(r, r.error ? 400 : 200); }
         if (path === "/api/picks") { const r = await listPicks(env, from, to, url.searchParams.has("ihsg")); return json(r, r.error ? 400 : 200); }
@@ -1765,6 +1860,7 @@ export default {
         if (path === "/api/cw/cfg") { const r = await cwCfg(env, b.k, b.v ?? null); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/followers") { const r = await smFollowers(env, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/sm/cfg") { const r = await smCfg(env, b.m, b.v ?? null); return json(r, r.error ? 400 : 200); }
+        if (path === "/api/sm/plan") { const r = await smPlan(env, b); return json(r, r.error ? 400 : 200); }
         if (path === "/api/linkmeta") { const r = await linkMeta(env, me, b.id); return json(r, r.forbidden ? 403 : r.error ? 400 : 200); }
         const R = { "/api/approval": () => decide(env, me, b), "/api/comments": () => addComment(env, me, b), "/api/moments": () => saveMoment(env, me, b),
           "/api/moments/delete": () => deleteMoment(env, me, b.id), "/api/links": () => saveLink(env, me, b), "/api/metrics/import": () => importMetrics(env, me, b), "/api/yt/refresh": () => ytRefresh(env, b.ids),
