@@ -372,6 +372,50 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.equal(cn(/w:id="7"/g), 1); assert.equal(cn(/w:id="3"/g), 3, "komentar hanya di asli"); assert.equal(cn(/commentRangeStart/g), 1); assert.equal(cn(/commentReference/g), 1);
   const wids = [...e4.matchAll(/<w:(?:ins|del|bookmarkStart) [^>]*w:id="(\d+)"/g)].map((m) => m[1]); assert.equal(new Set(wids).size, wids.length);
   assert.equal(O.docxParagraphs(O.applyDocx(D2, [{ id: 1, p: 0, from: "bar\tbaz", to: "B\nB" }, { id: 2, p: 0, from: "Foo", to: "Fu" }], { ...T, track: false }).xml)[0].text, "Fu B\nB Foo");
+  /* Excel */
+  const X = {
+    "[Content_Types].xml": `<Types xmlns="t"><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+    "xl/workbook.xml": `<workbook><sheets><sheet name="Budget" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<Relationships><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+    "xl/sharedStrings.xml": `<sst><si><t>Adverstisement</t></si><si><t>Meta &amp; Google</t></si></sst>`,
+    "xl/worksheets/sheet1.xml": `<worksheet><sheetData><row r="1"><c r="A1" t="s" s="3"><v>0</v></c><c r="B1" t="s"><v>0</v></c><c r="C1"><v>45000000</v></c><c r="D1"><f>C1*2</f><v>90000000</v></c><c r="E1" t="s"><v>1</v></c></row></sheetData></worksheet>`,
+  };
+  assert.deepEqual(O.xlsxCells(X).map((c) => [c.sheet, c.ref, c.text]), [["Budget", "A1", "Adverstisement"], ["Budget", "B1", "Adverstisement"], ["Budget", "E1", "Meta & Google"]]);
+  const xr = O.applyXlsx(X, [{ id: 1, path: "xl/worksheets/sheet1.xml", ref: "A1", from: "Adverstisement", to: "Advertisement & Co" }]);
+  const s1 = xr.files["xl/worksheets/sheet1.xml"];
+  assert.match(s1, /<c r="A1" t="inlineStr" s="3"><is><t xml:space="preserve">Advertisement &amp; Co<\/t><\/is><\/c>/);
+  assert.match(s1, /<c r="B1" t="s"><v>0<\/v><\/c>/, "sel lain yang memakai shared string sama tidak berubah");
+  assert.match(s1, /<f>C1\*2<\/f>/);
+  assert.equal(xr.files["xl/sharedStrings.xml"], X["xl/sharedStrings.xml"]);
+  assert.deepEqual([xr.applied, xr.failed], [[1], []]);
+  assert.deepEqual(O.applyXlsx(X, [{ id: 2, path: "xl/worksheets/sheet1.xml", ref: "C1", from: "x", to: "y" }, { id: 3, path: "xl/worksheets/sheet1.xml", ref: "A1", from: "salah", to: "y" }]).failed, [2, 3], "angka dan teks tak cocok gagal");
+  const xs = O.addSheet(xr.files, "Catatan Review", [["Sel", "Sebelum", "Sesudah"], ["Budget!A1", "Adverstisement", "Advertisement & Co"]]);
+  assert.deepEqual(O.xlsxCells(xs).filter((c) => c.sheet === "Catatan Review").map((c) => c.text), ["Sel", "Sebelum", "Sesudah", "Budget!A1", "Adverstisement", "Advertisement & Co"]);
+  assert.match(xs["[Content_Types].xml"], /sheet2\.xml/);
+  assert.match(xs["xl/workbook.xml"], /<sheet name="Catatan Review" sheetId="2" r:id="rId2"\/>/);
+  assert.match(xs["xl/_rels/workbook.xml.rels"], /Id="rId2"[^>]*Target="worksheets\/sheet2\.xml"/);
+  const xe = O.copySheetTranslated(X, "xl/worksheets/sheet1.xml", "EN", new Map([["E1", "Meta and Google"]]));
+  assert.ok(O.xlsxCells(xe).some((c) => c.sheet === "EN" && c.ref === "E1" && c.text === "Meta and Google"));
+  assert.match(Object.entries(xe).find(([k, v]) => /sheet2/.test(k))[1], /<f>C1\*2<\/f>/, "rumus ikut tersalin");
+  // kasus sulit: rich text, rPh, sel kosong, urutan atribut, nama & dan duplikat
+  const Y = structuredClone(X);
+  Y["xl/workbook.xml"] = `<workbook><sheets><sheet r:id="rId1" sheetId="1" name="A &amp; B"/></sheets></workbook>`;
+  Y["xl/sharedStrings.xml"] = `<sst><si><r><t>Adver</t></r><r><rPr><b/></rPr><t xml:space="preserve">tisement </t></r><rPh sb="0" eb="1"><t>ふりがな</t></rPh><r><t>Co</t></r></si></sst>`;
+  Y["xl/worksheets/sheet1.xml"] = `<worksheet><sheetData><row r="1"><c r="A1" s="2"/><c s="4" t="s" r="B1"><v>0</v></c><c r="C1" t="inlineStr"><is><t>Hai</t></is></c></row></sheetData><drawing r:id="rId9"/><tableParts count="1"><tablePart r:id="rId8"/></tableParts></worksheet>`;
+  Y["xl/worksheets/_rels/sheet1.xml.rels"] = `<Relationships><Relationship Id="rId9" Type="drawing" Target="../drawings/drawing1.xml"/></Relationships>`;
+  assert.deepEqual(O.xlsxCells(Y).map((c) => [c.sheet, c.ref, c.text]), [["A & B", "B1", "Advertisement Co"], ["A & B", "C1", "Hai"]]);
+  const yr = O.applyXlsx(Y, [{ id: 1, path: "xl/worksheets/sheet1.xml", ref: "B1", from: "Advertisement Co", to: "Z" }]);
+  assert.match(yr.files["xl/worksheets/sheet1.xml"], /<c s="4" t="inlineStr" r="B1"><is><t xml:space="preserve">Z<\/t><\/is><\/c>/);
+  assert.match(yr.files["xl/worksheets/sheet1.xml"], /<c r="A1" s="2"\/>/);
+  const yc = O.copySheetTranslated(Y, "xl/worksheets/sheet1.xml", "A & B", new Map([["C1", "Hello"]]));
+  const copy = yc["xl/worksheets/sheet2.xml"];
+  assert.doesNotMatch(copy, /<drawing|<tableParts|<legacyDrawing/);
+  assert.equal(yc["xl/worksheets/_rels/sheet2.xml.rels"], undefined, "rel gambar/tabel tidak disalin");
+  assert.match(yc["xl/workbook.xml"], /name="A &amp; B 2"/, "nama unik");
+  assert.match(yc["xl/workbook.xml"], /sheetId="2"/);
+  assert.ok(O.xlsxCells(yc).some((c) => c.sheet === "A & B 2" && c.ref === "C1" && c.text === "Hello"));
+  assert.equal(O.addSheet(X, "x".repeat(40), [["a"]])["xl/workbook.xml"].match(/name="(x+)"/)[1].length, 31);
+  assert.equal(O.xlsxCells(O.addSheet(X, "[Bad]:Name/?", [["a"]])).at(-1).sheet, "Bad Name", "karakter terlarang dibuang");
 }
 
 /* ---------- Copywriter: artikel berita ---------- */

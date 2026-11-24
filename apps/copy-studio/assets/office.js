@@ -227,3 +227,93 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
     .replace(/(<w:(?:ins|del|moveFrom|moveTo|[pr]PrChange|sectPrChange|tblPrChange|trPrChange|tcPrChange|numberingChange)\s[^>]*?w:id=")\d+"/g, (_, a) => `${a}${id++}"`);
   return documentXml.replace("<w:body>", () => `<w:body>${blocks}`);
 }
+
+/* ---------- Excel ---------- */
+const attr = (a, n) => (a.match(new RegExp(`(?:^|\\s)${n}="([^"]*)"`)) || [])[1];
+const tText = (x) => [...x.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => xmlUnesc(m[1])).join("");
+const CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+const inlineCell = (a, text) => `<c${/\st="[^"]*"/.test(a) ? a.replace(/\st="[^"]*"/, ' t="inlineStr"') : `${a} t="inlineStr"`}><is><t xml:space="preserve">${xmlEsc(text)}</t></is></c>`;
+
+function sharedStrings(files) {
+  return [...(files["xl/sharedStrings.xml"] || "").matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map((m) => tText(m[1]));
+}
+function sheetList(files) {
+  const rels = new Map([...(files["xl/_rels/workbook.xml.rels"] || "").matchAll(/<Relationship\b([^>]*?)\/?>/g)].map((m) => [attr(m[1], "Id"), attr(m[1], "Target")]));
+  return [...(files["xl/workbook.xml"] || "").matchAll(/<sheet\b([^>]*?)\/?>/g)].map((m) => {
+    const t = rels.get(attr(m[1], "r:id")) || "";
+    return { name: xmlUnesc(attr(m[1], "name") || ""), path: t.startsWith("/") ? t.slice(1) : "xl/" + t };
+  });
+}
+// teks sel (shared/inline) atau null untuk angka, rumus, kosong
+function cellText(a, body, sst) {
+  const t = attr(a, "t");
+  if (body == null || /<f[\s>/]/.test(body)) return null;
+  if (t === "s") { const v = /<v>(\d+)<\/v>/.exec(body); return v ? sst[+v[1]] ?? null : null; }
+  if (t === "inlineStr") { const is = /<is\b[^>]*>([\s\S]*?)<\/is>/.exec(body); return is ? tText(is[1]) : null; }
+  return null;
+}
+
+export function xlsxCells(files) {
+  const sst = sharedStrings(files), out = [];
+  for (const { name, path } of sheetList(files)) {
+    for (const m of (files[path] || "").matchAll(CELL)) {
+      const text = cellText(m[1], m[2], sst), ref = attr(m[1], "r");
+      if (text != null && ref) out.push({ sheet: name, path, ref, text });
+    }
+  }
+  return out;
+}
+
+// shortcut: teks sel dicocokkan penuh dengan `from`; sel rich text tetap bisa diganti tapi formatnya hilang
+export function applyXlsx(files, edits) {
+  const sst = sharedStrings(files), out = { ...files }, applied = [];
+  for (const ed of edits) {
+    if (typeof out[ed.path] !== "string") continue;
+    let done = false;
+    out[ed.path] = out[ed.path].replace(CELL, (all, a, body) => {
+      if (done || attr(a, "r") !== ed.ref || cellText(a, body, sst) !== ed.from) return all;
+      done = true;
+      return inlineCell(a, ed.to);
+    });
+    if (done) applied.push(ed.id);
+  }
+  return { files: out, applied, failed: edits.map((e) => e.id).filter((i) => !applied.includes(i)) };
+}
+
+function registerSheet(files, name, path, xml) {
+  const names = sheetList(files).map((s) => s.name.toLowerCase());
+  const base = (String(name).replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").trim() || "Sheet").slice(0, 31).trim();
+  let nm = base;
+  for (let i = 2; names.includes(nm.toLowerCase()); i++) nm = base.slice(0, 31 - ` ${i}`.length).trim() + ` ${i}`;
+  const wb = files["xl/workbook.xml"], rels = files["xl/_rels/workbook.xml.rels"];
+  const sid = Math.max(0, ...[...wb.matchAll(/\ssheetId="(\d+)"/g)].map((m) => +m[1])) + 1;
+  const rid = "rId" + (Math.max(0, ...[...rels.matchAll(/\sId="rId(\d+)"/g)].map((m) => +m[1])) + 1);
+  return {
+    ...files,
+    [path]: xml,
+    "xl/workbook.xml": wb.replace("</sheets>", () => `<sheet name="${xmlEsc(nm)}" sheetId="${sid}" r:id="${rid}"/></sheets>`),
+    "xl/_rels/workbook.xml.rels": rels.replace("</Relationships>", () => `<Relationship Id="${rid}" Type="${REL}worksheet" Target="${path.slice(3)}"/></Relationships>`),
+    "[Content_Types].xml": files["[Content_Types].xml"].replace("</Types>", () => `<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`),
+  };
+}
+const newSheetPath = (files) => `xl/worksheets/sheet${Math.max(0, ...Object.keys(files).map((k) => +(/^xl\/worksheets\/sheet(\d+)\.xml$/.exec(k) || [])[1] || 0)) + 1}.xml`;
+const colName = (i) => { let s = ""; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+
+export function addSheet(files, name, rows) {
+  const data = rows.map((r, y) => `<row r="${y + 1}">${r.map((v, x) => v === "" || v == null ? "" : inlineCell(` r="${colName(x)}${y + 1}"`, v)).join("")}</row>`).join("");
+  return registerSheet(files, name, newSheetPath(files), `${HDR}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${data}</sheetData></worksheet>`);
+}
+
+export function copySheetTranslated(files, path, name, translated) {
+  const sst = sharedStrings(files);
+  const xml = files[path]
+    .replace(/<(?:drawing|legacyDrawing|legacyDrawingHF|picture)\b[^>]*\/>/g, "")
+    .replace(/<tableParts\b[\s\S]*?<\/tableParts>|<tableParts\b[^>]*\/>/g, "")
+    .replace(/<hyperlink\b[^>]*\sr:id="[^"]*"[^>]*\/>/g, "").replace(/<hyperlinks>\s*<\/hyperlinks>/g, "")
+    .replace(/\stabSelected="1"/g, "")
+    .replace(CELL, (all, a, body) => {
+      const ref = attr(a, "r");
+      return translated.has(ref) && cellText(a, body, sst) != null ? inlineCell(a, translated.get(ref)) : all;
+    });
+  return registerSheet(files, name, newSheetPath(files), xml);
+}
