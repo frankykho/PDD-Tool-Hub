@@ -5,7 +5,7 @@
 // - POST /api/style        simpan panduan gaya (editor & admin)
 // - GET/POST /api/cw       data program & press release tab Copywriter (simpan: editor & admin; meta cw_program, cw_pr)
 // - GET  /api/quota        pemakaian AI hari ini {used, limit}
-// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) (batas per hari: COPY_AI_DAILY)
+// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) | cw_review | cw_translate (cek wording file) (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
 // - POST /__hub/disclaimers teks disclaimer resmi dari Brand Kit (disimpan sebagai salinan; tombol "+ Izin & disclaimer")
@@ -325,6 +325,23 @@ Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{
     const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100)}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil.\n`;
     return { max: 3000, user: `Ini naskah berita dari tim IGS${str(b.title, 300) ? ` berjudul "${str(b.title, 300)}"` : ""} untuk diterbitkan sebagai artikel website KISI. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.\nTugas:\n1. Usulkan 3–5 judul dari judul IGS.\n2. Daftar perbaikan ejaan/kalimat sebagai "edits" (from = potongan persis dari naskah, to = perbaikan, why = alasan singkat). JANGAN menulis ulang isi; angka, nama, dan kutipan dilarang berubah.\n3. Beri 3–4 tag.\n${closeLine}Naskah:\n${text}\n\nFormat: {"titles":[""],"edits":[{"from":"","to":"","why":""}],"tags":[""],"closing":""}` };
   }
+  if (kind === "cw_review" || kind === "cw_translate") {
+    const units = []; let n = 0;
+    for (const u of Array.isArray(b.units) ? b.units : []) { const id = str(u && u.id, 200), text = str(u && u.text, 9000); if (!id || !text || units.length >= 120 || (n += text.length) > 9000 && units.length) break; units.push({ id, text }); }
+    if (!units.length) return null;
+    const list = units.map((u) => "[" + u.id + "] " + u.text).join("\n");
+    if (kind === "cw_translate") return { max: 4000, user: `Terjemahkan teks berikut ke bahasa Inggris bisnis yang formal. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan. Istilah tetap tidak diterjemahkan: iKISI, KOINS, KISI Challenge, dan nama produk. Angka tidak diubah.
+Satu item per baris berformat [id] teks.
+${list}
+
+Format: {"items":[{"id":"","en":""}]}` };
+    return { max: 3500, user: `Periksa teks dokumen berikut (bahasa: ${{ id: "Indonesia", en: "Inggris" }[b.lang] || "Indonesia/Inggris campur"}). Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.
+Cari: typo, kalimat janggal atau tata bahasa (kind "kalimat"), istilah tidak konsisten ("istilah"), dan pelanggaran aturan iklan/OJK seperti janji untung atau tanpa pengingat risiko ("ojk"). Kutip "from" PERSIS dari teks unit, sesingkat mungkin; "to" adalah perbaikannya. Jangan mengubah angka. Jangan menulis ulang isi.
+Satu unit per baris berformat [id] teks.
+${list}
+
+Format: {"findings":[{"id":"","from":"","to":"","kind":"typo|kalimat|istilah|ojk","why":""}]}` };
+  }
   if (kind === "fix") {
     const text = str(b.text, 5000);
     if (!text) return null;
@@ -382,6 +399,8 @@ export function parse(kind, raw) {
     edits: list(j.edits, 40).map((x) => ({ from: str(x && x.from, 500), to: str(x && x.to, 500), why: str(x && x.why, 200) })).filter((x) => x.from && x.from !== x.to),
     tags: list(j.tags, 4).map((x) => str(x, 40)).filter(Boolean), closing: str(j.closing, 1200),
   };
+  if (kind === "cw_review") return { findings: list(j.findings, 80).map((x) => ({ id: str(x && x.id, 200), from: str(x && x.from, 500), to: str(x && x.to, 500), kind: ["typo", "kalimat", "istilah", "ojk"].includes(x && x.kind) ? x.kind : "kalimat", why: str(x && x.why, 200) })).filter((x) => x.id && x.from && x.from !== x.to) };
+  if (kind === "cw_translate") return { items: list(j.items, 120).map((x) => ({ id: str(x && x.id, 200), en: str(x && x.en, 9000) })).filter((x) => x.id && x.en) };
   if (kind === "fix") return { text: str(j.text, 6000) };
   if (kind === "kit") {
     const e = j.email && typeof j.email === "object" ? j.email : {}, p = j.push && typeof j.push === "object" ? j.push : {};
@@ -510,7 +529,7 @@ export default {
           const q = prompt(b.kind, b);
           if (!q) return json({ error: "Isi dulu brief atau teksnya." }, 400);
           if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 100))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
-          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "cw_article" ? 0.4 : b.kind === "wn" ? 0.5 : 0.9 });
+          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "cw_review" || b.kind === "cw_translate" ? 0.2 : b.kind === "cw_article" ? 0.4 : b.kind === "wn" ? 0.5 : 0.9 });
           return json({ result: parse(b.kind, text), model });
         }
         if (path === "/api/transcribe") {

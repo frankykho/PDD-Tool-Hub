@@ -475,4 +475,24 @@ const sf = CW.totalFindings(sub); assert.equal(sf.length, 1); assert.match(sf[0]
 assert.equal(CW.parseIdr("Rp1.000.000"), 1000000); assert.equal(CW.parseIdr("Rp 1.000"), 1000);
 }
 
+/* ---------- Copywriter: cek wording file ---------- */
+{
+assert.equal(prompt("cw_review", { units: [] }), null);
+assert.match(prompt("cw_review", { units: [{ id: "p0", text: "Detailed of Budget" }] }).user, /p0[\s\S]*Detailed of Budget/);
+assert.deepEqual(parse("cw_review", '{"findings":[{"id":"p0","from":"Detailed of Budget","to":"Budget Details","kind":"kalimat","why":"x"},{"id":"p1","from":"a","to":"a"}]}').findings.length, 1);
+assert.match(prompt("cw_translate", { units: [{ id: "p0", text: "Tujuan" }] }).user, /iKISI[\s\S]*KOINS/);
+assert.deepEqual(parse("cw_translate", '{"items":[{"id":"p0","en":"Purpose"},{"id":"","en":"x"}]}').items, [{ id: "p0", en: "Purpose" }]);
+const CW = await import("./assets/cw.js");
+const U = Array.from({ length: 5 }, (_, i) => ({ id: "p" + i, text: "x".repeat(4000) }));
+assert.deepEqual(CW.chunks(U).map((c) => c.length), [2, 2, 1]);
+assert.equal(CW.estimateCalls(U, true), 6);
+assert.equal(CW.chunks([{ id: "p0", text: "y".repeat(20000) }]).length, 1, "unit lebih panjang dari batas tetap satu potongan sendiri");
+const D = '<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>Judul</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Meta</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Rp 1.000</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p><w:r><w:t>Total</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>2.000</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+assert.deepEqual(CW.docxRows(D), [{ loc: "p1", label: "Meta", value: 1000 }, { loc: "p3", label: "Total", value: 2000 }]);
+assert.equal(CW.totalFindings(CW.docxRows(D)).length, 1);
+const X = { "xl/workbook.xml": '<workbook><sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>', "xl/_rels/workbook.xml.rels": '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+  "xl/worksheets/sheet1.xml": '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Meta</t></is></c><c r="B1"><v>5</v></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Total</t></is></c><c r="B2"><f>SUM(B1)</f><v>5</v></c></row></sheetData></worksheet>' };
+assert.deepEqual(CW.xlsxRows(X), [{ loc: "xl/worksheets/sheet1.xml!B1", label: "Meta", value: 5 }, { loc: "xl/worksheets/sheet1.xml!B2", label: "Total", value: 5 }]);
+}
+
 console.log("semua cek lolos");
