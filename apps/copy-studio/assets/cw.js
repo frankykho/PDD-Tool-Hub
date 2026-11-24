@@ -10,6 +10,7 @@ export const libs = {
 export function init(cs) {
   initArticle(cs);
   initReview(cs);
+  initBrief(cs);
   const sel = document.getElementById("cwKind"), panes = document.querySelectorAll("[data-cw]");
   const show = () => { panes.forEach((p) => { p.hidden = p.dataset.cw !== sel.value; }); try { localStorage.setItem("cs_cw", sel.value); } catch (e) {} };
   try { const k = localStorage.getItem("cs_cw"); if (k && [...sel.options].some((o) => o.value === k)) sel.value = k; } catch (e) {}
@@ -260,5 +261,75 @@ function initArticle(cs) {
   $("caDocx").onclick = async () => {
     const blocks = [{ t: "h1", runs: [{ text: chosen() }] }, ...$("caFinal").value.split("\n").filter(Boolean).map((l) => ({ t: "p", runs: [{ text: l }] })), { t: "p", runs: [{ text: "Tag: " + $("caTags").textContent }] }];
     const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks, {}))); a.download = "artikel.docx"; a.click();
+  };
+}
+
+/* ---- Brief KISI Challenge ---- */
+const FMT = { single: "Single Post", carousel: "Carousel", reels: "Reels", story: "Story" };
+export function snsDisclaimer(partner, assetUrl, format) {
+  return [format === "single" ? "Tambahin tulisan kecil:" : "Tambahin tulisan kecil di setiap slide:", "Disclaimer:",
+    "● " + PRIZE_DISC,
+    "● " + partner + " tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan (OJK).",
+    "● PT Korea Investment And Sekuritas Indonesia Berizin dan Diawasi oleh Otoritas Jasa Keuangan.",
+    "● Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan",
+    ...(assetUrl ? ["Link aset: " + assetUrl] : [])].join("\n");
+}
+export function briefText(res, { format, platform, date, assetUrl }) {
+  return res.sns.map((s) => [s.partner + ": " + platform + " " + (FMT[format] || format), date ? "Posting tanggal " + date : "",
+    ...s.frames.map((f) => (f.label ? f.label + ":\n" : "") + f.lines.join("\n")),
+    snsDisclaimer(s.partner, assetUrl, format)].filter(Boolean).join("\n\n")).join("\n\n----------\n\n");
+}
+
+function initBrief(cs) {
+  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const can = !!cs.canEdit, ro = can ? "" : " readonly", lines = (v) => String(v || "").split("\n").map((x) => x.trim()).filter(Boolean);
+  let P = null;
+  const fld = (id, label, v) => '<label class="small muted" style="font-weight:600">' + label + '<input type="text" id="' + id + '" value="' + esc(v || "") + '"' + ro + ' translate="no"></label>';
+  const area = (id, label, v) => '<label class="small muted" style="font-weight:600">' + label + '<textarea id="' + id + '"' + ro + ' translate="no">' + esc(v || "") + "</textarea></label>";
+  const draw = () => {
+    const p = P, u = p.uni || {}, g = p.general || {};
+    $("bfProg").innerHTML = fld("bpName", "Nama program", p.name) + fld("bpTheme", "Tema", p.theme) + fld("bpPeriod", "Periode", p.period) + fld("bpPlat", "Platform", p.platforms) + fld("bpEvent", "Link event", p.event_url) + fld("bpAcc", "Link buka rekening", p.account_url) +
+      area("bpPrizes", "Hadiah (satu per baris: emoji | teks | * bila hadiah utama)", (p.prizes || []).map((x) => [x.emoji, x.text, x.main ? "*" : ""].join(" | ")).join("\n")) +
+      fld("bpGCount", "Kategori Umum: jumlah pemenang", g.count) + fld("bpGRule", "Kategori Umum: aturan", g.rule) + fld("bpUTotal", "Universitas: total hadiah", u.total) +
+      area("bpUTeams", "Universitas: kategori tim (satu per baris)", (u.teams || []).join("\n")) + area("bpUInd", "Universitas: kategori individu (satu per baris)", (u.individual || []).join("\n")) +
+      fld("bpPrev", "Capaian sebelumnya", p.previous) + area("bpPartners", "Partner (satu per baris)", (p.partners || []).join("\n")) + fld("bpAsset", "Link aset Drive", p.asset_url);
+    $("bfPartners").innerHTML = (p.partners || []).map((x, n) => '<label><input type="checkbox" data-n="' + n + '" checked> <span translate="no">' + esc(x) + "</span></label>").join("");
+    $("bfSave").hidden = !can; $("bfRO").hidden = can;
+  };
+  const read = () => {
+    const v = (id) => $(id).value.trim();
+    return { name: v("bpName"), theme: v("bpTheme"), period: v("bpPeriod"), platforms: v("bpPlat"), event_url: v("bpEvent"), account_url: v("bpAcc"),
+      prizes: lines($("bpPrizes").value).map((l) => { const [emoji, text, m] = l.split("|").map((x) => x.trim()); return text === undefined ? { emoji: "", text: emoji, main: false } : { emoji, text, main: m === "*" }; }),
+      general: { count: v("bpGCount"), rule: v("bpGRule") }, uni: { total: v("bpUTotal"), teams: lines($("bpUTeams").value), individual: lines($("bpUInd").value) },
+      previous: v("bpPrev"), partners: lines($("bpPartners").value), asset_url: v("bpAsset") };
+  };
+  fetch("/api/cw").then((r) => r.json()).then((j) => { P = j.program; draw(); }).catch(() => toast("Data program gagal dimuat."));
+  $("bfSave").onclick = async () => {
+    try {
+      const r = await fetch("/api/cw", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ program: read() }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+      P = read(); draw(); toast("Tersimpan");
+    } catch (err) { toast(err.message || "Gagal menyimpan."); }
+  };
+  const sync = () => { $("bfSns").hidden = $("bfType").value !== "sns"; };
+  $("bfType").onchange = sync; sync();
+  $("bfGo").onclick = async () => {
+    if (!P) return; const sns = $("bfType").value === "sns", btn = $("bfGo"); if (can) P = read();
+    const partners = [...document.querySelectorAll("#bfPartners input:checked")].map((c) => P.partners[+c.dataset.n]).filter(Boolean);
+    if (sns && !partners.length) return toast("Pilih minimal satu partner.");
+    btn.disabled = true;
+    try {
+      const fmt = $("bfFmt").value, o = { format: fmt, platform: $("bfPlatSns").value, date: $("bfDate").value.trim(), assetUrl: P.asset_url };
+      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_brief", program: P, type: sns ? "sns" : "media", partners, format: fmt, platform: o.platform, date: o.date, highlight: $("bfHi").value }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+      $("bfFinal").value = sns ? briefText(j.result, o) : j.result.media.title + "\n\n" + j.result.media.body.join("\n\n");
+      $("bfOut").hidden = false;
+    } catch (err) { toast(err.message || "Gagal membuat brief."); } finally { btn.disabled = false; }
+  };
+  $("bfCopy").onclick = () => { navigator.clipboard.writeText($("bfFinal").value).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
+  $("bfDocx").onclick = async () => {
+    const blocks = $("bfFinal").value.split("\n").map((l) => ({ t: "p", runs: [{ text: l }] }));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks, {}))); a.download = "brief.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   };
 }

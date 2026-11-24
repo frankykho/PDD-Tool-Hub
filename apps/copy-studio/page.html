@@ -368,7 +368,27 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
         <div class="row"><button class="btn sm" id="rvTrack" type="button" hidden>Unduh (Track Changes)</button><button class="btn sm" id="rvClean" type="button" hidden>Unduh versi bersih</button><button class="btn sm" id="rvXlsx" type="button" hidden>Unduh</button></div>
       </div>
     </div>
-    <div data-cw="brief" class="card" hidden></div>
+    <div data-cw="brief" class="card stack" hidden>
+      <h3>Data program</h3>
+      <div id="bfProg" class="stack"></div>
+      <div class="row"><button class="btn sm" id="bfSave" type="button" hidden>Simpan</button><span class="muted small" id="bfRO" hidden>Hanya editor atau admin yang bisa mengubah data program.</span></div>
+      <h3>Brief</h3>
+      <label>Jenis brief <select id="bfType"><option value="media">Artikel ke media</option><option value="sns">SNS per partner</option></select></label>
+      <div id="bfSns" class="stack" hidden>
+        <div><div class="small muted" style="font-weight:600">Partner</div><div id="bfPartners" class="stack"></div></div>
+        <div class="row">
+          <label>Format <select id="bfFmt"><option value="single">Single post</option><option value="carousel">Carousel</option><option value="reels">Reels</option><option value="story">Story</option></select></label>
+          <label>Platform <select id="bfPlatSns"><option>IG</option><option>Telegram</option></select></label>
+          <label class="grow">Tanggal posting <input type="text" id="bfDate" maxlength="60" translate="no"></label>
+        </div>
+        <label>Highlight <input type="text" id="bfHi" maxlength="200" placeholder="mis. hadiah utama" translate="no"></label>
+      </div>
+      <div class="row"><button class="btn pri" id="bfGo" type="button">Buat brief</button></div>
+      <div id="bfOut" class="stack" hidden>
+        <textarea id="bfFinal" class="big" translate="no"></textarea>
+        <div class="row"><button class="btn sm" id="bfCopy" type="button">Salin</button><button class="btn sm" id="bfDocx" type="button">Unduh .docx</button></div>
+      </div>
+    </div>
     <div data-cw="pr" class="card" hidden></div>
   </section>
 

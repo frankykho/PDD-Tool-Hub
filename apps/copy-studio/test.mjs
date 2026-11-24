@@ -495,4 +495,24 @@ const X = { "xl/workbook.xml": '<workbook><sheets><sheet name="S" sheetId="1" r:
 assert.deepEqual(CW.xlsxRows(X), [{ loc: "xl/worksheets/sheet1.xml!B1", label: "Meta", value: 5 }, { loc: "xl/worksheets/sheet1.xml!B2", label: "Total", value: 5 }]);
 }
 
+/* ---------- Brief KISI Challenge ---------- */
+{
+const CW = await import("./assets/cw.js");
+const sd = CW.snsDisclaimer("Kuliah Saham", "https://drive.example/x", "single");
+assert.ok(sd.startsWith("Tambahin tulisan kecil:\nDisclaimer:\n● Hadiah adalah bentuk apresiasi"));
+assert.match(sd, /● Kuliah Saham tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan \(OJK\)\./);
+assert.ok(sd.endsWith("Link aset: https://drive.example/x"));
+assert.ok(CW.snsDisclaimer("Sahamology", "", "carousel").startsWith("Tambahin tulisan kecil di setiap slide:"));
+assert.doesNotMatch(CW.snsDisclaimer("Sahamology", "", "carousel"), /Link aset/);
+const { CW_DEFAULT } = await import("./worker.js");
+assert.equal(prompt("cw_brief", { program: CW_DEFAULT.program, type: "sns", partners: [] }), null);
+assert.equal(prompt("cw_brief", { program: { ...CW_DEFAULT.program, name: "" }, type: "media" }), null);
+const pb = prompt("cw_brief", { program: CW_DEFAULT.program, type: "sns", partners: ["Sahamology", "Kuliah Saham"], format: "carousel", highlight: "hadiah utama" }).user;
+assert.match(pb, /Sahamology[\s\S]*Kuliah Saham/); assert.match(pb, /BYD Denza D9/); assert.match(pb, /berbeda/);
+assert.match(prompt("cw_brief", { program: CW_DEFAULT.program, type: "media" }).user, /350 kata/);
+const rb = parse("cw_brief", '{"sns":[{"partner":"Sahamology","frames":[{"label":"Slide 1","lines":["KOMPETISI DIMULAI!",""]}]}]}');
+assert.deepEqual(rb.sns[0].frames[0].lines, ["KOMPETISI DIMULAI!"]);
+assert.match(CW.briefText(rb, { format: "carousel", platform: "IG", date: "1 September" }), /^Sahamology: IG Carousel[\s\S]*Posting tanggal 1 September[\s\S]*Slide 1:\nKOMPETISI DIMULAI![\s\S]*● Sahamology tidak terafiliasi/);
+}
+
 console.log("semua cek lolos");
