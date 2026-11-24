@@ -344,10 +344,10 @@ export function prBlocks(res, { about, contact, photo }) {
   const p = (...runs) => ({ t: "p", runs }), split = (s) => String(s || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
   const q = res.quote || {};
   return [
-    p({ text: "PRESS RELEASE", b: true, i: true }), p({ text: res.title, b: true }),
+    p({ text: "PRESS RELEASE", b: true, i: true }), ...(res.title ? [p({ text: res.title, b: true })] : []),
     ...(photo ? [{ t: "img", img: photo }] : []),
     ...res.paras.map((x) => p(...x.runs)),
-    ...(q.text ? [p({ text: "“" + q.text + "”", i: true }, { text: " ujar " }, { text: q.speaker, b: true })] : []),
+    ...(q.text ? [p({ text: "“" + q.text + "”", i: true }, ...(q.speaker ? [{ text: " ujar " }, { text: q.speaker, b: true }] : []))] : []),
     ...res.closing.map((x) => p({ text: x })),
     p({ text: ABOUT_H, b: true }), ...split(about).map((x) => p({ text: x })),
     ...(split(contact).length ? [p({ text: "Media Contact:", b: true, i: true }), ...split(contact).map((x) => p({ text: x }))] : []),
@@ -356,9 +356,13 @@ export function prBlocks(res, { about, contact, photo }) {
 
 // Bytes logo kop + ukuran piksel dari header PNG (IHDR), diskalakan ke ±200 px.
 async function logoBytes() {
-  const data = new Uint8Array(await (await fetch("/brand/kisi-color.png")).arrayBuffer()), v = new DataView(data.buffer);
-  const w = v.getUint32(16), h = v.getUint32(20);
-  return { data, w: 200, h: Math.round((200 * h) / w) };
+  try {
+    const r = await fetch("/brand/kisi-color.png"); if (!r.ok) return null;
+    const data = new Uint8Array(await r.arrayBuffer()), v = new DataView(data.buffer);
+    if (data.length < 24 || v.getUint32(0) !== 0x89504e47) return null;
+    const w = v.getUint32(16), h = v.getUint32(20); if (!w || !h) return null;
+    return { data, w: 200, h: Math.round((200 * h) / w) };
+  } catch (e) { return null; }
 }
 // Foto unggahan -> JPEG maks. 480 px lebar.
 async function photoBytes(file) {
@@ -419,7 +423,8 @@ function initPr(cs) {
   $("prCopy").onclick = () => { navigator.clipboard.writeText(text()).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
   $("prDocx").onclick = async () => {
     try {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks(), { logo: await logoBytes() }))); a.download = "press-release.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      const logo = await logoBytes(); if (!logo) toast("Logo gagal dimuat, file dibuat tanpa kop.");
+      const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks(), logo ? { logo } : {}))); a.download = "press-release.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     } catch (err) { toast("Gagal membuat file."); }
   };
 }

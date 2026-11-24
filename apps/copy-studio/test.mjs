@@ -524,6 +524,7 @@ assert.deepEqual(pbk[0].runs[0], { text: "PRESS RELEASE", b: true, i: true });
 assert.ok(pbk.some((b) => b.runs && b.runs[0].text === "Tentang PT Korea Investment And Sekuritas Indonesia (KISI)"));
 assert.ok(!pbk.some((b) => b.runs && /Media Contact/.test(b.runs[0].text)), "kontak kosong -> tanpa Media Contact");
 assert.ok(CW.prBlocks(rp, { about: "x", contact: "Nama\nTelp" }).some((b) => b.runs && /Media Contact/.test(b.runs[0].text)));
+{ const nb = CW.prBlocks({ ...rp, title: "", quote: { text: "Q", speaker: "", ai: true } }, { about: "x", contact: "" }); assert.ok(!nb.some((b) => b.runs && b.runs.some((r) => /ujar/.test(r.text))), "tanpa narasumber -> tanpa ujar"); assert.ok(!nb.some((b) => b.runs && b.runs[0].b && !b.runs[0].i && b.runs[0].text === "")); assert.equal(nb[1].runs[0].text.startsWith("Jakarta"), true, "judul kosong dilewati"); }
 assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*brief KISI Challenge.*press release.*cek wording/i);
 }
 
