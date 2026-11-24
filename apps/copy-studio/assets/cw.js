@@ -284,13 +284,14 @@ const FMT = { single: "Single Post", carousel: "Carousel", reels: "Reels", story
 export function snsDisclaimer(partner, assetUrl, format) {
   return [format === "single" ? "Tambahin tulisan kecil:" : "Tambahin tulisan kecil di setiap slide:", "Disclaimer:",
     "● " + PRIZE_DISC,
-    "● " + partner + " tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan (OJK).",
+    ...(partner ? ["● " + partner + " tidak terafiliasi sebagai pegawai PT KISI dan tidak memiliki izin dari Otoritas Jasa Keuangan (OJK)."] : []),
     "● PT Korea Investment And Sekuritas Indonesia Berizin dan Diawasi oleh Otoritas Jasa Keuangan.",
     "● Semua investasi memiliki risiko. Lakukan analisis mandiri dan pahami potensi kerugian sebelum mengambil keputusan",
     ...(assetUrl ? ["Link aset: " + assetUrl] : [])].join("\n");
 }
-export function briefText(res, { format, platform, date, assetUrl }) {
-  return res.sns.map((s) => [s.partner + ": " + platform + " " + (FMT[format] || format), date ? "Posting tanggal " + date : "",
+export function briefText(res, { format, platform, date }) {
+  const assetUrl = res.asset_url;
+  return res.sns.map((s) => [(s.partner ? s.partner + ": " : "") + platform + " " + (FMT[format] || format), date ? "Posting tanggal " + date : "",
     ...s.frames.map((f) => (f.label ? f.label.replace(/:\s*$/, "") + ":\n" : "") + f.lines.join("\n")),
     snsDisclaimer(s.partner, assetUrl, format)].filter(Boolean).join("\n\n")).join("\n\n----------\n\n");
 }
@@ -320,7 +321,7 @@ function initBrief(cs) {
       general: { count: v("bpGCount"), rule: v("bpGRule") }, uni: { total: v("bpUTotal"), teams: lines($("bpUTeams").value), individual: lines($("bpUInd").value) },
       previous: v("bpPrev"), partners: lines($("bpPartners").value), asset_url: v("bpAsset") };
   };
-  fetch("/api/cw").then((r) => r.json()).then((j) => { P = j.program; draw(); }).catch(() => toast("Data program gagal dimuat."));
+  fetch("/api/cw").then((r) => r.json()).then((j) => { P = j.program || {}; draw(); }).catch(() => toast("Data program gagal dimuat."));
   $("bfProg").addEventListener("input", (e) => { if (e.target.id === "bpPartners") partnerBoxes(lines(e.target.value)); });
   $("bfSave").onclick = async () => {
     try {
@@ -334,13 +335,14 @@ function initBrief(cs) {
   $("bfGo").onclick = async () => {
     if (!P) return; const sns = $("bfType").value === "sns", btn = $("bfGo"); if (can) P = read();
     const partners = [...document.querySelectorAll("#bfPartners input:checked")].map((c) => c.dataset.name);
-    if (sns && !partners.length) return toast("Pilih minimal satu partner.");
     btn.disabled = true;
     try {
-      const fmt = $("bfFmt").value, o = { format: fmt, platform: $("bfPlatSns").value, date: $("bfDate").value.trim(), assetUrl: P.asset_url };
-      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_brief", program: P, type: sns ? "sns" : "media", partners, format: fmt, platform: o.platform, date: o.date, highlight: $("bfHi").value }) });
+      const fmt = $("bfFmt").value, o = { format: fmt, platform: $("bfPlatSns").value, date: $("bfDate").value.trim() };
+      const text = Object.entries(P).map(([k, v]) => k + ": " + (typeof v === "string" ? v : JSON.stringify(v))).join("\n");
+      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_brief", text, type: sns ? "sns" : "media", partners, format: fmt, platform: o.platform, date: o.date, highlight: $("bfHi").value }) });
       const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
       if (sns ? !j.result.sns.length : !j.result.media.body.length) throw new Error("AI tidak menghasilkan brief. Coba lagi.");
+      j.result.asset_url = j.result.asset_url || P.asset_url || "";
       $("bfFinal").value = sns ? briefText(j.result, o) : j.result.media.title + "\n\n" + j.result.media.body.join("\n\n");
       $("bfOut").hidden = false;
     } catch (err) { toast(err.message || "Gagal membuat brief."); } finally { btn.disabled = false; }

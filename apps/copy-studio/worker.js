@@ -3,7 +3,7 @@
 // - "/"                    halaman tim: Cek Caption, Variasi A/B, Teks Aplikasi, What's New, Naskah Reels/TikTok, Subtitle, Ubah Ukuran, Panduan Gaya
 // - GET  /api/style        panduan gaya & glosarium
 // - POST /api/style        simpan panduan gaya (editor & admin)
-// - GET/POST /api/cw       data program & press release tab Copywriter (simpan: editor & admin; meta cw_program, cw_pr)
+// - GET/POST /api/cw       data press release tab Copywriter (simpan: editor & admin; meta cw_pr)
 // - GET  /api/quota        pemakaian AI hari ini {used, limit}
 // - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) | cw_brief (brief KISI Challenge) | cw_pr (press release) | cw_review | cw_translate (cek wording file) (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
@@ -127,41 +127,19 @@ export function cleanStyle(b) {
   return { guide: str(b && b.guide, 6000), glossary };
 }
 
-/* ---- Copywriter: data program & press release (tabel meta: cw_program, cw_pr) ---- */
+/* ---- Copywriter: data press release (tabel meta: cw_pr) ---- */
 export const CW_DEFAULT = {
-  program: {
-    name: "KISI Challenge", theme: "Beyond Tomorrow", period: "1 Oktober–30 November 2026", platforms: "iKISI dan KOINS (HTS/MTS)",
-    event_url: "event.kisi.co.id", account_url: "https://kisi.co.id/ikisi/download",
-    prizes: [
-      { emoji: "🚙", text: "BYD Denza D9", main: true }, { emoji: "🚗", text: "Jaecoo J5 EV Premium", main: false }, { emoji: "🏍️", text: "Honda Forza 250", main: false },
-      { emoji: "✈️", text: "Korea Trip 2 Pax (Pesawat & Hotel 5D4N)", main: false }, { emoji: "📱", text: "iPhone 17 Pro 256GB", main: false }, { emoji: "⌚", text: "Apple Watch Series 11", main: false },
-      { emoji: "🎧", text: "AirPods Pro Gen 3", main: false }, { emoji: "💰", text: "KIM Money Market Fund Rp1 Juta & Rp500 Ribu", main: false },
-    ],
-    general: { count: "219", rule: "first come first served" },
-    uni: { total: "> Rp25 juta", teams: ["Pembukaan Akun Terbanyak", "Peserta Terbanyak", "Rata-rata Profit Terbanyak", "Transaksi Terbanyak"], individual: ["Profit Terbesar"] },
-    previous: "10.000 peserta (KISI Challenge pertama 2026)", partners: ["Sahamology", "Kuliah Saham"], asset_url: "",
-  },
   pr: {
     about: "PT Korea Investment And Sekuritas Indonesia (KISI) mulai beroperasi pada tahun 2018 setelah diakuisisinya PT Danpac Sekuritas oleh Korea Investment & Securities Co., Ltd (KIS). KISI merupakan anggota PT Bursa Efek Indonesia dengan kode broker BQ dan memiliki izin usaha sebagai Perantara Pedagang Efek (PPE), Penjamin Emisi Efek (PEE), dan Agen Penjual Efek Reksa Dana (APERD) yang diterbitkan oleh Otoritas Jasa Keuangan, serta memiliki izin Shariah Online Trading System (SOTS) yang disertifikasi oleh DSN-MUI.\n\nDidukung oleh pengalaman dan reputasi KISI sebagai salah satu perusahaan sekuritas besar asal Korea Selatan yang berdiri sejak 1974, KISI berkomitmen untuk menjadi perusahaan sekuritas terpercaya dan inovatif di Indonesia dengan menghadirkan berbagai solusi investasi yang inovatif dan berorientasi pada kebutuhan nasabah, termasuk layanan investasi berbasis syariah. Untuk informasi lebih lanjut, kunjungi www.kisi.co.id.",
     contact: "",
   },
 };
 const strs = (a, max, n) => (Array.isArray(a) ? a : []).map((x) => str(x, n)).filter(Boolean).slice(0, max);
-export function cleanProgram(b) {
-  b = b || {}; const g = b.general || {}, u = b.uni || {};
-  return {
-    name: str(b.name, 120), theme: str(b.theme, 120), period: str(b.period, 120), platforms: str(b.platforms, 120), event_url: str(b.event_url, 300), account_url: str(b.account_url, 300),
-    prizes: (Array.isArray(b.prizes) ? b.prizes : []).filter((p) => p && str(p.text, 200)).slice(0, 30).map((p) => ({ emoji: str(p.emoji, 8), text: str(p.text, 200), main: !!p.main })),
-    general: { count: str(g.count, 40), rule: str(g.rule, 120) },
-    uni: { total: str(u.total, 80), teams: strs(u.teams, 20, 120), individual: strs(u.individual, 20, 120) },
-    previous: str(b.previous, 300), partners: strs(b.partners, 20, 120), asset_url: str(b.asset_url, 500),
-  };
-}
 export function cleanPr(b) { return { about: str(b && b.about, 3000), contact: str(b && b.contact, 600) }; }
 async function getCw(env) {
   await ensure(env);
   const out = { ...CW_DEFAULT };
-  for (const [k, f] of [["program", cleanProgram], ["pr", cleanPr]]) {
+  for (const [k, f] of [["pr", cleanPr]]) {
     const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("cw_" + k).first();
     try { if (r) out[k] = f(JSON.parse(r.v)); } catch {}
   }
@@ -326,37 +304,28 @@ Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{
     return { max: 3000, user: `Ini naskah berita dari tim IGS${str(b.title, 300) ? ` berjudul "${str(b.title, 300)}"` : ""} untuk diterbitkan sebagai artikel website KISI. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.\nTugas:\n1. Usulkan 3–5 judul dari judul IGS.\n2. Daftar perbaikan ejaan/kalimat sebagai "edits" (from = potongan persis dari naskah, to = perbaikan, why = alasan singkat). JANGAN menulis ulang isi; angka, nama, dan kutipan dilarang berubah.\n3. Beri 3–4 tag.\n${closeLine}Naskah:\n${text}\n\nFormat: {"titles":[""],"edits":[{"from":"","to":"","why":""}],"tags":[""],"closing":""}` };
   }
   if (kind === "cw_brief") {
-    const p = cleanProgram(b.program); if (!p.name) return null;
-    const FACT = "Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.";
-    const prizes = p.prizes.map((x) => "- " + (x.emoji ? x.emoji + " " : "") + x.text + (x.main ? " (hadiah utama)" : "")).join("\n");
-    const data = `Program: ${p.name}${p.theme ? " – " + p.theme : ""}
-Periode: ${p.period}
-Platform: ${p.platforms}
-Link event: ${p.event_url}
-Link buka rekening: ${p.account_url}
-Hadiah:
-${prizes}
-Kategori Umum: ${p.general.count} pemenang, ${p.general.rule}
-Kategori Universitas: total hadiah ${p.uni.total}; tim: ${p.uni.teams.join(", ")}; individu: ${p.uni.individual.join(", ")}
-Capaian sebelumnya: ${p.previous}`;
+    const text = str(b.text, 12000); if (!text) return null;
+    const FACT = "Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan. Ambil nama program, periode, hadiah, kategori, link, dan partner hanya dari teks; yang tidak ada di teks tulis [perlu dilengkapi: …].";
     if (b.type === "sns") {
-      const partners = strs(b.partners, 10, 120); if (!partners.length) return null;
+      const partners = strs(b.partners, 10, 120);
       const fmt = ["single", "carousel", "reels", "story"].includes(b.format) ? b.format : "single";
       const rule = { single: "1 frame berisi judul, periode, highlight, CTA, dan link event.", carousel: "3–5 slide; tiap frame = satu slide (label \"Slide n\").", story: "2–4 frame story.", reels: "adegan-adegan; tiap frame = satu adegan, lines = [\"Visual: …\", \"Teks layar: …\"]." }[fmt];
-      return { max: 3500, user: `Tulis brief konten SNS (${str(b.platform, 40) || "IG"}, format ${fmt}) untuk tiap partner: ${partners.join(", ")}. ${FACT}
-Pakai hanya data program berikut. Hook (kalimat pembuka) tiap partner harus berbeda satu sama lain.
-Highlight: ${str(b.highlight, 200) || "bebas"}.
+      const who = partners.length ? `untuk tiap partner: ${partners.join(", ")}` : "untuk tiap partner yang disebut di teks; kalau teks tidak menyebut partner, buat satu entri dengan partner \"\"";
+      return { max: 3500, user: `Tulis brief konten SNS (${str(b.platform, 40) || "IG"}, format ${fmt}) ${who}. ${FACT}
+Hook (kalimat pembuka) tiap partner harus berbeda satu sama lain.
 Aturan format: ${rule}
 Jangan tulis disclaimer (ditambahkan otomatis).
-${data}
+Teks program:
+${text}
 
-Format: {"sns":[{"partner":"","frames":[{"label":"","lines":[""]}]}]}` };
+Format: {"asset_url":"","sns":[{"partner":"","frames":[{"label":"","lines":[""]}]}]} (asset_url = link aset dari teks bila ada)` };
     }
     return { max: 1500, user: `Tulis artikel/berita untuk media sekitar 350 kata. ${FACT}
-Urutan: (1) KISI dan edisi ke berapa; (2) makna tema; (3) periode dan platform + link buka rekening; (4) hadiah kategori Umum (jumlah, first come first served, hadiah utama, daftar); (5) kategori Universitas; (6) penutup dengan event.kisi.co.id.
-${data}
+Urutan: (1) KISI dan edisi ke berapa; (2) makna tema; (3) periode dan platform + link buka rekening; (4) hadiah kategori Umum; (5) kategori Universitas; (6) penutup dengan link event.
+Teks program:
+${text}
 
-Format: {"media":{"title":"","body":[""]}} (body = daftar paragraf)` };
+Format: {"asset_url":"","media":{"title":"","body":[""]}} (body = daftar paragraf)` };
   }
   if (kind === "cw_pr") {
     const h = b.hl && typeof b.hl === "object" ? b.hl : {}, f = (k, n) => str(h[k], n);
@@ -450,8 +419,9 @@ export function parse(kind, raw) {
     tags: list(j.tags, 4).map((x) => str(x, 40)).filter(Boolean), closing: str(j.closing, 1200),
   };
   if (kind === "cw_brief") return {
+    asset_url: str(j.asset_url, 500),
     media: { title: str(j.media && j.media.title, 200), body: list(j.media && j.media.body, 20).map((x) => str(x, 1500)).filter(Boolean) },
-    sns: list(j.sns, 10).map((x) => ({ partner: str(x && x.partner, 120), frames: list(x && x.frames, 8).map((f) => ({ label: str(f && f.label, 60), lines: list(f && f.lines, 8).map((l) => str(l, 400)).filter(Boolean) })).filter((f) => f.label || f.lines.length) })).filter((x) => x.partner),
+    sns: list(j.sns, 10).map((x) => ({ partner: str(x && x.partner, 120), frames: list(x && x.frames, 8).map((f) => ({ label: str(f && f.label, 60), lines: list(f && f.lines, 8).map((l) => str(l, 400)).filter(Boolean) })).filter((f) => f.label || f.lines.length) })).filter((x) => x.partner || x.frames.length),
   };
   if (kind === "cw_pr") {
     const q = j.quote && typeof j.quote === "object" ? j.quote : {};
@@ -582,7 +552,7 @@ export default {
         if (path === "/api/cw") {
           if (!canEdit) return json({ error: "Hanya editor atau admin yang bisa mengubah data Copywriter." }, 403);
           const b = await request.json().catch(() => ({}));
-          for (const [k, f] of [["program", cleanProgram], ["pr", cleanPr]]) {
+          for (const [k, f] of [["pr", cleanPr]]) {
             if (b[k] && typeof b[k] === "object") await env.DB.prepare("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind("cw_" + k, JSON.stringify(f(b[k]))).run();
           }
           return json({ ok: true, ...(await getCw(env)) });
