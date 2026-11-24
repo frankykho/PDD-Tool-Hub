@@ -9,7 +9,14 @@ export function paragraphText(pXml) {
   return out;
 }
 
+// shortcut: isi textbox (mc:AlternateContent / w:txbxContent) diganti penanda supaya </w:p> di dalamnya tidak memotong paragraf; teksnya tidak ikut direview. Textbox bersarang tidak ditangani.
+export function maskBoxes(xml) {
+  const saved = [];
+  return { xml: xml.replace(/<mc:AlternateContent\b[\s\S]*?<\/mc:AlternateContent>|<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/g, (m) => `<w:zzMask i="${saved.push(m) - 1}"/>`), restore: (x) => x.replace(/<w:zzMask i="(\d+)"\/>/g, (_, i) => saved[+i]) };
+}
+
 export function docxParagraphs(documentXml) {
+  documentXml = maskBoxes(documentXml).xml;
   const out = [];
   let depth = 0;
   for (const m of documentXml.matchAll(/<w:tbl>|<\/w:tbl>|<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
@@ -168,6 +175,8 @@ function editParagraph(pXml, edit, track, attrs) {
 }
 
 export function applyDocx(documentXml, edits, { track, author, date }) {
+  const box = maskBoxes(documentXml);
+  documentXml = box.xml;
   let id = nextId(documentXml);
   const attrs = () => `w:id="${id++}" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}"`;
   const by = new Map(), applied = [];
@@ -181,7 +190,7 @@ export function applyDocx(documentXml, edits, { track, author, date }) {
     }
     return p;
   });
-  return { xml, applied, failed: edits.map((e) => e.id).filter((i) => !applied.includes(i)) };
+  return { xml: box.restore(xml), applied, failed: edits.map((e) => e.id).filter((i) => !applied.includes(i)) };
 }
 
 export function hasLangMarkers(documentXml) {
@@ -204,12 +213,14 @@ export function bodyBlocks(documentXml) {
 }
 
 export function insertEnglish(documentXml, translated, { track, author, date }) {
+  const box = maskBoxes(documentXml), orig = documentXml;
+  documentXml = box.xml;
   const ins = (x) => track && x ? `<w:ins w:id="0" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}">${x}</w:ins>` : x;
   const marker = (t) => `<w:p>${ins(`<w:r><w:t>${t}</w:t></w:r>`)}</w:p>`;
   let n = 0;
   const copy = (blk) => blk.replace(PARA, (p) => {
     // komentar tetap hanya di asli
-    p = p.replace(/<w:comment(?:RangeStart|RangeEnd)\b[^>]*\/>/g, "").replace(/<w:r(?:\s[^>]*)?>(?:(?!<\/w:r>)[\s\S])*?<w:commentReference\b[^>]*\/>[\s\S]*?<\/w:r>/g, "");
+    p = p.replace(/<w:sectPr(?:\s[^>]*)?(?:\/>|>[\s\S]*?<\/w:sectPr>)/g, "").replace(/<w:comment(?:RangeStart|RangeEnd)\b[^>]*\/>/g, "").replace(/<w:r(?:\s[^>]*)?>(?:(?!<\/w:r>)[\s\S])*?<w:commentReference\b[^>]*\/>[\s\S]*?<\/w:r>/g, "");
     const i = n++, m = p.match(/^(<w:p(?:\s[^>]*?)?)\/?>([\s\S]*?)(?:<\/w:p>)?$/), o = m[1] + ">";
     const toks = tokens(p.endsWith("/>") ? "" : m[2]);
     if (translated.has(i)) {
@@ -219,13 +230,13 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
     }
     return `${o}${toks.map((t) => t.run ? ins(t.xml) : t.xml).join("")}</w:p>`;
   });
-  let id = nextId(documentXml), dp = Math.max(0, ...[...documentXml.matchAll(/<wp:docPr\b[^>]*?\sid="(\d+)"/g)].map((m) => +m[1]));
+  let id = nextId(orig), dp = Math.max(0, ...[...orig.matchAll(/<wp:docPr\b[^>]*?\sid="(\d+)"/g)].map((m) => +m[1]));
   // salinan tidak boleh membawa id yang sudah dipakai asli: paraId/textId dan bookmark dibuang, docPr dan id revisi dinomori ulang
-  const blocks = (marker("ENGLISH") + bodyBlocks(documentXml).map(copy).join("") + marker("INDONESIA"))
+  const blocks = box.restore(marker("ENGLISH") + bodyBlocks(documentXml).map(copy).join("") + marker("INDONESIA"))
     .replace(/\sw14:(?:paraId|textId)="[^"]*"/g, "").replace(/<w:bookmark(?:Start|End)\b[^>]*\/>/g, "")
     .replace(/(<wp:docPr\b[^>]*?\sid=")\d+"/g, (_, a) => `${a}${++dp}"`)
     .replace(/(<w:(?:ins|del|moveFrom|moveTo|[pr]PrChange|sectPrChange|tblPrChange|trPrChange|tcPrChange|numberingChange)\s[^>]*?w:id=")\d+"/g, (_, a) => `${a}${id++}"`);
-  return documentXml.replace("<w:body>", () => `<w:body>${blocks}`);
+  return orig.replace("<w:body>", () => `<w:body>${blocks}`);
 }
 
 /* ---------- Excel ---------- */

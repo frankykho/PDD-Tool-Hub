@@ -26,9 +26,13 @@ export const DISC_ARTICLE = "Disclaimer: Semua investasi memiliki risiko. Lakuka
 export const FIXED_TAGS = ["iKISI", "KISI", "Behind The Candle"];
 export const PRIZE_DISC = "Hadiah adalah bentuk apresiasi aktivitas transaksi, bukan jaminan keuntungan investasi. Pastikan Anda memahami risiko sebelum bertransaksi.";
 
-export const numbers = (text) => (String(text).match(/\d+(?:[.,]\d+)*%?/g) || []).map((x) => x.replace(/\s+/g, ""));
+export const numbers = (text) => (String(text).match(/\d+(?:[.,]\d+)*(?:\s*%)?/g) || []).map((x) => x.replace(/\s+/g, ""));
 const tally = (a) => a.reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map());
 const lacking = (a, b) => { const have = tally(numbers(b)), miss = []; for (const [n, c] of tally(numbers(a))) if ((have.get(n) || 0) < c) miss.push(n); return miss; };
+// angka sama (multiset) walau pemisah ribuan/desimal dan spasi % berbeda
+const core = (t) => numbers(t).map((x) => x.replace(/[.,%]/g, "")).sort().join("|");
+export const sameNumbers = (a, b) => core(a) === core(b);
+export const transFindings = (units, trans) => units.filter((u) => trans.has(u.id) && !sameNumbers(u.text, trans.get(u.id))).map((u) => ({ kind: "konsistensi", loc: u.id, from: numbers(u.text).join(", "), to: "", why: "Angka terjemahan berbeda dari asli: " + numbers(trans.get(u.id)).join(", ") }));
 export const missingNumbers = (src, out) => lacking(src, out);
 export const extraNumbers = (src, out) => lacking(out, src);
 export function applyEdits(text, edits) {
@@ -82,7 +86,7 @@ export const estimateCalls = (units, translate) => chunks(units).length * (trans
 // Baris tabel docx -> [{loc, label, value}] (label = sel pertama, value = angka pertama sesudahnya)
 export function docxRows(xml) {
   const rows = []; let row = null, i = 0;
-  for (const m of xml.matchAll(/<w:tr(?:\s[^>]*)?>|<\/w:tr>|<w:tc(?:\s[^>]*)?>|<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
+  for (const m of O.maskBoxes(xml).xml.matchAll(/<w:tr(?:\s[^>]*)?>|<\/w:tr>|<w:tc(?:\s[^>]*)?>|<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
     const t = m[0];
     if (t.startsWith("<w:tr")) row = { loc: "", cells: [] };
     else if (t === "</w:tr>") { if (row && row.cells.length) { const v = row.cells.slice(1).map((c) => parseIdr(c)).find((x) => x != null); if (v != null) rows.push({ loc: row.loc, label: row.cells[0], value: v }); } row = null; }
@@ -149,7 +153,7 @@ function initReview(cs) {
     for (const u of S.units) for (const i of window.Compliance ? window.Compliance.check(u.text, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : []) out.push({ kind: "compliance", loc: u.id, from: i.match || "", to: "", why: i.msg });
     return out;
   };
-  const mk = (a, ai) => a.map((f, n) => ({ ...f, key: (ai ? "a" : "b") + n, info: !f.to && INFO.includes(f.kind), on: !!f.to }));
+  const mk = (a, ai) => a.map((f, n) => ({ ...f, key: (ai ? "a" : "b") + n, info: !f.to && INFO.includes(f.kind), on: !!f.to && sameNumbers(f.from, f.to), numChg: !!f.to && !sameNumbers(f.from, f.to) }));
   const edits = () => F.filter((f) => f.on && !f.info && f.from).map((f) => {
     if (S.type === "docx") return { id: f.key, p: +f.loc.slice(1), from: f.from, to: f.to };
     const k = f.loc.lastIndexOf("!"); return { id: f.key, path: f.loc.slice(0, k), ref: f.loc.slice(k + 1), from: f.from, to: f.to };
@@ -171,8 +175,8 @@ function initReview(cs) {
   };
   const render = () => {
     const can = S.type !== "pdf", failed = can ? build(true).failed : new Set();
-    $("rvList").innerHTML = (partial ? '<div class="note small"><b>Hasil sebagian: kuota AI hari ini habis</b></div>' : "") + (F.map((f, n) =>
-      '<label class="small" style="display:block">' + (can && !f.info ? '<input type="checkbox" data-n="' + n + '"' + (f.on ? " checked" : "") + "> " : "") + "<b>" + esc(f.kind) + '</b> <span class="muted">' + esc(f.loc) + '</span> <span translate="no">' + esc(f.from) + (f.to ? " &rarr; " + esc(f.to) : "") + "</span>" +
+    $("rvList").innerHTML = (partial ? '<div class="note small"><b>' + (partial === "kuota" ? "Hasil sebagian: kuota AI hari ini habis" : "Hasil sebagian: pemeriksaan terhenti karena kesalahan") + "</b></div>" : "") + (F.map((f, n) =>
+      '<label class="small" style="display:block">' + (can && !f.info ? '<input type="checkbox" data-n="' + n + '"' + (f.on ? " checked" : "") + "> " : "") + "<b>" + esc(f.kind) + '</b>' + (f.numChg ? ' <b style="color:#c0392b">angka berubah</b>' : "") + ' <span class="muted" translate="no">' + esc(f.loc) + '</span> <span translate="no">' + esc(f.from) + (f.to ? " &rarr; " + esc(f.to) : "") + "</span>" +
       (f.why ? ' <span class="muted" translate="no">(' + esc(f.why) + ")</span>" : "") + (failed.has(f.key) ? ' <b style="color:#c0392b">tidak bisa diterapkan otomatis</b>' : "") + "</label>").join("") || '<span class="muted small">Tidak ada temuan.</span>');
     $("rvTrack").hidden = $("rvClean").hidden = S.type !== "docx"; $("rvXlsx").hidden = S.type !== "xlsx";
     $("rvOut").hidden = false;
@@ -202,7 +206,8 @@ function initReview(cs) {
     try {
       for (const c of cs1) { $("rvInfo").textContent = "Memeriksa " + ++n + "/" + cs1.length + "…"; found.push(...(await ask("cw_review", c, lang)).findings.filter((x) => ids.has(x.id)).map((x) => ({ kind: x.kind, loc: x.id, from: x.from, to: x.to, why: x.why }))); }
       if (wantEn()) { n = 0; for (const c of cs1) { $("rvInfo").textContent = "Menerjemahkan " + ++n + "/" + cs1.length + "…"; for (const it of (await ask("cw_translate", c)).items) if (ids.has(it.id)) trans.set(it.id, it.en); } }
-    } catch (err) { if (err.quota) partial = true; else toast(err.message || "Gagal memeriksa."); }
+    } catch (err) { if (err.quota) partial = "kuota"; else { if (found.length || trans.size) partial = "galat"; toast(err.message || "Gagal memeriksa."); } }
+    found.push(...transFindings(s.units, trans));
     $("rvFile").disabled = false; btn.disabled = false;
     if (S !== s) return; // file diganti selama proses: abaikan hasil lama
     F = [...mk(base(), false), ...mk(found, true)];
@@ -386,7 +391,7 @@ function initPr(cs) {
     '<label class="small muted" style="font-weight:600">Catatan bebas<textarea id="prFree" maxlength="4000" translate="no"></textarea></label>' +
     '<div class="row"><label class="btn">Foto (opsional)<input type="file" id="prPhoto" accept="image/*" hidden></label><span class="muted small" id="prPhotoName" translate="no"></span></div>' +
     '<div class="row"><button class="btn pri" id="prGo" type="button">Buat press release</button></div>' +
-    '<div id="prOut" class="stack" hidden><div id="prQuoteWarn" class="small" hidden>Kutipan perlu disetujui narasumber</div><div id="prMissing" class="stack"></div><div id="prPrev" class="stack" translate="no"></div>' +
+    '<div id="prOut" class="stack" hidden><div id="prQuoteWarn" class="small" hidden>Kutipan perlu disetujui narasumber</div><div id="prMissing" class="stack" translate="no"></div><div id="prPrev" class="stack" translate="no"></div>' +
     '<div class="row"><button class="btn sm" id="prCopy" type="button">Salin teks</button><button class="btn sm" id="prDocx" type="button">Unduh .docx</button></div></div>';
   let R = null, photo = null;
   const txt = () => ({ about: $("prAbout").value, contact: $("prContact").value });
@@ -414,6 +419,7 @@ function initPr(cs) {
       const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl }) });
       const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
       R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
+      if (!hl.speaker && !hl.quote) R.quote = { text: "", speaker: "", ai: false }; // tanpa narasumber/kutipan dari pengguna, kutipan AI dibuang
       $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
       $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
       $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");

@@ -322,7 +322,7 @@ Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{
     const text = str(b.text, 12000);
     if (!text) return null;
     const close = b.close === "brand" || b.close === "promo" ? b.close : "none", pr = b.promo && typeof b.promo === "object" ? b.promo : {};
-    const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100)}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil.\n`;
+    const closeLine = close === "none" ? "" : close === "brand" ? "Tulis paragraf penutup 2–3 kalimat yang menghubungkan topik ke iKISI/KISI secara netral, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n" : `Tulis paragraf penutup 2–3 kalimat yang mengajak ke program ${str(pr.name, 100)}${str(pr.url, 200) ? " (" + str(pr.url, 200) + ")" : ""}, tanpa janji hasil dan tanpa rekomendasi beli/jual efek tertentu.\n`;
     return { max: 3000, user: `Ini naskah berita dari tim IGS${str(b.title, 300) ? ` berjudul "${str(b.title, 300)}"` : ""} untuk diterbitkan sebagai artikel website KISI. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.\nTugas:\n1. Usulkan 3–5 judul dari judul IGS.\n2. Daftar perbaikan ejaan/kalimat sebagai "edits" (from = potongan persis dari naskah, to = perbaikan, why = alasan singkat). JANGAN menulis ulang isi; angka, nama, dan kutipan dilarang berubah.\n3. Beri 3–4 tag.\n${closeLine}Naskah:\n${text}\n\nFormat: {"titles":[""],"edits":[{"from":"","to":"","why":""}],"tags":[""],"closing":""}` };
   }
   if (kind === "cw_brief") {

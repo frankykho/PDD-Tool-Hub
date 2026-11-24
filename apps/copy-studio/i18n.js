@@ -27,7 +27,7 @@ export default {
   // ---- Copywriter: cek wording file ----
   "Unggah .docx / .xlsx / .pdf": "Upload .docx / .xlsx / .pdf", "Tambah versi Inggris": "Add English version", "Cek wording": "Check wording", "Unduh (Track Changes)": "Download (Track Changes)", "Unduh versi bersih": "Download clean version", "Unduh": "Download",
   "Pilih file .docx, .xlsx, atau .pdf.": "Choose a .docx, .xlsx, or .pdf file.", "File terlalu besar. Maksimal 10 MB.": "File too large. Maximum 10 MB.", "File tidak bisa dibaca.": "The file could not be read.", "Gagal memeriksa.": "Check failed.",
-  "Hasil sebagian: kuota AI hari ini habis": "Partial result: today's AI quota is used up", "tidak bisa diterapkan otomatis": "cannot be applied automatically", "Tidak ada temuan.": "No findings.",
+  "Hasil sebagian: kuota AI hari ini habis": "Partial result: today's AI quota is used up", "tidak bisa diterapkan otomatis": "cannot be applied automatically", "Hasil sebagian: pemeriksaan terhenti karena kesalahan": "Partial result: the check stopped because of an error", "angka berubah": "numbers changed", "Tidak ada temuan.": "No findings.",
 
   // ---- nada (TONES) ----
   "Santai": "Casual", "Semangat": "Energetic", "Edukatif": "Educational", "Profesional": "Professional", "Syariah": "Sharia",

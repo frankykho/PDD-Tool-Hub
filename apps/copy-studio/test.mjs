@@ -528,4 +528,35 @@ assert.ok(CW.prBlocks(rp, { about: "x", contact: "Nama\nTelp" }).some((b) => b.r
 assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*brief KISI Challenge.*press release.*cek wording/i);
 }
 
+/* ---------- review akhir: textbox, angka, konsistensi ---------- */
+{
+  const O = await import("./assets/office.js"), CW = await import("./assets/cw.js");
+  const bal = (x) => { const st = []; for (const m of x.matchAll(/<(\/?)([\w:]+)[^>]*?(\/?)>/g)) { if (m[3]) continue; if (!m[1]) st.push(m[2]); else if (st.pop() !== m[2]) return false; } return !st.length; };
+  const TB = (t) => `<mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wps:txbx><w:txbxContent><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:txbxContent></wps:txbx></w:drawing></mc:Choice><mc:Fallback><w:pict><v:textbox><w:txbxContent><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:txbxContent></v:textbox></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const D = `<w:document><w:body><w:p><w:r><w:t>Cover </w:t></w:r><w:r>${TB("Adverstisement plan")}</w:r></w:p><w:p><w:r><w:t>Next</w:t></w:r></w:p><w:sectPr/></w:body></w:document>`;
+  const T = { track: true, author: "x", date: "d" };
+  assert.ok(bal(D));
+  assert.equal(O.docxParagraphs(D).length, 2, "textbox bukan paragraf tersendiri");
+  assert.equal(O.docxParagraphs(D)[0].text, "Cover ");
+  for (const track of [true, false]) {
+    const o = { ...T, track };
+    const a = O.applyDocx(D, [{ id: "a", p: 0, from: "Cover", to: "Sampul" }, { id: "b", p: 1, from: "Next", to: "Nxt" }], o);
+    assert.deepEqual(a.applied, ["a", "b"]); assert.ok(bal(a.xml), "applyDocx seimbang"); assert.ok(a.xml.includes(TB("Adverstisement plan")), "textbox utuh");
+    const e = O.insertEnglish(D, new Map([[1, "EN"]]), o); assert.ok(bal(e), "insertEnglish tanpa terjemahan seimbang");
+    assert.equal(O.docxParagraphs(e).length, 2 * 2 + 2, "jumlah paragraf = asli + salinan + 2 penanda");
+    assert.ok(bal(O.insertEnglish(D, new Map([[0, "EN"], [1, "EN2"]]), o)));
+  }
+  assert.equal(CW.docxRows(`<w:tbl><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r>${TB("x")}</w:p></w:tc><w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`).length, 1);
+  // sectPr paragraf tidak digandakan di salinan
+  const SP = `<w:document><w:body><w:p><w:pPr><w:sectPr><w:pgSz w:w="1"/></w:sectPr></w:pPr><w:r><w:t>A</w:t></w:r></w:p><w:sectPr/></w:body></w:document>`;
+  assert.equal(O.insertEnglish(SP, new Map(), { track: false, author: "x", date: "d" }).match(/<w:sectPr>/g).length, 1);
+  assert.equal(O.insertEnglish(SP, new Map([[0, "EN"]]), { track: false, author: "x", date: "d" }).match(/<w:sectPr>/g).length, 1);
+  // angka
+  assert.deepEqual(CW.missingNumbers("naik 90,4 % ini", "naik 90,4% ini"), []); assert.deepEqual(CW.extraNumbers("naik 90,4 % ini", "naik 90,4% ini"), []);
+  assert.ok(CW.sameNumbers("naik 90,4 %", "up 90.4%")); assert.ok(!CW.sameNumbers("naik 90,4%", "naik 94%")); assert.ok(CW.sameNumbers("tahun 2027", "year 2027"));
+  assert.ok(!CW.sameNumbers("10 dan 10", "10"));
+  const tf = CW.transFindings([{ id: "p0", text: "Naik 90,4%" }, { id: "p1", text: "Ada 5" }], new Map([["p0", "Up 94%"], ["p1", "There are 5"]]));
+  assert.equal(tf.length, 1); assert.equal(tf[0].kind, "konsistensi"); assert.equal(tf[0].loc, "p0");
+}
+
 console.log("semua cek lolos");
