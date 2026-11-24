@@ -546,7 +546,7 @@ assert.match(CW.briefText(rb, { format: "carousel", platform: "IG", date: "1 Sep
 assert.equal(prompt("cw_pr", { hl: {} }), null);
 // highlight dikembangkan jadi press release utuh, fakta tetap dari bahan; batas jawaban cukup untuk ±600 kata dalam format runs
 { const q = prompt("cw_pr", { hl: { free: "Edukasi pasar modal di Padang, 200 peserta UMKM" } });
-  assert.match(q.user, /Kembangkan highlight/); assert.match(q.user, /400–600 kata/); assert.match(q.user, /fakta spesifik/); assert.ok(q.max >= 5000); }
+  assert.match(q.user, /Kembangkan highlight/); assert.match(q.user, /400–600 kata/); assert.match(q.user, /Jangan mengarang angka, nama/); assert.ok(q.max >= 5000); }
 const pp = prompt("cw_pr", { hl: { event: "GI BEI Award 2026", city: "Jakarta", date: "23 November 2026", speaker: "Mr. Yang Seok Mo, Online Business Associate Director KISI" } }).user;
 assert.match(pp, /Jakarta, 23 November 2026 – PT Korea Investment And Sekuritas Indonesia \(KISI\)/); assert.match(pp, /missing/); assert.match(pp, /Jangan mengarang/);
 const rp = parse("cw_pr", '{"title":"KISI Raih Penghargaan","paras":[{"runs":[{"text":"Jakarta, 23 November 2026","b":true},{"text":" – isi"}]}],"quote":{"text":"Kami bangga.","speaker":"Mr. Yang Seok Mo","ai":true},"closing":["KISI berkomitmen."],"missing":["Jabatan Dedy Lasmono"]}');
