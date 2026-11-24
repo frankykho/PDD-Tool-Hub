@@ -262,4 +262,27 @@ r = await ig(VIEW); assert.equal(r.j.watch.length, 0); assert.ok(r.j.others.incl
 assert.ok(APIFY.auth.every((a) => a === "Bearer tok-test"));
 globalThis.fetch = realFetch;
 
+// konsep pasar: ide harus tetap terpakai ke depan (tujuan Info pasar atau konten kompetitor berpilar Market update)
+assert.ok(!/KONTEN PASAR/.test(user1.content), "konsep edukasi tanpa aturan pasar");
+AIQ.push(JSON.stringify({ ...good, judul: "Versi pasar" }));
+r = await call("/api/concepts", { ck: SMS, method: "POST", body: { content_id: X, idea_id: VI, goal: "pasar" } });
+assert.equal(r.status, 200); assert.match(prompts.at(-1)[1].content, /KONTEN PASAR: .*tetap bisa dipakai ke depan/);
+
+// pilar baru dari kata kunci; seri dengan pilar lama -> pilar lama menang
+const pil = (caption) => igRow({ url: "https://www.instagram.com/p/P/", caption }).pillar;
+assert.equal(pil("Selamat Hari Raya Idul Fitri, mohon maaf lahir dan batin"), "Momen & hari besar");
+assert.equal(pil("Terima kasih nasabah! Kami meraih penghargaan Best Broker 2026"), "Brand & korporat");
+assert.equal(pil("Promo Ramadan: bebas biaya transaksi"), "Promo");
+assert.equal(pil("Selamat pagi semua"), "Lainnya");
+// konten lama "Lainnya" dicek ulang saat worker baru mulai (modul baru = worker baru)
+{ const { default: ci2 } = await import("./worker.js?baru");
+  const e2 = { ...env, DB: d1() };
+  e2.DB.db.exec("CREATE TABLE ci_content (id TEXT PRIMARY KEY, url TEXT NOT NULL UNIQUE, platform TEXT, account TEXT, format TEXT, caption TEXT, posted_at TEXT, likes INTEGER, comments INTEGER, pillar TEXT, topic TEXT, note TEXT, idea TEXT, image_data TEXT, image_url TEXT, saved_at TEXT NOT NULL, saved_by TEXT, edited_by TEXT)");
+  const ins = e2.DB.db.prepare("INSERT INTO ci_content (id, url, caption, pillar, saved_at) VALUES (?, ?, ?, ?, '2026-11-01')");
+  ins.run("m", "u1", "Selamat Natal dan Tahun Baru", "Lainnya"); ins.run("s", "u2", "Selamat pagi", "Lainnya"); ins.run("e", "u3", "Selamat Natal", "Edukasi");
+  const r2 = await ci2.fetch(new Request(BASE + "/api/content", { headers: { cookie: VIEW } }), e2, { waitUntil() { } });
+  assert.equal(r2.status, 200);
+  assert.deepEqual(e2.DB.db.prepare("SELECT id, pillar FROM ci_content ORDER BY id").all().map((x) => [x.id, x.pillar]),
+    [["e", "Edukasi"], ["m", "Momen & hari besar"], ["s", "Lainnya"]], "hanya yang berpilar Lainnya yang dicek ulang"); }
+
 console.log("semua cek lolos");

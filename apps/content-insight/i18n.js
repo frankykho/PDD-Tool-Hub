@@ -62,6 +62,8 @@ export default {
   "Produk & fitur": "Products & features",
   "Event": "Event",
   "Engagement": "Engagement",
+  "Momen & hari besar": "Moments & holidays",
+  "Brand & korporat": "Brand & corporate",
   "SBN/Obligasi": "Govt. securities/Bonds",
   "Umum": "General",
   "Foto": "Photo",

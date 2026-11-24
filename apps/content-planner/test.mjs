@@ -1389,6 +1389,7 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.deepEqual(x.items.map((i) => i.t), ["Bedah laporan keuangan"]);
   assert.match(seen.user, /MOMEN BULAN DEPAN \(2026-11\)/); assert.match(seen.user, /SERI RUTIN \(jangan dimasukkan\): BreakVest KISI/); assert.match(seen.user, /fokus pemula/);
   assert.match(seen.user, /Edukasi: 25% bulan ini, 50% rata-rata 3 bulan sebelumnya \(-25 poin\)/); assert.match(seen.system, /jangan menyebut nama kompetitor/i);
+  assert.match(seen.system, /Market update harus tetap bisa dipakai/, "ide pasar tidak basi saat diterbitkan");
   assert.match((await smPlan(env, { m: "2026-03" }, fake)).error, /Belum ada postingan kompetitor/);
   assert.match((await smPlan(env, { m: "2026-10" }, async () => ({ text: "bukan json" }))).error, /tidak terbaca/);
   assert.match((await smPlan(env, { m: "2026-10" }, async () => ({ text: '{"items":[]}' }))).error, /tidak memberi rencana/);

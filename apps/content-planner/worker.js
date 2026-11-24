@@ -943,6 +943,7 @@ Aturan:
 - Setiap konten harus berangkat dari satu tren di data (topik/pilar yang naik, format yang engagement-nya tinggi, atau postingan kompetitor yang menonjol). Sebut trennya singkat di kolom "tren".
 - Jangan menyalin kompetitor dan jangan menyebut nama kompetitor. Ambil topiknya, beri sudut pandang ${brand} sendiri.
 - Jangan masukkan konten seri rutin yang sudah pasti jalan.
+- Konten Market update harus tetap bisa dipakai saat diterbitkan bulan depan, bukan bergantung pada angka atau kejadian bulan ini yang sudah lewat: jelaskan konsep/pola di balik berita pasar, buat format yang bisa diulang dengan data terbaru, atau siapkan konten untuk agenda pasar bulan depan (RDG BI, FOMC, musim laporan keuangan, cum date dividen).
 - Patuhi aturan OJK: jangan menjanjikan keuntungan atau imbal hasil pasti. Angka pasar/produk/promo yang belum pasti tulis sebagai [isi angka].
 - Bahasa Indonesia, ringkas. "format" salah satu dari: ${PLAN_FORMATS.join(", ")}.
 Jawab HANYA JSON: {"items": [{"judul": "maks 80 karakter", "ide": "1-2 kalimat isi dan sudut konten", "pilar": "pilar konten", "format": "...", "tren": "tren yang mendasari, maks 100 karakter"}]}`;
