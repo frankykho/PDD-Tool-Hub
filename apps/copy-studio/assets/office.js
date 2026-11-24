@@ -83,9 +83,11 @@ export async function unzip(JSZip, blob) {
 }
 
 // ---- Edit Word: saran sebagai Track Changes / bersih, dan salinan Inggris ----
+// id baru mulai 9001 atau di atas id terbesar yang sudah ada
+const nextId = (xml) => Math.max(9000, ...[...xml.matchAll(/\sw:id="(\d+)"/g)].map((m) => +m[1])) + 1;
 const PARA = /<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g;
 // shortcut: run di dalam ins/del/hyperlink/sdt dianggap buram (tidak dicari/diubah), upgrade bila saran perlu menjangkau hyperlink
-const ITEM = /<w:(ins|del|hyperlink|smartTag|sdt|moveFrom|moveTo|fldSimple)(?:\s[^>]*)?>[\s\S]*?<\/w:\1>|<w:r(?:\s[^>]*)?\/>|<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
+const ITEM = /<w:(ins|del|hyperlink|smartTag|sdt|moveFrom|moveTo|fldSimple)(?:\s[^>]*)?(?<!\/)>[\s\S]*?<\/w:\1>|<w:r(?:\s[^>]*)?\/>|<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
 
 function tokens(inner) {
   const out = [];
@@ -166,7 +168,7 @@ function editParagraph(pXml, edit, track, attrs) {
 }
 
 export function applyDocx(documentXml, edits, { track, author, date }) {
-  let id = 9001;
+  let id = nextId(documentXml);
   const attrs = () => `w:id="${id++}" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}"`;
   const by = new Map(), applied = [];
   for (const ed of edits) (by.get(ed.p) || by.set(ed.p, []).get(ed.p)).push(ed);
@@ -202,8 +204,7 @@ export function bodyBlocks(documentXml) {
 }
 
 export function insertEnglish(documentXml, translated, { track, author, date }) {
-  let id = 9001;
-  const ins = (x) => track && x ? `<w:ins w:id="${id++}" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}">${x}</w:ins>` : x;
+  const ins = (x) => track && x ? `<w:ins w:id="0" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}">${x}</w:ins>` : x;
   const marker = (t) => `<w:p>${ins(`<w:r><w:t>${t}</w:t></w:r>`)}</w:p>`;
   let n = 0;
   const copy = (blk) => blk.replace(PARA, (p) => {
@@ -216,6 +217,11 @@ export function insertEnglish(documentXml, translated, { track, author, date }) 
     }
     return `${o}${toks.map((t) => t.run ? ins(t.xml) : t.xml).join("")}</w:p>`;
   });
-  const blocks = bodyBlocks(documentXml).map(copy).join("");
-  return documentXml.replace("<w:body>", () => `<w:body>${marker("ENGLISH")}${blocks}${marker("INDONESIA")}`);
+  let id = nextId(documentXml), dp = Math.max(0, ...[...documentXml.matchAll(/<wp:docPr\b[^>]*?\sid="(\d+)"/g)].map((m) => +m[1]));
+  // salinan tidak boleh membawa id yang sudah dipakai asli: paraId/textId dan bookmark dibuang, docPr dan id revisi dinomori ulang
+  const blocks = (marker("ENGLISH") + bodyBlocks(documentXml).map(copy).join("") + marker("INDONESIA"))
+    .replace(/\sw14:(?:paraId|textId)="[^"]*"/g, "").replace(/<w:bookmark(?:Start|End)\b[^>]*\/>/g, "")
+    .replace(/(<wp:docPr\b[^>]*?\sid=")\d+"/g, (_, a) => `${a}${++dp}"`)
+    .replace(/(<w:(?:ins|del|moveFrom|moveTo)\s[^>]*?w:id=")\d+"/g, (_, a) => `${a}${id++}"`);
+  return documentXml.replace("<w:body>", () => `<w:body>${blocks}`);
 }

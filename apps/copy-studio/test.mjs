@@ -357,6 +357,16 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.ok(r2.xml.endsWith("<w:p><w:r><w:t>sama</w:t></w:r></w:p></w:body>"), "paragraf lain tidak berubah");
   const ids = [...r2.xml.matchAll(/w:id="(\d+)"/g)].map((m) => m[1]);
   assert.equal(new Set(ids).size, ids.length); assert.equal(Math.min(...ids), 9001);
+  const D3 = '<w:body><w:p><w:pPr><w:rPr><w:ins w:id="1" w:author="a" w:date="d"/></w:rPr></w:pPr><w:r><w:t>Termyn</w:t></w:r><w:ins w:id="2" w:author="a" w:date="d"><w:r><w:t>x</w:t></w:r></w:ins></w:p></w:body>';
+  const r3 = O.applyDocx(D3, [{ id: 1, p: 0, from: "Termyn", to: "Termin" }], T);
+  assert.deepEqual(r3.applied, [1]); assert.match(r3.xml, /<w:ins w:id="1"[^>]*\/><\/w:rPr><\/w:pPr>/);
+  assert.match(O.applyDocx(D3.replace('w:id="1"', 'w:id="9001"'), [{ id: 1, p: 0, from: "Termyn", to: "Termin" }], T).xml, /w:id="9002"/, "id baru di atas id yang ada");
+  const D4 = '<w:body><w:p w14:paraId="1A"><w:bookmarkStart w:id="0" w:name="x"/><w:r><w:drawing><wp:docPr id="5" name="p"/></w:drawing></w:r><w:bookmarkEnd w:id="0"/></w:p><w:sectPr/></w:body>';
+  const e4 = O.insertEnglish(D4, new Map(), T);
+  const cnt = (re) => (e4.match(re) || []).length;
+  assert.equal(cnt(/w14:paraId="1A"/g), 1); assert.equal(cnt(/w:name="x"/g), 1);
+  const docIds = [...e4.matchAll(/<wp:docPr id="(\d+)"/g)].map((m) => m[1]); assert.equal(new Set(docIds).size, 2);
+  const wids = [...e4.matchAll(/<w:(?:ins|del|bookmarkStart) [^>]*w:id="(\d+)"/g)].map((m) => m[1]); assert.equal(new Set(wids).size, wids.length);
   assert.equal(O.docxParagraphs(O.applyDocx(D2, [{ id: 1, p: 0, from: "bar\tbaz", to: "B\nB" }, { id: 2, p: 0, from: "Foo", to: "Fu" }], { ...T, track: false }).xml)[0].text, "Fu B\nB Foo");
 }
 
