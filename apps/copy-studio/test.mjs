@@ -317,4 +317,18 @@ assert.ok(page.includes('"cs_wnb"'));
 }
 assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengunduh"), "pesan font menyebut muat ulang");
 
+/* ---------- office.js ---------- */
+{
+  const O = await import("./assets/office.js");
+  const DOC = `<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>Adver</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">stisement &amp; Co</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Termyn</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>I</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:sectPr/></w:body></w:document>`;
+  assert.deepEqual(O.docxParagraphs(DOC), [{ i: 0, text: "Adverstisement & Co", inTable: false }, { i: 1, text: "Termyn\tI", inTable: true }]);
+  const f = O.makeDocx([{ t: "h1", runs: [{ text: "Judul & <x>", b: true }] }, { t: "p", runs: [{ text: "Jakarta", b: true }, { text: " – isi", i: true }] }], {});
+  assert.ok(f["[Content_Types].xml"] && f["word/document.xml"] && f["word/styles.xml"]);
+  assert.match(f["word/document.xml"], /Judul &amp; &lt;x&gt;/);
+  assert.match(f["word/document.xml"], /<w:b\/>[\s\S]*Jakarta/);
+  assert.deepEqual(O.docxParagraphs(f["word/document.xml"]).map((p) => p.text), ["Judul & <x>", "Jakarta – isi"]);
+  const fl = O.makeDocx([{ t: "p", runs: [{ text: "x" }] }], { logo: { data: new Uint8Array([137, 80]), w: 200, h: 60 } });
+  assert.ok(fl["word/media/logo.png"] && /header1\.xml/.test(fl["word/_rels/document.xml.rels"]));
+}
+
 console.log("semua cek lolos");
