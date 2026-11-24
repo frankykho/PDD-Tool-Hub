@@ -515,6 +515,16 @@ assert.deepEqual(rb.sns[0].frames[0].lines, ["KOMPETISI DIMULAI!"]);
 assert.match(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /Slide 1:\nx/);
 assert.doesNotMatch(CW.briefText({ sns: [{ partner: "P", frames: [{ label: "Slide 1:", lines: ["x"] }] }] }, { format: "carousel", platform: "IG" }), /::/);
 assert.match(CW.briefText(rb, { format: "carousel", platform: "IG", date: "1 September" }), /^Sahamology: IG Carousel[\s\S]*Posting tanggal 1 September[\s\S]*Slide 1:\nKOMPETISI DIMULAI![\s\S]*● Sahamology tidak terafiliasi/);
+assert.equal(prompt("cw_pr", { hl: {} }), null);
+const pp = prompt("cw_pr", { hl: { event: "GI BEI Award 2026", city: "Jakarta", date: "23 November 2026", speaker: "Mr. Yang Seok Mo, Online Business Associate Director KISI" } }).user;
+assert.match(pp, /Jakarta, 23 November 2026 – PT Korea Investment And Sekuritas Indonesia \(KISI\)/); assert.match(pp, /missing/); assert.match(pp, /Jangan mengarang/);
+const rp = parse("cw_pr", '{"title":"KISI Raih Penghargaan","paras":[{"runs":[{"text":"Jakarta, 23 November 2026","b":true},{"text":" – isi"}]}],"quote":{"text":"Kami bangga.","speaker":"Mr. Yang Seok Mo","ai":true},"closing":["KISI berkomitmen."],"missing":["Jabatan Dedy Lasmono"]}');
+const pbk = CW.prBlocks(rp, { about: "Para 1\n\nPara 2", contact: "" });
+assert.deepEqual(pbk[0].runs[0], { text: "PRESS RELEASE", b: true, i: true });
+assert.ok(pbk.some((b) => b.runs && b.runs[0].text === "Tentang PT Korea Investment And Sekuritas Indonesia (KISI)"));
+assert.ok(!pbk.some((b) => b.runs && /Media Contact/.test(b.runs[0].text)), "kontak kosong -> tanpa Media Contact");
+assert.ok(CW.prBlocks(rp, { about: "x", contact: "Nama\nTelp" }).some((b) => b.runs && /Media Contact/.test(b.runs[0].text)));
+assert.match(fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8"), /Copywriter.*artikel.*brief KISI Challenge.*press release.*cek wording/i);
 }
 
 console.log("semua cek lolos");

@@ -5,7 +5,7 @@
 // - POST /api/style        simpan panduan gaya (editor & admin)
 // - GET/POST /api/cw       data program & press release tab Copywriter (simpan: editor & admin; meta cw_program, cw_pr)
 // - GET  /api/quota        pemakaian AI hari ini {used, limit}
-// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) | cw_brief (brief KISI Challenge) | cw_review | cw_translate (cek wording file) (batas per hari: COPY_AI_DAILY)
+// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix | cw_article (artikel berita IGS) | cw_brief (brief KISI Challenge) | cw_pr (press release) | cw_review | cw_translate (cek wording file) (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
 // - POST /__hub/disclaimers teks disclaimer resmi dari Brand Kit (disimpan sebagai salinan; tombol "+ Izin & disclaimer")
@@ -358,6 +358,23 @@ ${data}
 
 Format: {"media":{"title":"","body":[""]}} (body = daftar paragraf)` };
   }
+  if (kind === "cw_pr") {
+    const h = b.hl && typeof b.hl === "object" ? b.hl : {}, f = (k, n) => str(h[k], n);
+    if (!f("event", 300) && !f("free", 4000)) return null;
+    const opener = (f("city", 60) || "<Kota>") + ", " + (f("date", 60) || "<tanggal>") + " – PT Korea Investment And Sekuritas Indonesia (KISI)";
+    const rows = [["Acara/pencapaian", "event", 300], ["Tanggal", "date", 60], ["Kota", "city", 60], ["Mitra", "partners", 500], ["Tamu (nama, gelar, jabatan)", "guests", 1500], ["Angka", "numbers", 800], ["Narasumber", "speaker", 300], ["Inti kutipan", "quote", 600], ["Kontak tambahan", "contact", 400], ["Link dokumentasi", "doc_url", 300], ["Catatan bebas", "free", 4000]].map(([l, k, n]) => (f(k, n) ? l + ": " + f(k, n) : "")).filter(Boolean).join("\n");
+    return { max: 2500, user: `Tulis press release KISI dalam bahasa Indonesia dari highlight berikut. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan.
+Aturan:
+1. Paragraf pertama dibuka dengan "${opener}" (kota dan tanggal ditulis tebal, b=true) lalu isi: apa, kapan, di mana, bersama siapa.
+2. Daftar tamu ditulis lengkap dengan gelar dan jabatan sesuai bahan. Nama, acara, dan angka ditulis tebal (b=true); istilah asing miring (i=true).
+3. Data yang kurang (nama, gelar, jabatan, tanggal, angka) JANGAN dikarang; tulis di "missing" sebagai daftar "perlu dilengkapi".
+4. Kutipan narasumber: pakai kutipan dari bahan bila ada (ai=false). Bila disusun dari inti kutipan, isi ai=true. Tanpa narasumber, quote.text dikosongkan.
+5. "closing" = 1–2 paragraf komitmen KISI, tanpa janji hasil. Jangan menulis bagian "Tentang KISI" dan Media Contact (ditambahkan otomatis).
+Highlight:
+${rows}
+
+Format: {"title":"","paras":[{"runs":[{"text":"","b":false,"i":false}]}],"quote":{"text":"","speaker":"","ai":true},"closing":[""],"missing":[""]}` };
+  }
   if (kind === "cw_review" || kind === "cw_translate") {
     const units = []; let n = 0;
     for (const u of Array.isArray(b.units) ? b.units : []) { const id = str(u && u.id, 200), text = str(u && u.text, 9000); if (!id || !text || units.length >= 120 || (n += text.length) > 9000 && units.length) break; units.push({ id, text }); }
@@ -436,6 +453,15 @@ export function parse(kind, raw) {
     media: { title: str(j.media && j.media.title, 200), body: list(j.media && j.media.body, 20).map((x) => str(x, 1500)).filter(Boolean) },
     sns: list(j.sns, 10).map((x) => ({ partner: str(x && x.partner, 120), frames: list(x && x.frames, 8).map((f) => ({ label: str(f && f.label, 60), lines: list(f && f.lines, 8).map((l) => str(l, 400)).filter(Boolean) })).filter((f) => f.label || f.lines.length) })).filter((x) => x.partner),
   };
+  if (kind === "cw_pr") {
+    const q = j.quote && typeof j.quote === "object" ? j.quote : {};
+    return {
+      title: str(j.title, 300),
+      paras: list(j.paras, 15).map((p) => ({ runs: list(p && p.runs, 40).map((r) => ({ text: str(r && r.text, 2000), b: !!(r && r.b), i: !!(r && r.i) })).filter((r) => r.text) })).filter((p) => p.runs.length),
+      quote: { text: str(q.text, 1000), speaker: str(q.speaker, 300), ai: q.ai !== false },
+      closing: list(j.closing, 4).map((x) => str(x, 1500)).filter(Boolean), missing: list(j.missing, 20).map((x) => str(x, 200)).filter(Boolean),
+    };
+  }
   if (kind === "cw_review") return { findings: list(j.findings, 80).map((x) => ({ id: str(x && x.id, 200), from: str(x && x.from, 500), to: str(x && x.to, 500), kind: ["typo", "kalimat", "istilah", "ojk"].includes(x && x.kind) ? x.kind : "kalimat", why: str(x && x.why, 200) })).filter((x) => x.id && x.from && x.from !== x.to) };
   if (kind === "cw_translate") return { items: list(j.items, 120).map((x) => ({ id: str(x && x.id, 200), en: str(x && x.en, 9000) })).filter((x) => x.id && x.en) };
   if (kind === "fix") return { text: str(j.text, 6000) };
@@ -566,7 +592,7 @@ export default {
           const q = prompt(b.kind, b);
           if (!q) return json({ error: "Isi dulu brief atau teksnya." }, 400);
           if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 100))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
-          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "cw_review" || b.kind === "cw_translate" ? 0.2 : b.kind === "cw_article" ? 0.4 : b.kind === "cw_brief" ? 0.8 : b.kind === "wn" ? 0.5 : 0.9 });
+          const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "cw_review" || b.kind === "cw_translate" ? 0.2 : b.kind === "cw_article" ? 0.4 : b.kind === "cw_brief" ? 0.8 : b.kind === "cw_pr" ? 0.5 : b.kind === "wn" ? 0.5 : 0.9 });
           return json({ result: parse(b.kind, text), model });
         }
         if (path === "/api/transcribe") {

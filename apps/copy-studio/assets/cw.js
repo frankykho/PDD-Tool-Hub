@@ -11,6 +11,7 @@ export function init(cs) {
   initArticle(cs);
   initReview(cs);
   initBrief(cs);
+  initPr(cs);
   const sel = document.getElementById("cwKind"), panes = document.querySelectorAll("[data-cw]");
   const show = () => { panes.forEach((p) => { p.hidden = p.dataset.cw !== sel.value; }); try { localStorage.setItem("cs_cw", sel.value); } catch (e) {} };
   try { const k = localStorage.getItem("cs_cw"); if (k && [...sel.options].some((o) => o.value === k)) sel.value = k; } catch (e) {}
@@ -334,5 +335,91 @@ function initBrief(cs) {
   $("bfDocx").onclick = async () => {
     const blocks = $("bfFinal").value.split("\n").map((l) => ({ t: "p", runs: [{ text: l }] }));
     const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks, {}))); a.download = "brief.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  };
+}
+
+/* ---- Press release (.docx berkop) ---- */
+const ABOUT_H = "Tentang PT Korea Investment And Sekuritas Indonesia (KISI)";
+export function prBlocks(res, { about, contact, photo }) {
+  const p = (...runs) => ({ t: "p", runs }), split = (s) => String(s || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const q = res.quote || {};
+  return [
+    p({ text: "PRESS RELEASE", b: true, i: true }), p({ text: res.title, b: true }),
+    ...(photo ? [{ t: "img", img: photo }] : []),
+    ...res.paras.map((x) => p(...x.runs)),
+    ...(q.text ? [p({ text: "“" + q.text + "”", i: true }, { text: " ujar " }, { text: q.speaker, b: true })] : []),
+    ...res.closing.map((x) => p({ text: x })),
+    p({ text: ABOUT_H, b: true }), ...split(about).map((x) => p({ text: x })),
+    ...(split(contact).length ? [p({ text: "Media Contact:", b: true, i: true }), ...split(contact).map((x) => p({ text: x }))] : []),
+  ];
+}
+
+// Bytes logo kop + ukuran piksel dari header PNG (IHDR), diskalakan ke ±200 px.
+async function logoBytes() {
+  const data = new Uint8Array(await (await fetch("/brand/kisi-color.png")).arrayBuffer()), v = new DataView(data.buffer);
+  const w = v.getUint32(16), h = v.getUint32(20);
+  return { data, w: 200, h: Math.round((200 * h) / w) };
+}
+// Foto unggahan -> JPEG maks. 480 px lebar.
+async function photoBytes(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 480 / bmp.width), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+  const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.9));
+  return { data: new Uint8Array(await blob.arrayBuffer()), w, h, ext: "jpeg" };
+}
+
+function initPr(cs) {
+  const $ = (id) => document.getElementById(id), toast = (m) => { const t = $("toast"); t.textContent = m; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2600); };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const can = !!cs.canEdit, ro = can ? "" : " readonly";
+  const fld = (id, label, max) => '<label class="small muted" style="font-weight:600">' + label + '<input type="text" id="' + id + '" maxlength="' + max + '" translate="no"></label>';
+  $("prPane").innerHTML = "<h3>Teks baku</h3>" +
+    '<label class="small muted" style="font-weight:600">Tentang KISI<textarea id="prAbout" class="big" maxlength="3000"' + ro + ' translate="no"></textarea></label>' +
+    '<label class="small muted" style="font-weight:600">Media Contact (satu baris per kontak)<textarea id="prContact" maxlength="600"' + ro + ' translate="no"></textarea></label>' +
+    '<div class="row"><button class="btn sm" id="prSave" type="button"' + (can ? "" : " hidden") + '>Simpan</button><span class="muted small"' + (can ? " hidden" : "") + ">Hanya editor atau admin yang bisa mengubah teks baku.</span></div>" +
+    '<h3>Highlight</h3><div class="row">' + fld("prEvent", "Acara/pencapaian", 300) + fld("prDate", "Tanggal", 60) + fld("prCity", "Kota", 60) + "</div>" +
+    fld("prPartners", "Mitra", 500) + fld("prGuests", "Tamu (nama, gelar, jabatan)", 1500) + fld("prNumbers", "Angka", 800) + fld("prSpeaker", "Narasumber (nama, jabatan)", 300) + fld("prQuote", "Inti kutipan", 600) + fld("prContactX", "Kontak tambahan", 400) + fld("prDoc", "Link dokumentasi", 300) +
+    '<label class="small muted" style="font-weight:600">Catatan bebas<textarea id="prFree" maxlength="4000" translate="no"></textarea></label>' +
+    '<div class="row"><label class="btn">Foto (opsional)<input type="file" id="prPhoto" accept="image/*" hidden></label><span class="muted small" id="prPhotoName" translate="no"></span></div>' +
+    '<div class="row"><button class="btn pri" id="prGo" type="button">Buat press release</button></div>' +
+    '<div id="prOut" class="stack" hidden><div id="prQuoteWarn" class="small" hidden>Kutipan perlu disetujui narasumber</div><div id="prMissing" class="stack"></div><div id="prPrev" class="stack" translate="no"></div>' +
+    '<div class="row"><button class="btn sm" id="prCopy" type="button">Salin teks</button><button class="btn sm" id="prDocx" type="button">Unduh .docx</button></div></div>';
+  let R = null, photo = null;
+  const txt = () => ({ about: $("prAbout").value, contact: $("prContact").value });
+  fetch("/api/cw").then((r) => r.json()).then((j) => { $("prAbout").value = j.pr.about || ""; $("prContact").value = j.pr.contact || ""; }).catch(() => toast("Teks baku gagal dimuat."));
+  $("prSave").onclick = async () => {
+    try {
+      const r = await fetch("/api/cw", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pr: txt() }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+      toast("Tersimpan");
+    } catch (err) { toast(err.message || "Gagal menyimpan."); }
+  };
+  $("prPhoto").onchange = async (e) => {
+    const f = e.target.files[0]; photo = null; $("prPhotoName").textContent = "";
+    if (!f) return;
+    try { photo = await photoBytes(f); $("prPhotoName").textContent = f.name; } catch (err) { toast("Foto tidak bisa dibaca."); }
+  };
+  const blocks = () => prBlocks(R, { ...txt(), photo });
+  const text = () => blocks().filter((b) => b.runs).map((b) => b.runs.map((r) => r.text).join("")).join("\n\n");
+  $("prGo").onclick = async () => {
+    const v = (id) => $(id).value.trim(), btn = $("prGo");
+    const hl = { event: v("prEvent"), date: v("prDate"), city: v("prCity"), partners: v("prPartners"), guests: v("prGuests"), numbers: v("prNumbers"), speaker: v("prSpeaker"), quote: v("prQuote"), contact: v("prContactX"), doc_url: v("prDoc"), free: v("prFree") };
+    if (!hl.event && !hl.free) return toast("Isi acara atau catatan bebas dulu.");
+    btn.disabled = true;
+    try {
+      const r = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cw_pr", hl }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+      R = j.result; if (!R.paras.length) throw new Error("AI tidak menghasilkan press release. Coba lagi.");
+      $("prQuoteWarn").hidden = !(R.quote.text && R.quote.ai);
+      $("prMissing").innerHTML = R.missing.length ? '<div class="small" style="background:#fef3c7;padding:8px;border-radius:6px"><b>Perlu dilengkapi</b><ul>' + R.missing.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>" : "";
+      $("prPrev").innerHTML = blocks().filter((b) => b.runs).map((b) => "<p>" + b.runs.map((x) => { let h = esc(x.text); if (x.i) h = "<i>" + h + "</i>"; return x.b ? "<b>" + h + "</b>" : h; }).join("") + "</p>").join("");
+      $("prOut").hidden = false;
+    } catch (err) { toast(err.message || "Gagal membuat press release."); } finally { btn.disabled = false; }
+  };
+  $("prCopy").onclick = () => { navigator.clipboard.writeText(text()).then(() => toast("Tersalin"), () => toast("Gagal menyalin")); };
+  $("prDocx").onclick = async () => {
+    try {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), O.makeDocx(blocks(), { logo: await logoBytes() }))); a.download = "press-release.docx"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (err) { toast("Gagal membuat file."); }
   };
 }
