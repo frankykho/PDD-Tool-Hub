@@ -3,7 +3,9 @@
 // - "/"                    halaman tim: Cek Caption, Variasi A/B, Teks Aplikasi, What's New, Naskah Reels/TikTok, Subtitle, Ubah Ukuran, Panduan Gaya
 // - GET  /api/style        panduan gaya & glosarium
 // - POST /api/style        simpan panduan gaya (editor & admin)
-// - POST /api/ai           tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix (batas per hari: COPY_AI_DAILY)
+// - GET/POST /api/cw       data program & press release tab Copywriter (simpan: editor & admin; meta cw_program, cw_pr)
+// - GET  /api/quota        pemakaian AI hari ini {used, limit}
+// - POST /api/ai          tulis dengan AI: kind = ab | app | wn (What's New fitur aplikasi) | reels | fix (batas per hari: COPY_AI_DAILY)
 // - POST /api/transcribe   {audio: WAV 16 kHz mono base64} -> potongan subtitle lewat Workers AI Whisper (batas: COPY_STT_DAILY potongan)
 // - GET  /__hub/style      panduan gaya untuk tool lain (service binding, header x-hub-key = SSO_SECRET)
 // - POST /__hub/disclaimers teks disclaimer resmi dari Brand Kit (disimpan sebagai salinan; tombol "+ Izin & disclaimer")
@@ -125,10 +127,52 @@ export function cleanStyle(b) {
   return { guide: str(b && b.guide, 6000), glossary };
 }
 
+/* ---- Copywriter: data program & press release (tabel meta: cw_program, cw_pr) ---- */
+export const CW_DEFAULT = {
+  program: {
+    name: "KISI Challenge", theme: "Beyond Tomorrow", period: "1 Oktober–30 November 2026", platforms: "iKISI dan KOINS (HTS/MTS)",
+    event_url: "event.kisi.co.id", account_url: "https://kisi.co.id/ikisi/download",
+    prizes: [
+      { emoji: "🚙", text: "BYD Denza D9", main: true }, { emoji: "🚗", text: "Jaecoo J5 EV Premium", main: false }, { emoji: "🏍️", text: "Honda Forza 250", main: false },
+      { emoji: "✈️", text: "Korea Trip 2 Pax (Pesawat & Hotel 5D4N)", main: false }, { emoji: "📱", text: "iPhone 17 Pro 256GB", main: false }, { emoji: "⌚", text: "Apple Watch Series 11", main: false },
+      { emoji: "🎧", text: "AirPods Pro Gen 3", main: false }, { emoji: "💰", text: "KIM Money Market Fund Rp1 Juta & Rp500 Ribu", main: false },
+    ],
+    general: { count: "219", rule: "first come first served" },
+    uni: { total: "> Rp25 juta", teams: ["Pembukaan Akun Terbanyak", "Peserta Terbanyak", "Rata-rata Profit Terbanyak", "Transaksi Terbanyak"], individual: ["Profit Terbesar"] },
+    previous: "10.000 peserta (KISI Challenge pertama 2026)", partners: ["Sahamology", "Kuliah Saham"], asset_url: "",
+  },
+  pr: {
+    about: "PT Korea Investment And Sekuritas Indonesia (KISI) mulai beroperasi pada tahun 2018 setelah diakuisisinya PT Danpac Sekuritas oleh Korea Investment & Securities Co., Ltd (KIS). KISI merupakan anggota PT Bursa Efek Indonesia dengan kode broker BQ dan memiliki izin usaha sebagai Perantara Pedagang Efek (PPE), Penjamin Emisi Efek (PEE), dan Agen Penjual Efek Reksa Dana (APERD) yang diterbitkan oleh Otoritas Jasa Keuangan, serta memiliki izin Shariah Online Trading System (SOTS) yang disertifikasi oleh DSN-MUI.\n\nDidukung oleh pengalaman dan reputasi KISI sebagai salah satu perusahaan sekuritas besar asal Korea Selatan yang berdiri sejak 1974, KISI berkomitmen untuk menjadi perusahaan sekuritas terpercaya dan inovatif di Indonesia dengan menghadirkan berbagai solusi investasi yang inovatif dan berorientasi pada kebutuhan nasabah, termasuk layanan investasi berbasis syariah. Untuk informasi lebih lanjut, kunjungi www.kisi.co.id.",
+    contact: "",
+  },
+};
+const strs = (a, max, n) => (Array.isArray(a) ? a : []).map((x) => str(x, n)).filter(Boolean).slice(0, max);
+export function cleanProgram(b) {
+  b = b || {}; const g = b.general || {}, u = b.uni || {};
+  return {
+    name: str(b.name, 120), theme: str(b.theme, 120), period: str(b.period, 120), platforms: str(b.platforms, 120), event_url: str(b.event_url, 300), account_url: str(b.account_url, 300),
+    prizes: (Array.isArray(b.prizes) ? b.prizes : []).filter((p) => p && str(p.text, 200)).slice(0, 30).map((p) => ({ emoji: str(p.emoji, 8), text: str(p.text, 200), main: !!p.main })),
+    general: { count: str(g.count, 40), rule: str(g.rule, 120) },
+    uni: { total: str(u.total, 80), teams: strs(u.teams, 20, 120), individual: strs(u.individual, 20, 120) },
+    previous: str(b.previous, 300), partners: strs(b.partners, 20, 120), asset_url: str(b.asset_url, 500),
+  };
+}
+export function cleanPr(b) { return { about: str(b && b.about, 3000), contact: str(b && b.contact, 600) }; }
+async function getCw(env) {
+  await ensure(env);
+  const out = { ...CW_DEFAULT };
+  for (const [k, f] of [["program", cleanProgram], ["pr", cleanPr]]) {
+    const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("cw_" + k).first();
+    try { if (r) out[k] = f(JSON.parse(r.v)); } catch {}
+  }
+  return out;
+}
+const dayKey = (kind) => `${kind}:${new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)}`;
+
 /** Hitung pemakaian per hari (WIB); false kalau sudah melewati batas. */
 async function spend(env, kind, limit, n = 1) {
   await ensure(env);
-  const key = `${kind}:${new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)}`;
+  const key = dayKey(kind);
   const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind(key).first();
   const used = Number(r && r.v) || 0;
   if (used + n > limit) return false;
@@ -425,6 +469,12 @@ export default {
           brand: { hashtags: p.brand.hashtags, license: p.brand.license, disclaimer: p.brand.disclaimer, app: p.app.name, versions: (await getDisclaimers(env)) || undefined } }), { "content-security-policy": HUBSSO.frame(env) });
       }
       if (request.method === "GET" && path === "/api/style") return json(await getStyle(env));
+      if (request.method === "GET" && path === "/api/cw") return json(await getCw(env));
+      if (request.method === "GET" && path === "/api/quota") {
+        await ensure(env);
+        const r = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind(dayKey("ai")).first();
+        return json({ used: Number(r && r.v) || 0, limit: Number(env.COPY_AI_DAILY) || 100 });
+      }
       if (request.method === "GET" && path === "/api/products") return json(await productsCached(env, ctx));
       if (request.method === "POST") {
         if (!HUBSSO.sameOrigin(request)) return json({ error: "Permintaan ditolak." }, 403);
@@ -435,11 +485,19 @@ export default {
           await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('style', ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(s)).run();
           return json({ ok: true, style: s });
         }
+        if (path === "/api/cw") {
+          if (!canEdit) return json({ error: "Hanya editor atau admin yang bisa mengubah data Copywriter." }, 403);
+          const b = await request.json().catch(() => ({}));
+          for (const [k, f] of [["program", cleanProgram], ["pr", cleanPr]]) {
+            if (b[k] && typeof b[k] === "object") await env.DB.prepare("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind("cw_" + k, JSON.stringify(f(b[k]))).run();
+          }
+          return json({ ok: true, ...(await getCw(env)) });
+        }
         if (path === "/api/ai") {
           const b = await request.json().catch(() => ({}));
           const q = prompt(b.kind, b);
           if (!q) return json({ error: "Isi dulu brief atau teksnya." }, 400);
-          if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 60))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
+          if (!(await spend(env, "ai", Number(env.COPY_AI_DAILY) || 100))) return json({ error: "Batas tulisan AI hari ini sudah tercapai. Coba lagi besok." }, 429);
           const { text, model } = await ai(env, system(env, await getStyle(env)), q.user, q.max, undefined, { json: true, temperature: b.kind === "fix" ? 0.3 : b.kind === "wn" ? 0.5 : 0.9 });
           return json({ result: parse(b.kind, text), model });
         }

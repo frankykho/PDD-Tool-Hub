@@ -15,5 +15,5 @@
     { "binding": "BOND", "service": "bond-insight" },
     { "binding": "ETF", "service": "etf-insight" }
   ],
-  "vars": { "COPY_AI_DAILY": "60", "COPY_STT_DAILY": "360" }
+  "vars": { "COPY_AI_DAILY": "100", "COPY_STT_DAILY": "360" }
 }

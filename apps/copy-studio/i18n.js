@@ -6,6 +6,7 @@ export default {
   "Tulis, cek, dan siapkan konten sebelum terbit": "Write, check, and prepare content before publishing",
   "Cek Caption": "Caption Check", "Variasi A/B": "A/B Variations", "Teks Aplikasi": "App Text", "Paket Produk": "Product Kit",
   "Naskah Reels/TikTok": "Reels/TikTok Script", "Naskah Reels / TikTok": "Reels / TikTok Script", "Naskah YouTube": "YouTube Script", "Ubah Ukuran": "Resize", "Panduan Gaya": "Style Guide",
+  "Copywriter": "Copywriter", "Jenis tulisan": "Type of writing", "Artikel berita": "News article", "Cek wording file": "File wording check", "Brief KISI Challenge": "KISI Challenge brief", "Press release": "Press release",
   "Cara pakai": "How to use", "Langkah": "Steps", "Tips": "Tips",
   "Menulis…": "Writing…", "Memperbaiki…": "Fixing…", "Menyusun paket…": "Building kit…", "Memproses…": "Processing…", "Menulis naskah…": "Writing script…",
   "Gagal menyalin": "Copy failed", "Kosongkan": "Clear", "Salin semua": "Copy all", "Cek": "Check", "Unduh .txt": "Download .txt",

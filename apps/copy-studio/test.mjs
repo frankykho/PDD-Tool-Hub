@@ -198,6 +198,21 @@ r = await call("/__hub/style", { headers: { "x-hub-key": SECRET } });
 assert.equal((await r.json()).guide, "Pakai kamu");
 assert.equal((await call("/__hub/style", { headers: { "x-hub-key": "salah".repeat(8) } })).status, 403);
 
+// Copywriter: kuota, data program & PR
+const q0 = await (await call("/api/quota", { cookie: user })).json();
+assert.deepEqual(q0, { used: 0, limit: 2 });               // env tes COPY_AI_DAILY "2"
+const cw0 = await (await call("/api/cw", { cookie: user })).json();
+assert.equal(cw0.pr.contact, "");
+assert.match(cw0.pr.about, /kode broker BQ/);
+assert.ok(cw0.program.prizes.some((p) => p.main && /BYD Denza D9/.test(p.text)));
+assert.equal((await call("/api/cw", { cookie: user, json: { pr: { contact: "x" } } })).status, 403);
+const cw1 = await (await call("/api/cw", { cookie: editor, json: { pr: { about: "A", contact: "B" } } })).json();
+assert.deepEqual(cw1.pr, { about: "A", contact: "B" });
+assert.equal((await (await call("/api/cw", { cookie: user })).json()).pr.contact, "B");
+assert.ok(page.includes('["cw", "Copywriter"]') && page.includes('id="cwKind"') && page.includes('import("/cw.js")'));
+assert.ok(fs.existsSync(new URL("./assets/brand/kisi-color.png", import.meta.url)));
+for (const f of ["wrangler.jsonc", "wrangler.deploy.json"]) assert.match(fs.readFileSync(new URL("./" + f, import.meta.url), "utf8"), /"COPY_AI_DAILY": "100"/);
+
 // AI: batas per hari
 assert.equal((await call("/api/ai", { cookie: user, json: { kind: "ab", brief: "" } })).status, 400);
 r = await call("/api/ai", { cookie: user, json: { kind: "ab", brief: "reksa dana untuk pemula", n: 3 } });

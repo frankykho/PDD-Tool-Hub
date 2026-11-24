@@ -333,6 +333,18 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     <div class="card"><div class="sizes" id="szOut"><div class="empty" style="grid-column:1/-1">Pilih gambar untuk melihat hasilnya.</div></div></div>
   </section>
 
+  <!-- ============ COPYWRITER ============ -->
+  <section data-tab="cw" class="stack" hidden>
+    <div class="card stack">
+      <label>Jenis tulisan
+        <select id="cwKind" translate="no"><option value="article">Artikel berita</option><option value="review">Cek wording file</option><option value="brief">Brief KISI Challenge</option><option value="pr">Press release</option></select></label>
+    </div>
+    <div data-cw="article" class="card"></div>
+    <div data-cw="review" class="card" hidden></div>
+    <div data-cw="brief" class="card" hidden></div>
+    <div data-cw="pr" class="card" hidden></div>
+  </section>
+
   <!-- ============ PANDUAN GAYA ============ -->
   <section data-tab="style" class="grid2" hidden>
     <div class="card stack">
@@ -354,7 +366,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   "use strict";
   var CS = window.CS || {}, P = window.PROFILE || {}, C = window.Compliance, $ = function (id) { return document.getElementById(id); };
   var style = CS.style || { guide: "", glossary: [] };
-  var TABS = [["cek", "Cek Caption"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["wn", "What's New"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["yt", "Naskah YouTube"],["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
+  var TABS = [["cek", "Cek Caption"], ["cw", "Copywriter"], ["ab", "Variasi A/B"], ["app", "Teks Aplikasi"], ["wn", "What's New"], ["kit", "Paket Produk"], ["reels", "Naskah Reels/TikTok"], ["yt", "Naskah YouTube"],["sub", "Subtitle"], ["size", "Ubah Ukuran"], ["style", "Panduan Gaya"]];
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var tt;
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(function () { t.hidden = true; }, 2600); }
@@ -440,6 +452,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     document.querySelectorAll("[data-tab]").forEach(function (s) { s.hidden = s.dataset.tab !== id; });
     nav.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("on", b.dataset.t === id); b.setAttribute("aria-selected", b.dataset.t === id); });
     try { localStorage.setItem("cs_tab", id); } catch (e) {}
+    if (id === "cw" && !show.cw) show.cw = import("/cw.js").then(function (m) { m.init(window.CS); });
     // HP: baris tab digeser supaya tab yang aktif terlihat
     var on = nav.querySelector(".tab.on"); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   }
