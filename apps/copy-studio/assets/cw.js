@@ -132,8 +132,8 @@ function initReview(cs) {
     if (type === "pdf") return { ...(await readPdf(f)), type };
     const files = await O.unzip(await libs.jszip(), f);
     if (type === "docx") {
-      const xml = files["word/document.xml"], paras = O.docxParagraphs(xml), units = paras.filter((p) => p.text.trim()).map((p) => ({ id: "p" + p.i, text: p.text })), bi = O.hasLangMarkers(xml);
-      const at = (w) => paras.findIndex((p) => p.text.trim().toUpperCase() === w), e = at("ENGLISH"), d = at("INDONESIA"), num = (u) => +u.id.slice(1);
+      const xml = files["word/document.xml"], paras = O.docxParagraphs(xml), units = paras.filter((p) => p.text.trim()).map((p) => ({ id: "p" + p.i, text: p.text }));
+      const at = (w) => paras.findIndex((p) => p.text.trim().toUpperCase() === w), e = at("ENGLISH"), d = at("INDONESIA"), bi = O.hasLangMarkers(xml) && e < d, num = (u) => +u.id.slice(1);
       return { type, files, xml, units, bi, en: bi ? units.filter((u) => num(u) > e && num(u) < d) : [], id: bi ? units.filter((u) => num(u) > d) : [], rows: docxRows(xml) };
     }
     const cells = O.xlsxCells(files).filter((c) => c.text.trim());
@@ -162,7 +162,7 @@ function initReview(cs) {
     const r = O.applyXlsx(S.files, ed); let files = r.files;
     const bySheet = new Map();
     for (const u of S.units) if (trans.has(u.id)) (bySheet.get(u.path) || bySheet.set(u.path, { name: u.sheet, m: new Map() }).get(u.path)).m.set(u.ref, trans.get(u.id));
-    for (const [path, s] of bySheet) files = O.copySheetTranslated(files, path, s.name + " EN", s.m);
+    for (const [path, s] of bySheet) files = O.copySheetTranslated(files, path, s.name.slice(0, 28).trim() + " EN", s.m);
     const st = (f) => (f.info ? "Info" : !f.on ? "Ditolak" : r.failed.includes(f.key) ? "Tidak bisa diterapkan otomatis" : "Diterima");
     files = O.addSheet(files, "Catatan Review", [["Lokasi", "Kategori", "Asli", "Saran", "Alasan", "Status"], ...F.map((f) => [f.loc, f.kind, f.from, f.to, f.why, st(f)])]);
     return { files, failed: new Set(r.failed) };
@@ -195,17 +195,19 @@ function initReview(cs) {
     return j.result;
   };
   $("rvGo").onclick = async () => {
-    if (!S) return; const btn = $("rvGo"); btn.disabled = true; partial = false; trans = new Map();
-    const lang = S.bi ? "mix" : "id", ids = new Set(S.units.map((u) => u.id)), found = [], cs1 = chunks(S.units); let n = 0;
+    if (!S) return; const s = S, btn = $("rvGo"); btn.disabled = true; $("rvFile").disabled = true; partial = false; trans = new Map();
+    const lang = s.bi ? "mix" : "id", ids = new Set(s.units.map((u) => u.id)), found = [], cs1 = chunks(s.units); let n = 0;
     try {
       for (const c of cs1) { $("rvInfo").textContent = "Memeriksa " + ++n + "/" + cs1.length + "…"; found.push(...(await ask("cw_review", c, lang)).findings.filter((x) => ids.has(x.id)).map((x) => ({ kind: x.kind, loc: x.id, from: x.from, to: x.to, why: x.why }))); }
       if (wantEn()) { n = 0; for (const c of cs1) { $("rvInfo").textContent = "Menerjemahkan " + ++n + "/" + cs1.length + "…"; for (const it of (await ask("cw_translate", c)).items) if (ids.has(it.id)) trans.set(it.id, it.en); } }
     } catch (err) { if (err.quota) partial = true; else toast(err.message || "Gagal memeriksa."); }
-    F = [...mk(base(), false), ...mk(found, true)]; btn.disabled = false;
+    $("rvFile").disabled = false; btn.disabled = false;
+    if (S !== s) return; // file diganti selama proses: abaikan hasil lama
+    F = [...mk(base(), false), ...mk(found, true)];
     refreshQuota(); render();
   };
   const save = async (track, suffix, ext) => {
-    const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), build(track).files)); a.download = S.name + suffix + "." + ext; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(await O.zipFiles(await libs.jszip(), build(track).files)); a.download = S.name + suffix + "." + ext; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   };
   $("rvTrack").onclick = () => save(true, " - review", "docx");
   $("rvClean").onclick = () => save(false, " - review (bersih)", "docx");

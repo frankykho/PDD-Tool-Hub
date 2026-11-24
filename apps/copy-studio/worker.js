@@ -330,7 +330,7 @@ Format: {"headline":"","key_message":"","feed":"","story":[""],"wa":"","email":{
     for (const u of Array.isArray(b.units) ? b.units : []) { const id = str(u && u.id, 200), text = str(u && u.text, 9000); if (!id || !text || units.length >= 120 || (n += text.length) > 9000 && units.length) break; units.push({ id, text }); }
     if (!units.length) return null;
     const list = units.map((u) => "[" + u.id + "] " + u.text).join("\n");
-    if (kind === "cw_translate") return { max: 4000, user: `Terjemahkan teks berikut ke bahasa Inggris bisnis yang formal. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan. Istilah tetap tidak diterjemahkan: iKISI, KOINS, KISI Challenge, dan nama produk. Angka tidak diubah.
+    if (kind === "cw_translate") return { max: 8000, user: `Terjemahkan teks berikut ke bahasa Inggris bisnis yang formal. Gunakan HANYA fakta dari bahan. Jangan mengarang angka, nama, gelar, jabatan, tanggal, link, atau kutipan. Istilah tetap tidak diterjemahkan: iKISI, KOINS, KISI Challenge, dan nama produk. Angka tidak diubah.
 Satu item per baris berformat [id] teks.
 ${list}
 
