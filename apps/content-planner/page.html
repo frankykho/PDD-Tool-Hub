@@ -2469,10 +2469,10 @@ $("rSmAi").onclick=async()=>{
   const m=smMonth(),say=t=>$("rSmAiMsg").textContent=t;if(!m||$("rTrF").dataset.m!==m)return say(T("Isian bulan ini belum termuat. Coba lagi."));
   if(trForm().plan.length&&!confirm(T("Ganti rencana yang sudah ada dengan draf baru dari AI?")))return;
   const b=$("rSmAi");b.disabled=true;say(T("AI menyusun rencana…"));
-  try{const r=await api("/api/sm/plan",{m,note:$("rSmPn").value.trim()});if(smMonth()!==m)return;smPlanRows(r.items);await api("/api/sm/tr",{m,v:trForm()});say(T("{n} konten. Tersimpan; edit seperlunya.").replace("{n}",r.items.length))}
+  try{const r=await api("/api/sm/plan",{m,note:$("rSmPn").value.trim()});if(smMonth()!==m)return;smPlanRows(r.items);await api("/api/sm/tr",{m,v:trForm()});say(T("{n} konten. Tersimpan; edit seperlunya.").replace("{n}",r.items.length)+((r.missing||[]).length?" "+T("Belum ada ide untuk pilar: {p}. Klik lagi atau tambah manual.").replace("{p}",r.missing.join(", ")):""))}
   catch(x){say(x.message)}finally{b.disabled=false}};
 /* ---------- Tren & Rencana Konten (laporan sendiri): tren kompetitor bulan dipilih + rencana konten bulan berikutnya (sm_tr:YYYY-MM) ---------- */
-const trForm=()=>({plan:[...$("rSmPl").children].map(r=>{const o={};r.querySelectorAll("[data-p]").forEach(el=>{const t=el.value.trim().slice(0,+el.maxLength);if(t)o[el.dataset.p]=t});return o}).filter(x=>x.t).slice(0,20),
+const trForm=()=>({plan:[...$("rSmPl").children].map(r=>{const o={};r.querySelectorAll("[data-p]").forEach(el=>{const t=el.value.trim().slice(0,+el.maxLength);if(t)o[el.dataset.p]=t});return o}).filter(x=>x.t).slice(0,30),
   planNote:$("rSmPn").value.trim().slice(0,300)});
 async function trLoad(){
   const m=smMonth();if(RT!=="tr"||!m)return;

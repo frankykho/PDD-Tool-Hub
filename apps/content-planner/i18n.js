@@ -593,6 +593,7 @@ const D = {
   "Buat draf rencana dengan AI": "Draft the plan with AI", "+ Konten": "+ Content", "Judul konten": "Content title", "Ide / isi konten": "Idea / content", "Pilar": "Pillar", "Tren yang mendasari": "Underlying trend",
   "Menghitung tren…": "Calculating trends…", "AI menyusun rencana…": "AI is drafting the plan…", "Ganti rencana yang sudah ada dengan draf baru dari AI?": "Replace the current plan with a new AI draft?",
   "{n} konten. Tersimpan; edit seperlunya.": "{n} contents. Saved; edit as needed.",
+  "Belum ada ide untuk pilar: {p}. Klik lagi atau tambah manual.": "No ideas yet for pillar: {p}. Click again or add manually.",
   "Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight.": "No competitor posts this month yet. Collect them in Content Insight first.",
   "{n} postingan kompetitor dari {a} akun.": "{n} competitor posts from {a} accounts.", "Pembanding baru {b} bulan, jadi naik/turun belum bisa dipegang.": "Only {b} month(s) to compare with, so rises and falls are not reliable yet.",
   "Pilar naik (poin persen): {x}.": "Rising pillars (percentage points): {x}.", "Format paling disukai: {f} ({r}× biasanya).": "Best-liked format: {f} ({r}× usual).", "{k} postingan menonjol.": "{k} standout posts.",

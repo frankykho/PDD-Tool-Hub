@@ -860,9 +860,9 @@ export function smValid(v) {
   const row = (r) => obj(r) && txt(r.n, 60) && (r.s === undefined || txt(r.s, 60)) && (r.c === undefined || okNum(r.c)) && Object.keys(r).every((k) => ["n", "s", "c"].includes(k));
   const nums = (x) => obj(x) && Object.keys(x).length <= 12 && Object.entries(x).every(([k, n]) => /^\w{1,20}$/.test(k) && okNum(n));
   const PL = { t: 100, i: 400, p: 40, f: 20, r: 120 }, prow = (r) => obj(r) && Object.entries(r).every(([k, x]) => PL[k] && txt(x, PL[k]));
-  const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120), plan: (x) => Array.isArray(x) && x.length <= 20 && x.every(prow), planNote: (x) => txt(x, 300) };
+  const F = { ser: (x) => Array.isArray(x) && x.length <= 20 && x.every(row), ttNote: (x) => txt(x, 120), plan: (x) => Array.isArray(x) && x.length <= PLAN_MAX && x.every(prow), planNote: (x) => txt(x, 300) };
   F.ve = F.de = F.ser; F.reg = F.ads = F.yt = F.tt = F.ttAds = nums;
-  return obj(v) && JSON.stringify(v).length <= 24000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
+  return obj(v) && JSON.stringify(v).length <= 32000 && Object.entries(v).every(([k, x]) => F[k] && F[k](x));
 }
 /** GET/POST /api/sm/tr: rencana laporan Tren & Rencana per bulan (sm_tr:YYYY-MM {plan, planNote}); terpisah dari isian Laporan SMS supaya tidak saling menimpa. */
 async function trCfg(env, m, v) {
@@ -940,13 +940,20 @@ async function smTrend(env, m, img) {
   return t;
 }
 export const PLAN_FORMATS = ["Carousel", "Reels", "Foto", "Story", "Video"];
+// rencana: PLAN_PER ide untuk tiap pilar yang muncul di tren (bulan ini atau 3 bulan sebelumnya), "Lainnya" tidak dihitung pilar
+export const PLAN_PER = 3, PLAN_MAX = 30;
+export const planPillars = (t) => {
+  const L = t.pillars.filter((x) => x.now > 0 || x.avg > 0).map((x) => x.n), P = L.filter((n) => n !== "Lainnya");
+  return (P.length ? P : L).slice(0, PLAN_MAX / PLAN_PER);
+};
 /** Prompt draf rencana: tren bulan m, momen bulan depan, seri rutin (tidak dimasukkan), arahan SMS. Murni. */
 export function planPrompt(env, t, o) {
   const p = profile(env), brand = p.brand.short || p.brand.name || "brand kami";
   const pct = (x) => (x === null ? "-" : x + "%"), line = (x) => `- ${x.n}: ${pct(x.now)} bulan ini, ${pct(x.avg)} rata-rata 3 bulan sebelumnya${x.chg === null ? "" : ` (${x.chg > 0 ? "+" : ""}${x.chg} poin)`}`;
-  const system = `Kamu content strategist media sosial untuk ${brand}, perusahaan efek di Indonesia (saham, reksa dana, obligasi/SBN). Dari ringkasan tren konten kompetitor, susun rencana PEMBUATAN konten untuk bulan depan: 10 sampai 15 konten baru yang memanfaatkan tren itu.
+  const system = `Kamu content strategist media sosial untuk ${brand}, perusahaan efek di Indonesia (saham, reksa dana, obligasi/SBN). Dari ringkasan tren konten kompetitor, susun rencana PEMBUATAN konten untuk bulan depan: tepat ${PLAN_PER} konten baru untuk SETIAP pilar di daftar PILAR YANG DIMINTA (tidak boleh ada pilar yang terlewat), dikelompokkan per pilar sesuai urutan daftar.
 Aturan:
-- Setiap konten harus berangkat dari satu tren di data (topik/pilar yang naik, format yang engagement-nya tinggi, atau postingan kompetitor yang menonjol). Sebut trennya singkat di kolom "tren".
+- Setiap konten harus berangkat dari satu tren di data (topik/pilar yang naik, format yang engagement-nya tinggi, atau postingan kompetitor yang menonjol). Sebut trennya singkat di kolom "tren". Pilar yang sedang turun atau sepi tetap diisi: beri sudut yang membuat ${brand} tampil beda di pilar itu.
+- Kolom "pilar" ditulis persis seperti nama di daftar PILAR YANG DIMINTA. Ketiga konten di satu pilar harus berbeda topik dan sudutnya.
 - Jangan menyalin kompetitor dan jangan menyebut nama kompetitor. Ambil topiknya, beri sudut pandang ${brand} sendiri.
 - Jangan masukkan konten seri rutin yang sudah pasti jalan.
 - Konten Market update harus tetap bisa dipakai saat diterbitkan bulan depan, bukan bergantung pada angka atau kejadian bulan ini yang sudah lewat: jelaskan konsep/pola di balik berita pasar, buat format yang bisa diulang dengan data terbaru, atau siapkan konten untuk agenda pasar bulan depan (RDG BI, FOMC, musim laporan keuangan, cum date dividen).
@@ -958,6 +965,7 @@ Jawab HANYA JSON: {"items": [{"judul": "maks 80 karakter", "ide": "1-2 kalimat i
     "Format (jumlah postingan; engagement dibanding biasanya akun itu):", ...t.formats.map((x) => `- ${x.n}: ${x.posts} postingan, ${x.ratio === null ? "-" : x.ratio + "x"}`),
     t.top.length && "Postingan kompetitor yang menonjol (engagement jauh di atas biasanya akun itu):",
     ...t.top.map((x) => `- ${x.format}, pilar ${x.pillar || "-"}, ${x.ratio}x biasanya: ${x.cap.replace(/\s+/g, " ").slice(0, 220)}`),
+    `\nPILAR YANG DIMINTA (${PLAN_PER} konten per pilar, total ${o.pillars.length * PLAN_PER} konten): ${o.pillars.join(", ")}`,
     o.moments.length && `\nMOMEN BULAN DEPAN (${o.next}):\n${o.moments.map((x) => `- ${x.date}: ${x.name}`).join("\n")}`,
     o.series.length && `\nSERI RUTIN (jangan dimasukkan): ${o.series.join(", ")}`,
     o.note && `\nARAHAN DARI SOCIAL MEDIA SPECIALIST: ${o.note}`].filter(Boolean).join("\n");
@@ -967,20 +975,26 @@ Jawab HANYA JSON: {"items": [{"judul": "maks 80 karakter", "ide": "1-2 kalimat i
 export function parsePlan(text) {
   const o = JSON.parse(String(text).replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "")), cut = (x, n) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
   return (Array.isArray(o && o.items) ? o.items : []).map((x) => ({ t: cut(x.judul, 100), i: cut(x.ide, 400), p: cut(x.pilar, 40),
-    f: PLAN_FORMATS.find((f) => f.toLowerCase() === cut(x.format, 20).toLowerCase()) || cut(x.format, 20), r: cut(x.tren, 120) })).filter((x) => x.t).slice(0, 20);
+    f: PLAN_FORMATS.find((f) => f.toLowerCase() === cut(x.format, 20).toLowerCase()) || cut(x.format, 20), r: cut(x.tren, 120) })).filter((x) => x.t).slice(0, PLAN_MAX);
 }
-/** POST /api/sm/plan { m, note? } -> { items } (belum disimpan; browser menyimpannya lewat /api/sm/cfg). call = ai (tes: tiruan). */
+/** POST /api/sm/plan { m, note? } -> { items, missing: pilar tanpa ide } (belum disimpan; browser menyimpannya lewat /api/sm/tr). call = ai (tes: tiruan). */
 export async function smPlan(env, b, call = ai) {
   const m = String(b.m || "");
   const t = await smTrend(env, m);
   if (t.error) return t;
   if (!t.posts) return { error: "Belum ada postingan kompetitor di bulan ini. Kumpulkan dulu lewat Content Insight." };
   const nx = ymShift(m, 1), sv = await smCfg(env, m), v = sv.v || sv.prev || {};
-  const { system, user } = planPrompt(env, t, { next: nx, moments: (await moments(env, nx + "-01", nx + "-31")).slice(0, 30),
+  const pillars = planPillars(t), key = (s) => String(s).toLowerCase();
+  const { system, user } = planPrompt(env, t, { next: nx, moments: (await moments(env, nx + "-01", nx + "-31")).slice(0, 30), pillars,
     series: (v.ser || []).map((x) => x.n).filter(Boolean), note: String(b.note || "").trim().slice(0, 300) });
   try {
-    const items = parsePlan((await call(env, system, user, 3000, undefined, { temperature: 0.6, json: true })).text);
-    return items.length ? { items } : { error: "AI tidak memberi rencana. Coba lagi." };
+    // ±250 token per konten
+    let items = parsePlan((await call(env, system, user, Math.min(8000, 1000 + pillars.length * PLAN_PER * 250), undefined, { temperature: 0.6, json: true })).text);
+    if (!items.length) return { error: "AI tidak memberi rencana. Coba lagi." };
+    // urut sesuai daftar pilar (pilar di luar daftar di akhir); pilar yang terlewat dilaporkan
+    const at = (x) => { const i = pillars.findIndex((p) => key(p) === key(x.p)); return i < 0 ? pillars.length : i; };
+    items = items.map((x, i) => [x, i]).sort((a, b) => at(a[0]) - at(b[0]) || a[1] - b[1]).map((a) => a[0]);
+    return { items, missing: pillars.filter((p) => !items.some((x) => key(x.p) === key(p))) };
   } catch (e) { return { error: e instanceof AiError ? e.message : "Jawaban AI tidak terbaca. Coba lagi." }; }
 }
 /** POST /api/yt/refresh: statistik video YouTube kegiatan (maks. 50); angka yang tidak didapat tidak menghapus isian. */

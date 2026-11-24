@@ -1367,7 +1367,11 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   const plan = [{ t: "Judul", i: "Ide", p: "Edukasi", f: "Reels", r: "Tren" }];
   assert.ok(smValid({ plan, planNote: "fokus pemula" })); assert.ok(smValid({ plan: [] }));
   assert.ok(!smValid({ plan: [{ t: "x", z: "?" }] }), "kunci asing ditolak"); assert.ok(!smValid({ plan: [{ t: "x".repeat(101) }] })); assert.ok(!smValid({ plan: [{ t: 5 }] }));
-  assert.ok(!smValid({ plan: Array(21).fill({ t: "x" }) })); assert.ok(!smValid({ planNote: "x".repeat(301) }));
+  assert.ok(smValid({ plan: Array(30).fill({ t: "x".repeat(100), i: "y".repeat(400), p: "Momen & hari besar", f: "Carousel", r: "z".repeat(120) }) }), "30 konten (10 pilar × 3) muat");
+  assert.ok(!smValid({ plan: Array(31).fill({ t: "x" }) }));
+  const { planPillars } = await import("./worker.js"), pr = (n, now, avg) => ({ n, now, avg });
+  assert.deepEqual(planPillars({ pillars: [pr("Lainnya", 40, 30), pr("Promo", 60, 50), pr("Event", 0, 10), pr("Engagement", 0, 0)] }), ["Promo", "Event"], "pilar bulan ini / 3 bulan lalu, tanpa Lainnya");
+  assert.deepEqual(planPillars({ pillars: [pr("Lainnya", 100, null)] }), ["Lainnya"], "hanya Lainnya: tetap dipakai"); assert.ok(!smValid({ planNote: "x".repeat(301) }));
   assert.deepEqual(parsePlan('```json\n{"items":[{"judul":" Bedah  LK ","ide":"i","pilar":"Edukasi","format":"reels","tren":"t"},{"judul":"","ide":"tanpa judul"}]}\n```'),
     [{ t: "Bedah LK", i: "i", p: "Edukasi", f: "Reels", r: "t" }]);
   // HTTP: tren dari FUND_DB + gambar postingan menonjol; draf AI memakai momen bulan depan & seri rutin
@@ -1393,9 +1397,13 @@ assert.ok(m26.every((m, i) => !i || m26[i - 1].date <= m.date), "urut tanggal");
   assert.equal((await call("/api/sm/tr", { ck: SMS, body: { m: "2026-10" } })).status, 400);
   env.DB.db.prepare("DELETE FROM cfg WHERE k = 'sm_n:2026-10'").run();   // Oktober belum diisi -> pakai September
   let seen = null;
-  const fake = async (e, system, user) => { seen = { system, user }; return { text: '{"items":[{"judul":"Bedah laporan keuangan","ide":"Carousel","pilar":"Edukasi","format":"Carousel","tren":"Edukasi LK"}]}' }; };
+  const fake = async (e, system, user, max) => { seen = { system, user, max }; return { text: '{"items":[{"judul":"Lain","pilar":"Acak"},{"judul":"Bedah laporan keuangan","ide":"Carousel","pilar":"Edukasi","format":"Carousel","tren":"Edukasi LK"},{"judul":"Promo A","pilar":"promo"}]}' }; };
   x = await smPlan(env, { m: "2026-10", note: "fokus pemula" }, fake);
-  assert.deepEqual(x.items.map((i) => i.t), ["Bedah laporan keuangan"]);
+  // ide per pilar: semua pilar di tren diminta, hasil diurutkan per pilar, yang terlewat dilaporkan
+  assert.deepEqual(x.items.map((i) => i.t), ["Promo A", "Bedah laporan keuangan", "Lain"], "urut pilar; pilar di luar daftar di akhir");
+  assert.deepEqual(x.missing, ["Market update"]);
+  assert.match(seen.user, /PILAR YANG DIMINTA \(3 konten per pilar, total 9 konten\): Promo, Edukasi, Market update/); assert.match(seen.system, /tepat 3 konten baru untuk SETIAP pilar/);
+  assert.equal(seen.max, 1000 + 9 * 250, "batas token ikut jumlah konten");
   assert.match(seen.user, /MOMEN BULAN DEPAN \(2026-11\)/); assert.match(seen.user, /SERI RUTIN \(jangan dimasukkan\): BreakVest KISI/); assert.match(seen.user, /fokus pemula/);
   assert.match(seen.user, /Edukasi: 25% bulan ini, 50% rata-rata 3 bulan sebelumnya \(-25 poin\)/); assert.match(seen.system, /jangan menyebut nama kompetitor/i);
   assert.match(seen.system, /Market update harus tetap bisa dipakai/, "ide pasar tidak basi saat diterbitkan");
