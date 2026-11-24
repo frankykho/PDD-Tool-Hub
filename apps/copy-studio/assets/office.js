@@ -81,3 +81,141 @@ export async function unzip(JSZip, blob) {
   for (const [p, f] of Object.entries(z.files)) if (!f.dir) out[p] = await f.async(/\.(xml|rels)$/.test(p) ? "string" : "uint8array");
   return out;
 }
+
+// ---- Edit Word: saran sebagai Track Changes / bersih, dan salinan Inggris ----
+const PARA = /<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g;
+// shortcut: run di dalam ins/del/hyperlink/sdt dianggap buram (tidak dicari/diubah), upgrade bila saran perlu menjangkau hyperlink
+const ITEM = /<w:(ins|del|hyperlink|smartTag|sdt|moveFrom|moveTo|fldSimple)(?:\s[^>]*)?>[\s\S]*?<\/w:\1>|<w:r(?:\s[^>]*)?\/>|<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
+
+function tokens(inner) {
+  const out = [];
+  let last = 0;
+  for (const m of inner.matchAll(ITEM)) {
+    if (m.index > last) out.push({ xml: inner.slice(last, m.index) });
+    out.push(/^<w:r[\s>/]/.test(m[0]) ? { xml: m[0], run: parseRun(m[0]) } : { xml: m[0] });
+    last = m.index + m[0].length;
+  }
+  if (last < inner.length) out.push({ xml: inner.slice(last) });
+  return out;
+}
+
+function parseRun(xml) {
+  const m = xml.match(/^<w:r((?:\s[^>]*?)?)(?:\/>|>([\s\S]*)<\/w:r>)$/);
+  let body = m[2] || "";
+  const rPr = (body.match(/^<w:rPr(?:\s[^>]*)?\/>|^<w:rPr>[\s\S]*?<\/w:rPr>/) || [""])[0];
+  body = body.slice(rPr.length);
+  const atoms = [];
+  for (const a of body.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:t\/>|<w:tab\/>|<w:br(?:\s[^>]*)?\/>|<(w:\w+)(?:\s[^>]*)?\/>|<(w:\w+)(?:\s[^>]*)?>[\s\S]*?<\/\3>/g)) {
+    if (/^<w:t[\s>/]/.test(a[0])) atoms.push({ k: "t", text: xmlUnesc(a[1] || "") });
+    else if (a[0] === "<w:tab/>") atoms.push({ k: "c", text: "\t", xml: a[0] });
+    else if (a[0].startsWith("<w:br")) atoms.push({ k: "c", text: "\n", xml: a[0] });
+    else atoms.push({ k: "x", xml: a[0] });
+  }
+  return { attrs: m[1], rPr, atoms, text: atoms.map((a) => a.text || "").join("") };
+}
+
+const textAtoms = (s) => s.split(/(\t|\n)/).filter(Boolean).map((p) => p === "\t" ? { k: "c", xml: "<w:tab/>" } : p === "\n" ? { k: "c", xml: "<w:br/>" } : { k: "t", text: p });
+const atomXml = (a, del) => a.k === "t" ? `<w:${del ? "delText" : "t"} xml:space="preserve">${xmlEsc(a.text)}</w:${del ? "delText" : "t"}>` : a.xml;
+const runXmlOf = (r, atoms, del) => atoms.length ? `<w:r${r.attrs}>${r.rPr}${atoms.map((a) => atomXml(a, del)).join("")}</w:r>` : "";
+
+// Bagi atom satu run ke 4 keranjang menurut rentang [s,e) koordinat run. Atom non-teks (gambar, fldChar) di dalam rentang disimpan (keep), tidak ikut terhapus.
+function cut(r, s, e) {
+  const b = { before: [], mid: [], keep: [], after: [] };
+  let pos = 0;
+  for (const a of r.atoms) {
+    if (a.k === "x") (pos < s ? b.before : pos < e ? b.keep : b.after).push(a);
+    else if (a.k === "c") { (pos < s ? b.before : pos < e ? b.mid : b.after).push(a); pos++; }
+    else {
+      const x = Math.max(0, Math.min(a.text.length, s - pos)), y = Math.max(x, Math.min(a.text.length, e - pos));
+      for (const [k, t] of [["before", a.text.slice(0, x)], ["mid", a.text.slice(x, y)], ["after", a.text.slice(y)]]) if (t) b[k].push({ k: "t", text: t });
+      pos += a.text.length;
+    }
+  }
+  return b;
+}
+
+function editParagraph(pXml, edit, track, attrs) {
+  const m = pXml.match(/^(<w:p(?:\s[^>]*?)?>)([\s\S]*)(<\/w:p>)$/);
+  if (!m || !edit.from) return null;
+  const toks = tokens(m[2]);
+  const idx = toks.map((t) => t.run?.text || "").join("").indexOf(edit.from);
+  if (idx < 0) return null;
+  const s = idx, e = idx + edit.from.length;
+  let start = 0, first = -1, last = -1;
+  toks.forEach((t, i) => {
+    if (!t.run) return;
+    const len = t.run.text.length;
+    t.start = start;
+    if (len && start < e && start + len > s) { if (first < 0) first = i; last = i; }
+    start += len;
+  });
+  const pre = [], mids = [], keeps = [], post = [], between = [];
+  let rPr = "";
+  for (let i = first; i <= last; i++) {
+    const t = toks[i];
+    if (!t.run) { between.push(t.xml); continue; }
+    const r = t.run, len = r.text.length;
+    if (!len || t.start >= e || t.start + len <= s) { between.push(t.xml); continue; } // run di antara yang tak tercakup
+    if (i === first) rPr = r.rPr;
+    const b = cut(r, s - t.start, e - t.start);
+    pre.push(runXmlOf(r, b.before)); mids.push(runXmlOf(r, b.mid, track)); keeps.push(runXmlOf(r, b.keep)); post.push(runXmlOf(r, b.after));
+  }
+  const newRun = edit.to ? runXmlOf({ attrs: "", rPr }, textAtoms(edit.to)) : "";
+  const mid = track ? `<w:del ${attrs()}>${mids.join("")}</w:del>${newRun && `<w:ins ${attrs()}>${newRun}</w:ins>`}` : newRun;
+  return m[1] + toks.slice(0, first).map((t) => t.xml).join("") + pre.join("") + mid + between.join("") + keeps.join("") + post.join("") + toks.slice(last + 1).map((t) => t.xml).join("") + m[3];
+}
+
+export function applyDocx(documentXml, edits, { track, author, date }) {
+  let id = 9001;
+  const attrs = () => `w:id="${id++}" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}"`;
+  const by = new Map(), applied = [];
+  for (const ed of edits) (by.get(ed.p) || by.set(ed.p, []).get(ed.p)).push(ed);
+  let n = 0;
+  const xml = documentXml.replace(/<w:tbl>|<\/w:tbl>|<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (p) => {
+    if (p.startsWith("<w:tbl") || p === "</w:tbl>") return p;
+    for (const ed of by.get(n++) || []) {
+      const out = editParagraph(p, ed, track, attrs);
+      if (out != null) { p = out; applied.push(ed.id); }
+    }
+    return p;
+  });
+  return { xml, applied, failed: edits.map((e) => e.id).filter((i) => !applied.includes(i)) };
+}
+
+export function hasLangMarkers(documentXml) {
+  const t = docxParagraphs(documentXml).map((p) => p.text.trim().toUpperCase());
+  return t.includes("ENGLISH") && t.includes("INDONESIA");
+}
+
+export function bodyBlocks(documentXml) {
+  const a = documentXml.indexOf("<w:body>");
+  if (a < 0) return [];
+  const b = documentXml.lastIndexOf("<w:sectPr"), inner = documentXml.slice(a + 8, b < 0 ? documentXml.lastIndexOf("</w:body>") : b);
+  const out = [];
+  let depth = 0, from = 0;
+  for (const m of inner.matchAll(/<w:tbl>|<\/w:tbl>|<w:p(?:\s[^>]*?)?\/>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
+    if (m[0] === "<w:tbl>") { if (!depth++) from = m.index; }
+    else if (m[0] === "</w:tbl>") { if (!--depth) out.push(inner.slice(from, m.index + m[0].length)); }
+    else if (!depth) out.push(m[0]);
+  }
+  return out;
+}
+
+export function insertEnglish(documentXml, translated, { track, author, date }) {
+  let id = 9001;
+  const ins = (x) => track && x ? `<w:ins w:id="${id++}" w:author="${xmlEsc(author)}" w:date="${xmlEsc(date)}">${x}</w:ins>` : x;
+  const marker = (t) => `<w:p>${ins(`<w:r><w:t>${t}</w:t></w:r>`)}</w:p>`;
+  let n = 0;
+  const copy = (blk) => blk.replace(PARA, (p) => {
+    const i = n++, m = p.match(/^(<w:p(?:\s[^>]*?)?)\/?>([\s\S]*?)(?:<\/w:p>)?$/), o = m[1] + ">";
+    const toks = tokens(p.endsWith("/>") ? "" : m[2]);
+    if (translated.has(i)) {
+      const pPr = toks.filter((t) => /^<w:pPr[\s>/]/.test(t.xml)).map((t) => t.xml).join("");
+      const r = toks.find((t) => t.run)?.run || { attrs: "", rPr: "" };
+      return `${o}${pPr}${ins(runXmlOf(r, textAtoms(translated.get(i))))}</w:p>`;
+    }
+    return `${o}${toks.map((t) => t.run ? ins(t.xml) : t.xml).join("")}</w:p>`;
+  });
+  const blocks = bodyBlocks(documentXml).map(copy).join("");
+  return documentXml.replace("<w:body>", () => `<w:body>${marker("ENGLISH")}${blocks}${marker("INDONESIA")}`);
+}

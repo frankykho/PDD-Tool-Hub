@@ -334,6 +334,30 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.match(O.makeDocx([{ t: "li", runs: [{ text: "poin" }] }], {})["word/document.xml"], /• <\/w:t>[\s\S]*poin/);
   const fj = O.makeDocx([{ t: "img", img: { data: new Uint8Array([1]), w: 10, h: 10, ext: "jpg" } }], {});
   assert.ok(fj["word/media/image1.jpeg"] && !/undefined/.test(fj["[Content_Types].xml"]));
+  const T = { track: true, author: "Copy Studio", date: "2026-11-24T10:00:00Z" };
+  const r1 = O.applyDocx(DOC, [{ id: "a", p: 0, from: "Adverstisement", to: "Advertisement" }, { id: "b", p: 1, from: "Termyn", to: "Termin" }, { id: "c", p: 0, from: "tidak ada", to: "x" }], T);
+  assert.deepEqual([r1.applied, r1.failed], [["a", "b"], ["c"]]);
+  assert.match(r1.xml, /<w:del [^>]*w:author="Copy Studio"[^>]*>[\s\S]*<w:delText[^>]*>Adver<\/w:delText>/);
+  assert.match(r1.xml, /<w:ins [^>]*w:date="2026-11-24T10:00:00Z"[^>]*>[\s\S]*Advertisement/);
+  assert.match(r1.xml, /<w:t xml:space="preserve"> &amp; Co<\/w:t>/, "sisa run tebal tetap, & tetap di-escape");
+  const clean = O.applyDocx(DOC, [{ id: "a", p: 0, from: "Adverstisement", to: "Advertisement & <b>" }], { ...T, track: false });
+  assert.equal(O.docxParagraphs(clean.xml)[0].text, "Advertisement & <b> & Co");
+  assert.doesNotMatch(clean.xml, /w:del|w:ins/);
+  assert.equal(O.applyDocx(DOC, [], T).xml, DOC);
+  assert.equal(O.hasLangMarkers(DOC), false);
+  const en = O.insertEnglish(DOC, new Map([[0, "Advertisement & Co"], [1, "Term\tI"]]), T);
+  assert.deepEqual(O.docxParagraphs(en).map((p) => p.text), ["ENGLISH", "Advertisement & Co", "Term\tI", "INDONESIA", "Adverstisement & Co", "Termyn\tI"]);
+  assert.ok(O.hasLangMarkers(en));
+  assert.ok(/<w:sectPr\/><\/w:body>/.test(en), "sectPr tetap di akhir");
+  // tab/drawing di dalam run, beberapa edit satu paragraf, id unik
+  const D2 = '<w:body><w:p><w:pPr><w:pStyle w:val="X"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Foo bar</w:t><w:tab/><w:t>baz Foo</w:t><w:drawing/></w:r></w:p><w:p><w:r><w:t>sama</w:t></w:r></w:p></w:body>';
+  const r2 = O.applyDocx(D2, [{ id: 1, p: 0, from: "bar\tbaz", to: "BB" }, { id: 2, p: 0, from: "Foo", to: "Fu" }, { id: 3, p: 0, from: "Foo", to: "Fi" }], T);
+  assert.deepEqual([r2.applied, r2.failed], [[1, 2, 3], []]);
+  assert.ok(r2.xml.includes("<w:drawing/>") && r2.xml.startsWith('<w:body><w:p><w:pPr><w:pStyle w:val="X"/></w:pPr>'));
+  assert.ok(r2.xml.endsWith("<w:p><w:r><w:t>sama</w:t></w:r></w:p></w:body>"), "paragraf lain tidak berubah");
+  const ids = [...r2.xml.matchAll(/w:id="(\d+)"/g)].map((m) => m[1]);
+  assert.equal(new Set(ids).size, ids.length); assert.equal(Math.min(...ids), 9001);
+  assert.equal(O.docxParagraphs(O.applyDocx(D2, [{ id: 1, p: 0, from: "bar\tbaz", to: "B\nB" }, { id: 2, p: 0, from: "Foo", to: "Fu" }], { ...T, track: false }).xml)[0].text, "Fu B\nB Foo");
 }
 
 /* ---------- Copywriter: artikel berita ---------- */
