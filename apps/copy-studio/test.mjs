@@ -415,6 +415,12 @@ assert.ok(page.includes("Font Inter gagal dimuat; muat ulang halaman untuk mengu
   assert.equal(O.applyXlsx(Y, [{ id: 1, path: "xl/worksheets/sheet1.xml", ref: "B1", from: "tisement", to: "$&\u0001X" }]).files["xl/worksheets/sheet1.xml"].match(/<t xml:space="preserve">([^<]*)</)[1], "Adver$&amp;X Co", "substring, tanpa pola $, karakter kontrol dibuang");
   assert.equal(O.xlsxCells({ ...Y, "xl/sharedStrings.xml": "<sst><si><t xml:space=\"preserve\"/><t>Q</t></si></sst>" })[0].text, "Q");
   assert.equal(O.xlsxCells(O.addSheet(X, "'Hi'", [["a"]])).at(-1).sheet, "Hi");
+  assert.equal(O.xlsxCells(O.addSheet(X, " 'a\u0001b' ", [["a"]])).at(-1).sheet, "ab");
+  assert.equal(O.xlsxCells(O.addSheet(X, "x".repeat(30) + "'y", [["a"]])).at(-1).sheet, "x".repeat(30));
+  const Z = { ...X, "xl/worksheets/sheet1.xml": `<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData><mc:AlternateContent><mc:Choice><controls><control r:id="rId9"/></controls></mc:Choice></mc:AlternateContent><oleObjects/><controls/><extLst/><pageMargins left="1"/></worksheet>` };
+  const zc = O.copySheetTranslated(Z, "xl/worksheets/sheet1.xml", "Z", new Map())["xl/worksheets/sheet2.xml"];
+  assert.doesNotMatch(zc, /AlternateContent|r:id=|<oleObjects|<controls|<extLst/);
+  assert.match(zc, /<pageMargins left="1"\/><\/worksheet>/);
   assert.equal(yc["xl/worksheets/_rels/sheet2.xml.rels"], undefined, "rel gambar/tabel tidak disalin");
   assert.match(yc["xl/workbook.xml"], /name="A &amp; B 2"/, "nama unik");
   assert.match(yc["xl/workbook.xml"], /sheetId="2"/);

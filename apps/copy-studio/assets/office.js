@@ -283,7 +283,7 @@ export function applyXlsx(files, edits) {
 
 function registerSheet(files, name, path, xml) {
   const names = sheetList(files).map((s) => s.name.toLowerCase());
-  const base = (String(name).replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").replace(/^'+|'+$/g, "").trim() || "Sheet").slice(0, 31).trim();
+  const base = (String(name).replace(/[\x00-\x1f]/g, "").replace(/[\[\]:*?\/\\]/g, " ").replace(/\s+/g, " ").trim().replace(/^'+|'+$/g, "").trim() || "Sheet").slice(0, 31).replace(/'+$/, "").trim() || "Sheet";
   let nm = base;
   for (let i = 2; names.includes(nm.toLowerCase()); i++) nm = base.slice(0, 31 - ` ${i}`.length).trim() + ` ${i}`;
   const wb = files["xl/workbook.xml"], rels = files["xl/_rels/workbook.xml.rels"];
@@ -312,7 +312,8 @@ export function copySheetTranslated(files, path, name, translated) {
     .replace(/<tableParts\b[\s\S]*?<\/tableParts>|<tableParts\b[^>]*\/>/g, "")
     .replace(/<hyperlink\b[^>]*\sr:id="[^"]*"[^>]*\/>/g, "").replace(/<hyperlinks>\s*<\/hyperlinks>/g, "")
     .replace(/\stabSelected="1"/g, "")
-    .replace(/<(oleObjects|controls|extLst)\b[\s\S]*?<\/\1>/g, "").replace(/(<pageSetup\b[^>]*?)\sr:id="[^"]*"/g, "$1").replace(/\sxr:uid="[^"]*"/g, "")
+    .replace(/<mc:AlternateContent\b[\s\S]*?<\/mc:AlternateContent>/g, "")
+    .replace(/<(oleObjects|controls|extLst)\b(?:[^>]*\/>|[^>]*>[\s\S]*?<\/\1>)/g, "").replace(/(<pageSetup\b[^>]*?)\sr:id="[^"]*"/g, "$1").replace(/\sxr:uid="[^"]*"/g, "")
     .replace(CELL, (all, a, body) => {
       const ref = attr(a, "r");
       return translated.has(ref) && cellText(a, body, sst) != null ? inlineCell(a, translated.get(ref)) : all;
