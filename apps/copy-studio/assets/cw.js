@@ -276,7 +276,7 @@ function initArticle(cs) {
     check();
   };
   const check = () => {
-    const t = $("caFinal").value, miss = missingNumbers(src, t), extra = extraNumbers(src + " " + $("caPName").value + " " + $("caPUrl").value, t + " " + chosen()), iss = window.Compliance ? window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : [];
+    const t = $("caFinal").value, miss = missingNumbers(src, t), extra = extraNumbers(igs + " " + src + " " + $("caPName").value + " " + $("caPUrl").value, t + " " + chosen()), iss = window.Compliance ? window.Compliance.check(t, { glossary: (cs.style || {}).glossary, allow: cs.allow || [] }).issues : [];
     $("caWarn").innerHTML = (miss.length ? '<div class="note small" style="color:#c0392b"><b>Angka dari naskah asli hilang atau berubah:</b> <span translate="no">' + esc(miss.join(", ")) + "</span></div>" : "") +
       (extra.length ? '<div class="note small" style="color:#c0392b"><b>Angka tidak ada di naskah IGS:</b> <span translate="no">' + esc(extra.join(", ")) + "</span></div>" : "") +
       iss.map((i) => '<div class="note small"><span translate="no">' + esc(i.msg) + "</span></div>").join("");
