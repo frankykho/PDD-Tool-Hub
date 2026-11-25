@@ -233,7 +233,8 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
         <label>Label<input type="text" id="wbTag" maxlength="24" value="FITUR BARU" translate="no" style="width:170px"></label>
         <label class="grow">Judul fitur <span id="wbTitleB"></span><input type="text" id="wbTitle" maxlength="40" translate="no" placeholder="Mis. Auto-invest reksa dana"></label>
       </div>
-      <label class="small muted" style="font-weight:600">Kalimat penjelasan (tidak tampil di susunan 3 HP tengah) <span id="wbDescB"></span><textarea id="wbDesc" maxlength="150" style="min-height:60px" translate="no"></textarea></label>
+      <label class="small muted" style="font-weight:600">Kalimat penjelasan (tidak tampil di susunan 3 HP tengah) <span id="wbDescB"></span><textarea id="wbDesc" maxlength="150" style="min-height:60px" translate="no" placeholder="Enter = pindah baris"></textarea></label>
+      <label class="small muted" style="font-weight:600">Ukuran huruf penjelasan <span id="wbDescSzV">44</span> px<input type="range" id="wbDescSize" min="28" max="52" step="2" value="44" style="max-width:260px"></label>
       <div class="row"><button class="btn" id="wbFill" type="button">Ambil dari hasil What's New</button><button class="btn pri" id="wbDl" type="button">Unduh PNG</button><span class="small" id="wbWarn" role="status" style="color:var(--warn);font-weight:600"></span></div>
       <canvas id="wbCanvas" width="1920" height="1080" tabindex="0" role="img" aria-label="Pratinjau banner. Bila ada menu yang disorot: tarik sorotan untuk memindahkannya, atau panah untuk menggeser (Shift+panah = langkah besar)" style="width:100%;max-width:960px;height:auto;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.2)"></canvas>
     </div>
@@ -660,9 +661,9 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   };
 
   /* ---------- BANNER WHAT'S NEW: digambar di browser oleh assets/banner.js; screenshot tidak dikirim ke server & tidak disimpan ---------- */
-  var WB_IN = ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc"], wbShot = [null, null, null, null], wbLogo = {}, BN = null, wbFont = null, wbOver = [], wbQ = 0, wbStarted = false, wbSaved = {}, wbHlR = null, wbHlD = [0, 0], wbHlB = null;
+  var WB_IN = ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbDescSize"], wbShot = [null, null, null, null], wbLogo = {}, BN = null, wbFont = null, wbOver = [], wbQ = 0, wbStarted = false, wbSaved = {}, wbHlR = null, wbHlD = [0, 0], wbHlB = null;
   try { wbSaved = JSON.parse(localStorage.getItem("cs_wnb") || "{}"); } catch (e) {}
-  ["wbN", "wbTheme", "wbTag", "wbTitle", "wbDesc"].forEach(function (id) { if (wbSaved[id] != null) $(id).value = wbSaved[id]; });
+  ["wbN", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbDescSize"].forEach(function (id) { if (wbSaved[id] != null) $(id).value = wbSaved[id]; });
   function wbSave() { var o = {}; WB_IN.forEach(function (k) { o[k] = $(k).value; }); try { localStorage.setItem("cs_wnb", JSON.stringify(o)); } catch (e) {} }
   function wbLays() {
     if (!BN) return;
@@ -676,6 +677,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
   }
   function wbStatus() {
     $("wbTitleB").innerHTML = $("wbTitle").value.trim() ? badge($("wbTitle").value, "wn_title") : "";
+    $("wbDescSzV").textContent = $("wbDescSize").value;
     $("wbDescB").innerHTML = $("wbDesc").value.trim() ? badge($("wbDesc").value, "wn_short") : "";
     $("wbWarn").textContent = wbFont === false ? "Font Inter gagal dimuat; muat ulang halaman untuk mengunduh" : wbOver.length ? "Teks terlalu panjang, pendekkan judul/penjelasan" : "";
   }
@@ -685,7 +687,7 @@ html[data-theme] #toast{border-radius:var(--hg-r);box-shadow:var(--hg-shadow-lg)
     wbQ = requestAnimationFrame(function () {
       wbQ = 0;
       var lay = $("wbLay").value.split(":"), th = $("wbTheme").value;
-      var res = BN.draw($("wbCanvas").getContext("2d"), { id: lay[0], side: lay[1], theme: th, logo: wbLogo[th], shots: wbShot.slice(0, +$("wbN").value), hl: wbHlR && { shot: +$("wbHl").value, r: wbHlR, d: wbHlD }, tag: $("wbTag").value, title: $("wbTitle").value, desc: $("wbDesc").value });
+      var res = BN.draw($("wbCanvas").getContext("2d"), { id: lay[0], side: lay[1], theme: th, logo: wbLogo[th], shots: wbShot.slice(0, +$("wbN").value), hl: wbHlR && { shot: +$("wbHl").value, r: wbHlR, d: wbHlD }, tag: $("wbTag").value, title: $("wbTitle").value, desc: $("wbDesc").value, descSize: +$("wbDescSize").value });
       wbOver = res.overflow; wbHlB = res.hl; if (wbHlB) wbHlD = wbHlB.d; // geseran yang mentok di tepi banner tidak menumpuk
       $("wbCanvas").style.touchAction = wbHlB ? "none" : ""; $("wbCanvas").style.cursor = wbHlB ? "move" : "";
       wbStatus();

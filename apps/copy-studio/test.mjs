@@ -265,12 +265,19 @@ assert.equal(f1.overflow, false); assert.equal(f1.size, 88);
 const f2 = B.fitText(ms, "x".repeat(150), { w: 1000, size: 36, minSize: 22, maxLines: 3, lh: 1.4 });
 assert.ok(f2.lines.every((l) => ms(l, f2.size) <= 1000), "kata panjang dipecah, tidak melebihi lebar");
 assert.equal(B.fitText(ms, "kata ".repeat(200), { w: 300, size: 36, minSize: 22, maxLines: 3, lh: 1.4 }).overflow, true);
+{ const f = B.fitText(ms, "Baris satu\nBaris dua\n\nBaris empat", { w: 1000, size: 44, minSize: 26, maxLines: 4 });
+  assert.deepEqual(f.lines, ["Baris satu", "Baris dua", "", "Baris empat"], "Enter = baris baru, Enter dua kali = baris kosong"); }
 assert.equal(B.fileName("Auto-invest Reksa Dana!"), "whats-new-auto-invest-reksa-dana.png");
 assert.equal(B.fileName("  "), "whats-new-banner.png");
 
 // draw(): ctx tiruan yang mencatat panggilan
 const fakeCtx = () => { const log = []; const c = new Proxy({ log, measureText: (t) => ({ width: t.length * 20 }), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, { get: (o, k) => k in o ? o[k] : (...a) => log.push([k, ...a]), set: (o, k, v) => (log.push(["set:" + k, v]), true) }); return c; };
 const shot = { naturalWidth: 1080, naturalHeight: 2340 }, logoImg = { naturalWidth: 1200, naturalHeight: 390 };
+{ const fx = fakeCtx(); B.draw(fx, { id: "tegak", side: "kanan", theme: "terang", shots: [], title: "J", desc: "Satu\nDua", descSize: 36 });
+  assert.ok(["Satu", "Dua"].every((x) => fx.log.some((l) => l[0] === "fillText" && l[1] === x)), "penjelasan dua baris");
+  assert.ok(fx.log.some((l) => l[0] === "set:font" && l[1] === "400 36px Inter, Arial, sans-serif"), "ukuran huruf penjelasan dipakai");
+  const fy = fakeCtx(); B.draw(fy, { id: "tegak", side: "kanan", theme: "terang", shots: [], title: "J", desc: "x", descSize: 999 });
+  assert.ok(fy.log.some((l) => l[0] === "set:font" && l[1] === "400 52px Inter, Arial, sans-serif"), "ukuran dibatasi 52"); }
 { const fx = fakeCtx(), s2 = { naturalWidth: 1080, naturalHeight: 2340 }; B.draw(fx, { id: "seri3", side: "kanan", theme: "terang", shots: [shot, s2, null], title: "J" });
   const im = fx.log.filter((l) => l[0] === "drawImage" && (l[1] === shot || l[1] === s2));
   assert.deepEqual(im.map((l) => l[1] === shot), [true, false], "screenshot 1 dulu (HP utama), lalu layar lanjutan di depannya");
@@ -323,7 +330,7 @@ fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo
 assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1, "HP ke-3 tidak ada di susunan 1 HP: tanpa sorotan");
 
 // kontrol banner di tab What's New
-for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick", "wbDescSize"]) assert.ok(page.includes(`id="${id}"`), id);
 assert.ok(page.includes('import("/banner.js")'));
 assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
 assert.ok(page.includes('"cs_wnb"'));

@@ -76,25 +76,27 @@ export function moveHl(b, d) {
   return { ...b, cx, cy, d: [cx - b.cx, cy - b.cy] };
 }
 
-/** Bungkus teks ke lebar w; huruf mengecil 2 px per langkah sampai muat di maxLines atau sampai minSize (lalu overflow). */
+/** Bungkus teks ke lebar w; Enter = baris baru. Huruf mengecil 2 px per langkah sampai muat di maxLines atau sampai minSize (lalu overflow). */
 export function fitText(measure, text, { w, size, minSize, maxLines }) {
-  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  const paras = String(text || "").trim().split(/\r?\n/).map((p) => p.split(/\s+/).filter(Boolean));
   for (let s = size; ; s = Math.max(minSize, s - 2)) {
     const lines = [];
-    let cur = "";
-    for (let word of words) {
-      // kata yang lebih lebar dari kolom dipecah per huruf
-      while (measure(word, s) > w && word.length > 1) {
-        let k = word.length - 1;
-        while (k > 1 && measure(word.slice(0, k), s) > w) k--;
-        if (cur) { lines.push(cur); cur = ""; }
-        lines.push(word.slice(0, k));
-        word = word.slice(k);
+    for (const words of paras) {
+      let cur = "";
+      for (let word of words) {
+        // kata yang lebih lebar dari kolom dipecah per huruf
+        while (measure(word, s) > w && word.length > 1) {
+          let k = word.length - 1;
+          while (k > 1 && measure(word.slice(0, k), s) > w) k--;
+          if (cur) { lines.push(cur); cur = ""; }
+          lines.push(word.slice(0, k));
+          word = word.slice(k);
+        }
+        const next = cur ? cur + " " + word : word;
+        if (cur && measure(next, s) > w) { lines.push(cur); cur = word; } else cur = next;
       }
-      const next = cur ? cur + " " + word : word;
-      if (cur && measure(next, s) > w) { lines.push(cur); cur = word; } else cur = next;
+      lines.push(cur); // baris kosong dari Enter dua kali tetap jadi jarak
     }
-    if (cur) lines.push(cur);
     if (lines.length <= maxLines) return { size: s, lines, overflow: false };
     if (s <= minSize) return { size: s, lines: lines.slice(0, maxLines), overflow: true };
   }
@@ -201,7 +203,7 @@ export function draw(ctx, o) {
   };
   const title = String(o.title || "").trim(), desc = String(o.desc || "").trim();
   if (title) block(title, "title", 800, mid ? 84 : 104, 1.05, mid ? 1 : 3, T.title);
-  if (L.desc && desc) { y += 28; block(desc, "desc", 400, 44, 1.4, 3, T.desc); }
+  if (L.desc && desc) { y += 28; block(desc, "desc", 400, Math.min(52, Math.max(28, +o.descSize || 44)), 1.4, 4, T.desc); }
   // HP
   if (L.float) for (const p of L.phones) drawFloor(ctx, p, T);
   for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
