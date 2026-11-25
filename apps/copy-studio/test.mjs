@@ -232,9 +232,15 @@ assert.ok(aiCalls.includes("@cf/openai/whisper-large-v3-turbo"));
 
 /* ---------- banner What's New (assets/banner.js) ---------- */
 const B = await import("./assets/banner.js");
-assert.equal(B.combos().length, 11);
-assert.deepEqual(B.combos(2).map((c) => c.side), ["kanan", "kiri"]);
-assert.equal(B.combos(3).length, 3, "kipas kanan/kiri + tengah");
+assert.equal(B.combos().length, 19);
+assert.deepEqual(B.combos(2).map((c) => c.id + ":" + c.side), ["dua:kanan", "dua:kiri", "sejajar:kanan", "sejajar:kiri", "dua-miring:kanan", "dua-miring:kiri", "melayang:kanan", "melayang:kiri"]);
+assert.equal(B.layoutFor("melayang", "kanan").float, true); assert.equal(B.layoutFor("dua", "kanan").float, false);
+assert.deepEqual(B.layoutFor("melayang", "kiri").phones.map((p) => p.rot), [-12, 14], "melayang versi kiri dicerminkan");
+assert.equal(B.combos(3).length, 5, "kipas & alur kanan/kiri + tengah");
+{ const ak = B.layoutFor("alur", "kanan"), ai = B.layoutFor("alur", "kiri");
+  assert.deepEqual(ak.phones.map((p) => p.no), [3, 2, 1], "alur: HP depan yang tegak = screenshot 1 (langkah 1)");
+  assert.deepEqual(ai.phones.map((p) => p.no), [3, 2, 1], "versi kiri: nomor tetap");
+  assert.equal(ak.phones[2].rot, 0); assert.ok(ai.phones[2].x < ai.phones[0].x, "versi kiri: langkah 1 paling kiri"); }
 const kn = B.layoutFor("dua", "kanan"), kr = B.layoutFor("dua", "kiri");
 assert.deepEqual(kr.phones.map((p) => p.x), [1920 - 1060 - 440, 1920 - 1400 - 440], "dicerminkan, urutan gambar tetap");
 assert.deepEqual(kn.phones.map((p) => p.no), [1, 2]);
@@ -264,6 +270,10 @@ assert.equal(B.fileName("  "), "whats-new-banner.png");
 // draw(): ctx tiruan yang mencatat panggilan
 const fakeCtx = () => { const log = []; const c = new Proxy({ log, measureText: (t) => ({ width: t.length * 20 }), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, { get: (o, k) => k in o ? o[k] : (...a) => log.push([k, ...a]), set: (o, k, v) => (log.push(["set:" + k, v]), true) }); return c; };
 const shot = { naturalWidth: 1080, naturalHeight: 2340 }, logoImg = { naturalWidth: 1200, naturalHeight: 390 };
+{
+  const fx = fakeCtx(); B.draw(fx, { id: "alur", side: "kiri", theme: "terang", shots: [shot, null, null], title: "J" });
+  assert.deepEqual(fx.log.filter((l) => l[0] === "fillText" && /^[123]$/.test(l[1])).map((l) => l[1]), ["3", "2", "1"], "nomor langkah tampil");
+  assert.equal(fx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1); }
 let fcx = fakeCtx(), r1 = B.draw(fcx, { id: "kipas", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot, null], tag: "FITUR BARU", title: "Auto-invest", desc: "Investasi rutin." });
 assert.deepEqual(r1.overflow, []);
 assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 2, "dua screenshot digambar, slot kosong tidak");
@@ -293,6 +303,18 @@ for (const c of B.combos()) {
 fcx = fakeCtx(); B.draw(fcx, { id: "dua", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot], hl: { shot: 1, r: menu }, tag: "", title: "Judul", desc: "" });
 let crop = fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot && l.length === 10);
 assert.equal(crop.length, 3, "2 layar + 1 sorotan"); assert.deepEqual(crop[2].slice(2, 6), [0, 0.3 * 2340, 1080, 0.08 * 2340], "potongan sesuai area");
+assert.equal(fcx.log.filter((l) => l[0] === "arc").length, 0, "susunan biasa tanpa bayangan lantai");
+fcx = fakeCtx(); B.draw(fcx, { id: "melayang", side: "kanan", theme: "terang", logo: logoImg, shots: [shot, shot], title: "Judul" });
+assert.equal(fcx.log.filter((l) => l[0] === "arc").length, 2, "HP melayang: bayangan lantai per HP");
+// geser sorotan manual: ikut d, tetap di dalam banner, d hasil = geseran yang dipakai
+{ const L = B.layoutFor("dua", "kanan"), base = B.hlBox(L, L.phones[1], 1080, 2340, menu);
+  const r0 = B.draw(fakeCtx(), { id: "dua", side: "kanan", theme: "terang", shots: [shot, shot], hl: { shot: 1, r: menu }, title: "J" }).hl;
+  assert.equal(r0.cx, base.cx); assert.deepEqual(r0.d, [0, 0]);
+  const r1 = B.draw(fakeCtx(), { id: "dua", side: "kanan", theme: "terang", shots: [shot, shot], hl: { shot: 1, r: menu, d: [-30, 50] }, title: "J" }).hl;
+  assert.ok(Math.abs(r1.cx - (base.cx - 30)) < 1e-9 && Math.abs(r1.cy - (base.cy + 50)) < 1e-9, "digeser kiri 30, bawah 50");
+  const far = B.moveHl(base, [-9999, 9999]);
+  assert.ok(Math.abs(far.cx - (40 + base.w / 2)) < 1e-9 && Math.abs(far.cy - (1080 - 40 - base.h / 2)) < 1e-9, "mentok di tepi banner");
+  assert.deepEqual(far.d, [far.cx - base.cx, far.cy - base.cy]); }
 fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [null], hl: { shot: 0, r: menu }, title: "Judul" });
 assert.ok(!fcx.log.some((l) => l[0] === "drawImage" && l[1] === shot), "tanpa screenshot: tanpa sorotan");
 fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [shot], hl: { shot: 2, r: menu }, title: "Judul" });

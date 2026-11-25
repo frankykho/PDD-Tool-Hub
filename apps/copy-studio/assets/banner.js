@@ -2,18 +2,23 @@
 // Bagian atas = hitungan murni (tanpa DOM). Screenshot tidak pernah keluar dari browser.
 export const W = 1920, H = 1080;
 
-// Posisi versi "HP di kanan" [x, y, w, h, rotasi°]; urutan = urutan gambar (yang belakang dulu). Versi kiri = dicerminkan.
+// Posisi versi "HP di kanan" [x, y, w, h, rotasi°, nomor?]; urutan = urutan gambar (yang belakang dulu). Versi kiri = dicerminkan.
+// nomor = screenshot ke berapa (tanpa nomor: urutan kiri→kanan). steps: tampilkan nomor langkah di atas HP.
 export const LAYOUTS = [
   { id: "tegak", name: "1 HP tegak", n: 1, tw: 1000, p: [[1280, 150, 520, 1070, 0]] },
   { id: "miring", name: "1 HP miring", n: 1, tw: 1000, p: [[1250, 170, 540, 1110, -8]] },
   { id: "utuh", name: "1 HP utuh", n: 1, tw: 1000, p: [[1330, 90, 440, 900, 0]] },
   { id: "dua", name: "2 HP bertumpuk", n: 2, tw: 820, p: [[1060, 230, 440, 900, 0], [1400, 120, 440, 900, 0]] },
+  { id: "sejajar", name: "2 HP sejajar", n: 2, tw: 820, p: [[1000, 200, 400, 830, 0], [1440, 200, 400, 830, 0]] },
+  { id: "dua-miring", name: "2 HP miring", n: 2, tw: 820, p: [[1040, 210, 420, 860, -10], [1400, 110, 420, 860, -10]] },
+  { id: "melayang", name: "2 HP melayang", n: 2, tw: 820, float: true, p: [[1450, 70, 340, 700, 12], [1080, 90, 400, 820, -14]] },
   { id: "kipas", name: "3 HP kipas", n: 3, tw: 760, p: [[950, 260, 380, 780, -6], [1530, 260, 380, 780, 6], [1210, 150, 440, 900, 0]] },
+  { id: "alur", name: "3 HP alur langkah 1-2-3", n: 3, tw: 720, steps: true, p: [[940, 250, 320, 670, -16, 3], [1210, 230, 330, 690, -10, 2], [1500, 220, 340, 700, 0, 1]] },
   { id: "tengah", name: "3 HP tengah", n: 3, mid: true, p: [[460, 470, 360, 740, 0], [1100, 470, 360, 740, 0], [780, 420, 360, 740, 0]] },
 ];
 const byId = (id) => LAYOUTS.find((l) => l.id === id) || LAYOUTS[0];
 
-/** Semua kombinasi susunan × sisi (11), atau hanya yang jumlah HP-nya n. */
+/** Semua kombinasi susunan × sisi (19), atau hanya yang jumlah HP-nya n. */
 export function combos(n) {
   const out = [];
   for (const l of LAYOUTS) if (!n || l.n === n) for (const side of l.mid ? ["tengah"] : ["kanan", "kiri"]) out.push({ id: l.id, side, name: l.name + (l.mid ? "" : " — " + side) });
@@ -23,12 +28,14 @@ export function combos(n) {
 /** Posisi HP, kotak teks, dan logo untuk satu susunan. no = nomor screenshot (urutan kiri→kanan). */
 export function layoutFor(id, side) {
   const l = byId(id), mid = !!l.mid, left = !mid && side === "kiri";
-  const phones = l.p.map(([x, y, w, h, rot]) => (left ? { x: W - x - w, y, w, h, rot: -rot } : { x, y, w, h, rot }));
+  const phones = l.p.map(([x, y, w, h, rot, no]) => (left ? { x: W - x - w, y, w, h, rot: -rot, no } : { x, y, w, h, rot, no }));
   const xs = phones.map((p) => p.x).sort((a, b) => a - b);
-  phones.forEach((p) => (p.no = xs.indexOf(p.x) + 1));
+  phones.forEach((p) => (p.no = p.no || xs.indexOf(p.x) + 1));
   if (mid) return { phones, text: { x: 160, y: 160, w: W - 320, align: "center" }, logo: { x: W / 2, y: 56, h: 66, align: "center" }, desc: false, glow: [0.5, 0.45] };
   return {
     phones,
+    float: !!l.float,
+    steps: !!l.steps,
     text: { x: left ? W - 120 - l.tw : 120, y: 300, w: l.tw, align: "left" },
     logo: left ? { x: W - 120, y: 96, h: 76, align: "right" } : { x: 120, y: 96, h: 76, align: "left" },
     desc: true,
@@ -59,6 +66,12 @@ export function hlBox(L, p, iw, ih, r) {
   if (!mid) { cx += (toLeft ? -1 : 1) * p.w * 0.25; cx = toLeft ? Math.max(cx, edge + w / 2) : Math.min(cx, edge - w / 2); }
   cx = Math.min(Math.max(cx, 40 + w / 2), W - 40 - w / 2); cy = Math.min(Math.max(cy, 40 + h / 2), H - 40 - h / 2);
   return { cx, cy, w, h, rot: p.rot };
+}
+
+/** Geser kotak sorotan sejauh d = [dx, dy], tetap di dalam banner. d pada hasil = geseran yang benar-benar dipakai. */
+export function moveHl(b, d) {
+  const cx = Math.min(Math.max(b.cx + ((d && d[0]) || 0), 40 + b.w / 2), W - 40 - b.w / 2), cy = Math.min(Math.max(b.cy + ((d && d[1]) || 0), 40 + b.h / 2), H - 40 - b.h / 2);
+  return { ...b, cx, cy, d: [cx - b.cx, cy - b.cy] };
 }
 
 /** Bungkus teks ke lebar w; huruf mengecil 2 px per langkah sampai muat di maxLines atau sampai minSize (lalu overflow). */
@@ -115,6 +128,23 @@ function drawPhone(ctx, p, img, T) {
   ctx.restore();
   ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(-55, sy + 12, 110, 30, 15); ctx.fill();
   ctx.restore();
+}
+
+// bayangan lantai untuk HP melayang: elips lembut di bawah HP (setelah diputar)
+function drawFloor(ctx, p, T) {
+  const r = (Math.abs(p.rot) * Math.PI) / 180, cx = p.x + p.w / 2, cy = p.y + p.h / 2 + (p.h * Math.cos(r) + p.w * Math.sin(r)) / 2 + 60, rx = p.w * 0.6;
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+  g.addColorStop(0, T.shadow); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(1, 0.12); ctx.translate(-cx, -cy);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, rx, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// nomor langkah: lingkaran di atas tengah HP (ikut miringnya HP)
+function drawStep(ctx, p, T) {
+  const a = (p.rot * Math.PI) / 180, d = p.h / 2 + 58, cx = p.x + p.w / 2 + d * Math.sin(a), cy = p.y + p.h / 2 - d * Math.cos(a);
+  ctx.fillStyle = T.tagBg; ctx.beginPath(); ctx.arc(cx, cy, 36, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = T.tagFg; ctx.font = font(800, 40); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(p.no), cx, cy + 2);
 }
 
 // potongan screenshot yang diperbesar, menyala di atas HP
@@ -177,10 +207,13 @@ export function draw(ctx, o) {
   if (title) block(title, "title", 800, mid ? 84 : 104, 1.05, mid ? 1 : 3, T.title);
   if (L.desc && desc) { y += 28; block(desc, "desc", 400, 44, 1.4, 3, T.desc); }
   // HP
+  if (L.float) for (const p of L.phones) drawFloor(ctx, p, T);
   for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
-  // menu yang disorot: o.hl = { shot: indeks screenshot (0 = HP 1), r: {x, y, w, h} 0..1 }
+  if (L.steps) for (const p of L.phones) drawStep(ctx, p, T);
+  // menu yang disorot: o.hl = { shot: indeks screenshot (0 = HP 1), r: {x, y, w, h} 0..1, d: [dx, dy] geseran manual (px banner) }
   const hl = o.hl, hp = hl && hl.r && L.phones.find((p) => p.no - 1 === hl.shot), him = hp && (o.shots || [])[hl.shot];
-  if (him) drawHl(ctx, hlBox(L, hp, him.naturalWidth || him.width, him.naturalHeight || him.height, hl.r), him, hl.r, T);
+  let hb = null;
+  if (him) { hb = moveHl(hlBox(L, hp, him.naturalWidth || him.width, him.naturalHeight || him.height, hl.r), hl.d); drawHl(ctx, hb, him, hl.r, T); }
   ctx.restore();
-  return { overflow };
+  return { overflow, hl: hb };
 }
