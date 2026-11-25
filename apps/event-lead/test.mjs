@@ -132,9 +132,20 @@ assert.equal(people(E1.id).length, 1);
 let row = people(E1.id)[0];
 assert.equal(row.phone, "628123456789"); assert.equal(row.status, "terdaftar"); assert.equal(row.src, "form"); assert.equal(row.consent_ver, 2); assert.ok(row.consent_at); assert.equal(row.email, "");
 assert.equal(env.DB.db.prepare("SELECT n_reg FROM events WHERE id = ?").get(E1.id).n_reg, 1, "angka pendaftar ikut dihitung");
-// nomor sama, ditulis lain -> data lama diperbarui, bukan peserta ganda
+// nomor sama, ditulis lain -> ditolak (tidak ada data ganda), data lama tetap
 p = await submit("/d/" + E1.code, { ...REG, phone: "+62 812 3456 789", name: "Budi S." });
-assert.equal(people(E1.id).length, 1); assert.equal(people(E1.id)[0].name, "Budi S.");
+assert.equal(p.status, 409); assert.match(p.html, /Nomor HP ini sudah terdaftar di acara ini./);
+assert.equal(people(E1.id).length, 1); assert.equal(people(E1.id)[0].name, "Budi Santoso");
+// kode nasabah yang sama dengan nomor lain -> ditolak (huruf besar/kecil tidak dibedakan)
+await submit("/d/" + E1.code, { ...REG, phone: "081399990001", is_client: "1", client_code: "AB123" });
+p = await submit("/d/" + E1.code, { ...REG, phone: "081399990002", is_client: "1", client_code: " ab123 " });
+assert.equal(p.status, 409); assert.match(p.html, /Kode nasabah ini sudah terdaftar di acara ini./); assert.equal(people(E1.id).length, 2);
+// peserta yang dibatalkan boleh daftar lagi (baris yang sama dipakai ulang)
+env.DB.db.prepare("UPDATE people SET status = 'batal' WHERE event_id = ? AND phone = '6281399990001'").run(E1.id);
+p = await submit("/d/" + E1.code, { ...REG, phone: "081399990001", is_client: "1", client_code: "AB123" });
+assert.match(p.html, /Terima kasih/); assert.equal(people(E1.id).length, 2);
+assert.equal(env.DB.db.prepare("SELECT status FROM people WHERE event_id = ? AND phone = '6281399990001'").get(E1.id).status, "terdaftar");
+env.DB.db.prepare("DELETE FROM people WHERE event_id = ? AND phone = '6281399990001'").run(E1.id);
 // kolom jebakan terisi -> tampak berhasil, tapi tidak disimpan
 p = await submit("/d/" + E1.code, { ...REG, phone: "081300000001", website: "spam.test" });
 assert.equal(p.status, 200); assert.match(p.html, /Terima kasih/); assert.equal(people(E1.id).length, 1);
@@ -152,7 +163,8 @@ assert.match(p.html, /Kuota pendaftaran sudah penuh\./); assert.equal(people(E2.
 assert.match((await page("/d/" + E2.code)).html, /Kuota pendaftaran sudah penuh\./);
 assert.doesNotMatch((await page("/d/" + E2.code)).html, /name="phone"/, "form tidak tampil saat kuota penuh");
 p = await submit("/d/" + E2.code, { ...REG, name: "Budi Baru" });
-assert.equal(people(E2.id)[0].name, "Budi Baru", "peserta yang sudah terdaftar tetap bisa memperbarui datanya");
+assert.match(p.html, /Nomor HP ini sudah terdaftar di acara ini./, "kuota penuh: nomor yang sudah terdaftar diberi tahu, bukan kuota penuh");
+assert.equal(people(E2.id)[0].name, "Budi Santoso", "data tidak tertimpa");
 // ditutup / dibatalkan / sudah lewat
 const E3 = addEvent({ open: 0 }), E4 = addEvent({ status: "batal" }), E5 = addEvent({ date: "2026-10-29" });
 for (const [E, msg] of [[E3, /Pendaftaran sudah ditutup\./], [E4, /Acara ini dibatalkan\./], [E5, /Pendaftaran sudah ditutup\./]]) {
@@ -256,6 +268,8 @@ assert.equal(env.DB.db.prepare("SELECT status FROM people WHERE id = ?").get(ani
 r = await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Ani", phone: "+62 813-1111-2222", is_client: "0" } });
 assert.equal(r.status, 400); assert.equal(r.j.error, "Nomor HP ini sudah terdaftar di acara ini.");
 assert.deepEqual({ ...env.DB.db.prepare("SELECT name, is_client, client_code FROM people WHERE id = ?").get(ani) }, { name: "Ani Wijaya", is_client: 1, client_code: "K001" });
+r = await call("/api/people", { ck: SARI, body: { event_id: G.id, name: "Ani Lain", phone: "081377778888", is_client: "1", client_code: "k001" } });
+assert.equal(r.status, 400); assert.equal(r.j.error, "Kode nasabah ini sudah terdaftar di acara ini.", "tambah manual: kode nasabah ganda ditolak");
 // riwayat status bisa dilihat
 L = (await call("/api/people?event=" + G.id, { ck: SARI })).j;
 assert.deepEqual(L.history[ani].map((h) => [h.from_status, h.to_status, h.by_name]), [["", "terdaftar", "Sari"], ["terdaftar", "dikonfirmasi", "Sari"]]);

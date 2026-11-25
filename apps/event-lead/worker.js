@@ -362,6 +362,14 @@ async function upsertPerson(env, ev, d, opts, again = true) {
   }
   return id;
 }
+/** Data ganda di acara ini (null = aman): nomor HP atau kode nasabah sudah dipakai peserta lain. skipBatal: daftar ulang setelah dibatalkan boleh. */
+export const DUP_PHONE = "Nomor HP ini sudah terdaftar di acara ini.", DUP_CODE = "Kode nasabah ini sudah terdaftar di acara ini.";
+async function dupOf(env, ev, d, { exceptId = "", skipBatal = false } = {}) {
+  const r = await env.DB.prepare("SELECT phone, status FROM people WHERE event_id = ? AND id <> ? AND (phone = ? OR (? <> '' AND lower(client_code) = lower(?)))")
+    .bind(ev.id, exceptId, d.phone, d.client_code, d.client_code).all();
+  const rows = (r.results || []).filter((x) => !(skipBatal && x.status === "batal" && x.phone === d.phone));
+  return !rows.length ? null : rows.some((x) => x.phone === d.phone) ? DUP_PHONE : DUP_CODE;
+}
 async function register(request, env, ctx, ev) {
   if (!(await hit(env, request, "d:" + ev.id))) return pubHtml(ev.title, `<div class="card">${evHead(ev)}<p class="err" role="alert">Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti.</p></div>`, 429);
   const v = await formOf(request);
@@ -370,6 +378,8 @@ async function register(request, env, ctx, ev) {
   const d = cleanReg(v);
   if (d.error) return regPage(env, ev, { v, error: d.error, status: 400 });
   if (await regBlocked(env, ev, d.phone)) return regPage(env, ev, { v });
+  const dup = await dupOf(env, ev, d, { skipBatal: true });
+  if (dup) return regPage(env, ev, { v, error: dup + " Tidak perlu mendaftar lagi; tim kami akan menghubungi Anda lewat WhatsApp.", status: 409 });
   const c = await getConsent(env);
   await upsertPerson(env, ev, d, { src: "form", by: "Daftar mandiri", consentVer: c.ver });
   await changed(env, ctx, ev.id);
@@ -424,6 +434,7 @@ async function checkIn(request, env, ctx, ev) {
   if (!walkin) return absenPage(env, ev, { v, walkin: true });
   const d = cleanReg(v);
   if (d.error) return absenPage(env, ev, { v, walkin: true, error: d.error, status: 400 });
+  if (await dupOf(env, ev, d)) return absenPage(env, ev, { v, walkin: true, error: DUP_CODE + " Masukkan nomor HP yang dipakai saat mendaftar.", status: 409 });
   await upsertPerson(env, ev, d, { status: "hadir", src: "absen", by: "Absen mandiri (walk-in)", consentVer: (await getConsent(env)).ver, walkin: 1 });
   await changed(env, ctx, ev.id);
   return present(ev);
@@ -538,15 +549,16 @@ async function savePerson(env, ctx, me, org, b) {
   if (b.id) {
     const p = await env.DB.prepare("SELECT * FROM people WHERE id = ? AND event_id = ?").bind(String(b.id), ev.id).first();
     if (!p) return { error: "Peserta tidak ditemukan.", status: 404 };
-    const dup = await env.DB.prepare("SELECT id FROM people WHERE event_id = ? AND phone = ? AND id <> ?").bind(ev.id, d.phone, p.id).first();
-    if (dup) return { error: "Nomor HP ini sudah terdaftar di acara ini." };
+    const dup = await dupOf(env, ev, d, { exceptId: p.id });
+    if (dup) return { error: dup };
     await env.DB.prepare("UPDATE people SET name = ?, phone = ?, email = ?, is_client = ?, client_code = ?, updated_at = ?, updated_by = ? WHERE id = ?")
       .bind(d.name, d.phone, d.email, d.is_client, d.client_code, iso(env), by, p.id).run();
     await changed(env, ctx, ev.id);
     return { id: p.id };
   }
   // nomor yang sudah terdaftar tidak ditimpa diam-diam (mis. kode nasabah dari form daftar): ubah lewat tombol Ubah
-  if (await env.DB.prepare("SELECT id FROM people WHERE event_id = ? AND phone = ?").bind(ev.id, d.phone).first()) return { error: "Nomor HP ini sudah terdaftar di acara ini." };
+  const dup = await dupOf(env, ev, d);
+  if (dup) return { error: dup };
   const id = await upsertPerson(env, ev, d, { src: "manual", by });
   await changed(env, ctx, ev.id);
   return { id };
