@@ -232,15 +232,16 @@ assert.ok(aiCalls.includes("@cf/openai/whisper-large-v3-turbo"));
 
 /* ---------- banner What's New (assets/banner.js) ---------- */
 const B = await import("./assets/banner.js");
-assert.equal(B.combos().length, 19);
-assert.deepEqual(B.combos(2).map((c) => c.id + ":" + c.side), ["dua:kanan", "dua:kiri", "sejajar:kanan", "sejajar:kiri", "dua-miring:kanan", "dua-miring:kiri", "melayang:kanan", "melayang:kiri"]);
+assert.equal(B.combos().length, 23);
+assert.deepEqual(B.combos(2).map((c) => c.id + ":" + c.side), ["dua:kanan", "dua:kiri", "sejajar:kanan", "sejajar:kiri", "dua-miring:kanan", "dua-miring:kiri", "melayang:kanan", "melayang:kiri", "seri2:kanan", "seri2:kiri"]);
 assert.equal(B.layoutFor("melayang", "kanan").float, true); assert.equal(B.layoutFor("dua", "kanan").float, false);
 assert.deepEqual(B.layoutFor("melayang", "kiri").phones.map((p) => p.rot), [-12, 14], "melayang versi kiri dicerminkan");
-assert.equal(B.combos(3).length, 5, "kipas & alur kanan/kiri + tengah");
-{ const ak = B.layoutFor("alur", "kanan"), ai = B.layoutFor("alur", "kiri");
-  assert.deepEqual(ak.phones.map((p) => p.no), [3, 2, 1], "alur: HP depan yang tegak = screenshot 1 (langkah 1)");
-  assert.deepEqual(ai.phones.map((p) => p.no), [3, 2, 1], "versi kiri: nomor tetap");
-  assert.equal(ak.phones[2].rot, 0); assert.ok(ai.phones[2].x < ai.phones[0].x, "versi kiri: langkah 1 paling kiri"); }
+assert.equal(B.combos(3).length, 5, "kipas & seri kanan/kiri + tengah");
+assert.deepEqual(B.combos(4).map((c) => c.id + ":" + c.side), ["seri4:kanan", "seri4:kiri"]);
+for (const side of ["kanan", "kiri"]) { const L = B.layoutFor("seri4", side);
+  assert.deepEqual(L.phones.map((p) => p.no), [1, 2, 3, 4], "seri: urutan gambar = screenshot, layar berikutnya digambar di depan " + side);
+  assert.deepEqual(L.phones.map((p) => p.bare), [false, true, true, true], "hanya HP utama berbingkai");
+  const xs = L.phones.map((p) => p.x); assert.ok(side === "kanan" ? xs[0] < xs[3] : xs[0] > xs[3], "HP utama di sisi teks"); }
 const kn = B.layoutFor("dua", "kanan"), kr = B.layoutFor("dua", "kiri");
 assert.deepEqual(kr.phones.map((p) => p.x), [1920 - 1060 - 440, 1920 - 1400 - 440], "dicerminkan, urutan gambar tetap");
 assert.deepEqual(kn.phones.map((p) => p.no), [1, 2]);
@@ -270,10 +271,11 @@ assert.equal(B.fileName("  "), "whats-new-banner.png");
 // draw(): ctx tiruan yang mencatat panggilan
 const fakeCtx = () => { const log = []; const c = new Proxy({ log, measureText: (t) => ({ width: t.length * 20 }), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, { get: (o, k) => k in o ? o[k] : (...a) => log.push([k, ...a]), set: (o, k, v) => (log.push(["set:" + k, v]), true) }); return c; };
 const shot = { naturalWidth: 1080, naturalHeight: 2340 }, logoImg = { naturalWidth: 1200, naturalHeight: 390 };
-{
-  const fx = fakeCtx(); B.draw(fx, { id: "alur", side: "kiri", theme: "terang", shots: [shot, null, null], title: "J" });
-  assert.deepEqual(fx.log.filter((l) => l[0] === "fillText" && /^[123]$/.test(l[1])).map((l) => l[1]), ["3", "2", "1"], "nomor langkah tampil");
-  assert.equal(fx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1); }
+{ const fx = fakeCtx(), s2 = { naturalWidth: 1080, naturalHeight: 2340 }; B.draw(fx, { id: "seri3", side: "kanan", theme: "terang", shots: [shot, s2, null], title: "J" });
+  const im = fx.log.filter((l) => l[0] === "drawImage" && (l[1] === shot || l[1] === s2));
+  assert.deepEqual(im.map((l) => l[1] === shot), [true, false], "screenshot 1 dulu (HP utama), lalu layar lanjutan di depannya");
+  assert.equal(im[1][8], 340, "layar lanjutan tanpa bingkai: gambar selebar kartu");
+  assert.ok(!fx.log.some((l) => l[0] === "fillText" && /^[123]$/.test(l[1])), "tanpa nomor"); }
 let fcx = fakeCtx(), r1 = B.draw(fcx, { id: "kipas", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot, null], tag: "FITUR BARU", title: "Auto-invest", desc: "Investasi rutin." });
 assert.deepEqual(r1.overflow, []);
 assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 2, "dua screenshot digambar, slot kosong tidak");
