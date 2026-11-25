@@ -30,7 +30,7 @@ export default {
         async function yahooChartQuote(symbol) {
           const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/'
             + encodeURIComponent(symbol)
-            + '?interval=1d&range=1d&includePrePost=false&events=history';
+            + '?interval=1d&range=5d&includePrePost=false&events=history';
           const res = await fetch(yUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
@@ -49,7 +49,14 @@ export default {
           const lastClose = [...closes].reverse().find(v => Number.isFinite(Number(v)));
           const lastVolume = [...volumes].reverse().find(v => v != null);
           const price = Number(meta.regularMarketPrice ?? lastClose);
-          const prev = Number(meta.chartPreviousClose ?? meta.previousClose);
+          // Penutupan sebelumnya = close bar harian terakhir sebelum hari transaksi ini.
+          // meta.chartPreviousClose (range=1d) untuk ^JKSE bisa tertinggal sehari, jadi tidak dipakai kalau bar ada.
+          const off = Number(meta.gmtoffset) || 0, ts = result.timestamp || [];
+          const day = (t) => new Date((t + off) * 1000).toISOString().slice(0, 10);
+          const today = day(meta.regularMarketTime ?? ts[ts.length - 1]);
+          let barPrev = null;
+          for (let i = ts.length - 1; i >= 0 && barPrev == null; i--) if (day(ts[i]) < today && closes[i] != null && Number.isFinite(Number(closes[i]))) barPrev = Number(closes[i]);
+          const prev = Number(barPrev ?? meta.chartPreviousClose ?? meta.previousClose);
           const volume = Number(meta.regularMarketVolume ?? lastVolume ?? 0);
           if (!Number.isFinite(price) || !Number.isFinite(prev) || prev <= 0) {
             throw new Error('Yahoo chart incomplete price/previous');
