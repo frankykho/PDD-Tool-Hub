@@ -296,10 +296,10 @@ for (const c of B.combos()) {
     if (c.side === "kiri") assert.ok(b.cx + b.w / 2 <= L.text.x - 29.9, "tidak menabrak teks " + tag);
   }
 }
-{ const L = B.layoutFor("tegak", "kanan"), p = L.phones[0], b = B.hlBox(L, p, 1080, 2340, menu), sw = p.w - 40;
+{ const L = B.layoutFor("tegak", "kanan"), p = L.phones[0], b = B.hlBox(L, p, 1080, 2340, menu), sw = p.w - 2 * B.BEZEL;
   assert.ok(Math.abs(b.w - sw * B.HL_SCALE) < 1e-6, "menu selebar layar diperbesar " + B.HL_SCALE + "x");
   assert.ok(b.cx < p.x + p.w / 2, "digeser ke arah teks (kiri)");
-  assert.ok(Math.abs(b.cy - (p.y + 20 + (0.34 * 2340) * (sw / 1080))) < 1e-6, "tinggi mengikuti letak menu di layar");
+  assert.ok(Math.abs(b.cy - (p.y + B.BEZEL + (0.34 * 2340) * (sw / 1080))) < 1e-6, "tinggi mengikuti letak menu di layar");
   const bl = B.hlBox(B.layoutFor("tegak", "kiri"), B.layoutFor("tegak", "kiri").phones[0], 1080, 2340, menu);
   assert.ok(bl.cx > B.layoutFor("tegak", "kiri").phones[0].x + p.w / 2, "versi kiri: digeser ke kanan"); }
 fcx = fakeCtx(); B.draw(fcx, { id: "dua", side: "kanan", theme: "gelap", logo: logoImg, shots: [shot, shot], hl: { shot: 1, r: menu }, tag: "", title: "Judul", desc: "" });

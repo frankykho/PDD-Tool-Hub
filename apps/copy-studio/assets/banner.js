@@ -50,13 +50,14 @@ export function coverTop(iw, ih, w, h) {
   return { sx: (iw - sw) / 2, sy: 0, sw, sh };
 }
 
+export const BEZEL = 9; // tebal bingkai HP (px banner)
 export const HL_SCALE = 1.35;
 /**
  * Kotak "menu yang disorot": area r (0..1 dari screenshot iw×ih) di HP p, diperbesar dan digeser keluar HP ke arah teks
  * (tidak sampai menabrak kolom teks, tetap di dalam banner). Hasil: pusat, ukuran, rotasi (ikut HP).
  */
 export function hlBox(L, p, iw, ih, r) {
-  const m = p.bare ? 0 : 20, sw = p.w - 2 * m, sh = p.h - 2 * m, c = coverTop(iw, ih, sw, sh), k = sw / c.sw, rw = r.w * iw * k, rh = r.h * ih * k;
+  const m = p.bare ? 0 : BEZEL, sw = p.w - 2 * m, sh = p.h - 2 * m, c = coverTop(iw, ih, sw, sh), k = sw / c.sw, rw = r.w * iw * k, rh = r.h * ih * k;
   const mid = L.text.align === "center", toLeft = !mid && L.text.x < p.x;
   // ruang kosong antara kolom teks dan tepi banner (susunan tengah: selebar banner)
   const edge = mid ? 40 : toLeft ? L.text.x + L.text.w + 30 : L.text.x - 30, room = mid ? W - 80 : toLeft ? W - 40 - edge : edge - 40;
@@ -118,17 +119,17 @@ function drawPhone(ctx, p, img, T) {
   ctx.rotate((p.rot * Math.PI) / 180);
   const x = -p.w / 2, y = -p.h / 2;
   ctx.shadowColor = T.shadow; ctx.shadowBlur = 80; ctx.shadowOffsetY = 40;
-  const m = p.bare ? 0 : 20; // layar lanjutan (seri): kartu layar saja, tanpa bingkai HP
-  ctx.fillStyle = p.bare ? "#ffffff" : "#111111"; ctx.beginPath(); ctx.roundRect(x, y, p.w, p.h, p.bare ? 46 : 64); ctx.fill();
+  const m = p.bare ? 0 : BEZEL; // layar lanjutan (seri): kartu layar saja, tanpa bingkai HP
+  ctx.fillStyle = p.bare ? "#ffffff" : "#111111"; ctx.beginPath(); ctx.roundRect(x, y, p.w, p.h, p.bare ? 46 : 58); ctx.fill();
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-  if (T.rim && !p.bare) { ctx.strokeStyle = T.rim; ctx.lineWidth = 2; ctx.stroke(); }
+  if (!p.bare) { ctx.strokeStyle = T.rim || "#4a4f4d"; ctx.lineWidth = 2; ctx.stroke(); } // tepi tipis seperti rangka logam
   const sx = x + m, sy = y + m, sw = p.w - 2 * m, sh = p.h - 2 * m;
   ctx.save();
-  ctx.beginPath(); ctx.roundRect(sx, sy, sw, sh, 46); ctx.clip();
+  ctx.beginPath(); ctx.roundRect(sx, sy, sw, sh, p.bare ? 46 : 58 - BEZEL); ctx.clip();
   if (img) { const c = coverTop(img.naturalWidth || img.width, img.naturalHeight || img.height, sw, sh); ctx.drawImage(img, c.sx, c.sy, c.sw, c.sh, sx, sy, sw, sh); }
   else { ctx.fillStyle = "#d9dedb"; ctx.fillRect(sx, sy, sw, sh); }
   ctx.restore();
-  if (!p.bare) { ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(-55, sy + 12, 110, 30, 15); ctx.fill(); }
+  if (!p.bare) { ctx.fillStyle = "#111111"; ctx.beginPath(); ctx.roundRect(-42, sy + 14, 84, 24, 12); ctx.fill(); }
   ctx.restore();
 }
 
