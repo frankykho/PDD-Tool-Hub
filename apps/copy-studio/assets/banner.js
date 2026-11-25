@@ -50,7 +50,7 @@ export function coverTop(iw, ih, w, h) {
   return { sx: (iw - sw) / 2, sy: 0, sw, sh };
 }
 
-export const BEZEL = 9; // tebal bingkai HP (px banner)
+export const BEZEL = 5; // tebal bingkai HP (px banner)
 export const HL_SCALE = 1.35;
 /**
  * Kotak "menu yang disorot": area r (0..1 dari screenshot iw×ih) di HP p, diperbesar dan digeser keluar HP ke arah teks
