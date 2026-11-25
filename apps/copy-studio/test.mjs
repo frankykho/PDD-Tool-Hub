@@ -323,14 +323,21 @@ assert.equal(fcx.log.filter((l) => l[0] === "arc").length, 2, "HP melayang: baya
   assert.ok(Math.abs(r1.cx - (base.cx - 30)) < 1e-9 && Math.abs(r1.cy - (base.cy + 50)) < 1e-9, "digeser kiri 30, bawah 50");
   const far = B.moveHl(base, [-9999, 9999]);
   assert.ok(Math.abs(far.cx - (40 + base.w / 2)) < 1e-9 && Math.abs(far.cy - (1080 - 40 - base.h / 2)) < 1e-9, "mentok di tepi banner");
-  assert.deepEqual(far.d, [far.cx - base.cx, far.cy - base.cy]); }
+  assert.deepEqual(far.d, [far.cx - base.cx, far.cy - base.cy]);
+  // besar sorotan: 1 = otomatis, 1.5 = 1,5x, 0.5 = setengah; tetap di dalam banner walau diminta sangat besar
+  const b15 = B.hlBox(L, L.phones[1], 1080, 2340, menu, 1.5), b05 = B.hlBox(L, L.phones[1], 1080, 2340, menu, 0.5);
+  assert.ok(Math.abs(b15.w - base.w * 1.5) < 1e-6 && Math.abs(b05.h - base.h * 0.5) < 1e-6, "ukuran ikut pengali");
+  const big = B.hlBox(L, L.phones[1], 1080, 2340, menu, 99);
+  assert.ok(big.w <= 1920 - 80 + 1e-6 && big.h <= 1080 - 80 + 1e-6 && big.cx - big.w / 2 >= 39.9 && big.cx + big.w / 2 <= 1880.1, "dibatasi ukuran banner");
+  const z = B.draw(fakeCtx(), { id: "dua", side: "kanan", theme: "terang", shots: [shot, shot], hl: { shot: 1, r: menu, z: 1.5 }, title: "J" }).hl;
+  assert.ok(Math.abs(z.w - b15.w) < 1e-6, "draw memakai besar sorotan"); }
 fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [null], hl: { shot: 0, r: menu }, title: "Judul" });
 assert.ok(!fcx.log.some((l) => l[0] === "drawImage" && l[1] === shot), "tanpa screenshot: tanpa sorotan");
 fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo: logoImg, shots: [shot], hl: { shot: 2, r: menu }, title: "Judul" });
 assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1, "HP ke-3 tidak ada di susunan 1 HP: tanpa sorotan");
 
 // kontrol banner di tab What's New
-for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick", "wbDescSize"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick", "wbDescSize", "wbHlSize"]) assert.ok(page.includes(`id="${id}"`), id);
 assert.ok(page.includes('import("/banner.js")'));
 assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
 assert.ok(page.includes('"cs_wnb"'));

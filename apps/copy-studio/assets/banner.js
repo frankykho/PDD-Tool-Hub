@@ -54,14 +54,15 @@ export const BEZEL = 5; // tebal bingkai HP (px banner)
 export const HL_SCALE = 1.35;
 /**
  * Kotak "menu yang disorot": area r (0..1 dari screenshot iw×ih) di HP p, diperbesar dan digeser keluar HP ke arah teks
- * (tidak sampai menabrak kolom teks, tetap di dalam banner). Hasil: pusat, ukuran, rotasi (ikut HP).
+ * (tidak sampai menabrak kolom teks, tetap di dalam banner). zoom = pengali ukuran dari pengguna (1 = otomatis; lebih besar boleh menutupi teks).
+ * Hasil: pusat, ukuran, rotasi (ikut HP).
  */
-export function hlBox(L, p, iw, ih, r) {
+export function hlBox(L, p, iw, ih, r, zoom = 1) {
   const m = p.bare ? 0 : BEZEL, sw = p.w - 2 * m, sh = p.h - 2 * m, c = coverTop(iw, ih, sw, sh), k = sw / c.sw, rw = r.w * iw * k, rh = r.h * ih * k;
   const mid = L.text.align === "center", toLeft = !mid && L.text.x < p.x;
   // ruang kosong antara kolom teks dan tepi banner (susunan tengah: selebar banner)
   const edge = mid ? 40 : toLeft ? L.text.x + L.text.w + 30 : L.text.x - 30, room = mid ? W - 80 : toLeft ? W - 40 - edge : edge - 40;
-  const s = Math.min(HL_SCALE, room / rw, (H * 0.6) / rh), w = rw * s, h = rh * s;
+  const s0 = Math.min(HL_SCALE, room / rw, (H * 0.6) / rh), s = s0 * Math.min(+zoom || 1, (W - 80) / (rw * s0), (H - 80) / (rh * s0)), w = rw * s, h = rh * s;
   // pusat area di koordinat HP (pusat HP = 0,0), lalu diputar seperti HP-nya
   const lx = -p.w / 2 + m + ((r.x + r.w / 2) * iw - c.sx) * k, ly = -p.h / 2 + m + ((r.y + r.h / 2) * ih - c.sy) * k, a = (p.rot * Math.PI) / 180;
   let cx = p.x + p.w / 2 + lx * Math.cos(a) - ly * Math.sin(a), cy = p.y + p.h / 2 + lx * Math.sin(a) + ly * Math.cos(a);
@@ -207,10 +208,10 @@ export function draw(ctx, o) {
   // HP
   if (L.float) for (const p of L.phones) drawFloor(ctx, p, T);
   for (const p of L.phones) drawPhone(ctx, p, (o.shots || [])[p.no - 1] || null, T);
-  // menu yang disorot: o.hl = { shot: indeks screenshot (0 = HP 1), r: {x, y, w, h} 0..1, d: [dx, dy] geseran manual (px banner) }
+  // menu yang disorot: o.hl = { shot: indeks screenshot (0 = HP 1), r: {x, y, w, h} 0..1, d: [dx, dy] geseran manual (px banner), z: pengali ukuran }
   const hl = o.hl, hp = hl && hl.r && L.phones.find((p) => p.no - 1 === hl.shot), him = hp && (o.shots || [])[hl.shot];
   let hb = null;
-  if (him) { hb = moveHl(hlBox(L, hp, him.naturalWidth || him.width, him.naturalHeight || him.height, hl.r), hl.d); drawHl(ctx, hb, him, hl.r, T); }
+  if (him) { hb = moveHl(hlBox(L, hp, him.naturalWidth || him.width, him.naturalHeight || him.height, hl.r, hl.z), hl.d); drawHl(ctx, hb, him, hl.r, T); }
   ctx.restore();
   return { overflow, hl: hb };
 }
