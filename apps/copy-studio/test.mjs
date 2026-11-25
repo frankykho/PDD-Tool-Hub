@@ -232,12 +232,20 @@ assert.ok(aiCalls.includes("@cf/openai/whisper-large-v3-turbo"));
 
 /* ---------- banner What's New (assets/banner.js) ---------- */
 const B = await import("./assets/banner.js");
-assert.equal(B.combos().length, 23);
+assert.equal(B.combos().length, 30);
 assert.deepEqual(B.combos(2).map((c) => c.id + ":" + c.side), ["dua:kanan", "dua:kiri", "sejajar:kanan", "sejajar:kiri", "dua-miring:kanan", "dua-miring:kiri", "melayang:kanan", "melayang:kiri", "seri2:kanan", "seri2:kiri"]);
 assert.equal(B.layoutFor("melayang", "kanan").float, true); assert.equal(B.layoutFor("dua", "kanan").float, false);
 assert.deepEqual(B.layoutFor("melayang", "kiri").phones.map((p) => p.rot), [-12, 14], "melayang versi kiri dicerminkan");
 assert.equal(B.combos(3).length, 5, "kipas & seri kanan/kiri + tengah");
-assert.deepEqual(B.combos(4).map((c) => c.id + ":" + c.side), ["seri4:kanan", "seri4:kiri"]);
+assert.deepEqual(B.combos(4).map((c) => c.id + ":" + c.side), ["seri4:kanan", "seri4:kiri", "kipas4:kanan", "kipas4:kiri", "tengah4:tengah"]);
+assert.deepEqual(B.combos(5).map((c) => c.id + ":" + c.side), ["seri5:kanan", "seri5:kiri", "tengah5:tengah", "kipas5:tengah"]);
+// HP susunan 4–5 tetap di dalam lebar banner (bbox setelah diputar), dan susunan tengah tidak menabrak judul di atas
+for (const c of B.combos().filter((c) => /^(kipas4|tengah4|seri5|tengah5|kipas5)$/.test(c.id))) for (const p of B.layoutFor(c.id, c.side).phones) {
+  const r = Math.abs(p.rot) * Math.PI / 180, hw = (p.w * Math.cos(r) + p.h * Math.sin(r)) / 2, hh = (p.h * Math.cos(r) + p.w * Math.sin(r)) / 2, cx = p.x + p.w / 2;
+  assert.ok(cx - hw >= 0 && cx + hw <= 1920, "HP di dalam banner " + c.id + c.side);
+  if (c.side === "tengah") assert.ok(p.y + p.h / 2 - hh >= 380, "HP di bawah judul " + c.id);
+}
+assert.deepEqual(B.layoutFor("tengah5", "tengah").phones.map((p) => p.no), [1, 5, 2, 4, 3], "nomor screenshot = urutan kiri→kanan");
 for (const side of ["kanan", "kiri"]) { const L = B.layoutFor("seri4", side);
   assert.deepEqual(L.phones.map((p) => p.no), [1, 2, 3, 4], "seri: urutan gambar = screenshot, layar berikutnya digambar di depan " + side);
   assert.deepEqual(L.phones.map((p) => p.bare), [false, true, true, true], "hanya HP utama berbingkai");
@@ -337,7 +345,7 @@ fcx = fakeCtx(); B.draw(fcx, { id: "tegak", side: "kanan", theme: "terang", logo
 assert.equal(fcx.log.filter((l) => l[0] === "drawImage" && l[1] === shot).length, 1, "HP ke-3 tidak ada di susunan 1 HP: tanpa sorotan");
 
 // kontrol banner di tab What's New
-for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick", "wbDescSize", "wbHlSize"]) assert.ok(page.includes(`id="${id}"`), id);
+for (const id of ["wbN", "wbLay", "wbTheme", "wbTag", "wbTitle", "wbDesc", "wbShots", "wbFill", "wbCanvas", "wbWarn", "wbDl", "wbHl", "wbHlPick", "wbDescSize", "wbHlSize", "wbS5"]) assert.ok(page.includes(`id="${id}"`), id);
 assert.ok(page.includes('import("/banner.js")'));
 assert.ok(/fonts\.googleapis\.com\/css2\?family=Inter/.test(page));
 assert.ok(page.includes('"cs_wnb"'));

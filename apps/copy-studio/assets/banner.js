@@ -16,11 +16,16 @@ export const LAYOUTS = [
   { id: "seri2", name: "2 HP seri (alur fitur)", n: 2, tw: 820, seri: true, p: [[1000, 260, 380, 780, 6], [1330, 160, 380, 780, 8]] },
   { id: "seri3", name: "3 HP seri (alur fitur)", n: 3, tw: 720, seri: true, p: [[900, 320, 340, 700, 6], [1160, 240, 340, 700, 8], [1420, 160, 340, 700, 8]] },
   { id: "seri4", name: "4 HP seri (alur fitur)", n: 4, tw: 700, seri: true, p: [[880, 340, 320, 660, 6], [1070, 270, 320, 660, 8], [1260, 200, 320, 660, 8], [1450, 130, 320, 660, 8]] },
+  { id: "kipas4", name: "4 HP kipas", n: 4, tw: 700, p: [[880, 300, 300, 620, -9], [1560, 300, 300, 620, 9], [1100, 230, 320, 660, -3], [1340, 230, 320, 660, 3]] },
+  { id: "tengah4", name: "4 HP tengah", n: 4, mid: true, p: [[240, 470, 330, 680, 0], [1350, 470, 330, 680, 0], [610, 420, 330, 680, 0], [980, 420, 330, 680, 0]] },
+  { id: "seri5", name: "5 HP seri (alur fitur)", n: 5, tw: 680, seri: true, p: [[860, 380, 290, 600, 6], [1020, 325, 290, 600, 8], [1180, 270, 290, 600, 8], [1340, 215, 290, 600, 8], [1500, 160, 290, 600, 8]] },
+  { id: "tengah5", name: "5 HP tengah", n: 5, mid: true, p: [[150, 490, 300, 620, 0], [1470, 490, 300, 620, 0], [480, 450, 300, 620, 0], [1140, 450, 300, 620, 0], [810, 420, 300, 620, 0]] },
+  { id: "kipas5", name: "5 HP kipas tengah", n: 5, mid: true, p: [[300, 490, 320, 660, -12], [1300, 490, 320, 660, 12], [550, 430, 320, 660, -6], [1050, 430, 320, 660, 6], [800, 400, 320, 660, 0]] },
   { id: "tengah", name: "3 HP tengah", n: 3, mid: true, p: [[460, 470, 360, 740, 0], [1100, 470, 360, 740, 0], [780, 420, 360, 740, 0]] },
 ];
 const byId = (id) => LAYOUTS.find((l) => l.id === id) || LAYOUTS[0];
 
-/** Semua kombinasi susunan × sisi (23), atau hanya yang jumlah HP-nya n. */
+/** Semua kombinasi susunan × sisi (30), atau hanya yang jumlah HP-nya n. */
 export function combos(n) {
   const out = [];
   for (const l of LAYOUTS) if (!n || l.n === n) for (const side of l.mid ? ["tengah"] : ["kanan", "kiri"]) out.push({ id: l.id, side, name: l.name + (l.mid ? "" : " — " + side) });
